@@ -9,6 +9,7 @@ import java.util.Random;
 import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.DensityField3;
 import net.xavil.universal.common.universe.LodVolume;
 import net.xavil.universal.common.universe.Units;
@@ -38,7 +39,9 @@ public class Galaxy {
 	}
 
 	public static final double TM_PER_SECTOR = Units.TM_PER_LY * 10;
+	public static final double TM_PER_SECTOR_3 = TM_PER_SECTOR * TM_PER_SECTOR * TM_PER_SECTOR;
 	public static final int INITIAL_SAMPLE_COUNT = 10000;
+	public static final int DENSITY_SAMPLE_COUNT = 2500;
 
 	public static final double SOL_LIFETIME_MYA = 10e4;
 
@@ -72,20 +75,44 @@ public class Galaxy {
 		var volume = new LodVolume<StarSystem.Info, StarSystem>(volumeCoords, TM_PER_SECTOR,
 				(info, offset, id) -> generateStarSystem(volumeCoords, offset, info, systemSeed(volumeCoords, id)));
 
-		// the maximum system density we can accurately reproduce
-		var maxDensity = INITIAL_SAMPLE_COUNT
-				/ (TM_PER_SECTOR * TM_PER_SECTOR * TM_PER_SECTOR);
-
-		for (var i = 0; i < INITIAL_SAMPLE_COUNT; ++i) {
-			var infoSeed = random.nextLong();
+		final var sectorBase = volume.getBasePos();
+		var sectorDensitySum = 0.0;
+		for (var i = 0; i < 10000; ++i) {
 			var volumeOffsetTm = randomVec(random);
-			var density = this.densityField
-					.sampleDensity(Vec3.atLowerCornerOf(volumeCoords).scale(TM_PER_SECTOR).add(volumeOffsetTm));
+			sectorDensitySum += this.densityField.sampleDensity(sectorBase.add(volumeOffsetTm));
+		}
+		final var averageSectorDensity = Math.max(0, sectorDensitySum / 10000);
+		Mod.LOGGER.warn("average density: {}", averageSectorDensity);
 
-			if (density >= random.nextDouble(0, maxDensity)) {
-				volume.addInitial(volumeOffsetTm, generateStarSystemInfo(volumeCoords, volumeOffsetTm, infoSeed));
+		var starAttemptCount = (int) (averageSectorDensity * TM_PER_SECTOR_3);
+		Mod.LOGGER.warn("star attempt count: {}", (int) (averageSectorDensity * TM_PER_SECTOR_3));
+
+		if (starAttemptCount > 10000) {
+			Mod.LOGGER.warn("high star attempt count: {}", starAttemptCount);
+			starAttemptCount = 10000;
+		}
+
+		int totalAttempts = 0, successfulAttempts = 0;
+		var maxDensity = starAttemptCount / TM_PER_SECTOR_3;
+		for (var i = 0; i < starAttemptCount; ++i) {
+			var infoSeed = random.nextLong();
+			totalAttempts += 1;
+
+			for (var j = 0; j < 16; ++j) {
+				var volumeOffsetTm = randomVec(random);
+				var density = this.densityField
+						.sampleDensity(Vec3.atLowerCornerOf(volumeCoords).scale(TM_PER_SECTOR).add(volumeOffsetTm));
+
+				if (density >= random.nextDouble(0, maxDensity)) {
+					volume.addInitial(volumeOffsetTm, generateStarSystemInfo(volumeCoords, volumeOffsetTm, infoSeed));
+					successfulAttempts += 1;
+					break;
+				}
 			}
 		}
+
+		Mod.LOGGER.warn("total attempts: {}", totalAttempts);
+		Mod.LOGGER.warn("successful attempts: {}", successfulAttempts);
 
 		this.loadedVolumes.put(volumeCoords, volume);
 		return volume;
@@ -192,6 +219,10 @@ public class Galaxy {
 			}
 
 			var rootNode = pairingList.get(0);
+
+			// TODO: if two stars are close enough to one another, maybe try to merge them,
+			// or maybe have a small chance of having the more massive one form an accretion
+			// disc around itself.
 
 			// TODO: generate planets
 			// TODO: generate comets and such

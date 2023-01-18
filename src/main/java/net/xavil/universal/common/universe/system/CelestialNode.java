@@ -5,6 +5,7 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Units;
 
@@ -36,6 +37,10 @@ public abstract sealed class CelestialNode {
 			return null;
 		}
 		return lookupSubtree(id);
+	}
+
+	public final int getId() {
+		return this.id;
 	}
 
 	/**
@@ -181,18 +186,21 @@ public abstract sealed class CelestialNode {
 		}
 
 		public static enum StarClass {
-			O("O"),
-			B("B"),
-			A("A"),
-			F("F"),
-			G("G"),
-			K("K"),
-			M("M");
+			O("O", new Vec3(0.1, 0.1, 1)),
+			B("B", new Vec3(0.6, 0.6, 1)),
+			A("A", new Vec3(0.8, 0.8, 1)),
+			F("F", new Vec3(1, 1, 1)),
+			G("G", new Vec3(1, 1, 0.7)),
+			K("K", new Vec3(1, 0.7, 0.3)),
+			M("M", new Vec3(1, 0.3, 0.05));
 
 			public final String name;
+			// FIXME: color is based on star temperature, not star class!
+			public final Vec3 color;
 
-			private StarClass(String name) {
+			private StarClass(String name, Vec3 color) {
 				this.name = name;
+				this.color = color;
 			}
 		}
 

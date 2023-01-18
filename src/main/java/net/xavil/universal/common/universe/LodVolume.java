@@ -12,7 +12,7 @@ import net.minecraft.world.phys.Vec3;
 public class LodVolume<I, F> {
 
 	public final Vec3i position;
-	private final double cellResolution;
+	public final double volumeLength;
 
 	// private final Map<Vec3i, Object2IntMap<Vec3>> initialCells = new HashMap<>();
 	// private final Map<Vec3i, Object2IntMap<Vec3>> fullCells = new HashMap<>();
@@ -33,7 +33,7 @@ public class LodVolume<I, F> {
 
 	public LodVolume(Vec3i position, double cellResolution, FullSupplier<I, F> fullSupplier) {
 		this.position = position;
-		this.cellResolution = cellResolution;
+		this.volumeLength = cellResolution;
 		this.fullSupplier = fullSupplier;
 	}
 
@@ -88,6 +88,10 @@ public class LodVolume<I, F> {
 
 	public int size() {
 		return this.initialList.size();
+	}
+
+	public Vec3 getBasePos() {
+		return Vec3.atLowerCornerOf(this.position).scale(this.volumeLength);
 	}
 
 	// public Stream<T> streamInitial() {

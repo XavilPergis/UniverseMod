@@ -47,6 +47,10 @@ public interface DensityField3 {
 		return pos -> (double) Math.max(0, 1 - pos.length() / radius);
 	}
 
+	static DensityField3 simplexNoise(double w) {
+		return pos -> SimplexNoise.noise(pos.x, pos.y, pos.z, w);
+	}
+
 	static DensityField3 sphereMask(double radius) {
 		final var r2 = radius * radius;
 		return pos -> pos.lengthSqr() > r2 ? 0 : 1;
@@ -59,6 +63,10 @@ public interface DensityField3 {
 
 	default DensityField3 translate(Vec3 newOrigin) {
 		return pos -> this.sampleDensity(newOrigin.add(pos));
+	}
+
+	default DensityField3 scale(double scale) {
+		return pos -> this.sampleDensity(pos.scale(scale));
 	}
 
 	default DensityField3 scale(double xScale, double yScale, double zScale) {

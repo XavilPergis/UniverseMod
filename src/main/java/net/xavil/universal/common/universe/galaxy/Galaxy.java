@@ -40,7 +40,9 @@ public class Galaxy {
 
 	public static final double TM_PER_SECTOR = Units.TM_PER_LY * 10;
 	public static final double TM_PER_SECTOR_3 = TM_PER_SECTOR * TM_PER_SECTOR * TM_PER_SECTOR;
-	public static final int INITIAL_SAMPLE_COUNT = 10000;
+
+	public static final int MAXIMUM_STARS_PER_SECTOR = 30000;
+	public static final int MAXIMUM_STAR_PLACEMENT_ATTEMPTS = 16;
 	public static final int DENSITY_SAMPLE_COUNT = 2500;
 
 	public static final double SOL_LIFETIME_MYA = 10e4;
@@ -77,31 +79,27 @@ public class Galaxy {
 
 		final var sectorBase = volume.getBasePos();
 		var sectorDensitySum = 0.0;
-		for (var i = 0; i < 10000; ++i) {
+		for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
 			var volumeOffsetTm = randomVec(random);
 			sectorDensitySum += this.densityField.sampleDensity(sectorBase.add(volumeOffsetTm));
 		}
-		final var averageSectorDensity = Math.max(0, sectorDensitySum / 10000);
-		Mod.LOGGER.warn("average density: {}", averageSectorDensity);
+		final var averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
 
 		var starAttemptCount = (int) (averageSectorDensity * TM_PER_SECTOR_3);
-		Mod.LOGGER.warn("star attempt count: {}", (int) (averageSectorDensity * TM_PER_SECTOR_3));
 
-		if (starAttemptCount > 10000) {
+		if (starAttemptCount > MAXIMUM_STARS_PER_SECTOR) {
 			Mod.LOGGER.warn("high star attempt count: {}", starAttemptCount);
-			starAttemptCount = 10000;
+			starAttemptCount = MAXIMUM_STARS_PER_SECTOR;
 		}
 
-		int totalAttempts = 0, successfulAttempts = 0;
+		int successfulAttempts = 0;
 		var maxDensity = starAttemptCount / TM_PER_SECTOR_3;
 		for (var i = 0; i < starAttemptCount; ++i) {
 			var infoSeed = random.nextLong();
-			totalAttempts += 1;
 
-			for (var j = 0; j < 16; ++j) {
+			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
 				var volumeOffsetTm = randomVec(random);
-				var density = this.densityField
-						.sampleDensity(Vec3.atLowerCornerOf(volumeCoords).scale(TM_PER_SECTOR).add(volumeOffsetTm));
+				var density = this.densityField.sampleDensity(sectorBase.add(volumeOffsetTm));
 
 				if (density >= random.nextDouble(0, maxDensity)) {
 					volume.addInitial(volumeOffsetTm, generateStarSystemInfo(volumeCoords, volumeOffsetTm, infoSeed));
@@ -111,13 +109,25 @@ public class Galaxy {
 			}
 		}
 
-		Mod.LOGGER.warn("total attempts: {}", totalAttempts);
-		Mod.LOGGER.warn("successful attempts: {}", successfulAttempts);
+		Mod.LOGGER.info("[galaxygen] average stellar density: {}", averageSectorDensity);
+		Mod.LOGGER.info("[galaxygen] star placement attempt count: {}", starAttemptCount);
+		Mod.LOGGER.info("[galaxygen] successful star placements: {}", successfulAttempts);
 
 		this.loadedVolumes.put(volumeCoords, volume);
 		return volume;
 	}
 
+	public final double MINIMUM_STAR_MASS_YG = Units.YG_PER_MSOL * 0.1;
+	public final double MAXIMUM_STAR_MASS_YG = Units.YG_PER_MSOL * 30.0;
+
+	private double generateStarMass(Random random, double upperBoundYg) {
+		upperBoundYg = Math.min(MAXIMUM_STAR_MASS_YG, upperBoundYg);
+		var massFactor = Math.pow(random.nextDouble(), 15);
+		var massYg = Mth.lerp(massFactor, MINIMUM_STAR_MASS_YG, upperBoundYg);
+		return massYg;
+	}
+
+	// Basic system info
 	private StarSystem.Info generateStarSystemInfo(Vec3i volumeCoords, Vec3 volumeOffsetTm, long seed) {
 		var random = new Random(seed);
 		var info = new StarSystem.Info();
@@ -127,11 +137,32 @@ public class Galaxy {
 		// very young systems and old systems.
 		var systemAgeFactor = Math.pow(random.nextDouble(), 3);
 		info.systemAgeMya = Mth.lerp(systemAgeFactor, 1, this.info.ageMya);
-		info.availableHydrogenYg = random.nextDouble(Units.YG_PER_MSOL * 0.1, Units.YG_PER_MSOL * 100);
+		var remainingHydrogenYg = random.nextDouble(Units.YG_PER_MSOL * 0.1, Units.YG_PER_MSOL * 100);
+
+		// there's always at least one star per system
+		var initialStarMass = generateStarMass(random, remainingHydrogenYg);
+		info.stars.add(generateStarNode(info.systemAgeMya, initialStarMass));
+
+		// NOTE: generating the stars upfront in this simple way does not seem to be too
+		// costly to do, even directly on the render thread. It still might make sense
+		// to do everything a background thread, still.
+		for (var attempts = 0; attempts < 256; ++attempts) {
+			if (random.nextDouble() < 0.5)
+				break;
+
+			var mass = generateStarMass(random, remainingHydrogenYg);
+			if (remainingHydrogenYg >= mass && remainingHydrogenYg >= MINIMUM_STAR_MASS_YG) {
+				remainingHydrogenYg -= mass;
+				info.stars.add(generateStarNode(info.systemAgeMya, mass));
+			}
+		}
+
+		info.remainingHydrogenYg = remainingHydrogenYg;
 
 		return info;
 	}
 
+	// Full system info
 	public StarSystem generateStarSystem(Vec3i volumeCoords, Vec3 volumeOffsetTm, StarSystem.Info info, long seed) {
 		var random = new Random(seed);
 
@@ -140,102 +171,31 @@ public class Galaxy {
 				random.nextDouble(-Math.PI * 2, Math.PI * 2),
 				random.nextDouble(-Math.PI * 2, Math.PI * 2));
 
-		var ctx = new SystemGenerationContext(systemPlane, info.systemAgeMya, random, info.availableHydrogenYg);
-		var rootNode = ctx.generate();
+		var rootNode = pairStars(random, systemPlane, info.stars);
+
 		rootNode.assignIds();
 
 		return new StarSystem(this, "Test", rootNode);
 	}
 
-	private static class SystemGenerationContext {
-		public final CelestialNode.OrbitalPlane orbitalPlane;
-		public final double systemAgeMya;
-		public final Random random;
+	private static CelestialNode pairStars(Random random, CelestialNode.OrbitalPlane systemPlane, List<CelestialNode.StellarBodyNode> stars) {
+		if (stars.isEmpty()) return null;
 
-		private final List<CelestialNode.StellarBodyNode> starNodes = new ArrayList<>();
-		private final List<CelestialNode.BinaryNode> binaryStarNodes = new ArrayList<>();
+		var pairingList = new ArrayList<CelestialNode>(stars);
+		while (pairingList.size() > 1) {
+			var a = pairingList.remove(random.nextInt(0, pairingList.size()));
+			var b = pairingList.remove(random.nextInt(0, pairingList.size()));
+			if (a == b)
+				continue;
 
-		public double remainingHydrogenYg;
-
-		public final double MINIMUM_STAR_MASS_YG = Units.YG_PER_MSOL * 0.1;
-		public final double MAXIMUM_STAR_MASS_YG = Units.YG_PER_MSOL * 30.0;
-
-		public SystemGenerationContext(OrbitalPlane orbitalPlane, double systemAgeMya,
-				Random random, double remainingHydrogenYg) {
-			this.orbitalPlane = orbitalPlane;
-			this.systemAgeMya = systemAgeMya;
-			this.random = random;
-			this.remainingHydrogenYg = remainingHydrogenYg;
+			var eccentricity = random.nextDouble(0, 0.05);
+			var smaTm = random.nextDouble(0.01, 10);
+			var node = new CelestialNode.BinaryNode(a, b, systemPlane, eccentricity, smaTm);
+			pairingList.add(node);
 		}
 
-		private double generateStarMass(double upperBoundYg) {
-			upperBoundYg = Math.min(MAXIMUM_STAR_MASS_YG, upperBoundYg);
-			var massFactor = Math.pow(this.random.nextDouble(), 15);
-			var massYg = Mth.lerp(massFactor, MINIMUM_STAR_MASS_YG, upperBoundYg);
-			if (this.remainingHydrogenYg < MINIMUM_STAR_MASS_YG) {
-				return 0;
-			}
-			this.remainingHydrogenYg -= massYg;
-			return massYg;
-		}
-
-		public CelestialNode generate() {
-
-			// In non-circumbinary planets, if a planet's distance to its primary exceeds
-			// about one fifth of the closest approach of the other star, orbital stability
-			// is not guaranteed
-
-			// For a circumbinary planet, orbital stability is guaranteed only if the
-			// planet's distance from the stars is significantly greater than star-to-star
-			// distance.
-			// The minimum stable star-to-circumbinary-planet separation is about 2–4 times
-			// the binary star separation
-
-			// there's always at least one star per system
-			this.starNodes.add(generateStarNode(systemAgeMya, generateStarMass(this.remainingHydrogenYg)));
-
-			for (var attempts = 0; attempts < 256; ++attempts) {
-				if (this.random.nextDouble() < 0.5)
-					break;
-
-				var mass = generateStarMass(this.remainingHydrogenYg);
-				if (mass >= MINIMUM_STAR_MASS_YG) {
-					this.starNodes.add(generateStarNode(systemAgeMya, mass));
-				}
-			}
-
-			// Consolidate the list of stars into a single celestial node.
-			var pairingList = new ArrayList<CelestialNode>(this.starNodes);
-			while (pairingList.size() > 1) {
-				var a = pairingList.remove(this.random.nextInt(0, pairingList.size()));
-				var b = pairingList.remove(this.random.nextInt(0, pairingList.size()));
-				if (a == b)
-					continue;
-
-				var eccentricity = this.random.nextDouble(0, 0.05);
-				var smaTm = this.random.nextDouble(0.01, 10);
-				var node = new CelestialNode.BinaryNode(a, b, this.orbitalPlane, eccentricity, smaTm);
-				pairingList.add(node);
-			}
-
-			var rootNode = pairingList.get(0);
-
-			// TODO: if two stars are close enough to one another, maybe try to merge them,
-			// or maybe have a small chance of having the more massive one form an accretion
-			// disc around itself.
-
-			// TODO: generate planets
-			// TODO: generate comets and such
-
-			return rootNode;
-		}
-
-		private void generatePlanetsAround(CelestialNode node) {
-		}
-
+		return pairingList.get(0);
 	}
-
-	// private static CelestialNode.StellarBodyNode generateSeedStarNode() {}
 
 	private static CelestialNode.StellarBodyNode generateStarNode(double systemAgeMya, double massYg) {
 		var massMsol = massYg / Units.YG_PER_MSOL;

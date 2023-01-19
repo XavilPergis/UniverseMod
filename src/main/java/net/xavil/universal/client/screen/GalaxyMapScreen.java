@@ -1,8 +1,8 @@
 package net.xavil.universal.client.screen;
 
+import java.util.Comparator;
+import java.util.Objects;
 import java.util.stream.Stream;
-
-import javax.annotation.Nullable;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -30,7 +30,6 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.LodVolume;
 import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
-import net.xavil.universal.common.universe.system.CelestialNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
@@ -67,7 +66,9 @@ public class GalaxyMapScreen extends Screen {
 	private StarmapCamera camera = new StarmapCamera();
 	private int currentSystemId = 0;
 
-	private double starRenderRadius = 0.9 * Galaxy.TM_PER_SECTOR;
+	public static final double STAR_RENDER_RADIUS = 0.9 * Galaxy.TM_PER_SECTOR;
+	public static final double TM_PER_UNIT = 1000;
+	public static final double UNITS_PER_SECTOR = Galaxy.TM_PER_SECTOR / TM_PER_UNIT;
 
 	@Override
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
@@ -108,6 +109,7 @@ public class GalaxyMapScreen extends Screen {
 			this.camera.scaleTarget = Math.min(this.camera.scaleTarget, 192.0);
 			return true;
 		}
+
 		return false;
 	}
 
@@ -134,6 +136,7 @@ public class GalaxyMapScreen extends Screen {
 
 	private static class StarmapCamera {
 
+		// i kinda hate this!
 		public Vec3 focusPosTarget = Vec3.ZERO;
 		public Vec3 focusPos = Vec3.ZERO;
 		public Vec3 focusPosOld = Vec3.ZERO;
@@ -155,6 +158,9 @@ public class GalaxyMapScreen extends Screen {
 		private final Minecraft client = Minecraft.getInstance();
 
 		public void tick() {
+			// this works well enough, and gets us framerate independence, but it feels
+			// slightly laggy to use, since we're always a tick behind the current target.
+			// would be nice if there was a better way to do this.
 			this.focusPosOld = this.focusPos;
 			this.yawOld = this.yaw;
 			this.pitchOld = this.pitch;
@@ -175,6 +181,13 @@ public class GalaxyMapScreen extends Screen {
 			var y = Mth.lerp(partialTick, this.focusPosOld.y, this.focusPos.y);
 			var z = Mth.lerp(partialTick, this.focusPosOld.z, this.focusPos.z);
 			return new Vec3(x, y, z);
+		}
+
+		public Vec3 getPos(float partialTick) {
+			var backwards = getUpVector(partialTick).cross(getRightVector(partialTick));
+			var backwardsTranslation = backwards.scale(getScale(partialTick));
+			var cameraPos = getFocusPos(partialTick).scale(1 / TM_PER_UNIT).add(backwardsTranslation);
+			return cameraPos;
 		}
 
 		public double getYaw(float partialTick) {
@@ -217,35 +230,9 @@ public class GalaxyMapScreen extends Screen {
 		}
 	}
 
-	public static final double TM_PER_UNIT = 1000;
-	public static final double UNITS_PER_SECTOR = Galaxy.TM_PER_SECTOR / TM_PER_UNIT;
-
 	private void renderGrid(float partialTick) {
-
-		var oldInvViewRotationMatrix = RenderSystem.getInverseViewRotationMatrix();
-		RenderSystem.backupProjectionMatrix();
-		RenderSystem.setProjectionMatrix(this.camera.getProjectionMatrix());
-
-		var rotation = this.camera.getOrientation(partialTick);
-
-		var modelViewStack = RenderSystem.getModelViewStack();
-		modelViewStack.pushPose();
-		modelViewStack.setIdentity();
-
-		modelViewStack.pushPose();
-
-		modelViewStack.mulPose(rotation);
-		Matrix3f inverseViewRotationMatrix = modelViewStack.last().normal().copy();
-		if (inverseViewRotationMatrix.invert()) {
-			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
-		}
-		modelViewStack.popPose();
-
-		modelViewStack.mulPose(rotation);
-		var forward = camera.getUpVector(partialTick).cross(camera.getRightVector(partialTick));
-		var aaa = this.camera.getFocusPos(partialTick).scale(1 / TM_PER_UNIT)
-				.add(forward.scale(this.camera.getScale(partialTick)));
-		modelViewStack.translate(-aaa.x, -aaa.y, -aaa.z);
+		var prevMatrices = RenderMatrices.capture();
+		setupRenderMatrices(partialTick);
 
 		// setup
 
@@ -254,143 +241,54 @@ public class GalaxyMapScreen extends Screen {
 		RenderSystem.disableTexture();
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
-		// RenderSystem.defaultBlendFunc();
 		RenderSystem.lineWidth(1);
-
-		PoseStack aaaaaaaa = RenderSystem.getModelViewStack();
-		aaaaaaaa.pushPose();
-		aaaaaaaa.scale(0.99975586f, 0.99975586f, 0.99975586f);
-		RenderSystem.applyModelViewMatrix();
 
 		// Grid
 
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-		bufferBuilder.begin(VertexFormat.Mode.LINES,
-				DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		renderGrid(bufferBuilder, modelViewStack, partialTick);
-		RenderSystem.depthMask(false);
+		bufferBuilder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+		renderGrid(bufferBuilder, partialTick);
 		bufferBuilder.end();
+
+		PoseStack poseStack = RenderSystem.getModelViewStack();
+		poseStack.pushPose();
+		// this scale is taken from `RenderStateShare.VIEW_OFFSET_Z_LAYERING`, which
+		// `RenderType.lines()` uses. It seems to resolve z-fighting issues that line
+		// rendering otherwise has.
+		poseStack.scale(0.99975586f, 0.99975586f, 0.99975586f);
 		RenderSystem.applyModelViewMatrix();
+		RenderSystem.depthMask(false);
 		BufferUploader.end(bufferBuilder);
 		RenderSystem.depthMask(true);
-
-		// cleanup
-
-		// PoseStack aaaaaaaa = RenderSystem.getModelViewStack();
-		aaaaaaaa.popPose();
-		RenderSystem.applyModelViewMatrix();
+		poseStack.popPose();
 
 		RenderSystem.enableCull();
 		RenderSystem.enableTexture();
-		// RenderSystem.defaultBlendFunc();
 		RenderSystem.disableBlend();
 
-		modelViewStack.popPose();
-		RenderSystem.applyModelViewMatrix();
-		RenderSystem.restoreProjectionMatrix();
-		RenderSystem.setInverseViewRotationMatrix(oldInvViewRotationMatrix);
+		prevMatrices.restore();
 	}
 
-	private void renderGrid(VertexConsumer builder, PoseStack poseStack, float partialTick) {
+	private void renderGrid(VertexConsumer builder, float partialTick) {
+		var currentThreshold = 1;
+		var scaleFactor = 4;
 
-		double l = 0;
-		double h = UNITS_PER_SECTOR;
-
-		var gridLineCount = 100;
 		var scale = 1;
+		for (var i = 0; i < 10; ++i) {
+			currentThreshold *= scaleFactor;
+			if (this.camera.scale > currentThreshold)
+				scale = currentThreshold;
+		}
 
-		if (this.camera.scale > 10)
-			scale = 10;
-		if (this.camera.scale > 100)
-			scale = 100;
-
-		var gridResolution = scale * h / gridLineCount;
 		var focusPos = this.camera.getFocusPos(partialTick).scale(1 / TM_PER_UNIT);
-
-		var gridMinX = gridResolution * Math.floor(focusPos.x / gridResolution);
-		var gridMinZ = gridResolution * Math.floor(focusPos.z / gridResolution);
-
-		float r = 1, g = 1, b = 1, a = 0.05f;
-		var p = poseStack.last().normal();
-
-		var gridOffset = gridResolution * gridLineCount / 2;
-
-		// NOTE: each line needs to be divided into sections, because the lines will
-		// become distorted if they are too long.
-		// X
-		for (var i = 1; i < gridLineCount; ++i) {
-			var z = gridMinZ + i * gridResolution - gridOffset;
-			var lx = gridMinX + scale * l - gridOffset;
-			var hx = gridMinX + scale * h - gridOffset;
-
-			var zMark = (int) Math.floor(gridMinZ / gridResolution + i - gridLineCount / 2);
-			var la = zMark % 10 == 0 ? 0.2f : a;
-
-			for (var j = 0; j < gridLineCount; ++j) {
-				var lt = j / (double) gridLineCount;
-				var ht = (j + 1) / (double) gridLineCount;
-				builder.vertex(Mth.lerp(lt, lx, hx), focusPos.y, z).color(r, g, b, la).normal(1, 0, 0).endVertex();
-				builder.vertex(Mth.lerp(ht, lx, hx), focusPos.y, z).color(r, g, b, la).normal(1, 0, 0).endVertex();
-			}
-		}
-		// Z
-		for (var i = 1; i < gridLineCount; ++i) {
-			var x = gridMinX + i * gridResolution - gridOffset;
-			var lz = gridMinZ + scale * l - gridOffset;
-			var hz = gridMinZ + scale * h - gridOffset;
-
-			var xMark = (int) Math.floor(gridMinX / gridResolution + i - gridLineCount / 2);
-			var la = xMark % 10 == 0 ? 0.2f : a;
-
-			for (var j = 0; j < gridLineCount; ++j) {
-				var lt = j / (double) gridLineCount;
-				var ht = (j + 1) / (double) gridLineCount;
-				builder.vertex(x, focusPos.y, Mth.lerp(lt, lz, hz)).color(r, g, b, la).normal(0, 0, 1).endVertex();
-				builder.vertex(x, focusPos.y, Mth.lerp(ht, lz, hz)).color(r, g, b, la).normal(0, 0, 1).endVertex();
-			}
-		}
-
+		RenderHelper.renderGrid(builder, focusPos, scale * UNITS_PER_SECTOR, scaleFactor, 100);
 	}
 
-	private void renderSectorBox(VertexConsumer builder, PoseStack poseStack, Vec3i sectorPos) {
-		double lx = (double) sectorPos.getX() * UNITS_PER_SECTOR;
-		double ly = (double) sectorPos.getY() * UNITS_PER_SECTOR;
-		double lz = (double) sectorPos.getZ() * UNITS_PER_SECTOR;
-		double hx = lx + UNITS_PER_SECTOR;
-		double hy = ly + UNITS_PER_SECTOR;
-		double hz = lz + UNITS_PER_SECTOR;
-
-		float r = 1, g = 1, b = 1, a = 0.2f;
-
-		var p = poseStack.last().normal();
-
-		// X axis
-		builder.vertex(lx, ly, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(hx, ly, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(lx, ly, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(hx, ly, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(lx, hy, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(hx, hy, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(lx, hy, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(hx, hy, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		// Y axis
-		builder.vertex(lx, ly, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(lx, hy, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(lx, ly, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(lx, hy, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(hx, ly, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(hx, hy, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(hx, ly, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(hx, hy, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		// Z axis
-		builder.vertex(lx, ly, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(lx, ly, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(lx, hy, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(lx, hy, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(hx, ly, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(hx, ly, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(hx, hy, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(hx, hy, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	private void renderSectorBox(VertexConsumer builder, Vec3i sectorPos) {
+		var lo = Vec3.atLowerCornerOf(sectorPos).scale(UNITS_PER_SECTOR);
+		var hi = Vec3.atLowerCornerOf(sectorPos.offset(1, 1, 1)).scale(UNITS_PER_SECTOR);
+		var color = new Color(1, 1, 1, 0.2f);
+		RenderHelper.renderAxisAlignedBox(builder, lo, hi, color);
 	}
 
 	private static record StarInfo(Vec3 pos, Vec3 color) {
@@ -401,85 +299,97 @@ public class GalaxyMapScreen extends Screen {
 
 		var up = camera.getUpVector(partialTick);
 		var right = camera.getRightVector(partialTick);
-		var upHalf = up.scale(0.5).scale(2);
-		var rightHalf = right.scale(0.5).scale(2);
+		var backwards = up.cross(right);
+
+		var billboardUp = up.scale(1);
+		var billboardRight = right.scale(1);
+		var billboardUpInner = billboardUp.scale(0.5);
+		var billboardRightInner = billboardRight.scale(0.5);
+		var billboardForwardInner = backwards.scale(-0.01);
+
 		var focusPos = this.camera.getFocusPos(partialTick);
 
 		sectorOffsets.forEach(info -> {
-			// var absolutePos =
-			// info.pos.add(Vec3.atLowerCornerOf(sectorPos).scale(Galaxy.TM_PER_SECTOR /
-			// TM_PER_UNIT));
 			var distanceFromFocus = focusPos.distanceTo(info.pos);
-			var alphaFactor = 1 - Mth.clamp(distanceFromFocus / this.starRenderRadius, 0, 1);
+			var alphaFactor = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
 
 			if (alphaFactor == 0)
 				return;
 
 			var center = info.pos.scale(1 / TM_PER_UNIT);
 
-			var qll = center.subtract(upHalf).subtract(rightHalf);
-			var qlh = center.subtract(upHalf).add(rightHalf);
-			var qhl = center.add(upHalf).subtract(rightHalf);
-			var qhh = center.add(upHalf).add(rightHalf);
+			// TODO: do the billboarding in a vertex shader!
 
 			float r = (float) info.color.x, g = (float) info.color.y, b = (float) info.color.z;
 			float a = (float) alphaFactor;
 
+			var qll = center.subtract(billboardUp).subtract(billboardRight);
+			var qlh = center.subtract(billboardUp).add(billboardRight);
+			var qhl = center.add(billboardUp).subtract(billboardRight);
+			var qhh = center.add(billboardUp).add(billboardRight);
 			builder.vertex(qhl.x, qhl.y, qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
 			builder.vertex(qll.x, qll.y, qll.z).color(r, g, b, a).uv(0, 0).endVertex();
 			builder.vertex(qlh.x, qlh.y, qlh.z).color(r, g, b, a).uv(0, 1).endVertex();
 			builder.vertex(qhh.x, qhh.y, qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
+
+			var qlls = center.subtract(billboardUpInner).subtract(billboardRightInner).add(billboardForwardInner);
+			var qlhs = center.subtract(billboardUpInner).add(billboardRightInner).add(billboardForwardInner);
+			var qhls = center.add(billboardUpInner).subtract(billboardRightInner).add(billboardForwardInner);
+			var qhhs = center.add(billboardUpInner).add(billboardRightInner).add(billboardForwardInner);
+			builder.vertex(qhls.x, qhls.y, qhls.z).color(1, 1, 1, a).uv(1, 0).endVertex();
+			builder.vertex(qlls.x, qlls.y, qlls.z).color(1, 1, 1, a).uv(0, 0).endVertex();
+			builder.vertex(qlhs.x, qlhs.y, qlhs.z).color(1, 1, 1, a).uv(0, 1).endVertex();
+			builder.vertex(qhhs.x, qhhs.y, qhhs.z).color(1, 1, 1, a).uv(1, 1).endVertex();
 		});
 
 	}
 
-	private @Nullable CelestialNode.StellarBodyNode getBrightestStar(CelestialNode node) {
-		if (node instanceof CelestialNode.BinaryNode binaryNode) {
-			CelestialNode.StellarBodyNode a = getBrightestStar(binaryNode.a);
-			CelestialNode.StellarBodyNode b = getBrightestStar(binaryNode.b);
-			if (a == null)
-				return b;
-			if (b == null)
-				return a;
-			return a.luminosityLsol > b.luminosityLsol ? a : b;
-		} else if (node instanceof CelestialNode.StellarBodyNode starNode) {
-			return starNode;
-		} else {
-			return null;
+	private static class RenderMatrices {
+
+		private PoseStack.Pose prevModelViewPose = null;
+		private Matrix4f prevProjectionMatrix = null;
+		private Matrix3f prevInverseViewRotationMatrix = null;
+
+		public static RenderMatrices capture() {
+			var mats = new RenderMatrices();
+			mats.prevInverseViewRotationMatrix = RenderSystem.getInverseViewRotationMatrix();
+			mats.prevProjectionMatrix = RenderSystem.getProjectionMatrix();
+			mats.prevModelViewPose = RenderSystem.getModelViewStack().last();
+			return mats;
 		}
+
+		public void restore() {
+			RenderSystem.getModelViewStack().last().pose().load(this.prevModelViewPose.pose());
+			RenderSystem.getModelViewStack().last().normal().load(this.prevModelViewPose.normal());
+			RenderSystem.applyModelViewMatrix();
+			RenderSystem.setProjectionMatrix(this.prevProjectionMatrix);
+			RenderSystem.setInverseViewRotationMatrix(this.prevInverseViewRotationMatrix);
+		}
+
 	}
 
-	private void renderStars(LodVolume<StarSystem.Info, StarSystem> volume, float partialTick) {
-
-		var oldInvViewRotationMatrix = RenderSystem.getInverseViewRotationMatrix();
-		RenderSystem.backupProjectionMatrix();
+	// this should only be called once the render matrices have been captured,
+	// because it overwrites them.
+	private void setupRenderMatrices(float partialTick) {
 		RenderSystem.setProjectionMatrix(this.camera.getProjectionMatrix());
 
+		var poseStack = RenderSystem.getModelViewStack();
+		poseStack.setIdentity();
+
 		var rotation = this.camera.getOrientation(partialTick);
-
-		var modelViewStack = RenderSystem.getModelViewStack();
-		modelViewStack.pushPose();
-		modelViewStack.setIdentity();
-
-		modelViewStack.pushPose();
-
-		modelViewStack.mulPose(rotation);
-		Matrix3f inverseViewRotationMatrix = modelViewStack.last().normal().copy();
+		poseStack.mulPose(rotation);
+		Matrix3f inverseViewRotationMatrix = poseStack.last().normal().copy();
 		if (inverseViewRotationMatrix.invert()) {
 			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
 		}
-		modelViewStack.popPose();
 
-		modelViewStack.mulPose(rotation);
-		var forward = camera.getUpVector(partialTick).cross(camera.getRightVector(partialTick));
-		var aaa = this.camera.getFocusPos(partialTick).scale(1 / TM_PER_UNIT)
-				.add(forward.scale(this.camera.getScale(partialTick)));
-		modelViewStack.translate(-aaa.x, -aaa.y, -aaa.z);
+		var cameraPos = this.camera.getPos(partialTick);
+		poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+	}
 
-		// modelViewStack.translate(
-		// volume.position.getX() * Galaxy.TM_PER_SECTOR / TM_PER_UNIT,
-		// volume.position.getY() * Galaxy.TM_PER_SECTOR / TM_PER_UNIT,
-		// volume.position.getZ() * Galaxy.TM_PER_SECTOR / TM_PER_UNIT);
+	private void renderStars(LodVolume<StarSystem.Info, StarSystem> volume, float partialTick) {
+		var prevMatrices = RenderMatrices.capture();
+		setupRenderMatrices(partialTick);
 
 		// rotate then translate rotates everything about the origin, then translates
 		// translate then rotate translates everything away from the origin and then
@@ -490,59 +400,34 @@ public class GalaxyMapScreen extends Screen {
 
 		// setup
 
-		BufferBuilder bufferBuilder = Tesselator.getInstance().getBuilder();
+		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 		RenderSystem.enableBlend();
 		RenderSystem.disableTexture();
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
-		RenderSystem.defaultBlendFunc();
 
 		// Stars
 
-		// RenderSystem.setShader(GameRenderer::getPositionColorShader);
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		bufferBuilder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-
-		renderSectorStars(bufferBuilder, volume.position, volume.streamIds().mapToObj(id -> {
-			var node = getBrightestStar(volume.fullById(id).rootNode);
-			var color = node.starClass().color;
-			var pos = volume.offsetById(id).add(volume.getBasePos());
+		renderSectorStars(builder, volume.position, volume.streamIds().mapToObj(id -> {
+			var initialInfo = Objects.requireNonNull(volume.initialById(id));
+			var brightestStar = initialInfo.stars.stream().max(Comparator.comparing(star -> star.luminosityLsol));
+			var color = brightestStar.get().starClass().color;
+			var pos = Objects.requireNonNull(volume.offsetById(id)).add(volume.getBasePos());
 			return new StarInfo(pos, color);
 		}), partialTick);
 
-		// renderSectorStars(bufferBuilder, Vec3i.ZERO,
-		// Stream.of(this.camera.getFocusPos(partialTick).scale(TM_PER_UNIT)),
-		// partialTick);
+		var cameraPos = this.camera.getPos(partialTick);
+		builder.setQuadSortOrigin((float) cameraPos.x, (float) cameraPos.y, (float) cameraPos.z);
+		builder.end();
 
-		var textureManager = Minecraft.getInstance().getTextureManager();
-		textureManager.getTexture(STAR_ICON_LOCATION).setFilter(true, false); // filtered, mipped
+		this.client.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false); // filtered, mipped
 		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
-		bufferBuilder.setQuadSortOrigin((float) aaa.x, (float) aaa.y, (float) aaa.z);
-		bufferBuilder.end();
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.applyModelViewMatrix();
-		BufferUploader.end(bufferBuilder);
-
-		// Grid
-
-		// RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-		// bufferBuilder.begin(VertexFormat.Mode.LINES,
-		// DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		// renderSectorBox(bufferBuilder, modelViewStack, volume.position);
-		// bufferBuilder.end();
-		// RenderSystem.applyModelViewMatrix();
-		// BufferUploader.end(bufferBuilder);
-
-		// RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-		// bufferBuilder.begin(VertexFormat.Mode.LINES,
-		// DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		// renderGrid(bufferBuilder, modelViewStack, partialTick);
-		// RenderSystem.depthMask(false);
-		// bufferBuilder.end();
-		// RenderSystem.applyModelViewMatrix();
-		// BufferUploader.end(bufferBuilder);
-		// RenderSystem.depthMask(true);
+		BufferUploader.end(builder);
 
 		// cleanup
 
@@ -551,10 +436,7 @@ public class GalaxyMapScreen extends Screen {
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableBlend();
 
-		modelViewStack.popPose();
-		RenderSystem.applyModelViewMatrix();
-		RenderSystem.restoreProjectionMatrix();
-		RenderSystem.setInverseViewRotationMatrix(oldInvViewRotationMatrix);
+		prevMatrices.restore();
 	}
 
 	@Override
@@ -565,6 +447,8 @@ public class GalaxyMapScreen extends Screen {
 
 	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
+		// This render method gets a tick delta instead of a tick completion percentage,
+		// so we have to get the partialTick manually.
 		final var partialTick = this.client.getFrameTime();
 
 		// TODO: render distant galaxies or something as a backdrop so its not just
@@ -586,13 +470,15 @@ public class GalaxyMapScreen extends Screen {
 		var focusedSectorZ = (int) Math.floor(focusPos.z / Galaxy.TM_PER_SECTOR);
 		var focusedSector = new Vec3i(focusedSectorX, focusedSectorY, focusedSectorZ);
 
-		var renderRadiusSectors = starRenderRadius / Galaxy.TM_PER_SECTOR;
+		var renderRadiusSectors = STAR_RENDER_RADIUS / Galaxy.TM_PER_SECTOR;
 		int sectorDistance = (int) Math.ceil(renderRadiusSectors);
 
 		for (int x = -sectorDistance; x <= sectorDistance; ++x) {
 			for (int y = -sectorDistance; y <= sectorDistance; ++y) {
 				for (int z = -sectorDistance; z <= sectorDistance; ++z) {
 					var sectorPos = focusedSector.offset(x, y, z);
+					// TODO: figure out how to evict old volumes that we're not using. Maybe use
+					// something like vanilla's chunk ticketing system?
 					var volume = this.galaxy.getOrGenerateVolume(sectorPos);
 					renderStars(volume, partialTick);
 				}

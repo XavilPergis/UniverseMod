@@ -1,5 +1,8 @@
 package net.xavil.universal.common.universe.system;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 
 public class StarSystem {
@@ -15,9 +18,9 @@ public class StarSystem {
 	}
 
 	public static class Info {
-		// public CelestialNode.OrbitalPlane systemPlane;
 		public double systemAgeMya;
-		public double availableHydrogenYg;
+		public double remainingHydrogenYg;
+		public List<CelestialNode.StellarBodyNode> stars = new ArrayList<>();
 	}
 
 }

@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Random;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
@@ -13,9 +15,11 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.DensityField3;
 import net.xavil.universal.common.universe.LodVolume;
 import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.system.CelestialNode;
-import net.xavil.universal.common.universe.system.CelestialNode.OrbitalPlane;
+import net.xavil.universal.common.universe.system.BinaryNode;
+import net.xavil.universal.common.universe.system.OrbitalPlane;
+import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
+import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.common.universe.universe.Universe;
 
 public class Galaxy {
@@ -137,11 +141,12 @@ public class Galaxy {
 		// very young systems and old systems.
 		var systemAgeFactor = Math.pow(random.nextDouble(), 3);
 		info.systemAgeMya = Mth.lerp(systemAgeFactor, 1, this.info.ageMya);
+		// noise field for driving this too; once again because stars form in clusters
 		var remainingHydrogenYg = random.nextDouble(Units.YG_PER_MSOL * 0.1, Units.YG_PER_MSOL * 100);
 
 		// there's always at least one star per system
 		var initialStarMass = generateStarMass(random, remainingHydrogenYg);
-		info.stars.add(generateStarNode(info.systemAgeMya, initialStarMass));
+		info.stars.add(generateStarNode(random, info.systemAgeMya, initialStarMass));
 
 		// NOTE: generating the stars upfront in this simple way does not seem to be too
 		// costly to do, even directly on the render thread. It still might make sense
@@ -153,7 +158,7 @@ public class Galaxy {
 			var mass = generateStarMass(random, remainingHydrogenYg);
 			if (remainingHydrogenYg >= mass && remainingHydrogenYg >= MINIMUM_STAR_MASS_YG) {
 				remainingHydrogenYg -= mass;
-				info.stars.add(generateStarNode(info.systemAgeMya, mass));
+				info.stars.add(generateStarNode(random, info.systemAgeMya, mass));
 			}
 		}
 
@@ -166,7 +171,7 @@ public class Galaxy {
 	public StarSystem generateStarSystem(Vec3i volumeCoords, Vec3 volumeOffsetTm, StarSystem.Info info, long seed) {
 		var random = new Random(seed);
 
-		var systemPlane = new CelestialNode.OrbitalPlane(
+		var systemPlane = new OrbitalPlane(
 				random.nextDouble(-Math.PI * 2, Math.PI * 2),
 				random.nextDouble(-Math.PI * 2, Math.PI * 2),
 				random.nextDouble(-Math.PI * 2, Math.PI * 2));
@@ -178,56 +183,80 @@ public class Galaxy {
 		return new StarSystem(this, "Test", rootNode);
 	}
 
-	private static CelestialNode pairStars(Random random, CelestialNode.OrbitalPlane systemPlane, List<CelestialNode.StellarBodyNode> stars) {
-		if (stars.isEmpty()) return null;
+	private static StarSystemNode pairStars(Random random, OrbitalPlane systemPlane,
+			List<StarNode> stars) {
+		if (stars.isEmpty())
+			return null;
 
-		var pairingList = new ArrayList<CelestialNode>(stars);
+		var pairingList = new ArrayList<StarSystemNode>(stars);
 		while (pairingList.size() > 1) {
 			var a = pairingList.remove(random.nextInt(0, pairingList.size()));
 			var b = pairingList.remove(random.nextInt(0, pairingList.size()));
 			if (a == b)
 				continue;
 
+			// var minDistance = Double.POSITIVE_INFINITY;
+			// if (a instanceof BinaryNode binaryNode) {}
+
 			var eccentricity = random.nextDouble(0, 0.05);
 			var smaTm = random.nextDouble(0.01, 10);
-			var node = new CelestialNode.BinaryNode(a, b, systemPlane, eccentricity, smaTm);
+			var node = new BinaryNode(a, b, systemPlane, eccentricity, smaTm);
 			pairingList.add(node);
 		}
 
 		return pairingList.get(0);
 	}
 
-	private static CelestialNode.StellarBodyNode generateStarNode(double systemAgeMya, double massYg) {
-		var massMsol = massYg / Units.YG_PER_MSOL;
+	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.msol(10);
+	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = Units.msol(25);
 
-		var luminosityLsol = Math.pow(massMsol, 3.5);
-		var radiusRsol = Math.pow(massMsol, 0.8);
-		var starLifetime = SOL_LIFETIME_MYA * (massMsol / luminosityLsol);
+	private static @Nullable StarNode generateStarNode(Random random, double systemAgeMya, double massYg) {
+		final var massMsol = massYg / Units.YG_PER_MSOL;
 
-		var type = CelestialNode.StellarBodyNode.Type.MAIN_SEQUENCE;
+		final var initialLuminosityLsol = Math.pow(massMsol + 0.05 * random.nextGaussian(), 3.5);
+		final var initialRadiusRsol = Math.pow(massMsol + 0.05 * random.nextGaussian(), 0.8);
 
-		// idk im just making this up
+		final var starLifetime = SOL_LIFETIME_MYA * (massMsol / initialLuminosityLsol);
+
+		var targetType = StarNode.Type.MAIN_SEQUENCE;
 		if (systemAgeMya > starLifetime) {
 			// TODO: figure out luminosity and mass and stuff
-			if (massMsol < 1.4) {
-				// luminosity depends on the age of the star, since its just stored thermal
-				// energy its radiating away
-				type = CelestialNode.StellarBodyNode.Type.WHITE_DWARF;
-				radiusRsol *= 0.00001;
-			} else if (massMsol < 2.1) {
-				type = CelestialNode.StellarBodyNode.Type.NEUTRON_STAR;
-				radiusRsol *= 0.000004;
+			if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
+				targetType = StarNode.Type.WHITE_DWARF;
+			} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
+				targetType = StarNode.Type.NEUTRON_STAR;
 			} else {
-				type = CelestialNode.StellarBodyNode.Type.BLACK_HOLE;
-				radiusRsol *= 0.0000035;
-				luminosityLsol = 0;
+				targetType = StarNode.Type.BLACK_HOLE;
 			}
 		} else if (systemAgeMya > starLifetime * 0.8) {
-			type = CelestialNode.StellarBodyNode.Type.GIANT;
-			radiusRsol *= 100;
+			targetType = StarNode.Type.GIANT;
 		}
 
-		return new CelestialNode.StellarBodyNode(type, massYg, luminosityLsol, radiusRsol);
+		final var finalMassYg = targetType.curveMass(random, massYg);
+		final var luminosityLsol = targetType.curveLuminosity(random, initialLuminosityLsol);
+		final var radiusRsol = targetType.curveRadius(random, initialRadiusRsol);
+		final var temperatureK = Units.K_PER_TSOL * Math.pow(luminosityLsol, 0.25) * Math.sqrt(1 / radiusRsol);
+
+		return new StarNode(targetType, finalMassYg, luminosityLsol, radiusRsol, temperatureK);
 	}
+
+	// 1. Molecular cloud fragment undergoes graivational collapse
+	// 2. Protoplanetary disc forms around the protostar
+	// 3. Dust grains clump and clear lanes around them producing hundreds of
+	// protoplanets
+	// 4. protoplanets collide, producing a smaller number of higher-mass planets.
+
+	// after a planetesimal has accreted enough mass, it can start to accrete
+	// hydrogen and helium, and turn into a gas giant. There is FAR more gas than
+	// dust in the universe, so being able to capture it can make planets very big.
+
+	// frost line
+
+	// planetesimal collisions
+
+	// tidal heating? tidal locking? what causes that?
+
+	// planet migration?
+	// seems to play big role in the formation of Sol
 
 }

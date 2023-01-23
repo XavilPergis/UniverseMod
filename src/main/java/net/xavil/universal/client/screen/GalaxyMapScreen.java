@@ -30,6 +30,7 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.LodVolume;
 import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
@@ -44,15 +45,18 @@ public class GalaxyMapScreen extends Screen {
 
 		this.universe = MinecraftClientAccessor.getUniverse(this.client);
 
-		var galaxyVolume = this.universe.getOrGenerateGalaxyVolume(this.universe.getStartingId().sectorPos());
-		var startingGalaxy = galaxyVolume.fullById(this.universe.getStartingId().sectorId());
-
+		var galaxyVolume = this.universe.getOrGenerateGalaxyVolume(this.universe.getStartingGalaxyId().sectorPos());
+		var startingGalaxy = galaxyVolume.fullById(this.universe.getStartingGalaxyId().sectorId());
 		this.galaxy = startingGalaxy;
-		this.volumePos = Vec3i.ZERO;
+
+		this.volumePos = this.universe.getStartingSystemId().sectorPos();
+		this.currentSystemId = this.universe.getStartingSystemId().sectorId();
 
 		var volume = this.galaxy.getOrGenerateVolume(this.volumePos);
 		this.camera.focusPos = this.camera.focusPosOld = this.camera.focusPosTarget = volume
-				.offsetById(this.currentSystemId);
+				.offsetById(this.currentSystemId).add(volume.getBasePos());
+
+		System.out.println("focus pos: " + this.camera.focusPos);
 
 		this.camera.pitch = this.camera.pitchOld = this.camera.pitchTarget = Math.PI / 8;
 		this.camera.yaw = this.camera.yawOld = this.camera.yawTarget = Math.PI / 8;
@@ -66,7 +70,7 @@ public class GalaxyMapScreen extends Screen {
 	private StarmapCamera camera = new StarmapCamera();
 	private int currentSystemId = 0;
 
-	public static final double STAR_RENDER_RADIUS = 0.9 * Galaxy.TM_PER_SECTOR;
+	public static final double STAR_RENDER_RADIUS = 0.5 * Galaxy.TM_PER_SECTOR;
 	public static final double TM_PER_UNIT = 1000;
 	public static final double UNITS_PER_SECTOR = Galaxy.TM_PER_SECTOR / TM_PER_UNIT;
 
@@ -129,7 +133,7 @@ public class GalaxyMapScreen extends Screen {
 				this.currentSystemId = 0;
 			}
 
-			this.camera.focusPosTarget = volume.offsetById(this.currentSystemId);
+			this.camera.focusPosTarget = volume.offsetById(this.currentSystemId).add(volume.getBasePos());
 		}
 		return false;
 	}
@@ -255,7 +259,7 @@ public class GalaxyMapScreen extends Screen {
 		// this scale is taken from `RenderStateShare.VIEW_OFFSET_Z_LAYERING`, which
 		// `RenderType.lines()` uses. It seems to resolve z-fighting issues that line
 		// rendering otherwise has.
-		poseStack.scale(0.99975586f, 0.99975586f, 0.99975586f);
+		// poseStack.scale(0.99975586f, 0.99975586f, 0.99975586f);
 		RenderSystem.applyModelViewMatrix();
 		RenderSystem.depthMask(false);
 		BufferUploader.end(bufferBuilder);
@@ -406,6 +410,23 @@ public class GalaxyMapScreen extends Screen {
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
 
+		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+		// renderSectorBox(builder, volume.position);
+		builder.end();
+
+		PoseStack poseStack = RenderSystem.getModelViewStack();
+		poseStack.pushPose();
+		// this scale is taken from `RenderStateShare.VIEW_OFFSET_Z_LAYERING`, which
+		// `RenderType.lines()` uses. It seems to resolve z-fighting issues that line
+		// rendering otherwise has.
+		// poseStack.scale(0.99975586f, 0.99975586f, 0.99975586f);
+		RenderSystem.applyModelViewMatrix();
+		RenderSystem.depthMask(false);
+		BufferUploader.end(builder);
+		RenderSystem.depthMask(true);
+		poseStack.popPose();
+
 		// Stars
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
@@ -413,8 +434,16 @@ public class GalaxyMapScreen extends Screen {
 
 		renderSectorStars(builder, volume.position, volume.streamIds().mapToObj(id -> {
 			var initialInfo = Objects.requireNonNull(volume.initialById(id));
-			var brightestStar = initialInfo.stars.stream().max(Comparator.comparing(star -> star.luminosityLsol));
-			var color = brightestStar.get().starClass().color;
+			var brightestStar = initialInfo.stars.stream().max(Comparator.comparing(star -> star.luminosityLsol)).get();
+			var starClass = brightestStar.starClass();
+			var color = new Vec3(0, 1, 0);
+			if (starClass != null) {
+				color = starClass.color;
+			} else if (brightestStar.type == StarNode.Type.WHITE_DWARF) {
+				color = new Vec3(1, 1, 1);
+			} else if (brightestStar.type == StarNode.Type.NEUTRON_STAR) {
+				color = new Vec3(0.4, 0.4, 1);
+			}
 			var pos = Objects.requireNonNull(volume.offsetById(id)).add(volume.getBasePos());
 			return new StarInfo(pos, color);
 		}), partialTick);
@@ -451,6 +480,14 @@ public class GalaxyMapScreen extends Screen {
 		// so we have to get the partialTick manually.
 		final var partialTick = this.client.getFrameTime();
 
+		var focusPos = this.camera.getFocusPos(partialTick);
+		var minSectorX = (int) Math.floor((focusPos.x - STAR_RENDER_RADIUS) / Galaxy.TM_PER_SECTOR);
+		var maxSectorX = (int) Math.floor((focusPos.x + STAR_RENDER_RADIUS) / Galaxy.TM_PER_SECTOR);
+		var minSectorY = (int) Math.floor((focusPos.y - STAR_RENDER_RADIUS) / Galaxy.TM_PER_SECTOR);
+		var maxSectorY = (int) Math.floor((focusPos.y + STAR_RENDER_RADIUS) / Galaxy.TM_PER_SECTOR);
+		var minSectorZ = (int) Math.floor((focusPos.z - STAR_RENDER_RADIUS) / Galaxy.TM_PER_SECTOR);
+		var maxSectorZ = (int) Math.floor((focusPos.z + STAR_RENDER_RADIUS) / Galaxy.TM_PER_SECTOR);
+
 		// TODO: render distant galaxies or something as a backdrop so its not just
 		// pitch black. or maybe thats just how space is :p
 
@@ -462,21 +499,18 @@ public class GalaxyMapScreen extends Screen {
 		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
 		RenderSystem.depthMask(true);
 
+		// int h = 0;
+		// // RenderSystem.disableDepthTest();
+		// drawString(poseStack, this.client.font, "focused " + focusedSector.toShortString(), 0, h, 0xffffffff);
+		// // RenderSystem.enableDepthTest();
+		// h += 9;
+
 		renderGrid(partialTick);
 
-		var focusPos = this.camera.getFocusPos(partialTick);
-		var focusedSectorX = (int) Math.floor(focusPos.x / Galaxy.TM_PER_SECTOR);
-		var focusedSectorY = (int) Math.floor(focusPos.y / Galaxy.TM_PER_SECTOR);
-		var focusedSectorZ = (int) Math.floor(focusPos.z / Galaxy.TM_PER_SECTOR);
-		var focusedSector = new Vec3i(focusedSectorX, focusedSectorY, focusedSectorZ);
-
-		var renderRadiusSectors = STAR_RENDER_RADIUS / Galaxy.TM_PER_SECTOR;
-		int sectorDistance = (int) Math.ceil(renderRadiusSectors);
-
-		for (int x = -sectorDistance; x <= sectorDistance; ++x) {
-			for (int y = -sectorDistance; y <= sectorDistance; ++y) {
-				for (int z = -sectorDistance; z <= sectorDistance; ++z) {
-					var sectorPos = focusedSector.offset(x, y, z);
+		for (int x = minSectorX; x <= maxSectorX; ++x) {
+			for (int y = minSectorY; y <= maxSectorY; ++y) {
+				for (int z = minSectorZ; z <= maxSectorZ; ++z) {
+					var sectorPos = new Vec3i(x, y, z);
 					// TODO: figure out how to evict old volumes that we're not using. Maybe use
 					// something like vanilla's chunk ticketing system?
 					var volume = this.galaxy.getOrGenerateVolume(sectorPos);
@@ -486,10 +520,6 @@ public class GalaxyMapScreen extends Screen {
 		}
 
 		// TODO: mouse picking
-
-		int h = 0;
-		drawString(poseStack, this.client.font, "focused " + focusedSector.toShortString(), 0, h, 0xffffffff);
-		h += 9;
 
 		super.render(poseStack, mouseX, mouseY, tickDelta);
 	}

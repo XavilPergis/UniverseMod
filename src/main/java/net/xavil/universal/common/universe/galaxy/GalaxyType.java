@@ -20,7 +20,7 @@ public enum GalaxyType {
 	LENTICULAR("lenticular") {
 		@Override
 		public DensityField3 createDensityField(Random random) {
-			final var radius = random.nextDouble(Units.TM_PER_LY * 3000, Units.TM_PER_LY * 300000);
+			final var radius = random.nextDouble(Units.ly(3000), Units.ly(300000));
 			final var discHeightFactor = random.nextDouble(0.003, 0.03);
 			final var ellipticalFactor = random.nextDouble(0.2, 0.8);
 

@@ -9,9 +9,9 @@ public class StarSystem {
 
 	public final Galaxy parentGalaxy;
 	public String name;
-	public CelestialNode rootNode;
+	public StarSystemNode rootNode;
 
-	public StarSystem(Galaxy parentGalaxy, String name, CelestialNode rootNode) {
+	public StarSystem(Galaxy parentGalaxy, String name, StarSystemNode rootNode) {
 		this.parentGalaxy = parentGalaxy;
 		this.name = name;
 		this.rootNode = rootNode;
@@ -20,7 +20,7 @@ public class StarSystem {
 	public static class Info {
 		public double systemAgeMya;
 		public double remainingHydrogenYg;
-		public List<CelestialNode.StellarBodyNode> stars = new ArrayList<>();
+		public List<StarNode> stars = new ArrayList<>();
 	}
 
 }

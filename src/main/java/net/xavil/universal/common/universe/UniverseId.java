@@ -4,13 +4,13 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.Vec3i;
-import net.xavil.universal.common.universe.system.CelestialNode;
+import net.xavil.universal.common.universe.system.StarSystemNode;
 
 public record UniverseId(
 		SectorId universeSector,
 		SectorId galaxySector,
 		/**
-		 * The ID used in {@link CelestialNode#lookup(int)}
+		 * The ID used in {@link StarSystemNode#lookup(int)}
 		 */
 		int systemNodeId) {
 

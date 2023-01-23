@@ -15,7 +15,7 @@ public final class RenderHelper {
 		var gridMinX = gridCellResolution * Math.floor(focusPos.x / gridCellResolution);
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
 
-		float r = 1, g = 1, b = 1, a = 0.1f;
+		float r = 0.2f, g = 0.2f, b = 0.2f, a = 0.2f;
 
 		var gridOffset = gridCellResolution * gridLineCount / 2;
 
@@ -27,7 +27,7 @@ public final class RenderHelper {
 			double lx = gridMinX - gridOffset, hx = lx + gridDiameter;
 
 			var zMark = (int) Math.floor(gridMinZ / gridCellResolution + i - gridLineCount / 2);
-			var la = zMark % subcellsPerCell == 0 ? 0.2f : a;
+			var la = zMark % subcellsPerCell == 0 ? 0.4f : a;
 
 			for (var j = 0; j < gridLineCount; ++j) {
 				var lt = j / (double) gridLineCount;
@@ -42,7 +42,7 @@ public final class RenderHelper {
 			double lz = gridMinZ - gridOffset, hz = lz + gridDiameter;
 
 			var xMark = (int) Math.floor(gridMinX / gridCellResolution + i - gridLineCount / 2);
-			var la = xMark % subcellsPerCell == 0 ? 0.2f : a;
+			var la = xMark % subcellsPerCell == 0 ? 0.4f : a;
 
 			for (var j = 0; j < gridLineCount; ++j) {
 				var lt = j / (double) gridLineCount;

@@ -26,8 +26,13 @@ public abstract class PlayerListMixin {
 		var packet = new ClientboundUniverseInfoPacket();
 		packet.commonSeed = universe.getCommonUniverseSeed();
 		packet.uniqueSeed = universe.getUniqueUniverseSeed();
-		packet.startingGalaxyId = universe.getStartingId();
 
+		packet.startingGalaxyId = universe.getStartingGalaxyId();
+		var galaxyVolume = universe.getOrGenerateGalaxyVolume(packet.startingGalaxyId.sectorPos());
+		var galaxy = galaxyVolume.fullById(packet.startingGalaxyId.sectorId());
+		
+		packet.startingSystemId = universe.getStartingSystemId(galaxy);
+		
 		var buf = PacketByteBufs.create();
 		packet.write(buf);
 		ServerPlayNetworking.send(serverPlayer, ModNetworking.CLIENTBOUND_UNIVERSE_INFO, buf);

@@ -19,7 +19,10 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	}
 
 	protected int id = UNASSINED_ID;
-	public final List<UnaryOrbit> childNodes = new ArrayList<>();
+	protected @Nullable BinaryNode parentBinaryNode = null;
+	protected @Nullable StarSystemNode parentNode = null;
+	protected final List<UnaryOrbit> childNodes = new ArrayList<>();
+
 	public double massYg;
 
 	public StarSystemNode(double massYg) {
@@ -59,8 +62,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	 */
 	private final int assignSubtreeIds(int startId) {
 		if (this instanceof BinaryNode binaryNode) {
-			startId = binaryNode.a.assignSubtreeIds(startId) + 1;
-			startId = binaryNode.b.assignSubtreeIds(startId) + 1;
+			startId = binaryNode.getA().assignSubtreeIds(startId) + 1;
+			startId = binaryNode.getB().assignSubtreeIds(startId) + 1;
 		}
 		for (var child : this.childNodes) {
 			startId = child.node.assignSubtreeIds(startId) + 1;
@@ -83,10 +86,10 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			return null;
 
 		if (this instanceof BinaryNode binaryNode) {
-			var a = binaryNode.a.lookupSubtree(id);
+			var a = binaryNode.getA().lookupSubtree(id);
 			if (a != null)
 				return a;
-			var b = binaryNode.b.lookupSubtree(id);
+			var b = binaryNode.getB().lookupSubtree(id);
 			if (b != null)
 				return b;
 		}
@@ -98,6 +101,14 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		}
 
 		return null;
+	}
+
+	public void setBinaryParent(BinaryNode parent) {
+		this.parentBinaryNode = parent;
+	}
+
+	public BinaryNode getBinaryParent() {
+		return this.parentBinaryNode;
 	}
 
 	// we only consider two types of orbits:

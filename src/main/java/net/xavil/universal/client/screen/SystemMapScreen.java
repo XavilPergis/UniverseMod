@@ -47,8 +47,8 @@ public class SystemMapScreen extends Screen {
 		private static int computeMaxDepth(StarSystemNode node, int depth) {
 			var maxDepth = depth;
 			if (node instanceof BinaryNode binaryNode) {
-				maxDepth = Math.max(maxDepth, computeMaxDepth(binaryNode.a, depth + 1));
-				maxDepth = Math.max(maxDepth, computeMaxDepth(binaryNode.b, depth + 1));
+				maxDepth = Math.max(maxDepth, computeMaxDepth(binaryNode.getA(), depth + 1));
+				maxDepth = Math.max(maxDepth, computeMaxDepth(binaryNode.getB(), depth + 1));
 			}
 			return maxDepth;
 		}
@@ -66,8 +66,8 @@ public class SystemMapScreen extends Screen {
 
 		private SegmentInfo renderNode(StarSystemNode node, int depth, int xOff, int yOff) {
 			if (node instanceof BinaryNode binaryNode) {
-				var aInfo = renderNode(binaryNode.a, depth + 1, xOff, yOff);
-				var bInfo = renderNode(binaryNode.b, depth + 1, xOff, yOff + aInfo.height);
+				var aInfo = renderNode(binaryNode.getA(), depth + 1, xOff, yOff);
+				var bInfo = renderNode(binaryNode.getB(), depth + 1, xOff, yOff + aInfo.height);
 
 				var lineStartY = aInfo.center();
 				var lineEndY = aInfo.height + bInfo.center();
@@ -75,8 +75,8 @@ public class SystemMapScreen extends Screen {
 				var vertialX = 5 * depth;
 				fill(poseStack, vertialX, yOff + lineStartY, vertialX + 1, yOff + lineEndY + 1, 0x77ffffff);
 
-				var aEndX = binaryNode.a instanceof BinaryNode ? vertialX : xOff;
-				var bEndX = binaryNode.b instanceof BinaryNode ? vertialX : xOff;
+				var aEndX = binaryNode.getA() instanceof BinaryNode ? vertialX : xOff;
+				var bEndX = binaryNode.getB() instanceof BinaryNode ? vertialX : xOff;
 
 				fill(poseStack, vertialX + 1, yOff + lineStartY, aEndX + 5, yOff + lineStartY + 1, 0x77ffffff);
 				fill(poseStack, vertialX + 1, yOff + lineEndY, bEndX + 5, yOff + lineEndY + 1, 0x77ffffff);

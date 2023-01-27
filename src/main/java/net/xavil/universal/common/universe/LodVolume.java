@@ -14,8 +14,9 @@ public class LodVolume<I, F> {
 	public final Vec3i position;
 	public final double volumeLength;
 
-	// private final Map<Vec3i, Object2IntMap<Vec3>> initialCells = new HashMap<>();
-	// private final Map<Vec3i, Object2IntMap<Vec3>> fullCells = new HashMap<>();
+	private final List<InitEntry<I>> initialList = new ArrayList<>();
+	private final List<F> fullList = new ArrayList<>();
+	private final FullSupplier<I, F> fullSupplier;
 
 	private record InitEntry<I>(I init, Vec3 pos, int full) {
 		public static <I> InitEntry<I> of(I init, Vec3 pos) {
@@ -27,10 +28,6 @@ public class LodVolume<I, F> {
 		F generate(I initial, Vec3 offset, int id);
 	}
 
-	private final List<InitEntry<I>> initialList = new ArrayList<>();
-	private final List<F> fullList = new ArrayList<>();
-	private final FullSupplier<I, F> fullSupplier;
-
 	public LodVolume(Vec3i position, double cellResolution, FullSupplier<I, F> fullSupplier) {
 		this.position = position;
 		this.volumeLength = cellResolution;
@@ -41,12 +38,6 @@ public class LodVolume<I, F> {
 		var id = this.initialList.size();
 		this.initialList.add(InitEntry.of(value, pos));
 		return id;
-		// final var scaledPos = pos.scale(1 / this.cellResolution);
-		// final var cellX = (int) Math.floor(scaledPos.x);
-		// final var cellY = (int) Math.floor(scaledPos.y);
-		// final var cellZ = (int) Math.floor(scaledPos.z);
-		// final var cellPos = new Vec3i(cellX, cellY, cellZ);
-		// initialCells.computeIfAbsent(cellPos, k -> new HashMap<>()).put(pos, value);
 	}
 
 	public @Nullable F addFull(int id, F value) {
@@ -93,10 +84,5 @@ public class LodVolume<I, F> {
 	public Vec3 getBasePos() {
 		return Vec3.atLowerCornerOf(this.position).scale(this.volumeLength);
 	}
-
-	// public Stream<T> streamInitial() {
-	// return this.spatialCells.values().stream().flatMap(cell ->
-	// cell.values().stream());
-	// }
 
 }

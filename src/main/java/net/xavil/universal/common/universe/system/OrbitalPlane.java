@@ -12,4 +12,17 @@ public record OrbitalPlane(
 		// the "periapsis" is distance of the closest approach of the orbiting pair
 		// the angle at which periapsis occurs, measured from the ascending node
 		double argumentOfPeriapsisRad) {
+
+	public OrbitalPlane withInclination(double inclinationRad) {
+		return new OrbitalPlane(inclinationRad, longitueOfAscendingNodeRad, argumentOfPeriapsisRad);
+	}
+
+	public OrbitalPlane withLongitudeOfAscendingNode(double longitueOfAscendingNodeRad) {
+		return new OrbitalPlane(inclinationRad, longitueOfAscendingNodeRad, argumentOfPeriapsisRad);
+	}
+
+	public OrbitalPlane withArgumentOfPeriapsis(double argumentOfPeriapsisRad) {
+		return new OrbitalPlane(inclinationRad, longitueOfAscendingNodeRad, argumentOfPeriapsisRad);
+	}
+
 }

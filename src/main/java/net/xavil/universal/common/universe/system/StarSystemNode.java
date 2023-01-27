@@ -12,8 +12,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	public static final int UNASSINED_ID = -1;
 
 	public record UnaryOrbit(
-			boolean isPrograde,
 			StarSystemNode node,
+			boolean isPrograde,
 			OrbitalShape orbitalShape,
 			OrbitalPlane orbitalPlane) {
 	}
@@ -109,6 +109,14 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 
 	public BinaryNode getBinaryParent() {
 		return this.parentBinaryNode;
+	}
+
+	public void insertChild(UnaryOrbit child) {
+		this.childNodes.add(child);
+	}
+
+	public Iterable<UnaryOrbit> childOrbits() {
+		return this.childNodes;
 	}
 
 	// we only consider two types of orbits:

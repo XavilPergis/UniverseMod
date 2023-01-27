@@ -1,7 +1,19 @@
 package net.xavil.universal.common.universe.system;
 
 public non-sealed class PlanetNode extends StarSystemNode {
-	public PlanetNode(double massYg) {
+
+	public enum Type {
+		GAS_GIANT,
+		ICE_WORLD,
+		ROCKY_WORLD,
+		ROCKY_ICE_WORLD,
+		WATER_WORLD,
+		EARTH_LIKE_WORLD,
+	}
+
+	public Type type;
+
+	public PlanetNode(Type type, double massYg) {
 		super(massYg);
 	}
 
@@ -15,6 +27,7 @@ public non-sealed class PlanetNode extends StarSystemNode {
 	}
 	// planet type (gas giant, icy world, rocky world, earth-like world, etc)
 	// mass, surface gravity, atmosphere type, landable
+	// cloud coverage, greenhouse effect, volcanism, plate tectonics
 	// asteroid belt/rings? perhaps a single disc object?
 
 }

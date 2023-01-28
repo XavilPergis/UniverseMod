@@ -11,7 +11,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.DensityField3;
-import net.xavil.universal.common.universe.LodVolume;
+import net.xavil.universal.common.universe.Lazy;
+import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
@@ -29,7 +30,7 @@ public class Galaxy {
 	private final DensityField3 densityField;
 
 	// private final Set<StarSystem> activeStarSystems = new HashSet<>();
-	private final Map<Vec3i, LodVolume<StarSystem.Info, StarSystem>> loadedVolumes = new HashMap<>();
+	private final Map<Vec3i, Octree<Lazy<StarSystem.Info, StarSystem>>> loadedVolumes = new HashMap<>();
 
 	public Galaxy(Universe parentUniverse, Info info, DensityField3 densityField) {
 		this.parentUniverse = parentUniverse;
@@ -67,20 +68,27 @@ public class Galaxy {
 		return seed;
 	}
 
-	public LodVolume<StarSystem.Info, StarSystem> getOrGenerateVolume(Vec3i volumeCoords) {
+	public Octree<Lazy<StarSystem.Info, StarSystem>> getOrGenerateVolume(Vec3i volumeCoords) {
 		if (this.loadedVolumes.containsKey(volumeCoords)) {
 			return this.loadedVolumes.get(volumeCoords);
 		}
 
 		var random = new Random(volumeSeed(volumeCoords));
-		var volume = new LodVolume<StarSystem.Info, StarSystem>(volumeCoords, TM_PER_SECTOR,
-				(info, offset, id) -> generateStarSystem(volumeCoords, offset, info, systemSeed(volumeCoords, id)));
 
-		final var sectorBase = volume.getBasePos();
+		final var volumeMin = Vec3.atLowerCornerOf(volumeCoords).scale(TM_PER_SECTOR);
+		final var volumeMax = volumeMin.add(TM_PER_SECTOR, TM_PER_SECTOR, TM_PER_SECTOR);
+
+		var octree = new Octree<Lazy<StarSystem.Info, StarSystem>>(volumeMin, volumeMax);
+		// var volume = new LodVolume<StarSystem.Info, StarSystem>(volumeCoords,
+		// TM_PER_SECTOR,
+		// (info, offset, id) -> generateStarSystem(volumeCoords, offset, info,
+		// systemSeed(volumeCoords, id)));
+
+		// final var sectorBase = volume.getBasePos();
 		var sectorDensitySum = 0.0;
 		for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
 			var volumeOffsetTm = randomVec(random);
-			sectorDensitySum += this.densityField.sampleDensity(sectorBase.add(volumeOffsetTm));
+			sectorDensitySum += this.densityField.sampleDensity(volumeMin.add(volumeOffsetTm));
 		}
 		final var averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
 
@@ -98,10 +106,15 @@ public class Galaxy {
 
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
 				var volumeOffsetTm = randomVec(random);
-				var density = this.densityField.sampleDensity(sectorBase.add(volumeOffsetTm));
+				var systemPos = volumeMin.add(volumeOffsetTm);
+				var density = this.densityField.sampleDensity(systemPos);
 
 				if (density >= random.nextDouble(0, maxDensity)) {
-					volume.addInitial(volumeOffsetTm, generateStarSystemInfo(volumeCoords, volumeOffsetTm, infoSeed));
+					var initial = generateStarSystemInfo(volumeCoords, volumeOffsetTm, infoSeed);
+					var systemSeed = systemSeed(volumeCoords, i);
+					var lazy = new Lazy<>(initial,
+							info -> generateStarSystem(volumeCoords, systemPos, info, systemSeed));
+					octree.insert(systemPos, lazy);
 					successfulAttempts += 1;
 					break;
 				}
@@ -112,8 +125,8 @@ public class Galaxy {
 		Mod.LOGGER.info("[galaxygen] star placement attempt count: {}", starAttemptCount);
 		Mod.LOGGER.info("[galaxygen] successful star placements: {}", successfulAttempts);
 
-		this.loadedVolumes.put(volumeCoords, volume);
-		return volume;
+		this.loadedVolumes.put(volumeCoords, octree);
+		return octree;
 	}
 
 	public final double MINIMUM_STAR_MASS_YG = Units.YG_PER_MSOL * 0.1;

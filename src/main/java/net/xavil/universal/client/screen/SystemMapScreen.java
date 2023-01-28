@@ -140,8 +140,8 @@ public class SystemMapScreen extends Screen {
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
-		var G = 1;
-		var k = 0.01;
+		var G = 0.01;
+		var k = 0.02;
 
 		float r = 1, g = 0, b = 1, a = 0.5f;
 		float d = 1;
@@ -153,6 +153,10 @@ public class SystemMapScreen extends Screen {
 
 			if (starNode.type == StarNode.Type.WHITE_DWARF) {
 				r = 1;
+			}
+			if (starNode.type == StarNode.Type.NEUTRON_STAR) {
+				r = 1;
+				g = 0;
 			}
 		}
 
@@ -329,9 +333,7 @@ public class SystemMapScreen extends Screen {
 
 		if (system != null) {
 			poseStack.pushPose();
-			// drawString(poseStack, this.client.font, this.volumePos.toString(), 0, 0,
-			// 0xffffffff);
-			renderNode(system.rootNode, partialTick, Vec3.ZERO.add(300, 300, 0));
+			renderNode(system.rootNode, partialTick, Vec3.ZERO.add(this.width / 2, this.height / 2, 0));
 			new NodeRenderer(poseStack).renderNodeMain(system.rootNode);
 			poseStack.popPose();
 		}

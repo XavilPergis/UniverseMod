@@ -29,7 +29,7 @@ public abstract class PlayerListMixin {
 
 		packet.startingGalaxyId = universe.getStartingGalaxyId();
 		var galaxyVolume = universe.getOrGenerateGalaxyVolume(packet.startingGalaxyId.sectorPos());
-		var galaxy = galaxyVolume.fullById(packet.startingGalaxyId.sectorId());
+		var galaxy = galaxyVolume.getById(packet.startingGalaxyId.sectorId()).getFull();
 		
 		packet.startingSystemId = universe.getStartingSystemId(galaxy);
 		

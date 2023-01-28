@@ -21,6 +21,13 @@ public record UniverseId(
 				.apply(inst, SectorId::new));
 	}
 
+	public record SystemId(SectorId universeSector, SectorId galaxySector) {
+		public static final Codec<SystemId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+				SectorId.CODEC.fieldOf("galaxy").forGetter(SystemId::universeSector),
+				SectorId.CODEC.fieldOf("system").forGetter(SystemId::galaxySector))
+				.apply(inst, SystemId::new));
+	}
+
 	public static final Codec<UniverseId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			SectorId.CODEC.fieldOf("galaxy").forGetter(UniverseId::universeSector),
 			SectorId.CODEC.fieldOf("system").forGetter(UniverseId::galaxySector),

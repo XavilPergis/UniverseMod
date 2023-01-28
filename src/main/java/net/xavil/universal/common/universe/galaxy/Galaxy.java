@@ -10,10 +10,12 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
+import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.DensityField3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
+import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.Universe;
@@ -112,8 +114,9 @@ public class Galaxy {
 				if (density >= random.nextDouble(0, maxDensity)) {
 					var initial = generateStarSystemInfo(volumeCoords, volumeOffsetTm, infoSeed);
 					var systemSeed = systemSeed(volumeCoords, i);
+					var i2 = i;
 					var lazy = new Lazy<>(initial,
-							info -> generateStarSystem(volumeCoords, systemPos, info, systemSeed));
+							info -> generateStarSystem(volumeCoords, systemPos, info, i2, systemSeed));
 					octree.insert(systemPos, lazy);
 					successfulAttempts += 1;
 					break;
@@ -171,19 +174,20 @@ public class Galaxy {
 		}
 
 		info.remainingHydrogenYg = remainingHydrogenYg;
+		info.name = NameTemplate.SECTOR_NAME.generate(random);
 
 		return info;
 	}
 
 	// Full system info
-	public StarSystem generateStarSystem(Vec3i volumeCoords, Vec3 volumeOffsetTm, StarSystem.Info info, long seed) {
+	public StarSystem generateStarSystem(Vec3i volumeCoords, Vec3 volumeOffsetTm, StarSystem.Info info, int i, long seed) {
 		var random = new Random(seed);
 
 		var systemGenerator = new StarSystemGenerator(random, this, info);
 		var rootNode = systemGenerator.generate();
 		rootNode.assignIds();
 
-		return new StarSystem(this, "Test", rootNode);
+		return new StarSystem(this, rootNode);
 	}
 
 	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.msol(10);

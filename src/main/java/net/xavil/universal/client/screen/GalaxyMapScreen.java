@@ -2,8 +2,13 @@ package net.xavil.universal.client.screen;
 
 import java.util.Comparator;
 import java.util.Objects;
+import java.util.Random;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
+
+import javax.annotation.Nullable;
+
+import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -15,9 +20,6 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix3f;
-import com.mojang.math.Matrix4f;
-import com.mojang.math.Quaternion;
-import com.mojang.math.Vector3f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -28,6 +30,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
+import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
@@ -38,39 +41,40 @@ import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 
-public class GalaxyMapScreen extends Screen {
+public class GalaxyMapScreen extends UniversalScreen {
 
 	private final Minecraft client = Minecraft.getInstance();
 	public final ResourceLocation STAR_ICON_LOCATION = Mod.namespaced("textures/misc/star_icon.png");
+	public final ResourceLocation SELECTION_CIRCLE_ICON_LOCATION = Mod.namespaced("textures/misc/selection_circle.png");
 
-	public GalaxyMapScreen() {
-		super(new TranslatableComponent("narrator.screen.starmap"));
+	public GalaxyMapScreen(@Nullable Screen previousScreen, UniverseId.SystemId startingSystem) {
+		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen);
 
 		this.universe = MinecraftClientAccessor.getUniverse(this.client);
 
-		var galaxyVolume = this.universe.getOrGenerateGalaxyVolume(this.universe.getStartingGalaxyId().sectorPos());
-		var startingGalaxy = galaxyVolume.getById(this.universe.getStartingGalaxyId().sectorId()).getFull();
+		var galaxyVolume = this.universe.getOrGenerateGalaxyVolume(startingSystem.universeSector().sectorPos());
+		var startingGalaxy = galaxyVolume.getById(startingSystem.universeSector().sectorId()).getFull();
 		this.galaxy = startingGalaxy;
 
-		var volumePos = this.universe.getStartingSystemId().sectorPos();
-		this.currentSystemId = this.universe.getStartingSystemId();
-
+		this.currentSystemId = startingSystem.galaxySector();
+		
+		var volumePos = startingSystem.galaxySector().sectorPos();
 		var volume = this.galaxy.getOrGenerateVolume(volumePos);
-		this.camera.focusPos = this.camera.focusPosOld = this.camera.focusPosTarget = volume
-				.posById(this.currentSystemId.sectorId());
+		this.camera.focus.set(volume.posById(this.currentSystemId.sectorId()));
 
-		System.out.println("focus pos: " + this.camera.focusPos);
-
-		this.camera.pitch = this.camera.pitchOld = this.camera.pitchTarget = Math.PI / 8;
-		this.camera.yaw = this.camera.yawOld = this.camera.yawTarget = Math.PI / 8;
-		this.camera.scaleTarget = 8;
+		this.camera.pitch.set(Math.PI / 8);
+		this.camera.yaw.set(Math.PI / 8);
+		this.camera.scale.set(4.0);
+		this.camera.scale.setTarget(8.0);
 	}
 
 	private ClientUniverse universe;
 	private Galaxy galaxy;
 	// private Vec3i volumePos;
 
-	private StarmapCamera camera = new StarmapCamera();
+	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
+
+	private OrbitCamera camera = new OrbitCamera();
 	private UniverseId.SectorId currentSystemId;
 
 	public static final double STAR_RENDER_RADIUS = 0.5 * Galaxy.TM_PER_SECTOR;
@@ -82,21 +86,20 @@ public class GalaxyMapScreen extends Screen {
 		if (super.mouseDragged(mouseX, mouseY, button, dx, dy))
 			return true;
 
-		final var dragScale = TM_PER_UNIT * this.camera.scaleTarget * 10 / Units.TM_PER_LY;
+		final var partialTick = this.client.getFrameTime();
+		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.TM_PER_LY;
 
 		if (button == 2) {
-			var realDy = this.camera.pitch < 0 ? -dy : dy;
-			var offset = new Vec3(dx, 0, realDy).yRot((float) -this.camera.yaw).scale(dragScale);
-			this.camera.focusPosTarget = this.camera.focusPosTarget.add(offset);
+			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
+			var offset = new Vec3(dx, 0, realDy).yRot(-this.camera.yaw.get(partialTick).floatValue()).scale(dragScale);
+			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 		} else if (button == 1) {
-			this.camera.focusPosTarget = this.camera.focusPosTarget.add(0, dragScale * dy, 0);
+			this.camera.focus.setTarget(this.camera.focus.getTarget().add(0, dragScale * dy, 0));
 		} else if (button == 0) {
-			this.camera.yawTarget += dx * 0.005;
-			this.camera.pitchTarget += dy * 0.005;
-			if (this.camera.pitchTarget > Math.PI / 2)
-				this.camera.pitchTarget = Math.PI / 2;
-			if (this.camera.pitchTarget < -Math.PI / 2)
-				this.camera.pitchTarget = -Math.PI / 2;
+			this.camera.yaw.setTarget(this.camera.yaw.getTarget() + dx * 0.005);
+			var desiredPitch = this.camera.pitch.getTarget() + dy * 0.005;
+			var actualPitch = Mth.clamp(desiredPitch, -Math.PI / 2, Math.PI / 2);
+			this.camera.pitch.setTarget(actualPitch);
 		}
 
 		return true;
@@ -108,12 +111,12 @@ public class GalaxyMapScreen extends Screen {
 			return true;
 
 		if (scrollDelta > 0) {
-			this.camera.scaleTarget /= 1.2;
-			this.camera.scaleTarget = Math.max(this.camera.scaleTarget, 0.5);
+			var prevTarget = this.camera.scale.getTarget();
+			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.5));
 			return true;
 		} else if (scrollDelta < 0) {
-			this.camera.scaleTarget *= 1.2;
-			this.camera.scaleTarget = Math.min(this.camera.scaleTarget, 192.0);
+			var prevTarget = this.camera.scale.getTarget();
+			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 128));
 			return true;
 		}
 
@@ -121,155 +124,105 @@ public class GalaxyMapScreen extends Screen {
 	}
 
 	@Override
+	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+		if (super.keyPressed(keyCode, scanCode, modifiers))
+			return true;
+
+		// TODO: key mappings
+		if (keyCode == GLFW.GLFW_KEY_W) {
+			this.isForwardPressed = true;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_S) {
+			this.isBackwardPressed = true;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_A) {
+			this.isLeftPressed = true;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_D) {
+			this.isRightPressed = true;
+			return true;
+		}
+
+		return false;
+	}
+
+	@Override
+	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+		if (super.keyReleased(keyCode, scanCode, modifiers))
+			return true;
+
+		// TODO: key mappings
+		if (keyCode == GLFW.GLFW_KEY_W) {
+			this.isForwardPressed = false;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_S) {
+			this.isBackwardPressed = false;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_A) {
+			this.isLeftPressed = false;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_D) {
+			this.isRightPressed = false;
+			return true;
+		}
+
+		return false;
+	}
+
+	public @Nullable UniverseId.SectorId getNearestSystem(Vec3 pos, double radius) {
+
+		var nearest = new Object() {
+			double distanceSqr = Double.MAX_VALUE;
+			UniverseId.SectorId id = null;
+		};
+		enumerateSectors(pos, radius, sectorPos -> {
+			var volume = this.galaxy.getOrGenerateVolume(sectorPos);
+			var nearestInSector = volume.nearestInRadius(pos, radius);
+			if (nearestInSector != null) {
+				if (nearestInSector.pos().distanceToSqr(pos) < nearest.distanceSqr) {
+					nearest.distanceSqr = nearestInSector.pos().distanceToSqr(pos);
+					nearest.id = new UniverseId.SectorId(sectorPos, nearestInSector.id());
+				}
+			}
+		});
+
+		return nearest.id;
+	}
+
+	@Override
 	public boolean charTyped(char c, int i) {
 		if (super.charTyped(c, i))
 			return true;
-		if (c == 'e') {
-			// var volumePos = this.universe.getStartingSystemId().sectorPos();
-			// this.currentSystemId = this.universe.getStartingSystemId().sectorId();
 
+		final var partialTick = this.client.getFrameTime();
+
+		if (c == 'q') {
+			var nameTemplate = NameTemplate.compile("^SL?(< >[<Major><Minor>])< >^*^*<->^*");
+			// var nameTemplate = NameTemplate.compile("[(<M>d?d?d)(<NGC >dddddd?d?d)]");
+			var name = nameTemplate.generate(new Random());
+			Mod.LOGGER.info(name);
+			return true;
+		} else if (c == 'e') {
 			var volume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
 			var system = volume.getById(this.currentSystemId.sectorId()).getFull();
 			var screen = new SystemMapScreen(this, system);
 			this.client.setScreen(screen);
-			// } else if (c == 'r') {
-			// var volume = this.galaxy.getOrGenerateVolume(this.volumePos);
-			// this.currentSystemId += 1;
-			// if (this.currentSystemId >= volume.elementCount()) {
-			// this.currentSystemId = 0;
-			// }
-
-			// this.camera.focusPosTarget = volume.posById(this.currentSystemId);
+			return true;
 		} else if (c == 'f') {
-			var partialTick = this.client.getFrameTime();
-			Mod.LOGGER.warn("before: " + this.currentSystemId);
-			var focusPos = this.camera.getFocusPos(partialTick);
-
-			var nearest = new Object() {
-				double distanceSqr = Double.MAX_VALUE;
-				UniverseId.SectorId id = null;
-			};
-			enumerateSectors(focusPos, 10000, sectorPos -> {
-				var volume = this.galaxy.getOrGenerateVolume(sectorPos);
-				var nearestInSector = volume.nearestInRadius(this.camera.focusPos, 10000);
-				if (nearestInSector != null) {
-					if (nearestInSector.pos().distanceToSqr(focusPos) < nearest.distanceSqr) {
-						nearest.distanceSqr = nearestInSector.pos().distanceToSqr(focusPos);
-						nearest.id = new UniverseId.SectorId(sectorPos, nearestInSector.id());
-					}
-				}
-			});
-
-			if (nearest.id != null) {
-				var volume = this.galaxy.getOrGenerateVolume(nearest.id.sectorPos());
-				// var nearestPos = volume.posById(nearest.id).scale(1 / TM_PER_UNIT);
-				this.currentSystemId = nearest.id;
-				Mod.LOGGER.warn("after: " + this.currentSystemId);
-				this.camera.focusPosTarget = volume.posById(this.currentSystemId.sectorId());
+			var focusPos = this.camera.focus.get(partialTick);
+			var nearestId = getNearestSystem(focusPos, 10000);
+			if (nearestId != null) {
+				var volume = this.galaxy.getOrGenerateVolume(nearestId.sectorPos());
+				this.currentSystemId = nearestId;
+				this.camera.focus.setTarget(volume.posById(this.currentSystemId.sectorId()));
 			}
-
+			return true;
 		}
 		return false;
 	}
 
-	private static class StarmapCamera {
-
-		// i kinda hate this!
-		public Vec3 focusPosTarget = Vec3.ZERO;
-		public Vec3 focusPos = Vec3.ZERO;
-		public Vec3 focusPosOld = Vec3.ZERO;
-		public double yawTarget = 0;
-		public double yaw = 0;
-		public double yawOld = 0;
-		public double pitchTarget = 0;
-		public double pitch = 0;
-		public double pitchOld = 0;
-		public double scaleTarget = 1;
-		public double scale = 1;
-		public double scaleOld = 1;
-
-		// projection properties
-		public double fovDeg = 90;
-		public double nearPlane = 0.05;
-		public double farPlane = 10000;
-
-		private final Minecraft client = Minecraft.getInstance();
-
-		public void tick() {
-			// this works well enough, and gets us framerate independence, but it feels
-			// slightly laggy to use, since we're always a tick behind the current target.
-			// would be nice if there was a better way to do this.
-			this.focusPosOld = this.focusPos;
-			this.yawOld = this.yaw;
-			this.pitchOld = this.pitch;
-			this.scaleOld = this.scale;
-
-			var newFocusX = Mth.lerp(0.6, this.focusPos.x, this.focusPosTarget.x);
-			var newFocusY = Mth.lerp(0.6, this.focusPos.y, this.focusPosTarget.y);
-			var newFocusZ = Mth.lerp(0.6, this.focusPos.z, this.focusPosTarget.z);
-			this.focusPos = new Vec3(newFocusX, newFocusY, newFocusZ);
-
-			this.yaw = Mth.lerp(0.6, this.yaw, this.yawTarget);
-			this.pitch = Mth.lerp(0.6, this.pitch, this.pitchTarget);
-			this.scale = Mth.lerp(0.2, this.scale, this.scaleTarget);
-		}
-
-		public Vec3 getFocusPos(float partialTick) {
-			var x = Mth.lerp(partialTick, this.focusPosOld.x, this.focusPos.x);
-			var y = Mth.lerp(partialTick, this.focusPosOld.y, this.focusPos.y);
-			var z = Mth.lerp(partialTick, this.focusPosOld.z, this.focusPos.z);
-			return new Vec3(x, y, z);
-		}
-
-		public Vec3 getPos(float partialTick) {
-			var backwards = getUpVector(partialTick).cross(getRightVector(partialTick));
-			var backwardsTranslation = backwards.scale(getScale(partialTick));
-			var cameraPos = getFocusPos(partialTick).scale(1 / TM_PER_UNIT).add(backwardsTranslation);
-			return cameraPos;
-		}
-
-		public double getYaw(float partialTick) {
-			return Mth.lerp(partialTick, this.yawOld, this.yaw);
-		}
-
-		public double getPitch(float partialTick) {
-			return Mth.lerp(partialTick, this.pitchOld, this.pitch);
-		}
-
-		public double getScale(float partialTick) {
-			return Mth.lerp(partialTick, this.scaleOld, this.scale);
-		}
-
-		public Vec3 getUpVector(float partialTick) {
-			return new Vec3(0, 1, 0).xRot((float) -getPitch(partialTick)).yRot((float) -getYaw(partialTick));
-		}
-
-		public Vec3 getRightVector(float partialTick) {
-			return new Vec3(1, 0, 0).xRot((float) -getPitch(partialTick)).yRot((float) -getYaw(partialTick));
-		}
-
-		public Matrix4f getProjectionMatrix() {
-			var window = this.client.getWindow();
-			var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
-			return Matrix4f.perspective((float) this.fovDeg, aspectRatio, (float) this.nearPlane,
-					(float) this.farPlane);
-		}
-
-		static Quaternion qmul(Quaternion a, Quaternion b) {
-			var res = new Quaternion(a);
-			res.mul(b);
-			return res;
-		}
-
-		public Quaternion getOrientation(float partialTick) {
-			var xRot = Vector3f.XP.rotation((float) getPitch(partialTick));
-			var yRot = Vector3f.YP.rotation((float) (getYaw(partialTick) + Math.PI));
-			return qmul(xRot, yRot);
-		}
-	}
-
 	private void renderGrid(float partialTick) {
-		var prevMatrices = RenderMatrices.capture();
+		var prevMatrices = RenderMatricesSnapshot.capture();
 		setupRenderMatrices(partialTick);
 
 		// setup
@@ -287,21 +240,32 @@ public class GalaxyMapScreen extends Screen {
 		bufferBuilder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 		renderGrid(bufferBuilder, partialTick);
 
-		var focusPos = this.camera.getFocusPos(partialTick);
-		enumerateSectors(focusPos, 10000, sectorPos -> {
-			var volume = this.galaxy.getOrGenerateVolume(sectorPos);
-			var nearest = volume.nearestInRadius(this.camera.focusPos, 10000);
-			if (nearest != null) {
-				var nearestPos = volume.posById(nearest.id()).scale(1 / TM_PER_UNIT);
-				var camPos = this.camera.getFocusPos(partialTick).scale(1 / TM_PER_UNIT);
-				var dir = nearestPos.subtract(camPos).normalize();
+		var focusPos = this.camera.focus.get(partialTick);
+		var selectedVolume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
+		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).scale(1 / TM_PER_UNIT);
+		{
+			var camPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
+			var dir = selectedPos.subtract(camPos).normalize();
 
-				bufferBuilder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 0f, 0f, 1f)
-						.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
-				bufferBuilder.vertex(nearestPos.x, nearestPos.y, nearestPos.z).color(0f, 1f, 0f, 1f)
-						.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
-			}
-		});
+			bufferBuilder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 0f, 1f, 0.2f)
+					.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+			bufferBuilder.vertex(selectedPos.x, selectedPos.y, selectedPos.z).color(1f, 0f, 1f, 0.2f)
+					.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+
+		}
+
+		var nearest = getNearestSystem(focusPos, 10000);
+		if (nearest != null) {
+			var volume = this.galaxy.getOrGenerateVolume(nearest.sectorPos());
+			var nearestPos = volume.posById(nearest.sectorId()).scale(1 / TM_PER_UNIT);
+			var camPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
+			var dir = nearestPos.subtract(camPos).normalize();
+
+			bufferBuilder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 1f, 1f, 1f)
+					.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+			bufferBuilder.vertex(camPos.x + dir.x, camPos.y + dir.y, camPos.z + dir.z).color(1f, 1f, 1f, 0f)
+					.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+		}
 
 		bufferBuilder.end();
 
@@ -331,11 +295,11 @@ public class GalaxyMapScreen extends Screen {
 		var scale = 1;
 		for (var i = 0; i < 10; ++i) {
 			currentThreshold *= scaleFactor;
-			if (this.camera.scale > currentThreshold)
+			if (this.camera.scale.get(partialTick) > currentThreshold)
 				scale = currentThreshold;
 		}
 
-		var focusPos = this.camera.getFocusPos(partialTick).scale(1 / TM_PER_UNIT);
+		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
 		RenderHelper.renderGrid(builder, focusPos, scale * UNITS_PER_SECTOR, scaleFactor, 100);
 	}
 
@@ -349,11 +313,34 @@ public class GalaxyMapScreen extends Screen {
 	private static record StarInfo(Vec3 pos, Vec3 color) {
 	}
 
+	private void drawBillboard(VertexConsumer builder, Vec3 center, double scale, double zOffset, float partialTick,
+			Color color) {
+		var up = this.camera.getUpVector(partialTick);
+		var right = this.camera.getRightVector(partialTick);
+		var backwards = up.cross(right).scale(zOffset);
+		var billboardUp = up.scale(scale);
+		var billboardRight = right.scale(scale);
+		drawBillboard(builder, center, billboardUp, billboardRight, backwards,
+				color.r(), color.g(), color.b(), color.a());
+	}
+
+	private void drawBillboard(VertexConsumer builder, Vec3 center, Vec3 up, Vec3 right, Vec3 forward, float r, float g,
+			float b, float a) {
+		var qll = center.subtract(up).subtract(right).add(forward);
+		var qlh = center.subtract(up).add(right).add(forward);
+		var qhl = center.add(up).subtract(right).add(forward);
+		var qhh = center.add(up).add(right).add(forward);
+		builder.vertex(qhl.x, qhl.y, qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
+		builder.vertex(qll.x, qll.y, qll.z).color(r, g, b, a).uv(0, 0).endVertex();
+		builder.vertex(qlh.x, qlh.y, qlh.z).color(r, g, b, a).uv(0, 1).endVertex();
+		builder.vertex(qhh.x, qhh.y, qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
+	}
+
 	private void renderSectorStars(VertexConsumer builder, Stream<StarInfo> sectorOffsets,
 			float partialTick) {
 
-		var up = camera.getUpVector(partialTick);
-		var right = camera.getRightVector(partialTick);
+		var up = this.camera.getUpVector(partialTick);
+		var right = this.camera.getRightVector(partialTick);
 		var backwards = up.cross(right);
 
 		var billboardUp = up.scale(1);
@@ -362,14 +349,18 @@ public class GalaxyMapScreen extends Screen {
 		var billboardRightInner = billboardRight.scale(0.5);
 		var billboardForwardInner = backwards.scale(-0.01);
 
-		var focusPos = this.camera.getFocusPos(partialTick);
+		var focusPos = this.camera.focus.get(partialTick);
+		var cameraPos = this.camera.getPos(partialTick).scale(TM_PER_UNIT);
 
 		sectorOffsets.forEach(info -> {
 			var distanceFromFocus = focusPos.distanceTo(info.pos);
-			var alphaFactor = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
-
-			if (alphaFactor == 0)
+			var alphaFactorFocus = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
+			if (alphaFactorFocus <= 0.05)
 				return;
+
+			var distanceFromCamera = cameraPos.distanceTo(info.pos);
+			var alphaFactorCamera = 1 - Mth.clamp(distanceFromCamera / STAR_RENDER_RADIUS * 4, 0, 1);
+			var alphaFactor = Math.max(alphaFactorFocus, alphaFactorCamera);
 
 			var center = info.pos.scale(1 / TM_PER_UNIT);
 
@@ -378,51 +369,9 @@ public class GalaxyMapScreen extends Screen {
 			float r = (float) info.color.x, g = (float) info.color.y, b = (float) info.color.z;
 			float a = (float) alphaFactor;
 
-			var qll = center.subtract(billboardUp).subtract(billboardRight);
-			var qlh = center.subtract(billboardUp).add(billboardRight);
-			var qhl = center.add(billboardUp).subtract(billboardRight);
-			var qhh = center.add(billboardUp).add(billboardRight);
-			builder.vertex(qhl.x, qhl.y, qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
-			builder.vertex(qll.x, qll.y, qll.z).color(r, g, b, a).uv(0, 0).endVertex();
-			builder.vertex(qlh.x, qlh.y, qlh.z).color(r, g, b, a).uv(0, 1).endVertex();
-			builder.vertex(qhh.x, qhh.y, qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
-
-			var qlls = center.subtract(billboardUpInner).subtract(billboardRightInner).add(billboardForwardInner);
-			var qlhs = center.subtract(billboardUpInner).add(billboardRightInner).add(billboardForwardInner);
-			var qhls = center.add(billboardUpInner).subtract(billboardRightInner).add(billboardForwardInner);
-			var qhhs = center.add(billboardUpInner).add(billboardRightInner).add(billboardForwardInner);
-			builder.vertex(qhls.x, qhls.y, qhls.z).color(1, 1, 1, a).uv(1, 0).endVertex();
-			builder.vertex(qlls.x, qlls.y, qlls.z).color(1, 1, 1, a).uv(0, 0).endVertex();
-			builder.vertex(qlhs.x, qlhs.y, qlhs.z).color(1, 1, 1, a).uv(0, 1).endVertex();
-			builder.vertex(qhhs.x, qhhs.y, qhhs.z).color(1, 1, 1, a).uv(1, 1).endVertex();
+			drawBillboard(builder, center, billboardUp, billboardRight, Vec3.ZERO, r, g, b, a);
+			drawBillboard(builder, center, billboardUpInner, billboardRightInner, billboardForwardInner, 1, 1, 1, a);
 		});
-
-	}
-
-	private static class RenderMatrices {
-
-		private Matrix4f prevModelViewMatrix = null;
-		private Matrix3f prevModelViewNormalMatrix = null;
-		private Matrix4f prevProjectionMatrix = null;
-		private Matrix3f prevInverseViewRotationMatrix = null;
-
-		public static RenderMatrices capture() {
-			var mats = new RenderMatrices();
-			mats.prevInverseViewRotationMatrix = RenderSystem.getInverseViewRotationMatrix();
-			mats.prevProjectionMatrix = RenderSystem.getProjectionMatrix();
-			mats.prevModelViewMatrix = RenderSystem.getModelViewStack().last().pose().copy();
-			mats.prevModelViewNormalMatrix = RenderSystem.getModelViewStack().last().normal().copy();
-			RenderSystem.getModelViewStack().pushPose();
-			return mats;
-		}
-
-		public void restore() {
-			RenderSystem.getModelViewStack().last().pose().load(this.prevModelViewMatrix);
-			RenderSystem.getModelViewStack().last().normal().load(this.prevModelViewNormalMatrix);
-			RenderSystem.applyModelViewMatrix();
-			RenderSystem.setProjectionMatrix(this.prevProjectionMatrix);
-			RenderSystem.setInverseViewRotationMatrix(this.prevInverseViewRotationMatrix);
-		}
 
 	}
 
@@ -480,7 +429,7 @@ public class GalaxyMapScreen extends Screen {
 	}
 
 	private void renderStars(Octree<Lazy<StarSystem.Info, StarSystem>> volume, float partialTick) {
-		var prevMatrices = RenderMatrices.capture();
+		var prevMatrices = RenderMatricesSnapshot.capture();
 		setupRenderMatrices(partialTick);
 
 		// rotate then translate rotates everything about the origin, then translates
@@ -560,6 +509,20 @@ public class GalaxyMapScreen extends Screen {
 	public void tick() {
 		super.tick();
 		this.camera.tick();
+
+		double forward = 0, right = 0;
+		double speed = 25;
+		forward += this.isForwardPressed ? speed : 0;
+		forward += this.isBackwardPressed ? -speed : 0;
+		right += this.isLeftPressed ? speed : 0;
+		right += this.isRightPressed ? -speed : 0;
+
+		// TODO: consolidate with the logic in mouseDragged()?
+		final var partialTick = this.client.getFrameTime();
+		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.TM_PER_LY;
+
+		var offset = new Vec3(right, 0, forward).yRot(-this.camera.yaw.get(partialTick).floatValue()).scale(dragScale);
+		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 	}
 
 	private void enumerateSectors(Vec3 centerPos, double radius, Consumer<Vec3i> posConsumer) {
@@ -577,7 +540,6 @@ public class GalaxyMapScreen extends Screen {
 				}
 			}
 		}
-
 	}
 
 	@Override
@@ -594,26 +556,10 @@ public class GalaxyMapScreen extends Screen {
 		// explicitly assembled, instead of chaining together interfaces.
 
 		RenderSystem.depthMask(false);
-		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
+		fillGradient(poseStack, 0, 0, this.width, this.height, 0xcf000000, 0xcf000000);
 		RenderSystem.depthMask(true);
 
-		var focusPos = this.camera.getFocusPos(partialTick);
-
-		// var aaa = new Object() {
-		// int verticalOffset = 0;
-		// };
-		// enumerateSectors(focusPos, STAR_RENDER_RADIUS, sectorPos -> {
-		// var volume = this.galaxy.getOrGenerateVolume(sectorPos);
-		// // RenderSystem.disableDepthTest();
-		// drawString(
-		// poseStack, this.client.font, "octree " + sectorPos.toShortString() + ":
-		// #elements="
-		// + volume.elements.size() + ", #descendants=" +
-		// countOctreeDescendants(volume.rootNode),
-		// 0, aaa.verticalOffset, 0xffffffff);
-		// // RenderSystem.enableDepthTest();
-		// aaa.verticalOffset += this.client.font.lineHeight;
-		// });
+		var focusPos = this.camera.focus.get(partialTick);
 
 		renderGrid(partialTick);
 
@@ -624,24 +570,67 @@ public class GalaxyMapScreen extends Screen {
 			renderStars(volume, partialTick);
 		});
 
-		fillGradient(poseStack, 0, 0, 200, this.height, 0xff110005, 0xff050002);
+		// selected system gizmo
+
+		var selectedVolume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
+		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).scale(1 / TM_PER_UNIT);
+
+		var prevMatrices = RenderMatricesSnapshot.capture();
+		setupRenderMatrices(partialTick);
+
+		BufferBuilder builder = Tesselator.getInstance().getBuilder();
+		RenderSystem.enableBlend();
+		RenderSystem.disableTexture();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+
+		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		drawBillboard(builder, selectedPos, 0.5, 0, partialTick, new Color(1, 1, 1, 0.2f));
+		builder.end();
+
+		this.client.getTextureManager().getTexture(SELECTION_CIRCLE_ICON_LOCATION).setFilter(true, false); // filtered,
+																											// mipped
+		RenderSystem.setShaderTexture(0, SELECTION_CIRCLE_ICON_LOCATION);
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
+		// GlStateManager.DestFactor.ONE);
+		RenderSystem.applyModelViewMatrix();
+		RenderSystem.disableDepthTest();
+		BufferUploader.end(builder);
+
+		RenderSystem.enableDepthTest();
+		RenderSystem.enableCull();
+		RenderSystem.enableTexture();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableBlend();
+
+		prevMatrices.restore();
+
+		// sidebar
+
+		fillGradient(poseStack, 0, 0, 200, this.height, 0xff0a0a0a, 0xff0a0a0a);
 
 		var systemId = "";
-		if (this.currentSystemId.sectorPos().getX() < 0) systemId += "M";
+		if (this.currentSystemId.sectorPos().getX() < 0)
+			systemId += "M";
 		systemId += Math.abs(this.currentSystemId.sectorPos().getX()) + ".";
-		if (this.currentSystemId.sectorPos().getY() < 0) systemId += "M";
+		if (this.currentSystemId.sectorPos().getY() < 0)
+			systemId += "M";
 		systemId += Math.abs(this.currentSystemId.sectorPos().getY()) + ".";
-		if (this.currentSystemId.sectorPos().getZ() < 0) systemId += "M";
+		if (this.currentSystemId.sectorPos().getZ() < 0)
+			systemId += "M";
 		systemId += Math.abs(this.currentSystemId.sectorPos().getZ()) + "#";
 		systemId += this.currentSystemId.sectorId();
+
+		var volume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
+		var system = volume.getById(this.currentSystemId.sectorId()).getInitial();
 
 		int h = 10;
 		this.client.font.draw(poseStack, "System " + systemId, 10, h, 0xffffffff);
 		h += this.client.font.lineHeight;
+		this.client.font.draw(poseStack, system.name, 10, h, 0xffffffff);
+		h += this.client.font.lineHeight;
 		h += 10;
-
-		var volume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
-		var system = volume.getById(this.currentSystemId.sectorId()).getInitial();
 
 		for (var star : system.stars) {
 			this.client.font.draw(poseStack, describeStar(star), 10, h, 0xffffffff);

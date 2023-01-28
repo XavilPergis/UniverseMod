@@ -20,11 +20,10 @@ import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 
-public class SystemMapScreen extends Screen {
+public class SystemMapScreen extends UniversalScreen {
 
 	private final Minecraft client = Minecraft.getInstance();
 	private final StarSystem system;
-	private final @Nullable Screen previousScreen;
 
 	// private abstract class Selectable {
 	// public double x, y;
@@ -35,12 +34,8 @@ public class SystemMapScreen extends Screen {
 	// private final List<Selectable> selectables = new ArrayList<>();
 
 	protected SystemMapScreen(@Nullable Screen previousScreen, StarSystem system) {
-		super(new TranslatableComponent("narrator.screen.systemmap"));
+		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
 		this.system = system;
-		this.previousScreen = previousScreen;
-
-		// var maxId = this.system.rootNode.getId();
-
 	}
 
 	static class NodeRenderer {
@@ -120,13 +115,6 @@ public class SystemMapScreen extends Screen {
 
 			return new SegmentInfo(0, 0, 0);
 		}
-	}
-
-	@Override
-	public void onClose() {
-		// NOTE: explicitly not calling super's onClose because we want to set the
-		// screen to the previous scrren instead of always setting it to null.
-		this.client.setScreen(previousScreen);
 	}
 
 	// TODO: figure out how we actually wanna handle time

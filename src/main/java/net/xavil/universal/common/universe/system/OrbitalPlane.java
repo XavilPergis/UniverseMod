@@ -13,6 +13,14 @@ public record OrbitalPlane(
 		// the angle at which periapsis occurs, measured from the ascending node
 		double argumentOfPeriapsisRad) {
 
+	public static final OrbitalPlane ZERO = new OrbitalPlane(0, 0, 0);
+
+	public OrbitalPlane transform(OrbitalPlane child) {
+		return new OrbitalPlane(inclinationRad + child.inclinationRad,
+				longitueOfAscendingNodeRad + child.longitueOfAscendingNodeRad,
+				argumentOfPeriapsisRad + child.argumentOfPeriapsisRad);
+	}
+
 	public OrbitalPlane withInclination(double inclinationRad) {
 		return new OrbitalPlane(inclinationRad, longitueOfAscendingNodeRad, argumentOfPeriapsisRad);
 	}

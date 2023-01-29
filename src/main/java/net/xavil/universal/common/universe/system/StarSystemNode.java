@@ -5,17 +5,27 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 
 public abstract sealed class StarSystemNode permits StarNode, BinaryNode, PlanetNode, OtherNode {
 
 	public static final int UNASSINED_ID = -1;
 
-	public record UnaryOrbit(
-			StarSystemNode node,
-			boolean isPrograde,
-			OrbitalShape orbitalShape,
-			OrbitalPlane orbitalPlane) {
+	public static class UnaryOrbit {
+		public StarSystemNode node;
+		public boolean isPrograde; // FIXME: retrograde orbits should be expressed by flipping the orbital plane.
+		public OrbitalShape orbitalShape;
+		public OrbitalPlane orbitalPlane;
+
+		public UnaryOrbit(StarSystemNode node, boolean isPrograde, OrbitalShape orbitalShape,
+				OrbitalPlane orbitalPlane) {
+			this.node = node;
+			this.isPrograde = isPrograde;
+			this.orbitalShape = orbitalShape;
+			this.orbitalPlane = orbitalPlane;
+		}
+
 	}
 
 	protected int id = UNASSINED_ID;

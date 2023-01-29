@@ -2,10 +2,42 @@ package net.xavil.universal.client.screen;
 
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import net.xavil.universal.Mod;
+import net.xavil.universal.common.universe.system.StarNode;
 
 public final class RenderHelper {
+
+	public static final ResourceLocation STAR_ICON_LOCATION = Mod.namespaced("textures/misc/star_icon.png");
+	public static final ResourceLocation SELECTION_CIRCLE_ICON_LOCATION = Mod
+			.namespaced("textures/misc/selection_circle.png");
+
+	public static void renderBillboard(VertexConsumer builder, OrbitCamera camera, Vec3 center, double scale,
+			double zOffset, float partialTick, Color color) {
+
+		var up = camera.getUpVector(partialTick);
+		var right = camera.getRightVector(partialTick);
+		var backwards = up.cross(right).scale(zOffset);
+		var billboardUp = up.scale(scale);
+		var billboardRight = right.scale(scale);
+		renderBillboard(builder, center, billboardUp, billboardRight, backwards,
+				color.r(), color.g(), color.b(), color.a());
+
+	}
+
+	public static void renderBillboard(VertexConsumer builder, Vec3 center, Vec3 up, Vec3 right, Vec3 forward,
+			float r, float g, float b, float a) {
+		var qll = center.subtract(up).subtract(right).add(forward);
+		var qlh = center.subtract(up).add(right).add(forward);
+		var qhl = center.add(up).subtract(right).add(forward);
+		var qhh = center.add(up).add(right).add(forward);
+		builder.vertex(qhl.x, qhl.y, qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
+		builder.vertex(qll.x, qll.y, qll.z).color(r, g, b, a).uv(0, 0).endVertex();
+		builder.vertex(qlh.x, qlh.y, qlh.z).color(r, g, b, a).uv(0, 1).endVertex();
+		builder.vertex(qhh.x, qhh.y, qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
+	}
 
 	public static void renderGrid(VertexConsumer builder, Vec3 focusPos, double gridDiameter, int subcellsPerCell,
 			int gridLineCount) {
@@ -15,7 +47,7 @@ public final class RenderHelper {
 		var gridMinX = gridCellResolution * Math.floor(focusPos.x / gridCellResolution);
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
 
-		float r = 0.1f, g = 0.1f, b = 0.1f, a = 0.3f;
+		float r = 0.1f, g = 0.1f, b = 0.1f, a = 0.2f;
 
 		var gridOffset = gridCellResolution * gridLineCount / 2;
 

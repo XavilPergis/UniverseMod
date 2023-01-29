@@ -15,7 +15,6 @@ import net.xavil.universal.common.universe.DensityField3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.Universe;
@@ -163,7 +162,7 @@ public class Galaxy {
 		// costly to do, even directly on the render thread. It still might make sense
 		// to do everything a background thread, still.
 		for (var attempts = 0; attempts < 256; ++attempts) {
-			if (random.nextDouble() < 0.3)
+			if (random.nextDouble() < 0.5)
 				break;
 
 			var mass = generateStarMass(random, remainingHydrogenYg);

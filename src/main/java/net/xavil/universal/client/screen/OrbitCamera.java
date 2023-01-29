@@ -1,5 +1,7 @@
 package net.xavil.universal.client.screen;
 
+import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.math.Matrix3f;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Quaternion;
 import com.mojang.math.Vector3f;
@@ -64,7 +66,8 @@ public class OrbitCamera {
 		}
 	}
 
-	// i kinda hate this!
+	public final double renderUnitFactor;
+
 	public final MotionSmoother<Vec3> focus = MotionSmoother.smoothVectors(0.6);
 	public final MotionSmoother<Double> yaw = MotionSmoother.smoothDoubles(0.6);
 	public final MotionSmoother<Double> pitch = MotionSmoother.smoothDoubles(0.6);
@@ -74,6 +77,10 @@ public class OrbitCamera {
 	public double fovDeg = 90;
 	public double nearPlane = 0.1;
 	public double farPlane = 10000;
+
+	public OrbitCamera(double renderUnitFactor) {
+		this.renderUnitFactor = renderUnitFactor;
+	}
 
 	public void tick() {
 		// this works well enough, and gets us framerate independence, but it feels
@@ -88,7 +95,7 @@ public class OrbitCamera {
 	public Vec3 getPos(float partialTick) {
 		var backwards = getUpVector(partialTick).cross(getRightVector(partialTick));
 		var backwardsTranslation = backwards.scale(this.scale.get(partialTick));
-		var cameraPos = this.focus.get(partialTick).scale(1 / GalaxyMapScreen.TM_PER_UNIT).add(backwardsTranslation);
+		var cameraPos = this.focus.get(partialTick).scale(1 / this.renderUnitFactor).add(backwardsTranslation);
 		return cameraPos;
 	}
 
@@ -113,5 +120,25 @@ public class OrbitCamera {
 		var res = new Quaternion(xRot);
 		res.mul(yRot);
 		return res;
+	}
+
+	public RenderMatricesSnapshot setupRenderMatrices(float partialTick) {
+		var snapshot = RenderMatricesSnapshot.capture();
+		RenderSystem.setProjectionMatrix(getProjectionMatrix());
+
+		var poseStack = RenderSystem.getModelViewStack();
+		poseStack.setIdentity();
+
+		var rotation = getOrientation(partialTick);
+		poseStack.mulPose(rotation);
+		Matrix3f inverseViewRotationMatrix = poseStack.last().normal().copy();
+		if (inverseViewRotationMatrix.invert()) {
+			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
+		}
+
+		var cameraPos = getPos(partialTick);
+		poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
+		RenderSystem.applyModelViewMatrix();
+		return snapshot;
 	}
 }

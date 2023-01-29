@@ -44,8 +44,6 @@ public class StarSystemGenerator {
 	}
 
 	public StarSystemNode generate() {
-		final var systemPlane = randomOrbitalPlane(random);
-
 		// should never happen
 		if (info.stars.isEmpty())
 			throw new IllegalArgumentException("cannot generate a star system with no stars!");
@@ -54,7 +52,7 @@ public class StarSystemGenerator {
 		for (var i = 1; i < info.stars.size(); ++i) {
 			final var starToInsert = info.stars.get(i);
 			Mod.LOGGER.info("Placing star #" + i + "");
-			var newRoot = mergeStarNodes(systemPlane, current, starToInsert);
+			var newRoot = mergeStarNodes(current, starToInsert);
 			if (newRoot != null) {
 				current = newRoot;
 			} else {
@@ -65,7 +63,8 @@ public class StarSystemGenerator {
 		// TODO: if stars have very large mass differences, we might consider putting
 		// the smaller star in a unary orbit around the mroe massive star
 
-		placePlanets(systemPlane, current);
+		placePlanets(current);
+		determineOrbitalPlanes(current);
 
 		return current;
 	}
@@ -84,7 +83,7 @@ public class StarSystemGenerator {
 		newNode.getB().setBinaryParent(newNode);
 	}
 
-	private @Nullable StarSystemNode mergeSingleStar(OrbitalPlane systemPlane, StarNode existing, StarNode toInsert) {
+	private @Nullable StarSystemNode mergeSingleStar(StarNode existing, StarNode toInsert) {
 
 		// if the node we are placing ourselves into orbit with is already part of a
 		// binary orbit, then there is a maximum radius of the new binary node: one
@@ -105,7 +104,7 @@ public class StarSystemGenerator {
 
 		// var squishFactor = Mth.lerp(1 - Math.pow(random.nextDouble(), 7), 0.2, 1);
 		var squishFactor = 1;
-		var newNode = new BinaryNode(existing, toInsert, systemPlane, squishFactor, radius);
+		var newNode = new BinaryNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius);
 		replaceNode(existing, newNode);
 		return newNode;
 	}
@@ -114,7 +113,7 @@ public class StarSystemGenerator {
 		if (node instanceof StarNode starNode) {
 			// TODO: exclusion zone for more massive stars should be larger, but im not sure
 			// by how much...
-			return Units.au(0.5);
+			return Units.au(0.5) * Math.sqrt(starNode.massYg / Units.YG_PER_MSOL);
 		} else if (node instanceof BinaryNode binaryNode) {
 			return BINARY_SYSTEM_SPACING_FACTOR * binaryNode.maxOrbitalRadiusTm;
 		}
@@ -132,8 +131,7 @@ public class StarSystemGenerator {
 		return parent.maxOrbitalRadiusTm / BINARY_SYSTEM_SPACING_FACTOR;
 	}
 
-	private @Nullable StarSystemNode mergeStarWithBinary(OrbitalPlane systemPlane, BinaryNode existing,
-			StarNode toInsert) {
+	private @Nullable StarSystemNode mergeStarWithBinary(BinaryNode existing, StarNode toInsert) {
 
 		// i kinda hate this, but i cant think of a nicer way to do this rn.
 		boolean triedPType = false, triedSTypeA = false, triedSTypeB = false;
@@ -157,7 +155,7 @@ public class StarSystemGenerator {
 					Mod.LOGGER.info("Success [radius={}]", radius);
 					// var squishFactor = Mth.lerp(1 - Math.pow(random.nextDouble(), 7), 0.2, 1);
 					var squishFactor = 1;
-					var newNode = new BinaryNode(existing, toInsert, systemPlane, squishFactor, radius);
+					var newNode = new BinaryNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius);
 					replaceNode(existing, newNode);
 					return newNode;
 				}
@@ -174,7 +172,7 @@ public class StarSystemGenerator {
 					Mod.LOGGER.info("Attempting S-Type B");
 				}
 
-				var newNode = mergeStarNodes(systemPlane, node, toInsert);
+				var newNode = mergeStarNodes(node, toInsert);
 				if (newNode != null) {
 					return existing;
 				}
@@ -185,37 +183,62 @@ public class StarSystemGenerator {
 		return null;
 	}
 
-	private @Nullable StarSystemNode mergeStarNodes(OrbitalPlane systemPlane, StarSystemNode existing,
-			StarNode toInsert) {
+	private @Nullable StarSystemNode mergeStarNodes(StarSystemNode existing, StarNode toInsert) {
 
 		if (existing instanceof StarNode starNode) {
-			return mergeSingleStar(systemPlane, starNode, toInsert);
+			return mergeSingleStar(starNode, toInsert);
 		} else if (existing instanceof BinaryNode binaryNode) {
-			return mergeStarWithBinary(systemPlane, binaryNode, toInsert);
+			return mergeStarWithBinary(binaryNode, toInsert);
 		}
 
 		throw new IllegalArgumentException("tried to merge non-stellar nodes!");
 	}
 
-	private void placePlanets(OrbitalPlane systemPlane, StarSystemNode node) {
-
+	private void placePlanets(StarSystemNode node) {
 		if (node instanceof BinaryNode binaryNode) {
-			placePlanets(systemPlane, binaryNode.getA());
-			placePlanets(systemPlane, binaryNode.getB());
+			placePlanets(binaryNode.getA());
+			placePlanets(binaryNode.getB());
 		}
 		for (var childOrbit : node.childOrbits()) {
-			placePlanets(systemPlane, childOrbit.node());
+			placePlanets(childOrbit.node);
 		}
 
 		var minRadius = getExclusionRadius(node);
 		var maxRadius = getMaximumRadius(node);
+		var massMsol = node.massYg / Units.YG_PER_MSOL;
+		maxRadius = Math.min(maxRadius, Units.au(1000) * Math.pow(massMsol, 2));
 		if (minRadius > maxRadius)
 			return;
 
-		var planetCountDouble = Mth.lerp(Math.pow(random.nextDouble(), 20), 0, 30);
-		var planetCount = (int) Math.floor(planetCountDouble);
+		if (node instanceof StarNode starNode) {
 
-		for (var i = 0; i < planetCount; ++i) {
+			var capturedPlanetCountDouble = Mth.lerp(Math.pow(random.nextDouble(), 2), 0, 20);
+			var capturedPlanetCount = (int) Math.floor(capturedPlanetCountDouble);
+
+			for (var i = 0; i < capturedPlanetCount; ++i) {
+				// FIXME: do something real
+				// we want to take into account how much dust and gas the stars snatched up
+				// we dont want to have overlapping orbits
+				var initialMass = random.nextDouble(10, 1e7);
+				var initialOrbitalRadius = random.nextDouble(minRadius, maxRadius);
+
+				var typesLength = PlanetNode.Type.values().length;
+				var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
+
+				var planetNode = new PlanetNode(randomType, initialMass);
+				var orbitalShape = new OrbitalShape(0, initialOrbitalRadius);
+				var retrograde = random.nextDouble() <= 0.01;
+
+				var orbit = new StarSystemNode.UnaryOrbit(planetNode, !retrograde, orbitalShape, OrbitalPlane.ZERO);
+				node.insertChild(orbit);
+			}
+		}
+
+		var capturedPlanetCountDouble = Mth.lerp(Math.pow(random.nextDouble(), 20), 0, 20);
+		var capturedPlanetCount = (int) Math.floor(capturedPlanetCountDouble);
+
+		// TODO: captured objects should probably have higher eccentricities than usual
+		for (var i = 0; i < capturedPlanetCount; ++i) {
 			// FIXME: do something real
 			// we want to take into account how much dust and gas the stars snatched up
 			// we dont want to have overlapping orbits
@@ -228,8 +251,46 @@ public class StarSystemGenerator {
 			var planetNode = new PlanetNode(randomType, initialMass);
 			var orbitalShape = new OrbitalShape(0, initialOrbitalRadius);
 			var retrograde = random.nextDouble() <= 0.01;
-			var orbit = new StarSystemNode.UnaryOrbit(planetNode, !retrograde, orbitalShape, systemPlane);
+
+			var orbit = new StarSystemNode.UnaryOrbit(planetNode, !retrograde, orbitalShape, OrbitalPlane.ZERO);
 			node.insertChild(orbit);
+		}
+	}
+
+	private void determineOrbitalPlanes(StarSystemNode node) {
+
+		var massMsol = node.massYg / Units.YG_PER_MSOL;
+		var stabilityLimit = Units.au(1000) * Math.pow(massMsol, 1.5) * 0.66;
+
+		if (node instanceof BinaryNode binaryNode) {
+			determineOrbitalPlanes(binaryNode.getA());
+			determineOrbitalPlanes(binaryNode.getB());
+
+			// basically, we want to determine if stars are in orbit because they formed in
+			// different cores with different orbital planes and found their ways into
+			// orbits, or if they formed as part of a disc fragmentation event.
+			if (binaryNode.maxOrbitalRadiusTm > stabilityLimit) {
+				binaryNode.orbitalPlane = randomOrbitalPlane(random);
+			} else {
+				var t = 0.1 * Math.pow(binaryNode.maxOrbitalRadiusTm / stabilityLimit, 4);
+				binaryNode.orbitalPlane = new OrbitalPlane(
+						2 * Math.PI * random.nextDouble(-t, t),
+						2 * Math.PI * random.nextDouble(-1, 1),
+						2 * Math.PI * random.nextDouble(-1, 1));
+			}
+		}
+		for (var childOrbit : node.childOrbits()) {
+			determineOrbitalPlanes(childOrbit.node);
+
+			if (childOrbit.orbitalShape.semimajorAxisTm() > stabilityLimit) {
+				childOrbit.orbitalPlane = randomOrbitalPlane(random);
+			} else {
+				var t = 0.1 * Math.pow(childOrbit.orbitalShape.semimajorAxisTm() / stabilityLimit, 4);
+				childOrbit.orbitalPlane = new OrbitalPlane(
+						2 * Math.PI * random.nextDouble(-t, t),
+						2 * Math.PI * random.nextDouble(-1, 1),
+						2 * Math.PI * random.nextDouble(-1, 1));
+			}
 		}
 	}
 

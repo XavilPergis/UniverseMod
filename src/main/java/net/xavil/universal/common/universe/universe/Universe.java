@@ -26,12 +26,25 @@ public abstract class Universe {
 
 	public abstract long getUniqueUniverseSeed();
 
-	public UniverseId.SectorId getStartingGalaxyId() {
+	public Vec3i getStartingGalaxySectorPos() {
 		var random = new Random(getUniqueUniverseSeed());
 		var x = (int) (1000 * random.nextGaussian());
 		var y = (int) (1000 * random.nextGaussian());
 		var z = (int) (1000 * random.nextGaussian());
-		var pos = new Vec3i(x, y, z);
+		return new Vec3i(x, y, z);
+	}
+
+	public Vec3i getStartingSystemSectorPos() {
+		var random = new Random(getUniqueUniverseSeed() + 1);
+		var x = (int) (250 * random.nextGaussian());
+		var y = (int) (250 * random.nextGaussian());
+		var z = (int) (250 * random.nextGaussian());
+		return new Vec3i(x, y, z);
+	}
+
+	public UniverseId.SectorId getStartingGalaxyId() {
+		var random = new Random(getUniqueUniverseSeed() + 2);
+		var pos = getStartingGalaxySectorPos();
 		var volume = getOrGenerateGalaxyVolume(pos);
 		var ids = volume.streamIds().toArray();
 		var id = ids[random.nextInt(ids.length)];
@@ -39,14 +52,8 @@ public abstract class Universe {
 	}
 
 	public UniverseId.SectorId getStartingSystemId(Galaxy galaxy) {
-		// var galaxyId = getStartingGalaxyId();
-		// var galaxyVolume = getOrGenerateGalaxyVolume(galaxyId.sectorPos());
-		// var galaxy = galaxyVolume.fullById(galaxyId.sectorId());
-		var random = new Random(getUniqueUniverseSeed() + 1);
-		var x = (int) (1000 * random.nextGaussian());
-		var y = (int) (1000 * random.nextGaussian());
-		var z = (int) (1000 * random.nextGaussian());
-		var pos = new Vec3i(x, y, z);
+		var random = new Random(getUniqueUniverseSeed() + 3);
+		var pos = getStartingSystemSectorPos();
 		var volume = galaxy.getOrGenerateVolume(pos);
 		var ids = volume.streamIds().toArray();
 		var id = ids[random.nextInt(ids.length)];

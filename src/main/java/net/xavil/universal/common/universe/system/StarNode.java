@@ -5,7 +5,7 @@ import java.util.Random;
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
+import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.common.universe.Units;
 
 public non-sealed class StarNode extends StarSystemNode {
@@ -53,48 +53,26 @@ public non-sealed class StarNode extends StarSystemNode {
 			if (this == Type.BLACK_HOLE)
 				return initialRadius * 3.5e-6 + random.nextDouble(-2.5e-7, 2.5e-7);
 			if (this == Type.GIANT)
-				return initialRadius * 100 * random.nextGaussian();
+				return initialRadius * 100 + 0.1 * random.nextGaussian();
 
 			return initialRadius;
 		}
 	}
 
-	// var massMsol = massYg / Units.YG_PER_MSOL;
-
-	// var luminosityLsol = Math.pow(massMsol, 3.5);
-	// var radiusRsol = Math.pow(massMsol, 0.8);
-	// var starLifetime = SOL_LIFETIME_MYA * (massMsol / luminosityLsol);
-
-	// The effective temperature and the bolometric luminosity are the two
-	// fundamental physical parameters needed to place a star on the
-	// Hertzsprung–Russell diagram
-
-	// The effective temperature of a star is the temperature of a black body with
-	// the same luminosity per surface area (F_Bol) as the star and is defined
-	// according to the Stefan–Boltzmann law:
-	// F_Bol = σ*T_eff^4.
-
-	// Notice that the total (bolometric) luminosity of a star is then L = 4*π*R^2 *
-	// σ*T_eff^4, where R is the stellar radius.[2]
-
-	// L = 4*π*R^2*σ*T_eff^4
-	// L / (4*π*R^2*σ) = T_eff^4
-	// pow(L / (4*π*R^2*σ), 1/4) = T_eff
-
 	public static enum StarClass {
-		O("O", new Vec3(0.1, 0.1, 1)),
-		B("B", new Vec3(0.6, 0.6, 1)),
-		A("A", new Vec3(0.8, 0.8, 1)),
-		F("F", new Vec3(1, 1, 1)),
-		G("G", new Vec3(1, 1, 0.7)),
-		K("K", new Vec3(1, 0.7, 0.3)),
-		M("M", new Vec3(1, 0.3, 0.05));
+		O("O", Color.rgb(0.1, 0.1, 1)),
+		B("B", Color.rgb(0.6, 0.6, 1)),
+		A("A", Color.rgb(0.8, 0.8, 1)),
+		F("F", Color.rgb(1, 1, 1)),
+		G("G", Color.rgb(1, 1, 0.7)),
+		K("K", Color.rgb(1, 0.7, 0.3)),
+		M("M", Color.rgb(1, 0.3, 0.05));
 
 		public final String name;
 		// FIXME: color is based on star temperature, not star class!
-		public final Vec3 color;
+		public final Color color;
 
-		private StarClass(String name, Vec3 color) {
+		private StarClass(String name, Color color) {
 			this.name = name;
 			this.color = color;
 		}
@@ -126,12 +104,18 @@ public non-sealed class StarNode extends StarSystemNode {
 		// @formatter:on
 	}
 
-	// public final String luminosityClass() {
+	public Color getColor() {
+		var starClass = starClass();
 
-	// }
-
-	public final String classification() {
-		return null;
+		// TODO: color based on temperature and not on star class!
+		if (starClass != null) {
+			return starClass.color;
+		} else if (this.type == StarNode.Type.WHITE_DWARF) {
+			return Color.rgb(1, 1, 1);
+		} else if (this.type == StarNode.Type.NEUTRON_STAR) {
+			return Color.rgb(0.4, 0.4, 1);
+		}
+		return Color.rgb(0, 1, 0);
 	}
 
 	@Override

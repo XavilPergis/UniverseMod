@@ -14,7 +14,6 @@ import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Vector3f;
 
@@ -24,6 +23,7 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
+import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.system.BinaryNode;
 import net.xavil.universal.common.universe.system.OrbitalPlane;
@@ -39,9 +39,13 @@ public class SystemMapScreen extends UniversalScreen {
 
 	public static final double TM_PER_UNIT = Units.TM_PER_AU;
 
+	public static final Color BINARY_PATH_COLOR = new Color(0.5f, 0.4f, 0.1f, 0.5f);
+	public static final Color UNARY_PATH_COLOR = new Color(0.2f, 0.2f, 0.2f, 0.5f);
+
 	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
 	private OrbitCamera camera = new OrbitCamera(TM_PER_UNIT);
 	private int followingId = -1;
+	private int selectedId = -1;
 	private final Map<Integer, Vec3> positions = new HashMap<>();
 
 	protected SystemMapScreen(@Nullable Screen previousScreen, StarSystem system) {
@@ -100,12 +104,39 @@ public class SystemMapScreen extends UniversalScreen {
 		return false;
 	}
 
+	private int getClosestNode(float partialTick) {
+		int closest = -1;
+		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
+		for (var entry : this.positions.entrySet()) {
+			if (closest == -1) {
+				closest = entry.getKey();
+				continue;
+			}
+			var node = this.system.rootNode.lookup(entry.getKey());
+			if (!(node instanceof BinaryNode)) {
+				var currentDist = entry.getValue().distanceTo(focusPos);
+				var closestDist = this.positions.get(closest).distanceTo(focusPos);
+				if (currentDist < closestDist)
+					closest = entry.getKey();
+			}
+		}
+		return closest;
+	}
+
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		if (super.keyPressed(keyCode, scanCode, modifiers))
 			return true;
 
-		if (keyCode == GLFW.GLFW_KEY_Q) {
+		final var partialTick = this.client.getFrameTime();
+
+		if (keyCode == GLFW.GLFW_KEY_F) {
+			this.selectedId = getClosestNode(partialTick);
+			this.followingId = selectedId;
+			Mod.LOGGER.warn("this.selectedId = " + this.selectedId);
+		} else if (keyCode == GLFW.GLFW_KEY_R) {
+			this.followingId = selectedId;
+		} else if (keyCode == GLFW.GLFW_KEY_Q) {
 			if (this.followingId == -1) {
 				this.followingId = 0;
 			} else {
@@ -246,24 +277,23 @@ public class SystemMapScreen extends UniversalScreen {
 
 	// TODO: figure out how we actually wanna handle time
 	private double getTime(float partialTick) {
-		return (System.currentTimeMillis() % 1000000) / 100000f;
+		return (System.currentTimeMillis() % 1000000) / 1000f;
 		// return (double) this.client.level.getGameTime() + partialTick;
 	}
 
-	public static final double G = 0.00000001;
-	public static final double k = 1;
+	public static final double G = 1e-11;
 
 	private double getUnaryAngle(StarSystemNode parent, StarSystemNode.UnaryOrbit orbit, double time) {
-		var a = orbit.orbitalShape.semimajorAxisTm();
+		var a = orbit.orbitalShape.semimajorAxisTm() * 1e9;
 		// T = 2 * pi * sqrt(a^3 / (G * M))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * parent.massYg));
+		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * 1e21 * parent.massYg));
 		return (orbit.isPrograde ? 1 : -1) * 2 * Math.PI * time / period + orbit.orbitalPlane.argumentOfPeriapsisRad();
 	}
 
 	private double getBinaryAngle(BinaryNode node, double time) {
-		var a = node.getSemiMajorAxisA() + node.getSemiMajorAxisB();
+		var a = node.getSemiMajorAxisA() * 1e9 + node.getSemiMajorAxisB() * 1e9;
 		// T = 2 * pi * sqrt(a^3 / (G * (M1 + M2)))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * (node.getA().massYg + node.getB().massYg)));
+		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * (1e21 * node.getA().massYg + 1e21 * node.getB().massYg)));
 		return 2 * Math.PI * time / period + node.orbitalPlane.argumentOfPeriapsisRad();
 	}
 
@@ -275,8 +305,8 @@ public class SystemMapScreen extends UniversalScreen {
 				.yRot((float) plane.longitueOfAscendingNodeRad());
 		// FIXME: elliptical orbits
 		return Vec3.ZERO
-				.add(apoapsisDir.scale(Math.cos(angle) * k * orbit.orbitalShape.semimajorAxisTm()))
-				.add(rightDir.scale(Math.sin(angle) * k * orbit.orbitalShape.semiminorAxisTm()));
+				.add(apoapsisDir.scale(Math.cos(angle) * orbit.orbitalShape.semimajorAxisTm()))
+				.add(rightDir.scale(Math.sin(angle) * orbit.orbitalShape.semiminorAxisTm()));
 	}
 
 	private Vec3 getBinaryOffsetA(OrbitalPlane referencePlane, BinaryNode node, double angle) {
@@ -285,9 +315,9 @@ public class SystemMapScreen extends UniversalScreen {
 				.yRot((float) plane.longitueOfAscendingNodeRad());
 		var rightDir = new Vec3(0, 0, 1).xRot((float) plane.inclinationRad())
 				.yRot((float) plane.longitueOfAscendingNodeRad());
-		return apoapsisDir.scale(k * node.getFocalDistanceA())
-				.add(apoapsisDir.scale(Math.cos(angle) * k * node.getSemiMajorAxisA()))
-				.add(rightDir.scale(Math.sin(angle) * k * node.getSemiMinorAxisA()));
+		return apoapsisDir.scale(node.getFocalDistanceA())
+				.add(apoapsisDir.scale(Math.cos(angle) * node.getSemiMajorAxisA()))
+				.add(rightDir.scale(Math.sin(angle) * node.getSemiMinorAxisA()));
 	}
 
 	private Vec3 getBinaryOffsetB(OrbitalPlane referencePlane, BinaryNode node, double angle) {
@@ -296,9 +326,9 @@ public class SystemMapScreen extends UniversalScreen {
 				.yRot((float) plane.longitueOfAscendingNodeRad());
 		var rightDir = new Vec3(0, 0, 1).xRot((float) plane.inclinationRad())
 				.yRot((float) plane.longitueOfAscendingNodeRad());
-		return apoapsisDir.scale(-k * node.getFocalDistanceB())
-				.add(apoapsisDir.scale(Math.cos(angle) * -k * node.getSemiMajorAxisB()))
-				.add(rightDir.scale(Math.sin(angle) * -k * node.getSemiMinorAxisB()));
+		return apoapsisDir.scale(-node.getFocalDistanceB())
+				.add(apoapsisDir.scale(Math.cos(angle) * -node.getSemiMajorAxisB()))
+				.add(rightDir.scale(Math.sin(angle) * -node.getSemiMinorAxisB()));
 	}
 
 	private void positionNode(StarSystemNode node, OrbitalPlane referencePlane, float partialTick, Vec3 centerPos) {
@@ -322,13 +352,14 @@ public class SystemMapScreen extends UniversalScreen {
 
 	private void renderNode(StarSystemNode node, OrbitalPlane referencePlane, float partialTick, Vec3 centerPos) {
 		// FIXME: elliptical orbits n stuff
+		// FIXME: every node's reference plane is the root reference plane currently,
+		// because im unsure how to transform child planes from being parent-relative to
+		// root-relative.
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
-		var color = Color.rgb(1, 1, 1);
-		if (node instanceof StarNode starNode) {
-			color = starNode.getColor();
-		}
+		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
+		var toCenter = centerPos.subtract(focusPos);
 
 		var time = getTime(partialTick);
 		if (node instanceof BinaryNode binaryNode) {
@@ -342,27 +373,35 @@ public class SystemMapScreen extends UniversalScreen {
 			RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 			builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 			var pathSegments = 64;
-			for (var i = 0; i < pathSegments; ++i) {
-				var angleL = 2 * Math.PI * (i / (double) pathSegments);
-				var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
-
-				var aCenterL = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angleL));
-				var aCenterH = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angleH));
-				var bCenterL = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angleL));
-				var bCenterH = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angleH));
-
-				var aN = aCenterL.subtract(aCenterH).normalize();
-				var bN = bCenterL.subtract(bCenterH).normalize();
-				builder.vertex(aCenterL.x, aCenterL.y, aCenterL.z).color(0.5f, 0.4f, 0.1f, 0.2f)
-						.normal((float) aN.x, (float) aN.y, (float) aN.z).endVertex();
-				builder.vertex(aCenterH.x, aCenterH.y, aCenterH.z).color(0.5f, 0.4f, 0.1f, 0.2f)
-						.normal((float) aN.x, (float) aN.y, (float) aN.z).endVertex();
-				builder.vertex(bCenterL.x, bCenterL.y, bCenterL.z).color(0.5f, 0.4f, 0.1f, 0.2f)
-						.normal((float) bN.x, (float) bN.y, (float) bN.z).endVertex();
-				builder.vertex(bCenterH.x, bCenterH.y, bCenterH.z).color(0.5f, 0.4f, 0.1f, 0.2f)
-						.normal((float) bN.x, (float) bN.y, (float) bN.z).endVertex();
-
+			if (!(binaryNode.getA() instanceof BinaryNode)) {
+				for (var i = 0; i < pathSegments; ++i) {
+					var angleL = 2 * Math.PI * (i / (double) pathSegments);
+					var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
+					var aCenterL = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angleL));
+					var aCenterH = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angleH));
+					RenderHelper.addLine(builder, aCenterL, aCenterH, BINARY_PATH_COLOR.withA(0.5));
+				}
 			}
+			if (!(binaryNode.getB() instanceof BinaryNode)) {
+				for (var i = 0; i < pathSegments; ++i) {
+					var angleL = 2 * Math.PI * (i / (double) pathSegments);
+					var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
+					var bCenterL = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angleL));
+					var bCenterH = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angleH));
+					RenderHelper.addLine(builder, bCenterL, bCenterH, BINARY_PATH_COLOR.withA(0.5));
+				}
+			}
+
+			var d = 0.01 * this.camera.getPos(partialTick).distanceTo(centerPos);
+			// RenderHelper.addLine(builder, centerPos.subtract(d, 0, d), centerPos.add(d,
+			// 0, d),
+			// BINARY_PATH_COLOR.withA(0.2));
+			// RenderHelper.addLine(builder, centerPos.subtract(-d, 0, d), centerPos.add(-d,
+			// 0, d),
+			// BINARY_PATH_COLOR.withA(0.2));
+			RenderHelper.addLine(builder, aCenter, bCenter,
+					BINARY_PATH_COLOR.withA(0.2));
+
 			builder.end();
 			RenderSystem.enableBlend();
 			RenderSystem.disableTexture();
@@ -388,13 +427,7 @@ public class SystemMapScreen extends UniversalScreen {
 				var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
 				var centerL = centerPos.add(getUnaryOffset(referencePlane, childOrbit, angleL));
 				var centerH = centerPos.add(getUnaryOffset(referencePlane, childOrbit, angleH));
-
-				var bN = centerL.subtract(centerH).normalize();
-				builder.vertex(centerL.x, centerL.y, centerL.z).color(0.2f, 0.2f, 0.2f, 0.2f)
-						.normal((float) bN.x, (float) bN.y, (float) bN.z).endVertex();
-				builder.vertex(centerH.x, centerH.y, centerH.z).color(0.2f, 0.2f, 0.2f, 0.2f)
-						.normal((float) bN.x, (float) bN.y, (float) bN.z).endVertex();
-
+				RenderHelper.addLine(builder, centerL, centerH, UNARY_PATH_COLOR.withA(0.5));
 			}
 			builder.end();
 			RenderSystem.enableBlend();
@@ -405,14 +438,14 @@ public class SystemMapScreen extends UniversalScreen {
 			BufferUploader.end(builder);
 		}
 
-		var focusPos = this.camera.focus.get(partialTick);
-		var toCenter = centerPos.subtract(focusPos);
-
+		var projectedFocus = new Vec3(centerPos.x, focusPos.y, centerPos.z);
+		var d = 0.05 * this.camera.getPos(partialTick).distanceTo(projectedFocus);
 		int maxLineSegments = 32;
-		double lineSegmentLength = 0.25;
+		double lineSegmentLength = d * 0.25;
+		var k = 4;
 		var maxLength = 2 * maxLineSegments * lineSegmentLength;
 
-		if (toCenter.x * toCenter.x + toCenter.z * toCenter.z < maxLength * maxLength) {
+		if (toCenter.x * toCenter.x + toCenter.z * toCenter.z < k * maxLength * k * maxLength) {
 			RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 			builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
@@ -435,9 +468,9 @@ public class SystemMapScreen extends UniversalScreen {
 				float sa = 1 - (float) Math.pow(1 - Math.max(0, 1 - (startD / maxLength)), 3);
 				float ea = 1 - (float) Math.pow(1 - Math.max(0, 1 - (endD / maxLength)), 3);
 				builder.vertex(centerPos.x, start, centerPos.z)
-						.color(0.2f, 0.2f, 0.2f, 0.2f * sa).normal(0, 1, 0).endVertex();
+						.color(0.5f, 0.5f, 0.5f, 0.5f * sa).normal(0, 1, 0).endVertex();
 				builder.vertex(centerPos.x, end, centerPos.z)
-						.color(0.2f, 0.2f, 0.2f, 0.2f * ea).normal(0, 1, 0).endVertex();
+						.color(0.5f, 0.5f, 0.5f, 0.5f * ea).normal(0, 1, 0).endVertex();
 
 				prevOffset = currentOffset;
 				if (focusPos.y < centerPos.y) {
@@ -463,59 +496,11 @@ public class SystemMapScreen extends UniversalScreen {
 			BufferUploader.end(builder);
 		}
 
-		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-
-		var camPos = this.camera.getPos(partialTick);
-		var distanceFromCamera = camPos.distanceTo(centerPos);
-
-		final double starMinSize = 0.02, starBaseSize = 0.05, starRadiusFactor = 0.5;
-		final double otherMinSize = 0.01, otherBaseSize = 0;
-		final double brightBillboardSizeFactor = 0.5;
-
-		if (node instanceof StarNode starNode) {
-			var d = Math.max(starMinSize * distanceFromCamera,
-					Math.max(starBaseSize, starRadiusFactor * starNode.radiusRsol));
-			RenderHelper.renderBillboard(builder, this.camera, centerPos, d, 0, partialTick, color);
-			RenderHelper.renderBillboard(builder, this.camera, centerPos, brightBillboardSizeFactor * d, 0,
-					partialTick, Color.rgb(1, 1, 1));
-		} else if (node instanceof PlanetNode planetNode) {
-			var d = Math.max(otherMinSize * distanceFromCamera, otherBaseSize);
-			RenderHelper.renderBillboard(builder, this.camera, centerPos, d, 0, partialTick, color);
-			RenderHelper.renderBillboard(builder, this.camera, centerPos, brightBillboardSizeFactor * d, 0,
-					partialTick, Color.rgb(1, 1, 1));
-		} else if (!(node instanceof BinaryNode)) {
-			var d = Math.max(otherMinSize * distanceFromCamera, otherBaseSize);
-			RenderHelper.renderBillboard(builder, this.camera, centerPos, d, 0, partialTick, color);
-			RenderHelper.renderBillboard(builder, this.camera, centerPos, brightBillboardSizeFactor * d, 0,
-					partialTick, Color.rgb(1, 1, 1));
-		}
-
-		builder.end();
-		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		BufferUploader.end(builder);
+		RenderHelper.renderStarBillboard(builder, this.camera, node, centerPos, TM_PER_UNIT, partialTick);
 	}
 
 	private double getGridScale(float partialTick) {
-		var currentThreshold = Units.TM_PER_AU;
-		var scaleFactor = 10;
-		var scale = Units.TM_PER_AU;
-		for (var i = 0; i < 10; ++i) {
-			currentThreshold *= scaleFactor;
-			if (this.camera.scale.get(partialTick) > currentThreshold)
-				scale = currentThreshold;
-		}
-		return scale;
-	}
-
-	private void renderGrid(VertexConsumer builder, float partialTick) {
-		var n = 25;
-		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
-		RenderHelper.renderGrid(builder, focusPos, getGridScale(partialTick) * n, 10, n);
+		return RenderHelper.getGridScale(this.camera, Units.TM_PER_AU, 10, partialTick);
 	}
 
 	@Override
@@ -528,80 +513,161 @@ public class SystemMapScreen extends UniversalScreen {
 
 		var partialTick = this.client.getFrameTime();
 
-		if (system != null) {
-			positionNode(system.rootNode, OrbitalPlane.ZERO, partialTick, Vec3.ZERO);
+		if (system == null)
+			return;
 
-			if (followingId != -1) {
-				var nodePos = this.positions.get(this.followingId);
-				if (nodePos != null) {
-					this.camera.focus.set(nodePos.scale(TM_PER_UNIT));
+		positionNode(system.rootNode, OrbitalPlane.ZERO, partialTick, Vec3.ZERO);
+
+		if (followingId != -1) {
+			var nodePos = this.positions.get(this.followingId);
+			if (nodePos != null) {
+				this.camera.focus.set(nodePos.scale(TM_PER_UNIT));
+			}
+		}
+
+		var prevMatrices = this.camera.setupRenderMatrices(partialTick);
+
+		final var builder = Tesselator.getInstance().getBuilder();
+
+		var scale = getGridScale(tickDelta);
+		poseStack.pushPose();
+		poseStack.translate(0, this.camera.focus.get(partialTick).y, 0);
+		poseStack.scale((float) scale * 0.025f, (float) scale * 0.025f, (float) scale * 0.025f);
+		poseStack.mulPose(Vector3f.XP.rotationDegrees(90));
+		RenderSystem.depthMask(false);
+		RenderSystem.disableCull();
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		this.client.font.draw(poseStack, "" + String.format("%.2f", scale / Units.TM_PER_AU) + " au", 0, 0,
+				0x20777777);
+		// drawString(poseStack, this.client.font, "scale: " + scale, 0, 0, 0xffffffff);
+		poseStack.popPose();
+
+		RenderHelper.renderGrid(builder, this.camera, TM_PER_UNIT, Units.TM_PER_AU, 10, 100, partialTick);
+
+		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		var k = this.camera.scale.get(partialTick);
+		RenderHelper.addBillboard(builder, this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT),
+				new Vec3(0.02 * k, 0, 0),
+				new Vec3(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
+		builder.end();
+
+		this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+				.setFilter(true, false);
+		RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+		RenderSystem.enableBlend();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.disableDepthTest();
+		BufferUploader.end(builder);
+
+		// for (var entry : this.positions.entrySet()) {
+		// poseStack.pushPose();
+		// poseStack.translate(entry.getValue().x, entry.getValue().y,
+		// entry.getValue().z);
+		// poseStack.scale((float) scale * 0.025f, (float) scale * 0.025f, (float) scale
+		// * 0.025f);
+		// poseStack.mulPose(Vector3f.XP.rotationDegrees(90));
+		// RenderSystem.depthMask(false);
+		// RenderSystem.disableCull();
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
+		// GlStateManager.DestFactor.ONE);
+		// this.client.font.draw(poseStack, "" + entry.getKey(), 0, 0,
+		// 0x80777777);
+		// // drawString(poseStack, this.client.font, "scale: " + scale, 0, 0,
+		// 0xffffffff);
+		// poseStack.popPose();
+		// }
+
+		renderNode(system.rootNode, OrbitalPlane.ZERO, partialTick, Vec3.ZERO);
+
+		if (followingId != -1) {
+			var nodePos = this.positions.get(this.followingId);
+			if (nodePos != null) {
+				this.camera.focus.setTarget(nodePos.scale(TM_PER_UNIT));
+			}
+		}
+
+		var closestId = getClosestNode(partialTick);
+		var closestPos = this.positions.get(closestId);
+		RenderHelper.renderLine(builder, this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT), closestPos,
+				partialTick, new Color(1, 1, 1, 1));
+
+		if (selectedId != -1) {
+			var camPos = this.camera.getPos(partialTick);
+			var nodePos = this.positions.get(this.selectedId);
+			var distanceFromCamera = camPos.distanceTo(nodePos);
+
+			if (nodePos != null) {
+				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+				RenderHelper.addBillboard(builder, this.camera,
+						nodePos, 0.05 * distanceFromCamera, 0, partialTick,
+						new Color(1, 1, 1, 0.2f));
+				builder.end();
+
+				this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+						.setFilter(true, false);
+				RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+				RenderSystem.enableBlend();
+				RenderSystem.defaultBlendFunc();
+				RenderSystem.disableCull();
+				RenderSystem.disableDepthTest();
+				BufferUploader.end(builder);
+			}
+		}
+
+		prevMatrices.restore();
+
+		if (this.selectedId != -1) {
+			int h = 0;
+			var node = this.system.rootNode.lookup(this.selectedId);
+			poseStack.pushPose();
+			poseStack.translate(20, 20, 0);
+			this.client.font.draw(poseStack, String.format("§9§l§nNode %s§r", "" + node.getId()), 0, h, 0xff777777);
+			h += this.client.font.lineHeight + 1;
+			poseStack.translate(4, 0, 0);
+
+			if (node instanceof StarNode starNode) {
+				this.client.font.draw(poseStack,
+						String.format("§9Mass§r: %.4e Yg (%.2f M☉)", node.massYg, node.massYg / Units.YG_PER_MSOL), 0,
+						h, 0xff777777);
+				h += this.client.font.lineHeight;
+				this.client.font.draw(poseStack, String.format("§9Luminosity§r: %.6f L☉", starNode.luminosityLsol), 0,
+						h, 0xff777777);
+				h += this.client.font.lineHeight;
+				this.client.font.draw(poseStack, String.format("§9Radius§r: %.2f R☉", starNode.radiusRsol), 0, h,
+						0xff777777);
+				h += this.client.font.lineHeight;
+				this.client.font.draw(poseStack, String.format("§9Temperature§r: %.0f K", starNode.temperatureK), 0, h,
+						0xff777777);
+				h += this.client.font.lineHeight;
+				var starClass = starNode.starClass();
+				if (starClass != null) {
+					var s = "§9Spectral Class§r: " + starClass.name;
+					this.client.font.draw(poseStack, s, 0, h, 0xff777777);
+					h += this.client.font.lineHeight;
 				}
+				var s = "§9Type§r: " + starNode.type.name();
+				this.client.font.draw(poseStack, s, 0, h, 0xff777777);
+				h += this.client.font.lineHeight;
+			} else if (node instanceof PlanetNode planetNode) {
+				this.client.font.draw(poseStack, String.format("§9Mass§r: %.2f Yg", node.massYg), 0, h, 0xff777777);
+				h += this.client.font.lineHeight;
+				this.client.font.draw(poseStack, "§9Type§r: " + planetNode.type.name(), 0, h, 0xff777777);
+				h += this.client.font.lineHeight;
+			} else {
+				this.client.font.draw(poseStack, String.format("§9Mass§r: %.2f Yg", node.massYg), 0, h, 0xff777777);
+				h += this.client.font.lineHeight;
 			}
 
-			var prevMatrices = this.camera.setupRenderMatrices(partialTick);
-
-			final var builder = Tesselator.getInstance().getBuilder();
-
-			var scale = getGridScale(tickDelta);
-			poseStack.pushPose();
-			poseStack.translate(0, this.camera.focus.get(partialTick).y, 0);
-			poseStack.scale((float) scale * 0.025f, (float) scale * 0.025f, (float) scale * 0.025f);
-			poseStack.mulPose(Vector3f.XP.rotationDegrees(90));
-			RenderSystem.depthMask(false);
-			RenderSystem.disableCull();
-			RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-			this.client.font.draw(poseStack, "" + String.format("%.2f", scale / Units.TM_PER_AU) + " au", 0, 0,
-					0x20777777);
 			// drawString(poseStack, this.client.font, "scale: " + scale, 0, 0, 0xffffffff);
 			poseStack.popPose();
-
-			RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-			builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-			renderGrid(builder, partialTick);
-			builder.end();
-
-			RenderSystem.enableBlend();
-			RenderSystem.disableTexture();
-			RenderSystem.defaultBlendFunc();
-			RenderSystem.disableCull();
-			RenderSystem.lineWidth(1);
-			RenderSystem.depthMask(false);
-			BufferUploader.end(builder);
-
-			renderNode(system.rootNode, OrbitalPlane.ZERO, partialTick, Vec3.ZERO);
-
-			if (followingId != -1) {
-				var camPos = this.camera.getPos(partialTick);
-				var nodePos = this.positions.get(this.followingId);
-				var distanceFromCamera = camPos.distanceTo(nodePos);
-
-				if (nodePos != null) {
-					this.camera.focus.set(nodePos.scale(TM_PER_UNIT));
-					RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-					builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-					RenderHelper.renderBillboard(builder, this.camera,
-							nodePos, 0.05 * distanceFromCamera, 0, partialTick,
-							new Color(1, 1, 1, 0.2f));
-					builder.end();
-
-					this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-							.setFilter(true, false);
-					RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-					RenderSystem.enableBlend();
-					RenderSystem.defaultBlendFunc();
-					RenderSystem.disableCull();
-					RenderSystem.disableDepthTest();
-					BufferUploader.end(builder);
-				}
-			}
-
-			prevMatrices.restore();
-
-			poseStack.pushPose();
-			new NodeRenderer(poseStack).renderNodeMain(system.rootNode);
-			poseStack.popPose();
-
 		}
+
+		// poseStack.pushPose();
+		// new NodeRenderer(poseStack).renderNodeMain(system.rootNode);
+		// poseStack.popPose();
 
 		super.render(poseStack, mouseX, mouseY, tickDelta);
 	}

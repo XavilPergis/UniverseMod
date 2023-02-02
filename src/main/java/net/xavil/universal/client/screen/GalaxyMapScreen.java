@@ -36,6 +36,7 @@ import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
+import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 
@@ -76,6 +77,9 @@ public class GalaxyMapScreen extends UniversalScreen {
 	public static final double STAR_RENDER_RADIUS = 0.5 * Galaxy.TM_PER_SECTOR;
 	public static final double TM_PER_UNIT = 1000;
 	public static final double UNITS_PER_SECTOR = Galaxy.TM_PER_SECTOR / 1000;
+
+	public static final Color SELECTION_LINE_COLOR = new Color(1f, 0f, 1f, 0.2f);
+	public static final Color NEAREST_LINE_COLOR = new Color(1f, 1f, 1f, 1f);
 
 	@Override
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
@@ -222,13 +226,14 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// setup
 
-		BufferBuilder bufferBuilder = Tesselator.getInstance().getBuilder();
+		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
 		// Grid
 
+		RenderHelper.renderGrid(builder, this.camera, TM_PER_UNIT, 1, 10, 100, partialTick);
+
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-		bufferBuilder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		renderGrid(bufferBuilder, partialTick);
+		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		var focusPos = this.camera.focus.get(partialTick);
 		var selectedVolume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
@@ -236,11 +241,12 @@ public class GalaxyMapScreen extends UniversalScreen {
 		{
 			var camPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
 			var dir = selectedPos.subtract(camPos).normalize();
-
-			bufferBuilder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 0f, 1f, 0.2f)
-					.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
-			bufferBuilder.vertex(selectedPos.x, selectedPos.y, selectedPos.z).color(1f, 0f, 1f, 0.2f)
-					.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+			RenderHelper.addLine(builder, camPos, selectedPos, SELECTION_LINE_COLOR);
+			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 0f, 1f, 0.2f)
+			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+			// builder.vertex(selectedPos.x, selectedPos.y, selectedPos.z).color(1f, 0f, 1f,
+			// 0.2f)
+			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
 
 		}
 
@@ -250,14 +256,15 @@ public class GalaxyMapScreen extends UniversalScreen {
 			var nearestPos = volume.posById(nearest.sectorId()).scale(1 / TM_PER_UNIT);
 			var camPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
 			var dir = nearestPos.subtract(camPos).normalize();
-
-			bufferBuilder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 1f, 1f, 1f)
-					.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
-			bufferBuilder.vertex(camPos.x + dir.x, camPos.y + dir.y, camPos.z + dir.z).color(1f, 1f, 1f, 0f)
-					.normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+			RenderHelper.addLine(builder, camPos, selectedPos, NEAREST_LINE_COLOR);
+			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 1f, 1f, 1f)
+			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+			// builder.vertex(camPos.x + dir.x, camPos.y + dir.y, camPos.z +
+			// dir.z).color(1f, 1f, 1f, 0f)
+			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
 		}
 
-		bufferBuilder.end();
+		builder.end();
 
 		RenderSystem.enableBlend();
 		RenderSystem.disableTexture();
@@ -265,7 +272,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.disableCull();
 		RenderSystem.lineWidth(1);
 		RenderSystem.depthMask(false);
-		BufferUploader.end(bufferBuilder);
+		BufferUploader.end(builder);
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.enableTexture();
@@ -274,42 +281,18 @@ public class GalaxyMapScreen extends UniversalScreen {
 		prevMatrices.restore();
 	}
 
-	private void renderGrid(VertexConsumer builder, float partialTick) {
-		var currentThreshold = 1;
-		var scaleFactor = 4;
-
-		var scale = 1;
-		for (var i = 0; i < 10; ++i) {
-			currentThreshold *= scaleFactor;
-			if (this.camera.scale.get(partialTick) > currentThreshold)
-				scale = currentThreshold;
-		}
-
-		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
-		RenderHelper.renderGrid(builder, focusPos, scale * UNITS_PER_SECTOR, scaleFactor, 100);
-	}
-
 	private void renderSectorBox(VertexConsumer builder, Vec3i sectorPos) {
 		var lo = Vec3.atLowerCornerOf(sectorPos).scale(UNITS_PER_SECTOR);
 		var hi = Vec3.atLowerCornerOf(sectorPos.offset(1, 1, 1)).scale(UNITS_PER_SECTOR);
 		var color = new Color(1, 1, 1, 0.2f);
-		RenderHelper.renderAxisAlignedBox(builder, lo, hi, color);
+		RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
 	}
 
-	private static record StarInfo(Vec3 pos, Color color) {
+	private static record StarInfo(Vec3 pos, StarSystemNode node) {
 	}
 
 	private void renderSectorStars(VertexConsumer builder, Stream<StarInfo> sectorOffsets,
 			float partialTick) {
-
-		var up = this.camera.getUpVector(partialTick);
-		var right = this.camera.getRightVector(partialTick);
-
-		var billboardUp = up.scale(1);
-		var billboardRight = right.scale(1);
-		var billboardUpInner = billboardUp.scale(0.5);
-		var billboardRightInner = billboardRight.scale(0.5);
-		var billboardForwardInner = Vec3.ZERO;
 
 		var focusPos = this.camera.focus.get(partialTick);
 		var cameraPos = this.camera.getPos(partialTick).scale(TM_PER_UNIT);
@@ -328,12 +311,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 			// TODO: do the billboarding in a vertex shader!
 
-			float r = info.color.r(), g = info.color.g(), b = info.color.b();
-			float a = (float) alphaFactor;
-
-			RenderHelper.renderBillboard(builder, center, billboardUp, billboardRight, Vec3.ZERO, r, g, b, a);
-			RenderHelper.renderBillboard(builder, center, billboardUpInner, billboardRightInner, billboardForwardInner,
-					1, 1, 1, a);
+			RenderHelper.addStarBillboard(builder, this.camera, info.node, center, TM_PER_UNIT, partialTick);
 		});
 
 	}
@@ -359,7 +337,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 	private <T> void renderOctreeDebug(BufferBuilder builder, Octree.Node<T> node, Color color) {
 		var lo = node.min.scale(1 / TM_PER_UNIT);
 		var hi = node.max.scale(1 / TM_PER_UNIT);
-		RenderHelper.renderAxisAlignedBox(builder, lo, hi, color);
+		RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
 		if (node instanceof Octree.Node.Branch<T> branchNode) {
 			renderOctreeDebug(builder, branchNode.nnn, color);
 			renderOctreeDebug(builder, branchNode.nnp, color);
@@ -405,7 +383,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			var initialInfo = Objects.requireNonNull(volume.getById(id)).getInitial();
 			var brightestStar = initialInfo.stars.stream().max(Comparator.comparing(star -> star.luminosityLsol)).get();
 			var pos = Objects.requireNonNull(volume.posById(id));
-			return new StarInfo(pos, brightestStar.getColor());
+			return new StarInfo(pos, brightestStar);
 		}), partialTick);
 
 		builder.end();
@@ -415,6 +393,28 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
+		BufferUploader.end(builder);
+
+		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+
+		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
+		for (var id = 0; id < volume.elementCount(); ++id) {
+			var pos = Objects.requireNonNull(volume.posById(id)).scale(1 / TM_PER_UNIT);
+			if (pos.distanceTo(focusPos) > 10) continue;
+			RenderHelper.addLine(builder,
+					new Vec3(pos.x, focusPos.y, pos.z),
+					new Vec3(pos.x, pos.y, pos.z),
+					NEAREST_LINE_COLOR.withA(0.2));
+		}
+
+		builder.end();
+		RenderSystem.enableBlend();
+		RenderSystem.disableTexture();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.lineWidth(1.5f);
+		RenderSystem.depthMask(false);
 		BufferUploader.end(builder);
 
 		prevMatrices.restore();
@@ -471,7 +471,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// explicitly assembled, instead of chaining together interfaces.
 
 		RenderSystem.depthMask(false);
-		// fillGradient(poseStack, 0, 0, this.width, this.height, 0xcf000000, 0xcf000000);
+		// fillGradient(poseStack, 0, 0, this.width, this.height, 0xcf000000,
+		// 0xcf000000);
 		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
 		RenderSystem.depthMask(true);
 
@@ -496,10 +497,27 @@ public class GalaxyMapScreen extends UniversalScreen {
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		RenderHelper.renderBillboard(builder, this.camera, selectedPos, 0.5, 0, partialTick, new Color(1, 1, 1, 0.2f));
+		RenderHelper.addBillboard(builder, this.camera, selectedPos, 0.5, 0, partialTick, new Color(1, 1, 1, 0.2f));
 		builder.end();
 
 		this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION).setFilter(true, false);
+		RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+		RenderSystem.enableBlend();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.disableDepthTest();
+		BufferUploader.end(builder);
+
+		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		var k = this.camera.scale.get(partialTick);
+		RenderHelper.addBillboard(builder, this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT),
+				new Vec3(0.02 * k, 0, 0),
+				new Vec3(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
+		builder.end();
+
+		this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+				.setFilter(true, false);
 		RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
 		RenderSystem.enableBlend();
 		RenderSystem.defaultBlendFunc();

@@ -179,7 +179,8 @@ public class Galaxy {
 	}
 
 	// Full system info
-	public StarSystem generateStarSystem(Vec3i volumeCoords, Vec3 volumeOffsetTm, StarSystem.Info info, int i, long seed) {
+	public StarSystem generateStarSystem(Vec3i volumeCoords, Vec3 volumeOffsetTm, StarSystem.Info info, int i,
+			long seed) {
 		var random = new Random(seed);
 
 		var systemGenerator = new StarSystemGenerator(random, this, info);
@@ -195,8 +196,18 @@ public class Galaxy {
 	private static @Nullable StarNode generateStarNode(Random random, double systemAgeMya, double massYg) {
 		final var massMsol = massYg / Units.YG_PER_MSOL;
 
-		final var initialLuminosityLsol = Math.pow(massMsol + random.nextDouble(-0.1, 0.1), 3.5);
-		final var initialRadiusRsol = Math.pow(massMsol + random.nextDouble(-0.1, 0.1), 0.8);
+		double initialLuminosityLsol = 0;
+		if (massMsol < 0.43) {
+			initialLuminosityLsol = 0.23 * Math.pow(massMsol, 2.3);
+		} else if (massMsol < 2) {
+			initialLuminosityLsol = Math.pow(massMsol, 4);
+		} else if (massMsol < 55) {
+			initialLuminosityLsol = 1.4 * Math.pow(massMsol, 3.5);
+		} else {
+			initialLuminosityLsol = 32000 * massMsol;
+		}
+
+		final var initialRadiusRsol = Math.pow(massMsol, 0.8);
 
 		final var starLifetime = SOL_LIFETIME_MYA * (massMsol / initialLuminosityLsol);
 
@@ -217,9 +228,19 @@ public class Galaxy {
 		final var finalMassYg = targetType.curveMass(random, massYg);
 		final var luminosityLsol = targetType.curveLuminosity(random, initialLuminosityLsol);
 		final var radiusRsol = targetType.curveRadius(random, initialRadiusRsol);
-		final var temperatureK = Units.K_PER_TSOL * Math.pow(luminosityLsol, 0.25) * Math.sqrt(1 / radiusRsol);
 
-		return new StarNode(targetType, finalMassYg, luminosityLsol, radiusRsol, temperatureK);
+		// L = 4 * pi * r^2 * sigma * Teff^4
+		// Teff^4 = L / (4 * pi * r^2 * sigma)
+		// Teff = ((Lsol * L) / (4 * pi * (rsol * r)^2 * sigma))^(1/4)
+		// Lsol = 3.827e26 W
+		final var wattsPerLsol = 3.827e26;
+		final var boltzmannConstant = 5.670373e-8;
+		final var metersPerRsol = 6.957e8;
+		final var effectiveTemperatureK = Math.pow(wattsPerLsol * luminosityLsol
+				/ (4 * Math.PI * Math.pow(metersPerRsol * radiusRsol, 2) * boltzmannConstant), 0.25);
+		// final var temperatureK = Units.K_PER_TSOL * Math.pow(luminosityLsol, 0.54);
+
+		return new StarNode(targetType, finalMassYg, luminosityLsol, radiusRsol, effectiveTemperatureK);
 	}
 
 }

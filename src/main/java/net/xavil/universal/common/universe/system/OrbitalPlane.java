@@ -16,6 +16,7 @@ public record OrbitalPlane(
 	public static final OrbitalPlane ZERO = new OrbitalPlane(0, 0, 0);
 
 	public OrbitalPlane transform(OrbitalPlane child) {
+		// FIXME: this is wrong
 		return new OrbitalPlane(inclinationRad + child.inclinationRad,
 				longitueOfAscendingNodeRad + child.longitueOfAscendingNodeRad,
 				argumentOfPeriapsisRad + child.argumentOfPeriapsisRad);

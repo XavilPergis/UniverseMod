@@ -75,7 +75,7 @@ public class OrbitCamera {
 
 	// projection properties
 	public double fovDeg = 90;
-	public double nearPlane = 0.1;
+	public double nearPlane = 0.01;
 	public double farPlane = 10000;
 
 	public OrbitCamera(double renderUnitFactor) {
@@ -110,8 +110,9 @@ public class OrbitCamera {
 	public Matrix4f getProjectionMatrix() {
 		var window = Minecraft.getInstance().getWindow();
 		var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
-		return Matrix4f.perspective((float) this.fovDeg, aspectRatio, (float) this.nearPlane,
-				(float) this.farPlane);
+		return Matrix4f.perspective((float) this.fovDeg, aspectRatio,
+				(float) (this.scale.get(0) * this.nearPlane),
+				(float) (this.scale.get(0) * this.farPlane));
 	}
 
 	public Quaternion getOrientation(float partialTick) {

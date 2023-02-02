@@ -15,6 +15,7 @@ public non-sealed class PlanetNode extends StarSystemNode {
 
 	public PlanetNode(Type type, double massYg) {
 		super(massYg);
+		this.type = type;
 	}
 
 	@Override

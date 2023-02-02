@@ -113,7 +113,7 @@ public class StarSystemGenerator {
 		if (node instanceof StarNode starNode) {
 			// TODO: exclusion zone for more massive stars should be larger, but im not sure
 			// by how much...
-			return Units.au(0.5) * Math.sqrt(starNode.massYg / Units.YG_PER_MSOL);
+			return Units.au(0.5) * starNode.massYg / Units.YG_PER_MSOL;
 		} else if (node instanceof BinaryNode binaryNode) {
 			return BINARY_SYSTEM_SPACING_FACTOR * binaryNode.maxOrbitalRadiusTm;
 		}

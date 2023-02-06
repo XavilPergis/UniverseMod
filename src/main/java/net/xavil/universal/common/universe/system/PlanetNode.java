@@ -26,6 +26,11 @@ public non-sealed class PlanetNode extends StarSystemNode {
 		builder.append("]");
 		return builder.toString();
 	}
+
+	// public static class Features {
+	// 	public boolean 
+	// }
+
 	// planet type (gas giant, icy world, rocky world, earth-like world, etc)
 	// mass, surface gravity, atmosphere type, landable
 	// cloud coverage, greenhouse effect, volcanism, plate tectonics

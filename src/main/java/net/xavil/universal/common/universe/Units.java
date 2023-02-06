@@ -12,6 +12,12 @@ public final class Units {
 	public static final double TM_PER_AU = 0.149598;
 	public static final double LY_PER_TM = 1 / TM_PER_LY;
 
+	public static final double SOL_LIFETIME_MYA = 10e4;
+	public static final double WATTS_PER_LSOL = 3.827e26;
+	// W m^-2 K^-4
+	public static final double BOLTZMANN_CONSTANT = 5.670373e-8;
+	public static final double METERS_PER_RSOL = 6.957e8;
+
 	// Sol's effective temperature
 	public static final double K_PER_TSOL = 5780;
 

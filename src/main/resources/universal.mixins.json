@@ -5,11 +5,12 @@
   "compatibilityLevel": "JAVA_17",
   "mixins": [
 	"MinecraftServerMixin",
+	"LevelMixin",
 	"PlayerListMixin"
   ],
   "client": [
     "MinecraftClientMixin",
-    "ExampleMixin"
+    "LevelRendererMixin"
   ],
   "injectors": {
     "defaultRequire": 1

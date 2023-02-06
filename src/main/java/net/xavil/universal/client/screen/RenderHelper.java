@@ -5,15 +5,18 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
+import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.system.BinaryNode;
 import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
@@ -25,7 +28,110 @@ public final class RenderHelper {
 	public static final ResourceLocation SELECTION_CIRCLE_ICON_LOCATION = Mod
 			.namespaced("textures/misc/selection_circle.png");
 
+	public static final ResourceLocation BASE_ROCKY_LOCATION = Mod
+			.namespaced("textures/misc/celestialbodies/base_rocky.png");
+	public static final ResourceLocation BASE_WATER_LOCATION = Mod
+			.namespaced("textures/misc/celestialbodies/base_water.png");
+	public static final ResourceLocation FEATURE_CRATERS_LOCATION = Mod
+			.namespaced("textures/misc/celestialbodies/craters.png");
+	public static final ResourceLocation FEATURE_EARTH_LIKE_LOCATION = Mod
+			.namespaced("textures/misc/celestialbodies/earth_like.png");
+
 	private static final Minecraft CLIENT = Minecraft.getInstance();
+
+	private static ResourceLocation getBaseLayer(PlanetNode node) {
+		var missing = MissingTextureAtlasSprite.getLocation();
+		return switch (node.type) {
+			case EARTH_LIKE_WORLD -> BASE_WATER_LOCATION;
+			case GAS_GIANT -> missing;
+			case ICE_WORLD -> missing;
+			case ROCKY_ICE_WORLD -> missing;
+			case ROCKY_WORLD -> BASE_ROCKY_LOCATION;
+			case WATER_WORLD -> BASE_WATER_LOCATION;
+			default -> missing;
+		};
+	}
+
+	public static void renderPlanet(BufferBuilder builder, PlanetNode node, double scale, PoseStack poseStack, Vec3 center,
+			Color tintColor) {
+		RenderSystem.defaultBlendFunc();
+		// RenderSystem.depthMask(true);
+		// RenderSystem.enableDepthTest();
+		var baseTexture = getBaseLayer(node);
+		var radius = scale * Math.cbrt((node.massYg / Units.mearth(1)) / 1);
+		renderTexturedCube(builder, baseTexture, poseStack, center, radius, tintColor);
+		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
+			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, center, radius, tintColor);
+		}
+	}
+
+	private static void renderTexturedCube(BufferBuilder builder, ResourceLocation texture, PoseStack poseStack,
+			Vec3 center, double radius, Color tintColor) {
+		RenderSystem.setShader(GameRenderer::getPositionTexColorNormalShader);
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+		addCube(builder, poseStack, center, radius, tintColor);
+		builder.end();
+		RenderSystem.setShaderTexture(0, texture);
+		BufferUploader.end(builder);
+	}
+
+	private static void addCube(VertexConsumer builder, PoseStack poseStack, Vec3 center, double radius,
+			Color tintColor) {
+
+		final double nr = -radius, pr = radius;
+		final var nnn = center.add(nr, nr, nr);
+		final var nnp = center.add(nr, nr, pr);
+		final var npn = center.add(nr, pr, nr);
+		final var npp = center.add(nr, pr, pr);
+		final var pnn = center.add(pr, nr, nr);
+		final var pnp = center.add(pr, nr, pr);
+		final var ppn = center.add(pr, pr, nr);
+		final var ppp = center.add(pr, pr, pr);
+
+		final var pose = poseStack.last();
+
+		// -X
+		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, -1, 0, 0, 0.00f, 0.25f);
+		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, -1, 0, 0, 0.00f, 0.50f);
+		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, -1, 0, 0, 0.25f, 0.50f);
+		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, -1, 0, 0, 0.25f, 0.25f);
+		// +X
+		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 1, 0, 0, 0.75f, 0.50f);
+		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 1, 0, 0, 0.75f, 0.25f);
+		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 1, 0, 0, 0.50f, 0.25f);
+		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 1, 0, 0, 0.50f, 0.50f);
+		// -Y
+		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, -1, 0, 0.25f, 0.75f);
+		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, -1, 0, 0.50f, 0.75f);
+		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, -1, 0, 0.50f, 0.50f);
+		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, -1, 0, 0.25f, 0.50f);
+		// +Y
+		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 1, 0, 0.50f, 0.00f);
+		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, 0, 1, 0, 0.25f, 0.00f);
+		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, 0, 1, 0, 0.25f, 0.25f);
+		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 1, 0, 0.50f, 0.25f);
+		// -Z
+		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, 0, -1, 0.75f, 0.50f);
+		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, 0, -1, 1.00f, 0.50f);
+		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, 0, 0, -1, 1.00f, 0.25f);
+		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 0, -1, 0.75f, 0.25f);
+		// +Z
+		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, 0, 1, 0.25f, 0.50f);
+		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, 0, 1, 0.50f, 0.50f);
+		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 0, 1, 0.50f, 0.25f);
+		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
+	}
+
+	private static void cubeVertex(VertexConsumer builder, PoseStack.Pose pose, Color color,
+			double x, double y, double z, double nx, double ny, double nz, float u, float v) {
+		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
+		builder
+				.vertex(pose.pose(), (float) x, (float) y, (float) z)
+				.uv(u, v)
+				.color(r, g, b, a)
+				.normal(pose.normal(), (float) nx, (float) ny, (float) nz)
+				.endVertex();
+	}
 
 	public static void renderStarBillboard(BufferBuilder builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
 			double tmPerUnit, float partialTick) {
@@ -53,12 +159,12 @@ public final class RenderHelper {
 		}
 
 		final double starMinSize = 0.01, starBaseSize = 0.05, starRadiusFactor = 0.5;
-		final double otherMinSize = 0.01, otherBaseSize = 0;
+		final double otherMinSize = 0.01, otherBaseSize = 0.000075;
 		final double brightBillboardSizeFactor = 0.5;
 
 		double d = 0;
 		if (node instanceof StarNode starNode) {
-			var r = Math.min(100000 * 0.00465047 / tmPerUnit, starNode.radiusRsol);
+			var r = 0.1 * Math.min(10, starNode.radiusRsol);
 			// var r = starNode.radiusRsol;
 			d = Math.max(starMinSize * distanceFromCamera,
 					Math.max(starBaseSize, starRadiusFactor * r));

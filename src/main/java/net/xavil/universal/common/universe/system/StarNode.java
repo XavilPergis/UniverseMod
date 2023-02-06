@@ -91,6 +91,44 @@ public non-sealed class StarNode extends StarSystemNode {
 		this.temperatureK = temperatureK;
 	}
 
+	public static double mainSequenceLifetimeFromMass(double massYg) {
+		final var massMsol = massYg / Units.YG_PER_MSOL;
+		return Units.SOL_LIFETIME_MYA * (massMsol / mainSequenceLuminosityFromMass(massYg));
+	}
+
+	public static double mainSequenceLuminosityFromMass(double massYg) {
+		final var massMsol = massYg / Units.YG_PER_MSOL;
+		double luminosityLsol = 0;
+		if (massMsol < 0.43) {
+			luminosityLsol = 0.23 * Math.pow(massMsol, 2.3);
+		} else if (massMsol < 2) {
+			luminosityLsol = Math.pow(massMsol, 4);
+		} else if (massMsol < 55) {
+			luminosityLsol = 1.4 * Math.pow(massMsol, 3.5);
+		} else {
+			luminosityLsol = 32000 * massMsol;
+		}
+		return luminosityLsol;
+	}
+
+	public static double mainSequenceRadiusFromMass(double massYg) {
+		final var massMsol = massYg / Units.YG_PER_MSOL;
+		return Math.pow(massMsol, 0.8);
+	}
+
+	public static double temperature(double radiusRsol, double luminosityLsol) {
+		var r = Units.METERS_PER_RSOL * radiusRsol;
+		var l = Units.WATTS_PER_LSOL * luminosityLsol;
+		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT), 0.25);
+	}
+
+	public static StarNode fromMass(Random random, StarNode.Type type, double massYg) {
+		var m = type.curveMass(random, massYg);
+		var l = type.curveLuminosity(random, mainSequenceLuminosityFromMass(massYg));
+		var r = type.curveRadius(random, mainSequenceRadiusFromMass(massYg));
+		return new StarNode(type, m, l, r, temperature(r, l));
+	}
+
 	public final @Nullable StarNode.StarClass starClass() {
 		// @formatter:off
 		if (!this.type.hasSpectralClass)    return null;

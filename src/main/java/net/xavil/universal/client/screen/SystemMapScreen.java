@@ -46,13 +46,12 @@ public class SystemMapScreen extends UniversalScreen {
 	private OrbitCamera camera = new OrbitCamera(TM_PER_UNIT);
 	private int followingId = -1;
 	private int selectedId = -1;
+	private boolean showGuides = true;
 	private final Map<Integer, Vec3> positions = new HashMap<>();
 
 	protected SystemMapScreen(@Nullable Screen previousScreen, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
 		this.system = system;
-
-		followingId = 0;
 
 		this.camera.pitch.set(Math.PI / 8);
 		this.camera.yaw.set(Math.PI / 8);
@@ -93,7 +92,8 @@ public class SystemMapScreen extends UniversalScreen {
 
 		if (scrollDelta > 0) {
 			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.5));
+			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.001));
+			// this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.5));
 			return true;
 		} else if (scrollDelta < 0) {
 			var prevTarget = this.camera.scale.getTarget();
@@ -145,6 +145,8 @@ public class SystemMapScreen extends UniversalScreen {
 					this.followingId = 0;
 				}
 			}
+		} else if (keyCode == GLFW.GLFW_KEY_G) {
+			this.showGuides = !this.showGuides;
 		}
 
 		// TODO: key mappings
@@ -275,82 +277,8 @@ public class SystemMapScreen extends UniversalScreen {
 		}
 	}
 
-	// TODO: figure out how we actually wanna handle time
-	private double getTime(float partialTick) {
-		return (System.currentTimeMillis() % 1000000) / 1000f;
-		// return (double) this.client.level.getGameTime() + partialTick;
-	}
-
-	public static final double G = 1e-11;
-
-	private double getUnaryAngle(StarSystemNode parent, StarSystemNode.UnaryOrbit orbit, double time) {
-		var a = orbit.orbitalShape.semimajorAxisTm() * 1e9;
-		// T = 2 * pi * sqrt(a^3 / (G * M))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * 1e21 * parent.massYg));
-		return (orbit.isPrograde ? 1 : -1) * 2 * Math.PI * time / period + orbit.orbitalPlane.argumentOfPeriapsisRad();
-	}
-
-	private double getBinaryAngle(BinaryNode node, double time) {
-		var a = node.getSemiMajorAxisA() * 1e9 + node.getSemiMajorAxisB() * 1e9;
-		// T = 2 * pi * sqrt(a^3 / (G * (M1 + M2)))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * (1e21 * node.getA().massYg + 1e21 * node.getB().massYg)));
-		return 2 * Math.PI * time / period + node.orbitalPlane.argumentOfPeriapsisRad();
-	}
-
-	private Vec3 getUnaryOffset(OrbitalPlane referencePlane, StarSystemNode.UnaryOrbit orbit, double angle) {
-		var plane = referencePlane.transform(orbit.orbitalPlane);
-		var apoapsisDir = new Vec3(1, 0, 0).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		var rightDir = new Vec3(0, 0, 1).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		// FIXME: elliptical orbits
-		return Vec3.ZERO
-				.add(apoapsisDir.scale(Math.cos(angle) * orbit.orbitalShape.semimajorAxisTm()))
-				.add(rightDir.scale(Math.sin(angle) * orbit.orbitalShape.semiminorAxisTm()));
-	}
-
-	private Vec3 getBinaryOffsetA(OrbitalPlane referencePlane, BinaryNode node, double angle) {
-		var plane = referencePlane.transform(node.orbitalPlane);
-		var apoapsisDir = new Vec3(1, 0, 0).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		var rightDir = new Vec3(0, 0, 1).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		return apoapsisDir.scale(node.getFocalDistanceA())
-				.add(apoapsisDir.scale(Math.cos(angle) * node.getSemiMajorAxisA()))
-				.add(rightDir.scale(Math.sin(angle) * node.getSemiMinorAxisA()));
-	}
-
-	private Vec3 getBinaryOffsetB(OrbitalPlane referencePlane, BinaryNode node, double angle) {
-		var plane = referencePlane.transform(node.orbitalPlane);
-		var apoapsisDir = new Vec3(1, 0, 0).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		var rightDir = new Vec3(0, 0, 1).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		return apoapsisDir.scale(-node.getFocalDistanceB())
-				.add(apoapsisDir.scale(Math.cos(angle) * -node.getSemiMajorAxisB()))
-				.add(rightDir.scale(Math.sin(angle) * -node.getSemiMinorAxisB()));
-	}
-
-	private void positionNode(StarSystemNode node, OrbitalPlane referencePlane, float partialTick, Vec3 centerPos) {
-		var time = getTime(partialTick);
-		if (node instanceof BinaryNode binaryNode) {
-			var angle = getBinaryAngle(binaryNode, time);
-			var aCenter = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angle));
-			var bCenter = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angle));
-			positionNode(binaryNode.getA(), referencePlane, partialTick, aCenter);
-			positionNode(binaryNode.getB(), referencePlane, partialTick, bCenter);
-		}
-
-		for (var childOrbit : node.childOrbits()) {
-			var angle = getUnaryAngle(node, childOrbit, time);
-			var center = centerPos.add(getUnaryOffset(referencePlane, childOrbit, angle));
-			positionNode(childOrbit.node, referencePlane, partialTick, center);
-		}
-
-		this.positions.put(node.getId(), centerPos);
-	}
-
-	private void renderNode(StarSystemNode node, OrbitalPlane referencePlane, float partialTick, Vec3 centerPos) {
+	private void renderNode(StarSystemNode node, OrbitalPlane referencePlane, double time, float partialTick,
+			Vec3 centerPos) {
 		// FIXME: elliptical orbits n stuff
 		// FIXME: every node's reference plane is the root reference plane currently,
 		// because im unsure how to transform child planes from being parent-relative to
@@ -361,81 +289,87 @@ public class SystemMapScreen extends UniversalScreen {
 		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
 		var toCenter = centerPos.subtract(focusPos);
 
-		var time = getTime(partialTick);
 		if (node instanceof BinaryNode binaryNode) {
-			var angle = getBinaryAngle(binaryNode, time);
+			var angle = StarSystemNode.getBinaryAngle(binaryNode, time);
 
-			var aCenter = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angle));
-			var bCenter = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angle));
-			renderNode(binaryNode.getA(), referencePlane, partialTick, aCenter);
-			renderNode(binaryNode.getB(), referencePlane, partialTick, bCenter);
+			var aCenter = centerPos.add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angle));
+			var bCenter = centerPos.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angle));
+			renderNode(binaryNode.getA(), referencePlane, time, partialTick, aCenter);
+			renderNode(binaryNode.getB(), referencePlane, time, partialTick, bCenter);
 
-			RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-			builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-			var pathSegments = 64;
-			if (!(binaryNode.getA() instanceof BinaryNode)) {
-				for (var i = 0; i < pathSegments; ++i) {
-					var angleL = 2 * Math.PI * (i / (double) pathSegments);
-					var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
-					var aCenterL = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angleL));
-					var aCenterH = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angleH));
-					RenderHelper.addLine(builder, aCenterL, aCenterH, BINARY_PATH_COLOR.withA(0.5));
+			if (this.showGuides) {
+				RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+				builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+				var pathSegments = 64;
+				if (!(binaryNode.getA() instanceof BinaryNode)) {
+					for (var i = 0; i < pathSegments; ++i) {
+						var angleL = 2 * Math.PI * (i / (double) pathSegments);
+						var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
+						var aCenterL = centerPos
+								.add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angleL));
+						var aCenterH = centerPos
+								.add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angleH));
+						RenderHelper.addLine(builder, aCenterL, aCenterH, BINARY_PATH_COLOR.withA(0.5));
+					}
 				}
-			}
-			if (!(binaryNode.getB() instanceof BinaryNode)) {
-				for (var i = 0; i < pathSegments; ++i) {
-					var angleL = 2 * Math.PI * (i / (double) pathSegments);
-					var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
-					var bCenterL = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angleL));
-					var bCenterH = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angleH));
-					RenderHelper.addLine(builder, bCenterL, bCenterH, BINARY_PATH_COLOR.withA(0.5));
+				if (!(binaryNode.getB() instanceof BinaryNode)) {
+					for (var i = 0; i < pathSegments; ++i) {
+						var angleL = 2 * Math.PI * (i / (double) pathSegments);
+						var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
+						var bCenterL = centerPos
+								.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angleL));
+						var bCenterH = centerPos
+								.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angleH));
+						RenderHelper.addLine(builder, bCenterL, bCenterH, BINARY_PATH_COLOR.withA(0.5));
+					}
 				}
+
+				// var d = 0.01 * this.camera.getPos(partialTick).distanceTo(centerPos);
+				// RenderHelper.addLine(builder, centerPos.subtract(d, 0, d), centerPos.add(d,
+				// 0, d),
+				// BINARY_PATH_COLOR.withA(0.2));
+				// RenderHelper.addLine(builder, centerPos.subtract(-d, 0, d), centerPos.add(-d,
+				// 0, d),
+				// BINARY_PATH_COLOR.withA(0.2));
+				RenderHelper.addLine(builder, aCenter, bCenter, BINARY_PATH_COLOR.withA(0.2));
+
+				builder.end();
+				RenderSystem.enableBlend();
+				RenderSystem.disableTexture();
+				RenderSystem.defaultBlendFunc();
+				RenderSystem.disableCull();
+				RenderSystem.depthMask(false);
+				BufferUploader.end(builder);
 			}
-
-			var d = 0.01 * this.camera.getPos(partialTick).distanceTo(centerPos);
-			// RenderHelper.addLine(builder, centerPos.subtract(d, 0, d), centerPos.add(d,
-			// 0, d),
-			// BINARY_PATH_COLOR.withA(0.2));
-			// RenderHelper.addLine(builder, centerPos.subtract(-d, 0, d), centerPos.add(-d,
-			// 0, d),
-			// BINARY_PATH_COLOR.withA(0.2));
-			RenderHelper.addLine(builder, aCenter, bCenter,
-					BINARY_PATH_COLOR.withA(0.2));
-
-			builder.end();
-			RenderSystem.enableBlend();
-			RenderSystem.disableTexture();
-			RenderSystem.defaultBlendFunc();
-			RenderSystem.disableCull();
-			RenderSystem.depthMask(false);
-			BufferUploader.end(builder);
 		}
 
 		for (var childOrbit : node.childOrbits()) {
 			var childNode = childOrbit.node;
 
-			var angle = getUnaryAngle(node, childOrbit, time);
-			var center = centerPos.add(getUnaryOffset(referencePlane, childOrbit, angle));
+			var angle = StarSystemNode.getUnaryAngle(node, childOrbit, time);
+			var center = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane, childOrbit, angle));
 
-			renderNode(childNode, referencePlane, partialTick, center);
+			renderNode(childNode, referencePlane, time, partialTick, center);
 
-			RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-			builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-			var pathSegments = 64;
-			for (var i = 0; i < pathSegments; ++i) {
-				var angleL = 2 * Math.PI * (i / (double) pathSegments);
-				var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
-				var centerL = centerPos.add(getUnaryOffset(referencePlane, childOrbit, angleL));
-				var centerH = centerPos.add(getUnaryOffset(referencePlane, childOrbit, angleH));
-				RenderHelper.addLine(builder, centerL, centerH, UNARY_PATH_COLOR.withA(0.5));
+			if (this.showGuides) {
+				RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+				builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+				var pathSegments = 64;
+				for (var i = 0; i < pathSegments; ++i) {
+					var angleL = 2 * Math.PI * (i / (double) pathSegments);
+					var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
+					var centerL = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane, childOrbit, angleL));
+					var centerH = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane, childOrbit, angleH));
+					RenderHelper.addLine(builder, centerL, centerH, UNARY_PATH_COLOR.withA(0.5));
+				}
+				builder.end();
+				RenderSystem.enableBlend();
+				RenderSystem.disableTexture();
+				RenderSystem.defaultBlendFunc();
+				RenderSystem.disableCull();
+				RenderSystem.depthMask(false);
+				BufferUploader.end(builder);
 			}
-			builder.end();
-			RenderSystem.enableBlend();
-			RenderSystem.disableTexture();
-			RenderSystem.defaultBlendFunc();
-			RenderSystem.disableCull();
-			RenderSystem.depthMask(false);
-			BufferUploader.end(builder);
 		}
 
 		var projectedFocus = new Vec3(centerPos.x, focusPos.y, centerPos.z);
@@ -445,7 +379,7 @@ public class SystemMapScreen extends UniversalScreen {
 		var k = 4;
 		var maxLength = 2 * maxLineSegments * lineSegmentLength;
 
-		if (toCenter.x * toCenter.x + toCenter.z * toCenter.z < k * maxLength * k * maxLength) {
+		if (this.showGuides && toCenter.x * toCenter.x + toCenter.z * toCenter.z < k * maxLength * k * maxLength) {
 			RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 			builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
@@ -496,7 +430,13 @@ public class SystemMapScreen extends UniversalScreen {
 			BufferUploader.end(builder);
 		}
 
-		RenderHelper.renderStarBillboard(builder, this.camera, node, centerPos, TM_PER_UNIT, partialTick);
+		if (node instanceof PlanetNode planetNode) {
+			RenderSystem.depthMask(true);
+			RenderSystem.enableDepthTest();
+			RenderHelper.renderPlanet(builder, planetNode, 0.0001, new PoseStack(), centerPos, Color.WHITE);
+		} else {
+			RenderHelper.renderStarBillboard(builder, this.camera, node, centerPos, TM_PER_UNIT, partialTick);
+		}
 	}
 
 	private double getGridScale(float partialTick) {
@@ -516,7 +456,12 @@ public class SystemMapScreen extends UniversalScreen {
 		if (system == null)
 			return;
 
-		positionNode(system.rootNode, OrbitalPlane.ZERO, partialTick, Vec3.ZERO);
+		// TODO: figure out how we actually wanna handle time
+		double time = (System.currentTimeMillis() % 1000000) / 1000f;
+		// // return (double) this.client.level.getGameTime() + partialTick;
+
+		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick, Vec3.ZERO,
+				(node, pos) -> this.positions.put(node.getId(), pos));
 
 		if (followingId != -1) {
 			var nodePos = this.positions.get(this.followingId);
@@ -542,7 +487,8 @@ public class SystemMapScreen extends UniversalScreen {
 		// drawString(poseStack, this.client.font, "scale: " + scale, 0, 0, 0xffffffff);
 		poseStack.popPose();
 
-		RenderHelper.renderGrid(builder, this.camera, TM_PER_UNIT, Units.TM_PER_AU, 10, 100, partialTick);
+		RenderHelper.renderGrid(builder, this.camera, TM_PER_UNIT, Units.TM_PER_AU,
+		10, 100, partialTick);
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -579,17 +525,17 @@ public class SystemMapScreen extends UniversalScreen {
 		// poseStack.popPose();
 		// }
 
-		renderNode(system.rootNode, OrbitalPlane.ZERO, partialTick, Vec3.ZERO);
-
-		if (followingId != -1) {
-			var nodePos = this.positions.get(this.followingId);
-			if (nodePos != null) {
-				this.camera.focus.setTarget(nodePos.scale(TM_PER_UNIT));
-			}
-		}
+		renderNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick, Vec3.ZERO);
 
 		var closestId = getClosestNode(partialTick);
 		var closestPos = this.positions.get(closestId);
+		RenderSystem.enableBlend();
+		RenderSystem.disableTexture();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.lineWidth(1);
+		RenderSystem.depthMask(false);
+
 		RenderHelper.renderLine(builder, this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT), closestPos,
 				partialTick, new Color(1, 1, 1, 1));
 

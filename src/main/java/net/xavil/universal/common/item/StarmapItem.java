@@ -9,7 +9,9 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
+import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.ModNetworking;
+import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 
 public class StarmapItem extends Item {
 
@@ -20,9 +22,11 @@ public class StarmapItem extends Item {
 	@Override
 	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand interactionHand) {
 		if (player instanceof ServerPlayer serverPlayer) {
-			// var buf = PacketByteBufs.create();
-			// buf.write
-			ServerPlayNetworking.send(serverPlayer, ModNetworking.CLIENTBOUND_OPEN_STARMAP, PacketByteBufs.empty());
+			var universe = MinecraftServerAccessor.getUniverse(serverPlayer.server);
+			var packet = new ClientboundOpenStarmapPacket(universe.getStartingSystemGenerator().getStartingSystemId());
+			var buf = PacketByteBufs.create();
+			packet.write(buf);
+			ServerPlayNetworking.send(serverPlayer, ModNetworking.CLIENTBOUND_OPEN_STARMAP, buf);
 		}
 		return InteractionResultHolder.success(player.getItemInHand(interactionHand));
 	}

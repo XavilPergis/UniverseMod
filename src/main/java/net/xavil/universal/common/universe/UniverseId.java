@@ -7,8 +7,8 @@ import net.minecraft.core.Vec3i;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 
 public record UniverseId(
-		SectorId universeSector,
 		SectorId galaxySector,
+		SectorId systemSector,
 		/**
 		 * The ID used in {@link StarSystemNode#lookup(int)}
 		 */
@@ -29,8 +29,8 @@ public record UniverseId(
 	}
 
 	public static final Codec<UniverseId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-			SectorId.CODEC.fieldOf("galaxy").forGetter(UniverseId::universeSector),
-			SectorId.CODEC.fieldOf("system").forGetter(UniverseId::galaxySector),
+			SectorId.CODEC.fieldOf("galaxy").forGetter(UniverseId::galaxySector),
+			SectorId.CODEC.fieldOf("system").forGetter(UniverseId::systemSector),
 			Codec.INT.fieldOf("id").forGetter(UniverseId::systemNodeId))
 			.apply(inst, UniverseId::new));
 

@@ -1,5 +1,11 @@
 package net.xavil.universal.common.universe.system;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
+import net.xavil.universal.common.universe.UniverseId;
+import net.xavil.universal.common.universe.UniverseId.SectorId;
+
 // reference plane is the XZ plane, reference direction is +X
 // all angles are in radians
 public record OrbitalPlane(
@@ -33,5 +39,11 @@ public record OrbitalPlane(
 	public OrbitalPlane withArgumentOfPeriapsis(double argumentOfPeriapsisRad) {
 		return new OrbitalPlane(inclinationRad, longitueOfAscendingNodeRad, argumentOfPeriapsisRad);
 	}
+
+	public static final Codec<OrbitalPlane> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+			Codec.DOUBLE.fieldOf("inclination").forGetter(OrbitalPlane::inclinationRad),
+			Codec.DOUBLE.fieldOf("ascending_node_angle").forGetter(OrbitalPlane::longitueOfAscendingNodeRad),
+			Codec.DOUBLE.fieldOf("periapsis_angle").forGetter(OrbitalPlane::argumentOfPeriapsisRad))
+			.apply(inst, OrbitalPlane::new));
 
 }

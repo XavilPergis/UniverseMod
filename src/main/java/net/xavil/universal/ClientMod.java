@@ -4,9 +4,11 @@ import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
 import net.xavil.universal.client.screen.GalaxyMapScreen;
 import net.xavil.universal.common.universe.UniverseId;
+import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universal.networking.ModNetworking;
 import net.xavil.universal.networking.ModPacket;
+import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 
@@ -17,16 +19,17 @@ public class ClientMod implements ClientModInitializer {
 		ModNetworking.registerClientside();
 	}
 
-	public static void handlePacket(ModPacket packet) {
+	public static void handlePacket(ModPacket packetUntyped) {
 		final var client = Minecraft.getInstance();
 
-		if (packet instanceof ClientboundOpenStarmapPacket starmapPacket) {
-			var universe = MinecraftClientAccessor.getUniverse(client);
-			var id = new UniverseId.SystemId(universe.getStartingGalaxyId(), universe.getStartingSystemId());
+		if (packetUntyped instanceof ClientboundOpenStarmapPacket packet) {
+			var id = new UniverseId.SystemId(packet.toOpen.galaxySector(), packet.toOpen.systemSector());
 			client.setScreen(new GalaxyMapScreen(client.screen, id));
-		} else if (packet instanceof ClientboundUniverseInfoPacket infoPacket) {
+		} else if (packetUntyped instanceof ClientboundUniverseInfoPacket packet) {
 			var universe = MinecraftClientAccessor.getUniverse(client);
-			universe.updateFromInfoPacket(infoPacket);
+			universe.updateFromInfoPacket(packet);
+		} else if (packetUntyped instanceof ClientboundChangeSystemPacket packet) {
+			LevelAccessor.setUniverseId(client.level, packet.id);
 		}
 	}
 

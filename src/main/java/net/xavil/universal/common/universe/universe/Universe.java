@@ -26,41 +26,9 @@ public abstract class Universe {
 
 	public abstract long getUniqueUniverseSeed();
 
-	public Vec3i getStartingGalaxySectorPos() {
-		var random = new Random(getUniqueUniverseSeed());
-		var x = (int) (1000 * random.nextGaussian());
-		var y = (int) (1000 * random.nextGaussian());
-		var z = (int) (1000 * random.nextGaussian());
-		return new Vec3i(x, y, z);
-	}
+	public abstract StartingSystemGalaxyGenerationLayer getStartingSystemGenerator();
 
-	public Vec3i getStartingSystemSectorPos() {
-		var random = new Random(getUniqueUniverseSeed() + 1);
-		var x = (int) (250 * random.nextGaussian());
-		var y = (int) (250 * random.nextGaussian());
-		var z = (int) (250 * random.nextGaussian());
-		return new Vec3i(x, y, z);
-	}
-
-	public UniverseId.SectorId getStartingGalaxyId() {
-		var random = new Random(getUniqueUniverseSeed() + 2);
-		var pos = getStartingGalaxySectorPos();
-		var volume = getOrGenerateGalaxyVolume(pos);
-		var ids = volume.streamIds().toArray();
-		var id = ids[random.nextInt(ids.length)];
-		return new UniverseId.SectorId(pos, id);
-	}
-
-	public UniverseId.SectorId getStartingSystemId(Galaxy galaxy) {
-		var random = new Random(getUniqueUniverseSeed() + 3);
-		var pos = getStartingSystemSectorPos();
-		var volume = galaxy.getOrGenerateVolume(pos);
-		var ids = volume.streamIds().toArray();
-		var id = ids[random.nextInt(ids.length)];
-		return new UniverseId.SectorId(pos, id);
-	}
-
-	private static Vec3 randomVec(Random random) {
+	protected static Vec3 randomVec(Random random) {
 		var x = random.nextDouble(0, VOLUME_LENGTH_ZM);
 		var y = random.nextDouble(0, VOLUME_LENGTH_ZM);
 		var z = random.nextDouble(0, VOLUME_LENGTH_ZM);
@@ -73,6 +41,7 @@ public abstract class Universe {
 		return 3.88;
 	}
 
+	// TODO: cleanup, this code is fairly old
 	public final Octree<Lazy<Galaxy.Info, Galaxy>> getOrGenerateGalaxyVolume(Vec3i volumeCoords) {
 		if (this.loadedVolumes.containsKey(volumeCoords)) {
 			return this.loadedVolumes.get(volumeCoords);
@@ -89,14 +58,16 @@ public abstract class Universe {
 		randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.getZ());
 		var random = new Random(randomSeed);
 
+		int currentId = 0;
 		var maxDensity = ATTEMPT_COUNT / (VOLUME_LENGTH_ZM * VOLUME_LENGTH_ZM * VOLUME_LENGTH_ZM);
 		for (var i = 0; i < ATTEMPT_COUNT; ++i) {
 			var galaxyPos = volumeMin.add(randomVec(random));
 
 			var density = sampleDensity(galaxyPos);
 			if (density >= random.nextDouble(0, maxDensity)) {
-				Function<Galaxy.Info, Galaxy> lazyFunction = info -> generateGalaxy(galaxyPos, info);
-				var lazy = new Lazy<>(generateGalaxyInfo(galaxyPos), lazyFunction);
+				var id = new UniverseId.SectorId(volumeCoords, currentId++);
+				Function<Galaxy.Info, Galaxy> lazyFunction = info -> generateGalaxy(id, info);
+				var lazy = new Lazy<>(generateGalaxyInfo(), lazyFunction);
 				octree.insert(galaxyPos, lazy);
 			}
 		}
@@ -105,7 +76,7 @@ public abstract class Universe {
 		return octree;
 	}
 
-	public final Galaxy.Info generateGalaxyInfo(Vec3 galaxyOffsetZm) {
+	public final Galaxy.Info generateGalaxyInfo() {
 		var random = new Random(getCommonUniverseSeed());
 
 		var info = new Galaxy.Info();
@@ -116,9 +87,9 @@ public abstract class Universe {
 		return info;
 	}
 
-	public final Galaxy generateGalaxy(Vec3 galaxyOffsetZm, Galaxy.Info info) {
+	public final Galaxy generateGalaxy(UniverseId.SectorId galaxyId, Galaxy.Info info) {
 		var random = new Random(getCommonUniverseSeed());
-		return new Galaxy(this, info, info.type.createDensityField(random));
+		return new Galaxy(this, galaxyId, info, info.type.createDensityField(random));
 	}
 
 }

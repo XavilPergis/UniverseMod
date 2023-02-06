@@ -1,7 +1,6 @@
 package net.xavil.universal.common.universe.universe;
 
 import net.minecraft.client.Minecraft;
-import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 
 public final class ClientUniverse extends Universe {
@@ -11,8 +10,7 @@ public final class ClientUniverse extends Universe {
 	// these are synced from the server upon joining.
 	private long commonUniverseSeed = 0;
 	private long uniqueUniverseSeed = 0;
-	private UniverseId.SectorId startingGalaxyId;
-	private UniverseId.SectorId startingSystemId;
+	private StartingSystemGalaxyGenerationLayer startingGenerator;
 
 	public ClientUniverse(Minecraft client) {
 		this.client = client;
@@ -28,19 +26,16 @@ public final class ClientUniverse extends Universe {
 		return this.uniqueUniverseSeed;
 	}
 
-	public UniverseId.SectorId getStartingGalaxyId() {
-		return this.startingGalaxyId;
-	}
-
-	public UniverseId.SectorId getStartingSystemId() {
-		return this.startingSystemId;
+	@Override
+	public StartingSystemGalaxyGenerationLayer getStartingSystemGenerator() {
+		return this.startingGenerator;
 	}
 
 	public void updateFromInfoPacket(ClientboundUniverseInfoPacket packet) {
 		this.commonUniverseSeed = packet.commonSeed;
 		this.uniqueUniverseSeed = packet.uniqueSeed;
-		this.startingGalaxyId = packet.startingGalaxyId;
-		this.startingSystemId = packet.startingSystemId;
+		this.startingGenerator = new StartingSystemGalaxyGenerationLayer(packet.startingGalaxyId,
+				packet.startingSystemVolumePos, packet.startingSystem, packet.startingNodeId);
 	}
 
 }

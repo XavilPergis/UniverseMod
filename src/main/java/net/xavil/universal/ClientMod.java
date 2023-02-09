@@ -6,7 +6,7 @@ import net.xavil.universal.client.screen.GalaxyMapScreen;
 import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
-import net.xavil.universal.networking.ModNetworking;
+import net.xavil.universal.networking.ModClientNetworking;
 import net.xavil.universal.networking.ModPacket;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
@@ -16,7 +16,7 @@ public class ClientMod implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		ModNetworking.registerClientside();
+		ModClientNetworking.register();
 	}
 
 	public static void handlePacket(ModPacket packetUntyped) {

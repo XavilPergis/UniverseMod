@@ -45,6 +45,11 @@ public final class ServerUniverse extends Universe {
 		return Mth.murmurHash3Mixer(getCommonUniverseSeed()) ^ Mth.murmurHash3Mixer(worldSeed);
 	}
 
+	// public StarSystemNode getSystemNode(UniverseId id) {
+	// 	var galaxyVolume = getOrGenerateGalaxyVolume(id.galaxySector().sectorPos());
+	// 	var galaxy = galaxyVolume.getById(id.galaxySector().sectorId()).getFull();
+	// }
+
 	public StarSystem generateStartingSystem(Random random, Galaxy galaxy) {
 		var starA = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(1.4));
 		var starB = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(0.4));
@@ -101,7 +106,7 @@ public final class ServerUniverse extends Universe {
 		var gy = (int) (1000 * random.nextGaussian());
 		var gz = (int) (1000 * random.nextGaussian());
 		var galaxySectorPos = new Vec3i(gx, gy, gz);
-		var galaxyVolume = getOrGenerateGalaxyVolume(galaxySectorPos);
+		var galaxyVolume = getVolumeAt(galaxySectorPos, true);
 		var galaxyIds = galaxyVolume.streamIds().toArray();
 		var initialGalaxyId = galaxyIds[random.nextInt(galaxyIds.length)];
 		var startingGalaxyId = new UniverseId.SectorId(galaxySectorPos, initialGalaxyId);
@@ -116,7 +121,7 @@ public final class ServerUniverse extends Universe {
 
 		// HACK: force discovery of the starting system id, otherwise it will remain -1.
 		// i really dislike this architecture but im not smart enough to know what else to do :(
-		galaxyVolume.getById(initialGalaxyId).getFull().getOrGenerateVolume(systemVolumePos);
+		galaxyVolume.getById(initialGalaxyId).getFull().getVolumeAt(systemVolumePos);
 	}
 
 	// public UniverseId prepareStartingVolume() {

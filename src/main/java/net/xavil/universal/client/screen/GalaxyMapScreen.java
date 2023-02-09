@@ -34,6 +34,7 @@ import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
@@ -42,44 +43,59 @@ import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 
 public class GalaxyMapScreen extends UniversalScreen {
 
-	private final Minecraft client = Minecraft.getInstance();
-
-	public GalaxyMapScreen(@Nullable Screen previousScreen, UniverseId.SystemId startingSystem) {
-		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen);
-
-		this.universe = MinecraftClientAccessor.getUniverse(this.client);
-
-		var galaxyVolume = this.universe.getOrGenerateGalaxyVolume(startingSystem.universeSector().sectorPos());
-		var startingGalaxy = galaxyVolume.getById(startingSystem.universeSector().sectorId()).getFull();
-		this.galaxy = startingGalaxy;
-
-		this.currentSystemId = startingSystem.galaxySector();
-
-		var volumePos = startingSystem.galaxySector().sectorPos();
-		var volume = this.galaxy.getOrGenerateVolume(volumePos);
-		this.camera.focus.set(volume.posById(this.currentSystemId.sectorId()));
-
-		this.camera.pitch.set(Math.PI / 8);
-		this.camera.yaw.set(Math.PI / 8);
-		this.camera.scale.set(4.0);
-		this.camera.scale.setTarget(8.0);
-	}
-
-	private ClientUniverse universe;
-	private Galaxy galaxy;
-	// private Vec3i volumePos;
-
-	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
-
-	private OrbitCamera camera = new OrbitCamera(TM_PER_UNIT);
-	private UniverseId.SectorId currentSystemId;
-
 	public static final double STAR_RENDER_RADIUS = 0.5 * Galaxy.TM_PER_SECTOR;
 	public static final double TM_PER_UNIT = 1000;
 	public static final double UNITS_PER_SECTOR = Galaxy.TM_PER_SECTOR / 1000;
 
 	public static final Color SELECTION_LINE_COLOR = new Color(1f, 0f, 1f, 0.2f);
 	public static final Color NEAREST_LINE_COLOR = new Color(1f, 1f, 1f, 1f);
+
+	private final Minecraft client = Minecraft.getInstance();
+
+	private ClientUniverse universe;
+	private Galaxy galaxy;
+
+	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
+
+	private OrbitCamera camera = new OrbitCamera(TM_PER_UNIT);
+	private UniverseId.SectorId currentSystemId;
+
+	private TicketedVolume.Ticket galaxyVolumeTicket;
+	// private TicketedVolume.Ticket focusTicket;
+
+	public GalaxyMapScreen(@Nullable Screen previousScreen, UniverseId.SystemId systemToFocus) {
+		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen);
+
+		this.camera.pitch.set(Math.PI / 8);
+		this.camera.yaw.set(Math.PI / 8);
+		this.camera.scale.set(4.0);
+		this.camera.scale.setTarget(8.0);
+
+		this.universe = MinecraftClientAccessor.getUniverse(this.client);
+		this.galaxyVolumeTicket = this.universe.volume.addTicket(systemToFocus.galaxySector().sectorPos(), 0, -1);
+		this.galaxy = this.universe.volume.get(systemToFocus.galaxySector()).getFull();
+
+		this.currentSystemId = systemToFocus.systemSector();
+
+		var volumePos = systemToFocus.systemSector().sectorPos();
+		var volume = this.galaxy.getVolumeAt(volumePos);
+		this.camera.focus.set(volume.posById(this.currentSystemId.sectorId()));
+	}
+
+	private void updateTickets() {
+		// this.galaxyVolumeTicket = this.universe.volume.addTicket(startingSystem.galaxySector().sectorPos(), 0);
+
+		// ticket around the camera's focus
+	}
+
+	@Override
+	public void onClose() {
+		super.onClose();
+		// if (this.focusTicket != null)
+		// 	this.galaxy.volume.removeTicket(this.focusTicket);
+		if (this.galaxyVolumeTicket != null)
+			this.galaxy.parentUniverse.volume.removeTicket(this.galaxyVolumeTicket);
+	}
 
 	@Override
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
@@ -176,7 +192,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			UniverseId.SectorId id = null;
 		};
 		enumerateSectors(pos, radius, sectorPos -> {
-			var volume = this.galaxy.getOrGenerateVolume(sectorPos);
+			var volume = this.galaxy.getVolumeAt(sectorPos);
 			var nearestInSector = volume.nearestInRadius(pos, radius);
 			if (nearestInSector != null) {
 				if (nearestInSector.pos().distanceToSqr(pos) < nearest.distanceSqr) {
@@ -203,7 +219,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			Mod.LOGGER.info(name);
 			return true;
 		} else if (c == 'e') {
-			var volume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
+			var volume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 			var system = volume.getById(this.currentSystemId.sectorId()).getFull();
 			var screen = new SystemMapScreen(this, system);
 			this.client.setScreen(screen);
@@ -212,7 +228,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			var focusPos = this.camera.focus.get(partialTick);
 			var nearestId = getNearestSystem(focusPos, 10000);
 			if (nearestId != null) {
-				var volume = this.galaxy.getOrGenerateVolume(nearestId.sectorPos());
+				var volume = this.galaxy.getVolumeAt(nearestId.sectorPos());
 				this.currentSystemId = nearestId;
 				this.camera.focus.setTarget(volume.posById(this.currentSystemId.sectorId()));
 			}
@@ -236,7 +252,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		var focusPos = this.camera.focus.get(partialTick);
-		var selectedVolume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
+		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).scale(1 / TM_PER_UNIT);
 		{
 			var camPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
@@ -252,7 +268,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		var nearest = getNearestSystem(focusPos, 10000);
 		if (nearest != null) {
-			var volume = this.galaxy.getOrGenerateVolume(nearest.sectorPos());
+			var volume = this.galaxy.getVolumeAt(nearest.sectorPos());
 			var nearestPos = volume.posById(nearest.sectorId()).scale(1 / TM_PER_UNIT);
 			var camPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
 			var dir = nearestPos.subtract(camPos).normalize();
@@ -401,7 +417,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
 		for (var id = 0; id < volume.elementCount(); ++id) {
 			var pos = Objects.requireNonNull(volume.posById(id)).scale(1 / TM_PER_UNIT);
-			if (pos.distanceTo(focusPos) > 10) continue;
+			if (pos.distanceTo(focusPos) > 10)
+				continue;
 			RenderHelper.addLine(builder,
 					new Vec3(pos.x, focusPos.y, pos.z),
 					new Vec3(pos.x, pos.y, pos.z),
@@ -483,13 +500,13 @@ public class GalaxyMapScreen extends UniversalScreen {
 		enumerateSectors(focusPos, STAR_RENDER_RADIUS, sectorPos -> {
 			// TODO: figure out how to evict old volumes that we're not using. Maybe use
 			// something like vanilla's chunk ticketing system?
-			var volume = this.galaxy.getOrGenerateVolume(sectorPos);
+			var volume = this.galaxy.getVolumeAt(sectorPos);
 			renderStars(volume, partialTick);
 		});
 
 		// selected system gizmo
 
-		var selectedVolume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
+		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).scale(1 / TM_PER_UNIT);
 
 		var prevMatrices = this.camera.setupRenderMatrices(partialTick);
@@ -543,7 +560,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		systemId += Math.abs(this.currentSystemId.sectorPos().getZ()) + "#";
 		systemId += this.currentSystemId.sectorId();
 
-		var volume = this.galaxy.getOrGenerateVolume(this.currentSystemId.sectorPos());
+		var volume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 		var system = volume.getById(this.currentSystemId.sectorId()).getInitial();
 
 		int h = 10;

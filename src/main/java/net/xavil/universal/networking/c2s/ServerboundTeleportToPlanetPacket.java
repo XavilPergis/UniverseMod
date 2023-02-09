@@ -1,4 +1,4 @@
-package net.xavil.universal.networking.s2c;
+package net.xavil.universal.networking.c2s;
 
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
@@ -6,15 +6,11 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.networking.ModPacket;
 
-public class ClientboundChangeSystemPacket extends ModPacket {
+public class ServerboundTeleportToPlanetPacket extends ModPacket {
 
-	public static final ResourceLocation CHANNEL = Mod.namespaced("change_system");
+	public static final ResourceLocation CHANNEL = Mod.namespaced("teleport_to_planet");
 
-	public UniverseId id;
-
-	public static ClientboundChangeSystemPacket empty() {
-		return new ClientboundChangeSystemPacket();
-	};
+	public UniverseId planetId;
 
 	@Override
 	public ResourceLocation getChannelName() {
@@ -23,12 +19,12 @@ public class ClientboundChangeSystemPacket extends ModPacket {
 
 	@Override
 	public void read(FriendlyByteBuf buf) {
-		this.id = readUniverseId(buf);
+		this.planetId = readUniverseId(buf);
 	}
 
 	@Override
 	public void write(FriendlyByteBuf buf) {
-		writeUniverseId(buf, this.id);
+		writeUniverseId(buf, this.planetId);
 	}
-
+	
 }

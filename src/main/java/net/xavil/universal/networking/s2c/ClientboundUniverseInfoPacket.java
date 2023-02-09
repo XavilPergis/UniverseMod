@@ -2,11 +2,15 @@ package net.xavil.universal.networking.s2c;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
+import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.networking.ModPacket;
 
 public class ClientboundUniverseInfoPacket extends ModPacket {
+
+	public static final ResourceLocation CHANNEL = Mod.namespaced("universe_info");
 
 	public long commonSeed;
 	public long uniqueSeed;
@@ -15,6 +19,11 @@ public class ClientboundUniverseInfoPacket extends ModPacket {
 	public Vec3i startingSystemVolumePos;
 	public StarSystemNode startingSystem;
 	public int startingNodeId;
+
+	@Override
+	public ResourceLocation getChannelName() {
+		return CHANNEL;
+	}
 
 	@Override
 	public void read(FriendlyByteBuf buf) {

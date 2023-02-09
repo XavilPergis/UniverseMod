@@ -1,7 +1,5 @@
 package net.xavil.universal.common.universe.universe;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Random;
 import java.util.function.Function;
 
@@ -13,6 +11,7 @@ import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.GalaxyType;
+import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 
 public abstract class Universe {
 
@@ -20,13 +19,35 @@ public abstract class Universe {
 	public static final double VOLUME_LENGTH_ZM = 10;
 	public static final int ATTEMPT_COUNT = 10000;
 
-	protected final Map<Vec3i, Octree<Lazy<Galaxy.Info, Galaxy>>> loadedVolumes = new HashMap<>();
+	public final TicketedVolume<Lazy<Galaxy.Info, Galaxy>> volume = new TicketedVolume<>() {
+		@Override
+		public Octree<Lazy<Galaxy.Info, Galaxy>> generateVolume(Vec3i sectorPos) {
+			return Universe.this.generateGalaxyVolume(sectorPos);
+		}
+	};
 
 	public abstract long getCommonUniverseSeed();
 
 	public abstract long getUniqueUniverseSeed();
 
 	public abstract StartingSystemGalaxyGenerationLayer getStartingSystemGenerator();
+
+	public void tick() {
+		this.volume.tick();
+	}
+
+	public Octree<Lazy<Galaxy.Info, Galaxy>> getVolumeAt(Vec3i volumePos) {
+		return getVolumeAt(volumePos, true);
+	}
+
+	public Octree<Lazy<Galaxy.Info, Galaxy>> getVolumeAt(Vec3i volumePos, boolean create) {
+		var volume = this.volume.get(volumePos);
+		if (volume == null && create) {
+			this.volume.addTicket(volumePos, 0, 1);
+			volume = this.volume.get(volumePos);
+		}
+		return volume;
+	}
 
 	protected static Vec3 randomVec(Random random) {
 		var x = random.nextDouble(0, VOLUME_LENGTH_ZM);
@@ -42,11 +63,45 @@ public abstract class Universe {
 	}
 
 	// TODO: cleanup, this code is fairly old
-	public final Octree<Lazy<Galaxy.Info, Galaxy>> getOrGenerateGalaxyVolume(Vec3i volumeCoords) {
-		if (this.loadedVolumes.containsKey(volumeCoords)) {
-			return this.loadedVolumes.get(volumeCoords);
-		}
+	// public final Octree<Lazy<Galaxy.Info, Galaxy>>
+	// getOrGenerateGalaxyVolume(Vec3i volumeCoords) {
+	// if (this.loadedVolumes.containsKey(volumeCoords)) {
+	// return this.loadedVolumes.get(volumeCoords);
+	// }
 
+	// var volumeMin = Vec3.atLowerCornerOf(volumeCoords).scale(VOLUME_LENGTH_ZM);
+	// var volumeMax = volumeMin.add(VOLUME_LENGTH_ZM, VOLUME_LENGTH_ZM,
+	// VOLUME_LENGTH_ZM);
+
+	// var octree = new Octree<Lazy<Galaxy.Info, Galaxy>>(volumeMin, volumeMax);
+
+	// var randomSeed = getCommonUniverseSeed();
+	// randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.getX());
+	// randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.getY());
+	// randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.getZ());
+	// var random = new Random(randomSeed);
+
+	// int currentId = 0;
+	// var maxDensity = ATTEMPT_COUNT / (VOLUME_LENGTH_ZM * VOLUME_LENGTH_ZM *
+	// VOLUME_LENGTH_ZM);
+	// for (var i = 0; i < ATTEMPT_COUNT; ++i) {
+	// var galaxyPos = volumeMin.add(randomVec(random));
+
+	// var density = sampleDensity(galaxyPos);
+	// if (density >= random.nextDouble(0, maxDensity)) {
+	// var id = new UniverseId.SectorId(volumeCoords, currentId++);
+	// Function<Galaxy.Info, Galaxy> lazyFunction = info -> generateGalaxy(id,
+	// info);
+	// var lazy = new Lazy<>(generateGalaxyInfo(), lazyFunction);
+	// octree.insert(galaxyPos, lazy);
+	// }
+	// }
+
+	// this.loadedVolumes.put(volumeCoords, octree);
+	// return octree;
+	// }
+
+	private final Octree<Lazy<Galaxy.Info, Galaxy>> generateGalaxyVolume(Vec3i volumeCoords) {
 		var volumeMin = Vec3.atLowerCornerOf(volumeCoords).scale(VOLUME_LENGTH_ZM);
 		var volumeMax = volumeMin.add(VOLUME_LENGTH_ZM, VOLUME_LENGTH_ZM, VOLUME_LENGTH_ZM);
 
@@ -72,7 +127,6 @@ public abstract class Universe {
 			}
 		}
 
-		this.loadedVolumes.put(volumeCoords, octree);
 		return octree;
 	}
 

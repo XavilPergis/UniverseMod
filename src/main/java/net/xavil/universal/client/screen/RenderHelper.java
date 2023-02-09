@@ -52,16 +52,19 @@ public final class RenderHelper {
 		};
 	}
 
-	public static void renderPlanet(BufferBuilder builder, PlanetNode node, double scale, PoseStack poseStack, Vec3 center,
-			Color tintColor) {
+	public static void renderPlanet(BufferBuilder builder, PlanetNode node, Vec3 camPos, double scale,
+			PoseStack poseStack, Vec3 center, Color tintColor) {
 		RenderSystem.defaultBlendFunc();
 		// RenderSystem.depthMask(true);
 		// RenderSystem.enableDepthTest();
 		var baseTexture = getBaseLayer(node);
+
+		double d = getCelestialBodySize(node, camPos, center);
+
 		var radius = scale * Math.cbrt((node.massYg / Units.mearth(1)) / 1);
-		renderTexturedCube(builder, baseTexture, poseStack, center, radius, tintColor);
+		renderTexturedCube(builder, baseTexture, poseStack, center, radius * d, tintColor);
 		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
-			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, center, radius, tintColor);
+			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, center, radius * d, tintColor);
 		}
 	}
 
@@ -147,25 +150,15 @@ public final class RenderHelper {
 		BufferUploader.end(builder);
 	}
 
-	public static void addStarBillboard(VertexConsumer builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
-			double tmPerUnit, float partialTick) {
+	public static double getCelestialBodySize(StarSystemNode node, Vec3 camPos, Vec3 bodyPos) {
+		final double starMinSize = 100 * 0.01, starBaseSize = 100 * 0.05, starRadiusFactor = 100 * 0.5;
+		final double otherMinSize = 100 * 0.01, otherBaseSize = 100 * 0.000075;
 
-		var camPos = camera.getPos(partialTick);
-		var distanceFromCamera = camPos.distanceTo(center);
-
-		var color = Color.WHITE;
-		if (node instanceof StarNode starNode) {
-			color = starNode.getColor();
-		}
-
-		final double starMinSize = 0.01, starBaseSize = 0.05, starRadiusFactor = 0.5;
-		final double otherMinSize = 0.01, otherBaseSize = 0.000075;
-		final double brightBillboardSizeFactor = 0.5;
+		var distanceFromCamera = camPos.distanceTo(bodyPos);
 
 		double d = 0;
 		if (node instanceof StarNode starNode) {
 			var r = 0.1 * Math.min(10, starNode.radiusRsol);
-			// var r = starNode.radiusRsol;
 			d = Math.max(starMinSize * distanceFromCamera,
 					Math.max(starBaseSize, starRadiusFactor * r));
 		} else if (node instanceof PlanetNode planetNode) {
@@ -173,6 +166,21 @@ public final class RenderHelper {
 		} else if (!(node instanceof BinaryNode)) {
 			d = Math.max(otherMinSize * distanceFromCamera, otherBaseSize);
 		}
+
+		return d;
+	}
+
+	public static void addStarBillboard(VertexConsumer builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
+			double tmPerUnit, float partialTick) {
+
+		var color = Color.WHITE;
+		if (node instanceof StarNode starNode) {
+			color = starNode.getColor();
+		}
+
+		double d = getCelestialBodySize(node, camera.getPos(partialTick), center);
+
+		final double brightBillboardSizeFactor = 0.5;
 		RenderHelper.addBillboard(builder, camera, center, d, 0, partialTick, color);
 		RenderHelper.addBillboard(builder, camera, center, brightBillboardSizeFactor * d, 0, partialTick, Color.WHITE);
 	}

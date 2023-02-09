@@ -2,9 +2,12 @@ package net.xavil.universal.networking;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.network.FriendlyByteBuf;
+import net.minecraft.resources.ResourceLocation;
 import net.xavil.universal.common.universe.UniverseId;
 
 public abstract class ModPacket {
+
+	public abstract ResourceLocation getChannelName();
 
 	public abstract void read(FriendlyByteBuf buf);
 

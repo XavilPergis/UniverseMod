@@ -1,9 +1,7 @@
 package net.xavil.universal.common.universe.galaxy;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Random;
 
 import net.minecraft.core.Vec3i;
@@ -34,12 +32,20 @@ public class Galaxy {
 	public final UniverseId.SectorId galaxyId;
 
 	private final List<GalaxyGenerationLayer> generationLayers = new ArrayList<>();
-	private final Map<Vec3i, Octree<Lazy<StarSystem.Info, StarSystem>>> loadedVolumes = new HashMap<>();
+
+	public final TicketedVolume<Lazy<StarSystem.Info, StarSystem>> volume;
 
 	public Galaxy(Universe parentUniverse, UniverseId.SectorId galaxyId, Info info, DensityField3 densityField) {
 		this.parentUniverse = parentUniverse;
 		this.galaxyId = galaxyId;
 		this.info = info;
+
+		this.volume = new TicketedVolume<>() {
+			@Override
+			public Octree<Lazy<StarSystem.Info, StarSystem>> generateVolume(Vec3i sectorPos) {
+				return Galaxy.this.generateVolume(sectorPos);
+			}
+		};
 
 		generationLayers.add(parentUniverse.getStartingSystemGenerator());
 		generationLayers.add(new BaseGalaxyGenerationLayer(this, densityField));
@@ -53,13 +59,24 @@ public class Galaxy {
 		return seed;
 	}
 
-	// TODO: volume tickets, so we can release old sectors that we no longer care
-	// about. this could substantially reduce memory usage on the client.
-	public Octree<Lazy<StarSystem.Info, StarSystem>> getOrGenerateVolume(Vec3i volumeCoords) {
-		if (this.loadedVolumes.containsKey(volumeCoords)) {
-			return this.loadedVolumes.get(volumeCoords);
-		}
+	public void tick() {
+		this.volume.tick();
+	}
 
+	public Octree<Lazy<StarSystem.Info, StarSystem>> getVolumeAt(Vec3i volumePos) {
+		return getVolumeAt(volumePos, true);
+	}
+
+	public Octree<Lazy<StarSystem.Info, StarSystem>> getVolumeAt(Vec3i volumePos, boolean create) {
+		var volume = this.volume.get(volumePos);
+		if (volume == null && create) {
+			this.volume.addTicket(volumePos, 0, 1);
+			volume = this.volume.get(volumePos);
+		}
+		return volume;
+	}
+
+	private Octree<Lazy<StarSystem.Info, StarSystem>> generateVolume(Vec3i volumeCoords) {
 		final var volumeMin = Vec3.atLowerCornerOf(volumeCoords).scale(TM_PER_SECTOR);
 		final var volumeMax = volumeMin.add(TM_PER_SECTOR, TM_PER_SECTOR, TM_PER_SECTOR);
 		var volume = new Octree<Lazy<StarSystem.Info, StarSystem>>(volumeMin, volumeMax);
@@ -70,7 +87,6 @@ public class Galaxy {
 			layer.generateInto(ctx);
 		}
 
-		this.loadedVolumes.put(volumeCoords, volume);
 		return volume;
 	}
 

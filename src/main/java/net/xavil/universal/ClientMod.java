@@ -2,6 +2,7 @@ package net.xavil.universal;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
+import net.xavil.universal.client.SkyRenderer;
 import net.xavil.universal.client.screen.GalaxyMapScreen;
 import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.mixin.accessor.LevelAccessor;

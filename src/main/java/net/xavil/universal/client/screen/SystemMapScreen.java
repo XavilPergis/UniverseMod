@@ -433,7 +433,8 @@ public class SystemMapScreen extends UniversalScreen {
 		if (node instanceof PlanetNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			RenderHelper.renderPlanet(builder, planetNode, this.camera.getPos(partialTick), 0.0001, new PoseStack(), centerPos, Color.WHITE);
+			RenderHelper.renderPlanet(builder, planetNode, this.camera.getPos(partialTick), 0.0001, new PoseStack(),
+					centerPos, Color.WHITE);
 		} else {
 			RenderHelper.renderStarBillboard(builder, this.camera, node, centerPos, TM_PER_UNIT, partialTick);
 		}
@@ -488,7 +489,7 @@ public class SystemMapScreen extends UniversalScreen {
 		poseStack.popPose();
 
 		RenderHelper.renderGrid(builder, this.camera, TM_PER_UNIT, Units.TM_PER_AU,
-		10, 100, partialTick);
+				10, 100, partialTick);
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -547,9 +548,10 @@ public class SystemMapScreen extends UniversalScreen {
 			if (nodePos != null) {
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-				RenderHelper.addBillboard(builder, this.camera,
-						nodePos, 0.05 * distanceFromCamera, 0, partialTick,
-						new Color(1, 1, 1, 0.2f));
+				var up = camera.getUpVector(partialTick);
+				var right = camera.getRightVector(partialTick);
+				RenderHelper.addBillboard(builder, up, right, this.camera.focus.get(partialTick),
+						0.05 * distanceFromCamera, 0, new Color(1, 1, 1, 0.2f));
 				builder.end();
 
 				this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)

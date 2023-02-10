@@ -22,14 +22,14 @@ public abstract class LevelRendererMixin {
 
 	@Inject(method = "resize", at = @At("HEAD"))
 	private void resize(int width, int height, CallbackInfo info) {
-		SkyRenderer.resize(width, height);
+		SkyRenderer.INSTANCE.resize(width, height);
 	}
 
 	@Inject(at = @At(value = "INVOKE", target = "Ljava/lang/Runnable;run()V", shift = At.Shift.AFTER, ordinal = 0), method = "renderSky(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/math/Matrix4f;FLnet/minecraft/client/Camera;ZLjava/lang/Runnable;)V", cancellable = true)
 	private void renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float tickDelta, Camera camera, boolean bl,
 			Runnable runnable, CallbackInfo info) {
 		if (this.minecraft.level != null) {
-			if (SkyRenderer.renderSky(poseStack, projectionMatrix, tickDelta, camera, bl))
+			if (SkyRenderer.INSTANCE.renderSky(poseStack, projectionMatrix, tickDelta, camera, bl))
 				info.cancel();
 		}
 	}

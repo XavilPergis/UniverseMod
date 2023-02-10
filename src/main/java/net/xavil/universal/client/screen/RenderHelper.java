@@ -9,6 +9,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
+import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
@@ -136,11 +137,11 @@ public final class RenderHelper {
 				.endVertex();
 	}
 
-	public static void renderStarBillboard(BufferBuilder builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
+	public static void renderStarBillboard(BufferBuilder builder, Camera camera, StarSystemNode node, Vec3 center,
 			double tmPerUnit, float partialTick) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		RenderHelper.addStarBillboard(builder, camera, node, center, tmPerUnit, partialTick);
+		addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
 		builder.end();
 		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
@@ -150,9 +151,39 @@ public final class RenderHelper {
 		BufferUploader.end(builder);
 	}
 
+	public static void renderStarBillboard(BufferBuilder builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
+			double tmPerUnit, float partialTick) {
+		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
+		builder.end();
+		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
+		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		RenderSystem.depthMask(false);
+		RenderSystem.enableDepthTest();
+		BufferUploader.end(builder);
+	}
+
+	public static void addBillboard(VertexConsumer builder, Camera camera, StarSystemNode node, Vec3 center,
+			double tmPerUnit, float partialTick) {
+		double d = getCelestialBodySize(node, camera.getPosition(), center);
+		var up = new Vec3(camera.getUpVector());
+		var right = new Vec3(camera.getLeftVector()).reverse();
+		addBillboard(builder, up, right, node, center, d);
+	}
+
+	public static void addBillboard(VertexConsumer builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
+			double tmPerUnit, float partialTick) {
+		double d = getCelestialBodySize(node, camera.getPos(partialTick), center);
+		var up = camera.getUpVector(partialTick);
+		var right = camera.getRightVector(partialTick);
+		addBillboard(builder, up, right, node, center, d);
+	}
+
 	public static double getCelestialBodySize(StarSystemNode node, Vec3 camPos, Vec3 bodyPos) {
-		final double starMinSize = 100 * 0.01, starBaseSize = 100 * 0.05, starRadiusFactor = 100 * 0.5;
-		final double otherMinSize = 100 * 0.01, otherBaseSize = 100 * 0.000075;
+		final double starMinSize = 0.01, starBaseSize = 0.05, starRadiusFactor = 0.5;
+		final double otherMinSize = 0.01, otherBaseSize = 0.000075;
 
 		var distanceFromCamera = camPos.distanceTo(bodyPos);
 
@@ -170,26 +201,22 @@ public final class RenderHelper {
 		return d;
 	}
 
-	public static void addStarBillboard(VertexConsumer builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
-			double tmPerUnit, float partialTick) {
+	public static void addBillboard(VertexConsumer builder, Vec3 up, Vec3 right, StarSystemNode node, Vec3 center,
+			double d) {
 
 		var color = Color.WHITE;
 		if (node instanceof StarNode starNode) {
 			color = starNode.getColor();
 		}
 
-		double d = getCelestialBodySize(node, camera.getPos(partialTick), center);
-
 		final double brightBillboardSizeFactor = 0.5;
-		RenderHelper.addBillboard(builder, camera, center, d, 0, partialTick, color);
-		RenderHelper.addBillboard(builder, camera, center, brightBillboardSizeFactor * d, 0, partialTick, Color.WHITE);
+		RenderHelper.addBillboard(builder, up, right, center, d, 0, color);
+		RenderHelper.addBillboard(builder, up, right, center, brightBillboardSizeFactor * d, 0, Color.WHITE);
 	}
 
-	public static void addBillboard(VertexConsumer builder, OrbitCamera camera, Vec3 center, double scale,
-			double zOffset, float partialTick, Color color) {
+	public static void addBillboard(VertexConsumer builder, Vec3 up, Vec3 right, Vec3 center, double scale,
+			double zOffset, Color color) {
 
-		var up = camera.getUpVector(partialTick);
-		var right = camera.getRightVector(partialTick);
 		var backwards = up.cross(right).scale(zOffset);
 		var billboardUp = up.scale(scale);
 		var billboardRight = right.scale(scale);

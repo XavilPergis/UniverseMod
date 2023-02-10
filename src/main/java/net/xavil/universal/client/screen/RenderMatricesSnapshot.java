@@ -4,7 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Matrix3f;
 import com.mojang.math.Matrix4f;
 
-class RenderMatricesSnapshot {
+public class RenderMatricesSnapshot {
 
 	private Matrix4f prevModelViewMatrix = null;
 	private Matrix3f prevModelViewNormalMatrix = null;

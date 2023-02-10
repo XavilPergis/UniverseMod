@@ -83,7 +83,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 	}
 
 	private void updateTickets() {
-		// this.galaxyVolumeTicket = this.universe.volume.addTicket(startingSystem.galaxySector().sectorPos(), 0);
+		// this.galaxyVolumeTicket =
+		// this.universe.volume.addTicket(startingSystem.galaxySector().sectorPos(), 0);
 
 		// ticket around the camera's focus
 	}
@@ -92,7 +93,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 	public void onClose() {
 		super.onClose();
 		// if (this.focusTicket != null)
-		// 	this.galaxy.volume.removeTicket(this.focusTicket);
+		// this.galaxy.volume.removeTicket(this.focusTicket);
 		if (this.galaxyVolumeTicket != null)
 			this.galaxy.parentUniverse.volume.removeTicket(this.galaxyVolumeTicket);
 	}
@@ -327,7 +328,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 			// TODO: do the billboarding in a vertex shader!
 
-			RenderHelper.addStarBillboard(builder, this.camera, info.node, center, TM_PER_UNIT, partialTick);
+			RenderHelper.addBillboard(builder, this.camera, info.node, center, TM_PER_UNIT, partialTick);
 		});
 
 	}
@@ -457,7 +458,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 	}
 
-	private void enumerateSectors(Vec3 centerPos, double radius, Consumer<Vec3i> posConsumer) {
+	public static void enumerateSectors(Vec3 centerPos, double radius, Consumer<Vec3i> posConsumer) {
 		var minSectorX = (int) Math.floor((centerPos.x - radius) / Galaxy.TM_PER_SECTOR);
 		var maxSectorX = (int) Math.floor((centerPos.x + radius) / Galaxy.TM_PER_SECTOR);
 		var minSectorY = (int) Math.floor((centerPos.y - radius) / Galaxy.TM_PER_SECTOR);
@@ -514,7 +515,12 @@ public class GalaxyMapScreen extends UniversalScreen {
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		RenderHelper.addBillboard(builder, this.camera, selectedPos, 0.5, 0, partialTick, new Color(1, 1, 1, 0.2f));
+		// RenderHelper.addBillboard(builder, this.camera, selectedPos, 0.5, 0,
+		// partialTick, new Color(1, 1, 1, 0.2f));
+		var up = camera.getUpVector(partialTick);
+		var right = camera.getRightVector(partialTick);
+		RenderHelper.addBillboard(builder, up, right, selectedPos, 0.5, 0, new Color(1, 1, 1, 0.2f));
+
 		builder.end();
 
 		this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION).setFilter(true, false);

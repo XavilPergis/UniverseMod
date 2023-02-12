@@ -40,7 +40,10 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	protected @Nullable BinaryNode parentBinaryNode = null;
 	protected final List<UnaryOrbit> childNodes = new ArrayList<>();
 
-	public double massYg;
+	public double massYg; // Yg
+	// TODO: these quantities are meaningless for binary orbits!
+	public double obliquityAngle; // rad
+	public double rotationalSpeed; // rad/s
 
 	public StarSystemNode(double massYg) {
 		this.massYg = massYg;

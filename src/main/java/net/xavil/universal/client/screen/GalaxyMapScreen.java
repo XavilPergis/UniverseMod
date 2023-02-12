@@ -58,6 +58,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
 
 	private OrbitCamera camera = new OrbitCamera(TM_PER_UNIT);
+	private UniverseId.SectorId galaxyId;
 	private UniverseId.SectorId currentSystemId;
 
 	private TicketedVolume.Ticket galaxyVolumeTicket;
@@ -75,6 +76,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		this.galaxyVolumeTicket = this.universe.volume.addTicket(systemToFocus.galaxySector().sectorPos(), 0, -1);
 		this.galaxy = this.universe.volume.get(systemToFocus.galaxySector()).getFull();
 
+		this.galaxyId = systemToFocus.galaxySector();
 		this.currentSystemId = systemToFocus.systemSector();
 
 		var volumePos = systemToFocus.systemSector().sectorPos();
@@ -222,7 +224,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		} else if (c == 'e') {
 			var volume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 			var system = volume.getById(this.currentSystemId.sectorId()).getFull();
-			var screen = new SystemMapScreen(this, system);
+			var screen = new SystemMapScreen(this, new UniverseId.SystemId(this.galaxyId, this.currentSystemId),
+					system);
 			this.client.setScreen(screen);
 			return true;
 		} else if (c == 'f') {
@@ -519,7 +522,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// partialTick, new Color(1, 1, 1, 0.2f));
 		var up = camera.getUpVector(partialTick);
 		var right = camera.getRightVector(partialTick);
-		RenderHelper.addBillboard(builder, up, right, selectedPos, 0.5, 0, new Color(1, 1, 1, 0.2f));
+		RenderHelper.addBillboard(builder, new PoseStack(), up, right, selectedPos, 0.5, 0, new Color(1, 1, 1, 0.2f));
 
 		builder.end();
 
@@ -534,7 +537,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		var k = this.camera.scale.get(partialTick);
-		RenderHelper.addBillboard(builder, this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT),
+		RenderHelper.addBillboard(builder, new PoseStack(), this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT),
 				new Vec3(0.02 * k, 0, 0),
 				new Vec3(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
 		builder.end();

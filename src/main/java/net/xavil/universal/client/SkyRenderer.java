@@ -7,10 +7,12 @@ import java.util.Random;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
+import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Quaternion;
@@ -30,6 +32,7 @@ import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.system.OrbitalPlane;
 import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
+import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
@@ -37,7 +40,7 @@ import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 public class SkyRenderer {
 
 	public static final SkyRenderer INSTANCE = new SkyRenderer();
-	private static final double DISTANT_STAR_DISTANCE = 500;
+	private static final double DISTANT_STAR_DISTANCE = 200;
 
 	private final Minecraft client = Minecraft.getInstance();
 	public TextureTarget skyTarget = null;
@@ -49,6 +52,42 @@ public class SkyRenderer {
 		if (this.skyTarget != null) {
 			this.skyTarget.resize(width, height, false);
 		}
+	}
+
+	private void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 selfPos, Vec3 pos, double s,
+			StarSystemNode node) {
+
+		var offset = pos.subtract(selfPos);
+		var forward = offset.normalize();
+
+		var du = forward.dot(new Vec3(Vector3f.YP));
+		var df = forward.dot(new Vec3(Vector3f.ZN));
+		var v1 = Math.abs(du) < Math.abs(df) ? new Vec3(Vector3f.YP) : new Vec3(Vector3f.ZN);
+		var right = v1.cross(forward);
+		// var rotation = random.nextDouble(0, Mth.TWO_PI);
+		var rotation = 0;
+		right = transformByQuaternion(axisAngle(forward, rotation), right);
+
+		var color = Color.WHITE;
+		if (node instanceof StarNode starNode)
+			color = starNode.getColor();
+
+		var distanceFromFocus = offset.length();
+		var alpha = 1 - Mth.clamp(distanceFromFocus / (1.5 * Galaxy.TM_PER_SECTOR), 0, 1);
+		if (alpha <= 0.05)
+		return;
+
+		alpha = Math.min(1, alpha);
+		// alpha *= brightestStar.luminosityLsol * 20;
+
+		// var alpha = 1;
+
+		var up = forward.cross(right).reverse();
+		RenderHelper.addBillboard(builder, poseStack, up, right, forward.scale(DISTANT_STAR_DISTANCE),
+				s * DISTANT_STAR_DISTANCE, 0, color.withA(alpha));
+		RenderHelper.addBillboard(builder, poseStack, up, right, forward.scale(DISTANT_STAR_DISTANCE),
+				0.5 * s * DISTANT_STAR_DISTANCE, 0, Color.WHITE.withA(alpha));
+
 	}
 
 	private void buildStars() {
@@ -73,38 +112,9 @@ public class SkyRenderer {
 			for (var element : volume.elements) {
 				if (element.id == currentId.systemSector().sectorId())
 					continue;
-
-				var offset = element.pos.subtract(selfPos);
-				var forward = offset.normalize();
-
-				var du = forward.dot(new Vec3(Vector3f.YP));
-				var df = forward.dot(new Vec3(Vector3f.ZN));
-				var v1 = Math.abs(du) < Math.abs(df) ? new Vec3(Vector3f.YP) : new Vec3(Vector3f.ZN);
-				var right = v1.cross(forward);
-				var rotation = random.nextDouble(0, Mth.TWO_PI);
-				right = transformByQuaternion(axisAngle(forward, rotation), right);
-
-				var initial = element.value.getInitial();
-				var brightestStar = initial.stars.stream().max(Comparator.comparing(star -> star.luminosityLsol)).get();
-
-				var color = brightestStar.getColor();
-
-				double k = 0.02;
-
-				var distanceFromFocus = offset.length();
-				var alpha = 1 - Mth.clamp(distanceFromFocus / (2 * Galaxy.TM_PER_SECTOR), 0, 1);
-				if (alpha <= 0.05)
-					return;
-
-				alpha *= brightestStar.luminosityLsol * 4;
-				alpha = Math.min(1, alpha);
-
-				var up = forward.cross(right).reverse();
-				RenderHelper.addBillboard(builder, up, right, forward.scale(DISTANT_STAR_DISTANCE),
-						k * DISTANT_STAR_DISTANCE, 0, color.withA(alpha));
-				RenderHelper.addBillboard(builder, up, right, forward.scale(DISTANT_STAR_DISTANCE),
-						0.5 * k * DISTANT_STAR_DISTANCE, 0, Color.WHITE.withA(alpha));
-
+				var brightestStar = element.value.getInitial().stars.stream()
+						.max(Comparator.comparing(star -> star.luminosityLsol)).get();
+				addBillboard(builder, new PoseStack(), selfPos, element.pos, 0.02, brightestStar);
 			}
 		});
 
@@ -173,10 +183,7 @@ public class SkyRenderer {
 	private void drawSystem(PoseStack poseStack, UniverseId currentPlanetId, double time, float partialTick) {
 
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var galaxyVolume = universe.getVolumeAt(currentPlanetId.galaxySector().sectorPos());
-		var galaxy = galaxyVolume.getById(currentPlanetId.galaxySector().sectorId()).getFull();
-		var systemVolume = galaxy.getVolumeAt(currentPlanetId.systemSector().sectorPos());
-		var system = systemVolume.getById(currentPlanetId.systemSector().sectorId()).getFull();
+		var system = universe.getSystem(currentPlanetId.systemId());
 
 		var positions = new HashMap<Integer, Vec3>();
 		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick, Vec3.ZERO,
@@ -198,24 +205,53 @@ public class SkyRenderer {
 			var dir = offset.normalize();
 
 			var s = 0.1 / offset.length();
-			s = Math.max(s, 0.5);
+			s = Math.max(s, 1);
 
 			poseStack.pushPose();
 			if (node instanceof PlanetNode planetNode) {
 				poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
 				poseStack.mulPose(Vector3f.XP.rotationDegrees(20));
-				poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 3));
 
-				RenderHelper.renderPlanet(builder, planetNode, thisPos, s,
-						poseStack, Vec3.ZERO, Color.WHITE);
+				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+
+				// poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 30));
+				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+				addBillboard(builder, poseStack, thisPos, pos, 0.05, planetNode);
+				// RenderHelper.renderPlanet(builder, planetNode, thisPos, s,
+				// poseStack, Vec3.ZERO, Color.WHITE);
+				builder.end();
+				this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
+				RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
+				RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+				RenderSystem.depthMask(false);
+				// RenderSystem.enableDepthTest();
+				BufferUploader.end(builder);
+				// var guh = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, 10000);
+
+				// poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
+				// poseStack.mulPose(Vector3f.XP.rotationDegrees(20));
+				// // poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 3));
+
+				// RenderHelper.renderPlanet(builder, guh, thisPos, s,
+				// 		poseStack, Vec3.ZERO, Color.WHITE);
 			} else if (node instanceof StarNode starNode) {
-				var planetNode = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD, 10000);
 				poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
 				poseStack.mulPose(Vector3f.XP.rotationDegrees(20));
-				poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 3));
 
-				RenderHelper.renderPlanet(builder, planetNode, thisPos, s,
-						poseStack, Vec3.ZERO, Color.WHITE);
+				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+
+				// poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 30));
+				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+				addBillboard(builder, poseStack, thisPos, pos, 0.1, starNode);
+				// RenderHelper.renderPlanet(builder, planetNode, thisPos, s,
+				// poseStack, Vec3.ZERO, Color.WHITE);
+				builder.end();
+				this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
+				RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
+				RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+				RenderSystem.depthMask(false);
+				// RenderSystem.enableDepthTest();
+				BufferUploader.end(builder);
 			}
 			poseStack.popPose();
 		}
@@ -231,10 +267,12 @@ public class SkyRenderer {
 		return new Vec3(vec);
 	}
 
-	private void applyPlanetTrasform(PoseStack poseStack, double time) {
-		poseStack.mulPose(Vector3f.YP.rotationDegrees(10));
-		poseStack.mulPose(Vector3f.ZP.rotationDegrees(0.8f * (float) time));
-		poseStack.mulPose(Vector3f.XP.rotationDegrees(90));
+	private void applyPlanetTrasform(PoseStack poseStack, StarSystemNode node, double time) {
+		poseStack.mulPose(Vector3f.XP.rotationDegrees(50));
+		// poseStack.mulPose(Vector3f.XP.rotationDegrees(80));
+		var rotationAxis = new Vec3(0, 1, 0).zRot((float) node.obliquityAngle);
+		var rotation = new Vector3f(rotationAxis).rotation((float) (node.rotationalSpeed * 0.0001 * time));
+		poseStack.mulPose(rotation);
 	}
 
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float partialTick, Camera camera,
@@ -259,13 +297,16 @@ public class SkyRenderer {
 		this.skyTarget.bindWrite(false);
 
 		// TODO: figure out how we actually wanna handle time
-		float time = (System.currentTimeMillis() % 1000000) / 10000f;
+		// float time = (System.currentTimeMillis() % 1000000) / 1000f;
+		float time = (System.currentTimeMillis() % 1000000) * 10f;
 
 		RenderSystem.setShaderFogStart(10000);
 		RenderSystem.setShaderFogEnd(10000);
 
 		poseStack.pushPose();
-		applyPlanetTrasform(poseStack, time);
+		var universe = MinecraftClientAccessor.getUniverse(this.client);
+		var planet = universe.getSystemNode(currentId);
+		applyPlanetTrasform(poseStack, planet, time);
 		drawStars(poseStack.last().pose(), projectionMatrix);
 		drawSystem(poseStack, currentId, time, partialTick);
 		poseStack.popPose();

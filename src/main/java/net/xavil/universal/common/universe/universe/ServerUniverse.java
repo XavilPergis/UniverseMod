@@ -124,30 +124,4 @@ public final class ServerUniverse extends Universe {
 		galaxyVolume.getById(initialGalaxyId).getFull().getVolumeAt(systemVolumePos);
 	}
 
-	// public UniverseId prepareStartingVolume() {
-	// var random = new Random(getUniqueUniverseSeed() + 4);
-
-	// var startingGalaxySector = getStartingGalaxySectorPos();
-	// var volume = getOrGenerateGalaxyVolume(startingGalaxySector);
-	// var ids = volume.streamIds().toArray();
-	// var initialGalaxyId = ids[random.nextInt(ids.length)];
-
-	// var galaxyVolume = getOrGenerateGalaxyVolume(startingGalaxySector);
-	// var galaxy = galaxyVolume.getById(initialGalaxyId).getFull();
-
-	// // --- system setup ---
-
-	// // --- end system setup ---
-
-	// var startingSystemSector = getStartingSystemSectorPos();
-	// var systemVolume = galaxy.getOrGenerateVolume(startingSystemSector);
-	// var startingId = systemVolume.insert(randomVec(random), new
-	// Lazy<StarSystem.Info, StarSystem>(info, n -> system));
-
-	// return new UniverseId(
-	// new SectorId(startingGalaxySector, initialGalaxyId),
-	// new SectorId(startingSystemSector, startingId),
-	// overworldId);
-	// }
-
 }

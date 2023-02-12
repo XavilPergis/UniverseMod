@@ -1,6 +1,6 @@
 package net.xavil.universal;
 
-import javax.annotation.Nullable;
+import java.util.Random;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -12,14 +12,22 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.dimension.LevelStem;
+import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.minecraft.world.level.material.Material;
 import net.xavil.universal.common.TestBlock;
+import net.xavil.universal.common.dimension.DimensionCreationProperties;
+import net.xavil.universal.common.dimension.DynamicDimensionManager;
 import net.xavil.universal.common.item.StarmapItem;
+import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.ModPacket;
 import net.xavil.universal.networking.ModServerNetworking;
 import net.xavil.universal.networking.c2s.ServerboundTeleportToPlanetPacket;
+import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 
 public class Mod implements ModInitializer {
 
@@ -52,9 +60,41 @@ public class Mod implements ModInitializer {
 			if (!sender.hasPermissions(opLevel))
 				return;
 
-			var universe = MinecraftServerAccessor.getUniverse(server);
+			if (packet.planetId == null)
+				return;
 
-			// universe.getSystemNode(packet.planetId);
+			var universe = MinecraftServerAccessor.getUniverse(server);
+			var systemNode = universe.getSystemNode(packet.planetId);
+			if (systemNode == null)
+				return;
+
+			// FIXME: save which planet each player is on and use that to sync.
+
+			if (packet.planetId.equals(universe.getStartingSystemGenerator().getStartingSystemId())) {
+				var p = server.overworld().getSharedSpawnPos();
+				var yaw = sender.getRespawnAngle();
+				sender.teleportTo(server.overworld(), p.getX(), p.getY(), p.getZ(), yaw, 0);
+			} else {
+				final var key = DynamicDimensionManager
+						.getKey(new ResourceLocation("dynamic", packet.planetId.uniqueName()));
+				final var manager = DynamicDimensionManager.get(server);
+				final var newLevel = manager.getOrCreateLevel(key, () -> {
+					var registryAccess = server.registryAccess();
+					var type = registryAccess.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY)
+							.getOrCreateHolder(DimensionType.OVERWORLD_LOCATION);
+					var generator = WorldGenSettings.makeDefaultOverworld(registryAccess, new Random().nextLong());
+					return DimensionCreationProperties.basic(new LevelStem(type, generator));
+				});
+
+				LevelAccessor.setUniverseId(newLevel, packet.planetId);
+
+				// TODO: find actual spawn pos
+				sender.teleportTo(newLevel, 0, 100, 0, 0, 0);
+			}
+
+			var changeSystemPacket = new ClientboundChangeSystemPacket();
+			changeSystemPacket.id = packet.planetId;
+			ModServerNetworking.send(sender, changeSystemPacket);
 
 			Mod.LOGGER.info("teleport to planet! " + packet.planetId);
 		}

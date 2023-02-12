@@ -14,6 +14,27 @@ public record UniverseId(
 		 */
 		int systemNodeId) {
 
+	public SystemId systemId() {
+		return new SystemId(galaxySector, systemSector);
+	}
+
+	private static String escapeMinus(int n) {
+		return n >= 0 ? "" + n : "m" + -n;
+	}
+
+	public String uniqueName() {
+		return "id"
+				+ escapeMinus(this.galaxySector.sectorPos.getX()) + "_"
+				+ escapeMinus(this.galaxySector.sectorPos.getY()) + "_"
+				+ escapeMinus(this.galaxySector.sectorPos.getZ()) + "_"
+				+ this.galaxySector.sectorId + "_"
+				+ escapeMinus(this.systemSector.sectorPos.getX()) + "_"
+				+ escapeMinus(this.systemSector.sectorPos.getY()) + "_"
+				+ escapeMinus(this.systemSector.sectorPos.getZ()) + "_"
+				+ this.systemSector.sectorId + "_"
+				+ this.systemNodeId;
+	}
+
 	public record SectorId(Vec3i sectorPos, int sectorId) {
 		public static final Codec<SectorId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 				Vec3i.CODEC.fieldOf("pos").forGetter(SectorId::sectorPos),

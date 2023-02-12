@@ -4,15 +4,18 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
+import com.mojang.serialization.Lifecycle;
+
 import net.minecraft.core.Registry;
+import net.minecraft.core.WritableRegistry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
-import net.minecraft.server.level.progress.ChunkProgressListener;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.border.BorderChangeListener;
+import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.storage.DerivedLevelData;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 
@@ -61,12 +64,10 @@ public class DynamicDimensionManager {
 		// replicated to clients, and as far as i can tell, reference holders point into
 		// frozen registries, so they can only reference builtin and json dimensions. so
 		// it seems like this shouldnt have any effect?
-		// if (worldData.worldGenSettings().dimensions() instanceof
-		// WritableRegistry<LevelStem> stemRegistry) {
-		// final var stemKey = ResourceKey.create(Registry.LEVEL_STEM_REGISTRY,
-		// name.location());
-		// stemRegistry.register(stemKey, stem, Lifecycle.experimental());
-		// }
+		if (worldData.worldGenSettings().dimensions() instanceof WritableRegistry<LevelStem> stemRegistry) {
+			final var stemKey = ResourceKey.create(Registry.LEVEL_STEM_REGISTRY, name.location());
+			stemRegistry.register(stemKey, stem, Lifecycle.experimental());
+		}
 
 		final var newLevel = new ServerLevel(
 				this.server,

@@ -262,6 +262,15 @@ public class StarSystemGenerator {
 		var massMsol = node.massYg / Units.YG_PER_MSOL;
 		var stabilityLimit = Units.au(1000) * Math.pow(massMsol, 1.5) * 0.66;
 
+		var ta = 2 * Math.PI * Math.pow(random.nextDouble(), 4);
+		node.obliquityAngle = random.nextDouble(-ta, ta);
+
+		// earth speed: approx. 7e-5 rad/s
+		// conservation of angular momentum? small bodies might spin MUCH faster
+		node.rotationalSpeed = Mth.lerp(Math.pow(random.nextDouble(), 4), 0.2 * 7e-5, 200 * 7e-5);
+		if (random.nextFloat() < 0.05)
+			node.rotationalSpeed *= -1;
+
 		if (node instanceof BinaryNode binaryNode) {
 			determineOrbitalPlanes(binaryNode.getA());
 			determineOrbitalPlanes(binaryNode.getB());

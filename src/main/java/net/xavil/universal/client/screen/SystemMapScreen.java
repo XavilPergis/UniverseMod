@@ -25,12 +25,15 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Units;
+import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.system.BinaryNode;
 import net.xavil.universal.common.universe.system.OrbitalPlane;
 import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
+import net.xavil.universal.networking.ModClientNetworking;
+import net.xavil.universal.networking.c2s.ServerboundTeleportToPlanetPacket;
 
 public class SystemMapScreen extends UniversalScreen {
 
@@ -47,16 +50,23 @@ public class SystemMapScreen extends UniversalScreen {
 	private int followingId = -1;
 	private int selectedId = -1;
 	private boolean showGuides = true;
+	private final UniverseId.SystemId systemId;
 	private final Map<Integer, Vec3> positions = new HashMap<>();
 
-	protected SystemMapScreen(@Nullable Screen previousScreen, StarSystem system) {
+	public SystemMapScreen(@Nullable Screen previousScreen, UniverseId.SystemId systemId, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
+		this.systemId = systemId;
 		this.system = system;
 
 		this.camera.pitch.set(Math.PI / 8);
 		this.camera.yaw.set(Math.PI / 8);
 		this.camera.scale.set(4.0);
 		this.camera.scale.setTarget(8.0);
+	}
+
+	public SystemMapScreen(@Nullable Screen previousScreen, UniverseId id, StarSystem system) {
+		this(previousScreen, id.systemId(), system);
+		this.selectedId = this.followingId = id.systemNodeId();
 	}
 
 	@Override
@@ -147,6 +157,13 @@ public class SystemMapScreen extends UniversalScreen {
 			}
 		} else if (keyCode == GLFW.GLFW_KEY_G) {
 			this.showGuides = !this.showGuides;
+		} else if (keyCode == GLFW.GLFW_KEY_T) {
+			if (this.selectedId != -1) {
+				var packet = new ServerboundTeleportToPlanetPacket();
+				packet.planetId = new UniverseId(this.systemId.galaxySector(), this.systemId.systemSector(),
+						this.selectedId);
+				ModClientNetworking.send(packet);
+			}
 		}
 
 		// TODO: key mappings
@@ -494,7 +511,9 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		var k = this.camera.scale.get(partialTick);
-		RenderHelper.addBillboard(builder, this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT),
+		RenderHelper.addBillboard(builder,
+				new PoseStack(),
+				this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT),
 				new Vec3(0.02 * k, 0, 0),
 				new Vec3(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
 		builder.end();
@@ -550,7 +569,7 @@ public class SystemMapScreen extends UniversalScreen {
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 				var up = camera.getUpVector(partialTick);
 				var right = camera.getRightVector(partialTick);
-				RenderHelper.addBillboard(builder, up, right, this.camera.focus.get(partialTick),
+				RenderHelper.addBillboard(builder, new PoseStack(), up, right, this.camera.focus.get(partialTick),
 						0.05 * distanceFromCamera, 0, new Color(1, 1, 1, 0.2f));
 				builder.end();
 

@@ -2,9 +2,8 @@ package net.xavil.universal;
 
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
-import net.xavil.universal.client.SkyRenderer;
 import net.xavil.universal.client.screen.GalaxyMapScreen;
-import net.xavil.universal.common.universe.UniverseId;
+import net.xavil.universal.client.screen.SystemMapScreen;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universal.networking.ModClientNetworking;
@@ -24,8 +23,11 @@ public class ClientMod implements ClientModInitializer {
 		final var client = Minecraft.getInstance();
 
 		if (packetUntyped instanceof ClientboundOpenStarmapPacket packet) {
-			var id = new UniverseId.SystemId(packet.toOpen.galaxySector(), packet.toOpen.systemSector());
-			client.setScreen(new GalaxyMapScreen(client.screen, id));
+			var universe = MinecraftClientAccessor.getUniverse(client);
+			var system = universe.getSystem(packet.toOpen.systemId());
+			var galaxyMap = new GalaxyMapScreen(client.screen, packet.toOpen.systemId());
+			var systemMap = new SystemMapScreen(galaxyMap, packet.toOpen, system);
+			client.setScreen(systemMap);
 		} else if (packetUntyped instanceof ClientboundUniverseInfoPacket packet) {
 			var universe = MinecraftClientAccessor.getUniverse(client);
 			universe.updateFromInfoPacket(packet);

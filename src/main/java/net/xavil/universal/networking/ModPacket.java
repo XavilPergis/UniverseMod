@@ -42,6 +42,8 @@ public abstract class ModPacket {
 	}
 
 	public static UniverseId readUniverseId(FriendlyByteBuf buf) {
+		if (buf.readBoolean())
+			return null;
 		var galaxySectorId = readSectorId(buf);
 		var systemSectorId = readSectorId(buf);
 		var node = buf.readInt();
@@ -49,9 +51,12 @@ public abstract class ModPacket {
 	}
 
 	public static void writeUniverseId(FriendlyByteBuf buf, UniverseId id) {
-		writeSectorId(buf, id.galaxySector());
-		writeSectorId(buf, id.systemSector());
-		buf.writeInt(id.systemNodeId());
+		buf.writeBoolean(id == null);
+		if (id != null) {
+			writeSectorId(buf, id.galaxySector());
+			writeSectorId(buf, id.systemSector());
+			buf.writeInt(id.systemNodeId());
+		}
 	}
 
 }

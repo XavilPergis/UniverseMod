@@ -60,7 +60,7 @@ public final class RenderHelper {
 		// RenderSystem.enableDepthTest();
 		var baseTexture = getBaseLayer(node);
 
-		double d = getCelestialBodySize(node, camPos, center);
+		double d = 0.02 * getCelestialBodySize(node, camPos, center);
 
 		var radius = scale * Math.cbrt((node.massYg / Units.mearth(1)) / 1);
 		renderTexturedCube(builder, baseTexture, poseStack, center, radius * d, tintColor);
@@ -210,31 +210,34 @@ public final class RenderHelper {
 		}
 
 		final double brightBillboardSizeFactor = 0.5;
-		RenderHelper.addBillboard(builder, up, right, center, d, 0, color);
-		RenderHelper.addBillboard(builder, up, right, center, brightBillboardSizeFactor * d, 0, Color.WHITE);
+		RenderHelper.addBillboard(builder, new PoseStack(), up, right, center, d, 0, color);
+		RenderHelper.addBillboard(builder, new PoseStack(), up, right, center, brightBillboardSizeFactor * d, 0, Color.WHITE);
 	}
 
-	public static void addBillboard(VertexConsumer builder, Vec3 up, Vec3 right, Vec3 center, double scale,
+	public static void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 up, Vec3 right, Vec3 center,
+			double scale,
 			double zOffset, Color color) {
 
 		var backwards = up.cross(right).scale(zOffset);
 		var billboardUp = up.scale(scale);
 		var billboardRight = right.scale(scale);
-		addBillboard(builder, center, billboardUp, billboardRight, backwards,
+		addBillboard(builder, poseStack, center, billboardUp, billboardRight, backwards,
 				color.r(), color.g(), color.b(), color.a());
 
 	}
 
-	public static void addBillboard(VertexConsumer builder, Vec3 center, Vec3 up, Vec3 right, Vec3 forward,
+	public static void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 center, Vec3 up, Vec3 right,
+			Vec3 forward,
 			float r, float g, float b, float a) {
+		var p = poseStack.last().pose();
 		var qll = center.subtract(up).subtract(right).add(forward);
 		var qlh = center.subtract(up).add(right).add(forward);
 		var qhl = center.add(up).subtract(right).add(forward);
 		var qhh = center.add(up).add(right).add(forward);
-		builder.vertex(qhl.x, qhl.y, qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
-		builder.vertex(qll.x, qll.y, qll.z).color(r, g, b, a).uv(0, 0).endVertex();
-		builder.vertex(qlh.x, qlh.y, qlh.z).color(r, g, b, a).uv(0, 1).endVertex();
-		builder.vertex(qhh.x, qhh.y, qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
+		builder.vertex(p, (float) qhl.x, (float) qhl.y, (float) qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
+		builder.vertex(p, (float) qll.x, (float) qll.y, (float) qll.z).color(r, g, b, a).uv(0, 0).endVertex();
+		builder.vertex(p, (float) qlh.x, (float) qlh.y, (float) qlh.z).color(r, g, b, a).uv(0, 1).endVertex();
+		builder.vertex(p, (float) qhh.x, (float) qhh.y, (float) qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
 	}
 
 	public static double getGridScale(OrbitCamera camera, double tmPerUnit, double scaleFactor, float partialTick) {

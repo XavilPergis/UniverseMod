@@ -166,9 +166,11 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	private static @Nullable StarNode generateStarNode(Random random, double systemAgeMya, double massYg) {
 		final var starLifetime = StarNode.mainSequenceLifetimeFromMass(massYg);
 
+		// angular_momentum/angular_velocity = mass * radius^2
+
+		// TODO: conservation of angular momentum when star changes mass or radius
 		var targetType = StarNode.Type.MAIN_SEQUENCE;
 		if (systemAgeMya > starLifetime) {
-			// TODO: figure out luminosity and mass and stuff
 			if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
 				targetType = StarNode.Type.WHITE_DWARF;
 			} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
@@ -180,7 +182,8 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			targetType = StarNode.Type.GIANT;
 		}
 
-		return StarNode.fromMass(random, targetType, massYg);
+		var node = StarNode.fromMass(random, targetType, massYg);
+		return node;
 	}
 
 }

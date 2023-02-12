@@ -47,6 +47,10 @@ public class Galaxy {
 			}
 		};
 
+		if (parentUniverse.getStartingSystemGenerator() == null) {
+			throw new RuntimeException("why is this null. what?");
+		}
+
 		generationLayers.add(parentUniverse.getStartingSystemGenerator());
 		generationLayers.add(new BaseGalaxyGenerationLayer(this, densityField));
 	}

@@ -13,8 +13,6 @@ import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.universe.BaseGalaxyGenerationLayer;
-import net.xavil.universal.common.universe.universe.GalaxyGenerationLayer;
 import net.xavil.universal.common.universe.universe.Universe;
 
 public class Galaxy {

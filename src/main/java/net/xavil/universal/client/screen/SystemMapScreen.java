@@ -377,7 +377,7 @@ public class SystemMapScreen extends UniversalScreen {
 					var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
 					var centerL = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane, childOrbit, angleL));
 					var centerH = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane, childOrbit, angleH));
-					RenderHelper.addLine(builder, centerL, centerH, UNARY_PATH_COLOR.withA(0.5));
+					RenderHelper.addLine(builder, centerL, centerH, UNARY_PATH_COLOR.withA(1));
 				}
 				builder.end();
 				RenderSystem.enableBlend();

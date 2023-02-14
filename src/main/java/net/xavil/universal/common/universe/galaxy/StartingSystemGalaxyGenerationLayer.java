@@ -1,4 +1,4 @@
-package net.xavil.universal.common.universe.universe;
+package net.xavil.universal.common.universe.galaxy;
 
 import java.util.ArrayList;
 import java.util.Random;
@@ -7,7 +7,6 @@ import net.minecraft.core.Vec3i;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;

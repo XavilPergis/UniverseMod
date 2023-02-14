@@ -281,7 +281,7 @@ public final class RenderHelper {
 		var gridMinX = gridCellResolution * Math.floor(focusPos.x / gridCellResolution);
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
 
-		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.2f, a2 = 0.5f;
+		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.05f, a2 = 0.1f;
 
 		var gridOffset = gridCellResolution * gridLineCount / 2;
 

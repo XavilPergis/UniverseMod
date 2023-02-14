@@ -21,14 +21,11 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 
 	public static class UnaryOrbit {
 		public StarSystemNode node;
-		public boolean isPrograde; // FIXME: retrograde orbits should be expressed by flipping the orbital plane.
 		public OrbitalShape orbitalShape;
 		public OrbitalPlane orbitalPlane;
 
-		public UnaryOrbit(StarSystemNode node, boolean isPrograde, OrbitalShape orbitalShape,
-				OrbitalPlane orbitalPlane) {
+		public UnaryOrbit(StarSystemNode node, OrbitalShape orbitalShape, OrbitalPlane orbitalPlane) {
 			this.node = node;
-			this.isPrograde = isPrograde;
 			this.orbitalShape = orbitalShape;
 			this.orbitalPlane = orbitalPlane;
 		}
@@ -171,6 +168,13 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return this.parentUnaryNode;
 	}
 
+	public void insertChild(StarSystemNode child, double eccentricity, double periapsisDistance, double inclination,
+			double longitudeOfAscendingNode, double argumentOfPeriapsis) {
+		final var shape = new OrbitalShape(eccentricity, periapsisDistance);
+		final var plane = new OrbitalPlane(inclination, longitudeOfAscendingNode, argumentOfPeriapsis);
+		insertChild(new UnaryOrbit(child, shape, plane));
+	}
+
 	public void insertChild(UnaryOrbit child) {
 		this.childNodes.add(child);
 	}
@@ -179,14 +183,13 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return this.childNodes;
 	}
 
-
-	public static final double G = 1e-11;
+	public static final double G = 6.67e-11;
 
 	public static double getUnaryAngle(StarSystemNode parent, StarSystemNode.UnaryOrbit orbit, double time) {
 		var a = orbit.orbitalShape.semimajorAxisTm() * 1e9;
 		// T = 2 * pi * sqrt(a^3 / (G * M))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * 1e21 * parent.massYg));
-		return (orbit.isPrograde ? 1 : -1) * 2 * Math.PI * time / period + orbit.orbitalPlane.argumentOfPeriapsisRad();
+		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * 1e14 * parent.massYg));
+		return 2 * Math.PI * time / period + orbit.orbitalPlane.argumentOfPeriapsisRad();
 	}
 
 	public static double getBinaryAngle(BinaryNode node, double time) {
@@ -249,7 +252,6 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		consumer.accept(node, centerPos);
 	}
 
-
 	public static StarSystemNode readNbt(CompoundTag nbt) {
 		StarSystemNode node = null;
 
@@ -289,13 +291,12 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			var childNbt = childList.getCompound(i);
 
 			var childNode = readNbt(childNbt.getCompound("node"));
-			var prograde = childNbt.getBoolean("prograde");
 			var orbitalPlane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_plane"))
 					.getOrThrow(false, Mod.LOGGER::error);
 			var orbitalShape = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_shape"))
 					.getOrThrow(false, Mod.LOGGER::error);
 
-			var child = new UnaryOrbit(childNode, prograde, orbitalShape, orbitalPlane);
+			var child = new UnaryOrbit(childNode, orbitalShape, orbitalPlane);
 			node.childNodes.add(child);
 		}
 
@@ -335,7 +336,6 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			var childNbt = new CompoundTag();
 
 			childNbt.put("node", writeNbt(child.node));
-			childNbt.putBoolean("prograde", child.isPrograde);
 
 			OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, child.orbitalPlane).resultOrPartial(Mod.LOGGER::error)
 					.ifPresent(n -> childNbt.put("orbital_plane", n));

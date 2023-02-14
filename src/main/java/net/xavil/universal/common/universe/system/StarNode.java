@@ -142,6 +142,12 @@ public non-sealed class StarNode extends StarSystemNode {
 		// @formatter:on
 	}
 
+	public final double apparentBrightness(double distanceTm) {
+		var powerW = Units.WATTS_PER_LSOL * luminosityLsol;
+		return powerW / (4 * Math.PI * distanceTm * distanceTm);
+		// P / 4 * pi * r^2
+	}
+
 	public Color getColor() {
 		var starClass = starClass();
 

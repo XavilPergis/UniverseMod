@@ -1,6 +1,7 @@
 package net.xavil.universal.common.universe.universe;
 
 import net.minecraft.client.Minecraft;
+import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 
 public final class ClientUniverse extends Universe {

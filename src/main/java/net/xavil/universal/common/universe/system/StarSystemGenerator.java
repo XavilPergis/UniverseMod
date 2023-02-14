@@ -1,4 +1,4 @@
-package net.xavil.universal.common.universe.galaxy;
+package net.xavil.universal.common.universe.system;
 
 import java.util.Random;
 
@@ -7,13 +7,7 @@ import javax.annotation.Nullable;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.system.BinaryNode;
-import net.xavil.universal.common.universe.system.OrbitalPlane;
-import net.xavil.universal.common.universe.system.OrbitalShape;
-import net.xavil.universal.common.universe.system.PlanetNode;
-import net.xavil.universal.common.universe.system.StarNode;
-import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.system.StarSystemNode;
+import net.xavil.universal.common.universe.galaxy.Galaxy;
 
 public class StarSystemGenerator {
 
@@ -227,9 +221,8 @@ public class StarSystemGenerator {
 
 				var planetNode = new PlanetNode(randomType, initialMass);
 				var orbitalShape = new OrbitalShape(0, initialOrbitalRadius);
-				var retrograde = random.nextDouble() <= 0.01;
 
-				var orbit = new StarSystemNode.UnaryOrbit(planetNode, !retrograde, orbitalShape, OrbitalPlane.ZERO);
+				var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO);
 				node.insertChild(orbit);
 			}
 		}
@@ -250,9 +243,8 @@ public class StarSystemGenerator {
 
 			var planetNode = new PlanetNode(randomType, initialMass);
 			var orbitalShape = new OrbitalShape(0, initialOrbitalRadius);
-			var retrograde = random.nextDouble() <= 0.01;
 
-			var orbit = new StarSystemNode.UnaryOrbit(planetNode, !retrograde, orbitalShape, OrbitalPlane.ZERO);
+			var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO);
 			node.insertChild(orbit);
 		}
 	}

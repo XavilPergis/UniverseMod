@@ -26,6 +26,7 @@ import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.RenderMatricesSnapshot;
+import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 import net.xavil.universal.common.universe.id.SystemNodeId;
@@ -72,30 +73,36 @@ public class SkyRenderer {
 			color = starNode.getColor();
 
 		var distanceFromFocus = offset.length();
-		// if (distanceFromFocus > 1.5 * Galaxy.TM_PER_SECTOR)
-		// 	return;
-		var alpha = 1 - Mth.clamp(distanceFromFocus / (1.5 * Galaxy.TM_PER_SECTOR), 0, 1);
-		if (alpha <= 0.05)
+		if (distanceFromFocus > 1.5 * Galaxy.TM_PER_SECTOR)
 			return;
+		// var alpha = 1 - Mth.clamp(distanceFromFocus / (1.5 * Galaxy.TM_PER_SECTOR),
+		// 0, 1);
+		// if (alpha <= 0.05)
+		// return;
 
-		// double alpha = 1;
+		double alpha = 1;
 		double k = 1;
 
-		// if (node instanceof StarNode starNode) {
-		// 	// Mth.inverseLerp(starNode.luminosityLsol, 0, 30000)
-		// 	var t = Math.pow(starNode.luminosityLsol, 0.2);
-		// 	var d = distanceFromFocus / Galaxy.TM_PER_SECTOR;
-		// 	alpha *= t / d;
-		// 	alpha /= 4;
-		// 	// alpha *= (starNode.luminosityLsol * 20) / (distanceFromFocus /
-		// 	// Galaxy.TM_PER_SECTOR);
-		// 	alpha = Math.min(1, alpha);
-		// 	alpha = Math.max(0.1, alpha);
+		if (node instanceof StarNode starNode) {
+			// Mth.inverseLerp(starNode.luminosityLsol, 0, 30000)
+			var t = Math.pow(starNode.luminosityLsol, 0.2);
+			var d = distanceFromFocus / Galaxy.TM_PER_SECTOR;
+			alpha *= t / d;
+			alpha /= 4;
+			// alpha *= (starNode.luminosityLsol * 20) / (distanceFromFocus /
+			// Galaxy.TM_PER_SECTOR);
+			alpha = Math.min(1, alpha);
+			// alpha = Math.max(0.1, alpha);
 
-			
-		// 	// k = Mth.lerp(alpha, 0.1, 1);
-		// }
-		
+			// k = Mth.lerp(alpha, 0.1, 1);
+		}
+
+		// difference of 1.0 in magnitude corresponds to a brightness ratio of 100 5
+		// {\displaystyle {\sqrt[{5}]{100}}}, or about 2.512. For example, a star of
+		// magnitude 2.0 is 2.512 times as bright as a star of magnitude 3.0, 6.31 times
+		// as bright as a star of magnitude 4.0, and 100 times as bright as one of
+		// magnitude 7.0.
+
 		// because of imperfections in optics, light from a point-like source is spread
 		// out around the center point. because brighter stars emit so much more light,
 		// the outer regions collect much more light than the dimmer stars, and as such,
@@ -215,9 +222,35 @@ public class SkyRenderer {
 
 		RenderSystem.depthMask(true);
 		RenderSystem.enableDepthTest();
-		var builder = Tesselator.getInstance().getBuilder();
+		RenderSystem.enableBlend();
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
+		var builder = Tesselator.getInstance().getBuilder();
 		var thisPos = positions.get(currentPlanetId.nodeId());
+
+		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(1, 0, 0), 0.6, new
+		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(0.001), 1, 1, 2000));
+		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(0, 1, 0), 0.6, new
+		// StarNode(StarNode.Type.BLACK_HOLE, Units.msol(1), 1, 1, 2000));
+		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(0, 0, 1), 0.6, new
+		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(100), 1, 1, 2000));
+		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(-1, 0, 0), 0.2, new
+		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(0.001), 1, 1, 2000));
+		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(0, -1, 0), 0.2, new
+		// StarNode(StarNode.Type.BLACK_HOLE, Units.msol(1), 1, 1, 2000));
+		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(0, 0, -1), 0.2, new
+		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(100), 1, 1, 2000));
+		builder.end();
+		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
+		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		RenderSystem.depthMask(false);
+		// RenderSystem.enableDepthTest();
+		BufferUploader.end(builder);
+
 		for (var entry : positions.entrySet()) {
 			var node = system.rootNode.lookup(entry.getKey());
 			var pos = entry.getValue();
@@ -232,13 +265,9 @@ public class SkyRenderer {
 			s = Math.max(s, 1);
 
 			poseStack.pushPose();
+			poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
 			if (node instanceof PlanetNode planetNode) {
-				poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
-				poseStack.mulPose(Vector3f.XP.rotationDegrees(20));
-
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-
-				// poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 30));
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 				addBillboard(builder, poseStack, thisPos, pos, 0.05, planetNode);
 				// RenderHelper.renderPlanet(builder, planetNode, thisPos, s,
@@ -250,21 +279,10 @@ public class SkyRenderer {
 				RenderSystem.depthMask(false);
 				// RenderSystem.enableDepthTest();
 				BufferUploader.end(builder);
-				// var guh = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, 10000);
-
-				// poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
-				// poseStack.mulPose(Vector3f.XP.rotationDegrees(20));
-				// // poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 3));
-
 				// RenderHelper.renderPlanet(builder, guh, thisPos, s,
 				// poseStack, Vec3.ZERO, Color.WHITE);
 			} else if (node instanceof StarNode starNode) {
-				poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
-				poseStack.mulPose(Vector3f.XP.rotationDegrees(20));
-
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-
-				// poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 30));
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 				addBillboard(builder, poseStack, thisPos, pos, 0.1, starNode);
 				// RenderHelper.renderPlanet(builder, planetNode, thisPos, s,
@@ -291,12 +309,20 @@ public class SkyRenderer {
 		return new Vec3(vec);
 	}
 
-	private void applyPlanetTrasform(PoseStack poseStack, StarSystemNode node, double time) {
-		poseStack.mulPose(Vector3f.XP.rotationDegrees(50));
-		// poseStack.mulPose(Vector3f.XP.rotationDegrees(80));
-		var rotationAxis = new Vec3(0, 1, 0).zRot((float) node.obliquityAngle);
-		var rotation = new Vector3f(rotationAxis).rotation((float) (node.rotationalSpeed * time));
-		poseStack.mulPose(rotation);
+	private void applyPlanetTrasform(PoseStack poseStack, StarSystemNode node, double time,
+			double viewX, double viewZ) {
+
+		var worldBorder = this.client.level.getWorldBorder();
+		var tx = Mth.inverseLerp(viewX, worldBorder.getMinX(), worldBorder.getMaxX());
+		var tz = Mth.inverseLerp(viewZ, worldBorder.getMinZ(), worldBorder.getMaxZ());
+
+		final var hpi = Math.PI / 2;
+		var latitudeOffset = Mth.clamp(Mth.lerp(tx, -hpi, hpi), -hpi, hpi);
+		var longitudeOffset = Mth.clamp(Mth.lerp(tz, -hpi, hpi), -hpi, hpi);
+
+		poseStack.mulPose(Vector3f.XP.rotation((float) (longitudeOffset + Math.toRadians(90))));
+		poseStack.mulPose(Vector3f.YP.rotation((float) (latitudeOffset + node.rotationalSpeed * time)));
+		poseStack.mulPose(Vector3f.XP.rotation((float) -node.obliquityAngle));
 	}
 
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float partialTick, Camera camera,
@@ -321,9 +347,9 @@ public class SkyRenderer {
 		this.skyTarget.bindWrite(false);
 
 		// TODO: figure out how we actually wanna handle time
-		float time = (System.currentTimeMillis() % 1000000) / 1000f;
-		// float time = (System.currentTimeMillis() % 1000000) / 10f;
-		// float time = (System.currentTimeMillis() % 1000000) * 10f;
+		double time = 1e7 + (1440.0 / 5.0) * System.currentTimeMillis() / 1000.0 - 1e10;
+		// double time = (System.currentTimeMillis() % 1000000) / 10f;
+		// double time = (System.currentTimeMillis() % 1000000) * 1000f;
 
 		RenderSystem.setShaderFogStart(10000);
 		RenderSystem.setShaderFogEnd(10000);
@@ -331,7 +357,7 @@ public class SkyRenderer {
 		poseStack.pushPose();
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
 		var planet = universe.getSystemNode(currentId);
-		applyPlanetTrasform(poseStack, planet, time);
+		applyPlanetTrasform(poseStack, planet, time, camera.getPosition().x, camera.getPosition().z);
 		drawStars(poseStack.last().pose(), projectionMatrix);
 		drawSystem(poseStack, currentId, time, partialTick);
 		poseStack.popPose();

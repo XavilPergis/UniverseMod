@@ -1,4 +1,4 @@
-package net.xavil.universal.common.universe.universe;
+package net.xavil.universal.common.universe.galaxy;
 
 import java.util.Random;
 
@@ -12,10 +12,9 @@ import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.DensityField3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.galaxy.Galaxy;
-import net.xavil.universal.common.universe.galaxy.StarSystemGenerator;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
+import net.xavil.universal.common.universe.system.StarSystemGenerator;
 
 public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
@@ -105,7 +104,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	private double generateStarMass(Random random, double upperBoundYg) {
 		upperBoundYg = Math.min(MAXIMUM_STAR_MASS_YG, upperBoundYg);
-		var massFactor = Math.pow(random.nextDouble(), 15);
+		var massFactor = Math.pow(random.nextDouble(), 30);
 		var massYg = Mth.lerp(massFactor, MINIMUM_STAR_MASS_YG, upperBoundYg);
 		return massYg;
 	}

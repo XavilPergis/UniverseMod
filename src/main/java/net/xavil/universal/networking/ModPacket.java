@@ -3,7 +3,10 @@ package net.xavil.universal.networking;
 import net.minecraft.core.Vec3i;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
-import net.xavil.universal.common.universe.UniverseId;
+import net.xavil.universal.common.universe.Octree;
+import net.xavil.universal.common.universe.id.SectorId;
+import net.xavil.universal.common.universe.id.SystemId;
+import net.xavil.universal.common.universe.id.SystemNodeId;
 
 public abstract class ModPacket {
 
@@ -26,36 +29,47 @@ public abstract class ModPacket {
 		buf.writeInt(vec.getZ());
 	}
 
-	public static UniverseId.SectorId readSectorId(FriendlyByteBuf buf) {
+	public static SectorId readSectorId(FriendlyByteBuf buf) {
 		var x = buf.readInt();
 		var y = buf.readInt();
 		var z = buf.readInt();
+		var layer = buf.readInt();
 		var id = buf.readInt();
-		return new UniverseId.SectorId(new Vec3i(x, y, z), id);
+		return new SectorId(new Vec3i(x, y, z), new Octree.Id(layer, id));
 	}
 
-	public static void writeSectorId(FriendlyByteBuf buf, UniverseId.SectorId id) {
+	public static void writeSectorId(FriendlyByteBuf buf, SectorId id) {
 		buf.writeInt(id.sectorPos().getX());
 		buf.writeInt(id.sectorPos().getY());
 		buf.writeInt(id.sectorPos().getZ());
-		buf.writeInt(id.sectorId());
+		buf.writeInt(id.sectorId().layerIndex());
+		buf.writeInt(id.sectorId().elementIndex());
 	}
 
-	public static UniverseId readUniverseId(FriendlyByteBuf buf) {
+	public static SystemId readSystemId(FriendlyByteBuf buf) {
+		var galaxySector = readSectorId(buf);
+		var systemSector = readSectorId(buf);
+		return new SystemId(galaxySector, systemSector);
+	}
+
+	public static void writeSystemId(FriendlyByteBuf buf, SystemId id) {
+		writeSectorId(buf, id.galaxySector());
+		writeSectorId(buf, id.systemSector());
+	}
+
+	public static SystemNodeId readSystemNodeId(FriendlyByteBuf buf) {
 		if (buf.readBoolean())
 			return null;
-		var galaxySectorId = readSectorId(buf);
-		var systemSectorId = readSectorId(buf);
+		var systemId = readSystemId(buf);
 		var node = buf.readInt();
-		return new UniverseId(galaxySectorId, systemSectorId, node);
+		return new SystemNodeId(systemId, node);
 	}
 
-	public static void writeUniverseId(FriendlyByteBuf buf, UniverseId id) {
+	public static void writeSystemNodeId(FriendlyByteBuf buf, SystemNodeId id) {
 		buf.writeBoolean(id == null);
 		if (id != null) {
-			writeSectorId(buf, id.galaxySector());
-			writeSectorId(buf, id.systemSector());
-			buf.writeInt(id.systemNodeId());
+			writeSystemId(buf, id.system());
+			buf.writeInt(id.nodeId());
 		}
 	}
 

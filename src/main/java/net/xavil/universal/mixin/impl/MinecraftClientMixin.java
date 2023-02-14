@@ -20,6 +20,13 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 
 	private @Nullable ClientUniverse universe = null;
 
+	@Inject(method = "tick", at = @At("TAIL"))
+	private void onTick(CallbackInfo info) {
+		if (this.universe != null) {
+			this.universe.tick();
+		}
+	}
+
 	// id prefer to just inject at TAIL but one of the parameters is an unnameable
 	// type :(
 	// TODO: use an access widener perhaps?

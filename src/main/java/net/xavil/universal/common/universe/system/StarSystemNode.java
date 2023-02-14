@@ -255,6 +255,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 
 		var id = nbt.getInt("id");
 		var massYg = nbt.getDouble("mass");
+		var obliquityAngle = nbt.getDouble("obliquity");
+		var rotationalSpeed = nbt.getDouble("rotational_speed");
 		var nodeType = nbt.getString("node_type");
 
 		Mod.LOGGER.warn(nbt.getAsString());
@@ -279,6 +281,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		}
 
 		node.id = id;
+		node.obliquityAngle = obliquityAngle;
+		node.rotationalSpeed = rotationalSpeed;
 
 		final var childList = nbt.getList("children", Tag.TAG_COMPOUND);
 		for (var i = 0; i < childList.size(); ++i) {
@@ -303,6 +307,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 
 		nbt.putInt("id", node.id);
 		nbt.putDouble("mass", node.massYg);
+		nbt.putDouble("obliquity", node.obliquityAngle);
+		nbt.putDouble("rotational_speed", node.rotationalSpeed);
 
 		if (node instanceof BinaryNode binaryNode) {
 			nbt.putString("node_type", "binary");

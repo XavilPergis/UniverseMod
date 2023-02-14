@@ -24,8 +24,8 @@ public class ClientMod implements ClientModInitializer {
 
 		if (packetUntyped instanceof ClientboundOpenStarmapPacket packet) {
 			var universe = MinecraftClientAccessor.getUniverse(client);
-			var system = universe.getSystem(packet.toOpen.systemId());
-			var galaxyMap = new GalaxyMapScreen(client.screen, packet.toOpen.systemId());
+			var system = universe.getSystem(packet.toOpen.system());
+			var galaxyMap = new GalaxyMapScreen(client.screen, packet.toOpen.system());
 			var systemMap = new SystemMapScreen(galaxyMap, packet.toOpen, system);
 			client.setScreen(systemMap);
 		} else if (packetUntyped instanceof ClientboundUniverseInfoPacket packet) {

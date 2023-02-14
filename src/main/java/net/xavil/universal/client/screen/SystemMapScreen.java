@@ -25,7 +25,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.UniverseId;
+import net.xavil.universal.common.universe.id.SystemId;
+import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.BinaryNode;
 import net.xavil.universal.common.universe.system.OrbitalPlane;
 import net.xavil.universal.common.universe.system.PlanetNode;
@@ -50,10 +51,10 @@ public class SystemMapScreen extends UniversalScreen {
 	private int followingId = -1;
 	private int selectedId = -1;
 	private boolean showGuides = true;
-	private final UniverseId.SystemId systemId;
+	private final SystemId systemId;
 	private final Map<Integer, Vec3> positions = new HashMap<>();
 
-	public SystemMapScreen(@Nullable Screen previousScreen, UniverseId.SystemId systemId, StarSystem system) {
+	public SystemMapScreen(@Nullable Screen previousScreen, SystemId systemId, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
 		this.systemId = systemId;
 		this.system = system;
@@ -64,9 +65,9 @@ public class SystemMapScreen extends UniversalScreen {
 		this.camera.scale.setTarget(8.0);
 	}
 
-	public SystemMapScreen(@Nullable Screen previousScreen, UniverseId id, StarSystem system) {
-		this(previousScreen, id.systemId(), system);
-		this.selectedId = this.followingId = id.systemNodeId();
+	public SystemMapScreen(@Nullable Screen previousScreen, SystemNodeId id, StarSystem system) {
+		this(previousScreen, id.system(), system);
+		this.selectedId = this.followingId = id.nodeId();
 	}
 
 	@Override
@@ -160,8 +161,7 @@ public class SystemMapScreen extends UniversalScreen {
 		} else if (keyCode == GLFW.GLFW_KEY_T) {
 			if (this.selectedId != -1) {
 				var packet = new ServerboundTeleportToPlanetPacket();
-				packet.planetId = new UniverseId(this.systemId.galaxySector(), this.systemId.systemSector(),
-						this.selectedId);
+				packet.planetId = new SystemNodeId(this.systemId, this.selectedId);
 				ModClientNetworking.send(packet);
 			}
 		}

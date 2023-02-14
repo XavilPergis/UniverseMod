@@ -11,7 +11,7 @@ import net.xavil.universal.common.universe.DensityField3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.UniverseId;
+import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.BaseGalaxyGenerationLayer;
 import net.xavil.universal.common.universe.universe.GalaxyGenerationLayer;
@@ -29,13 +29,13 @@ public class Galaxy {
 
 	public final Universe parentUniverse;
 	public final Info info;
-	public final UniverseId.SectorId galaxyId;
+	public final SectorId galaxyId;
 
 	private final List<GalaxyGenerationLayer> generationLayers = new ArrayList<>();
 
 	public final TicketedVolume<Lazy<StarSystem.Info, StarSystem>> volume;
 
-	public Galaxy(Universe parentUniverse, UniverseId.SectorId galaxyId, Info info, DensityField3 densityField) {
+	public Galaxy(Universe parentUniverse, SectorId galaxyId, Info info, DensityField3 densityField) {
 		this.parentUniverse = parentUniverse;
 		this.galaxyId = galaxyId;
 		this.info = info;
@@ -73,8 +73,10 @@ public class Galaxy {
 
 	public Octree<Lazy<StarSystem.Info, StarSystem>> getVolumeAt(Vec3i volumePos, boolean create) {
 		var volume = this.volume.get(volumePos);
-		if (volume == null && create) {
+		if (create) {
 			this.volume.addTicket(volumePos, 0, 1);
+		}
+		if (volume == null && create) {
 			volume = this.volume.get(volumePos);
 		}
 		return volume;
@@ -88,7 +90,13 @@ public class Galaxy {
 		var random = new Random(volumeSeed(volumeCoords));
 		var ctx = new GalaxyGenerationLayer.Context(this, random, volumeCoords, volume);
 		for (var layer : this.generationLayers) {
-			layer.generateInto(ctx);
+			layer.generateInto(ctx, (pos, system) -> {
+				var layerElements = volume.elements.get(layer.layerId);
+				var elementIndex = layerElements == null ? 0 : layerElements.size();
+				var thisId = new Octree.Id(layer.layerId, elementIndex);
+				system.evaluationHook = () -> volume.markedElements.add(thisId);
+				volume.insert(pos, layer.layerId, system);
+			});
 		}
 
 		return volume;

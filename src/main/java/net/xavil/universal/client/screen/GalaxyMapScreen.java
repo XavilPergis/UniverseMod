@@ -32,9 +32,10 @@ import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
+import net.xavil.universal.common.universe.id.SectorId;
+import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
@@ -58,13 +59,13 @@ public class GalaxyMapScreen extends UniversalScreen {
 	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
 
 	private OrbitCamera camera = new OrbitCamera(TM_PER_UNIT);
-	private UniverseId.SectorId galaxyId;
-	private UniverseId.SectorId currentSystemId;
+	private SectorId galaxyId;
+	private SectorId currentSystemId;
 
 	private TicketedVolume.Ticket galaxyVolumeTicket;
 	// private TicketedVolume.Ticket focusTicket;
 
-	public GalaxyMapScreen(@Nullable Screen previousScreen, UniverseId.SystemId systemToFocus) {
+	public GalaxyMapScreen(@Nullable Screen previousScreen, SystemId systemToFocus) {
 		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen);
 
 		this.camera.pitch.set(Math.PI / 8);
@@ -188,19 +189,19 @@ public class GalaxyMapScreen extends UniversalScreen {
 		return false;
 	}
 
-	public @Nullable UniverseId.SectorId getNearestSystem(Vec3 pos, double radius) {
+	public @Nullable SectorId getNearestSystem(Vec3 pos, double radius) {
 
 		var nearest = new Object() {
 			double distanceSqr = Double.MAX_VALUE;
-			UniverseId.SectorId id = null;
+			SectorId id = null;
 		};
-		enumerateSectors(pos, radius, sectorPos -> {
+		TicketedVolume.enumerateSectors(pos, radius, Galaxy.TM_PER_SECTOR, sectorPos -> {
 			var volume = this.galaxy.getVolumeAt(sectorPos);
 			var nearestInSector = volume.nearestInRadius(pos, radius);
 			if (nearestInSector != null) {
-				if (nearestInSector.pos().distanceToSqr(pos) < nearest.distanceSqr) {
-					nearest.distanceSqr = nearestInSector.pos().distanceToSqr(pos);
-					nearest.id = new UniverseId.SectorId(sectorPos, nearestInSector.id());
+				if (nearestInSector.pos.distanceToSqr(pos) < nearest.distanceSqr) {
+					nearest.distanceSqr = nearestInSector.pos.distanceToSqr(pos);
+					nearest.id = new SectorId(sectorPos, nearestInSector.id);
 				}
 			}
 		});
@@ -223,8 +224,9 @@ public class GalaxyMapScreen extends UniversalScreen {
 			return true;
 		} else if (c == 'e') {
 			var volume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-			var system = volume.getById(this.currentSystemId.sectorId()).getFull();
-			var screen = new SystemMapScreen(this, new UniverseId.SystemId(this.galaxyId, this.currentSystemId),
+			var system = volume.getById(this.currentSystemId.sectorId())
+					.getFull();
+			var screen = new SystemMapScreen(this, new SystemId(this.galaxyId, this.currentSystemId),
 					system);
 			this.client.setScreen(screen);
 			return true;
@@ -234,7 +236,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 			if (nearestId != null) {
 				var volume = this.galaxy.getVolumeAt(nearestId.sectorPos());
 				this.currentSystemId = nearestId;
-				this.camera.focus.setTarget(volume.posById(this.currentSystemId.sectorId()));
+				this.camera.focus.setTarget(
+						volume.posById(this.currentSystemId.sectorId()));
 			}
 			return true;
 		}
@@ -399,11 +402,10 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		renderSectorStars(builder, volume.streamIds().mapToObj(id -> {
-			var initialInfo = Objects.requireNonNull(volume.getById(id)).getInitial();
+		renderSectorStars(builder, volume.streamElements().map(element -> {
+			var initialInfo = element.value.getInitial();
 			var brightestStar = initialInfo.stars.stream().max(Comparator.comparing(star -> star.luminosityLsol)).get();
-			var pos = Objects.requireNonNull(volume.posById(id));
-			return new StarInfo(pos, brightestStar);
+			return new StarInfo(element.pos, brightestStar);
 		}), partialTick);
 
 		builder.end();
@@ -418,16 +420,17 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
+		
 		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
-		for (var id = 0; id < volume.elementCount(); ++id) {
-			var pos = Objects.requireNonNull(volume.posById(id)).scale(1 / TM_PER_UNIT);
+		volume.streamElements().forEach(element -> {
+			var pos = element.pos.scale(1 / TM_PER_UNIT);
 			if (pos.distanceTo(focusPos) > 10)
-				continue;
+				return;
 			RenderHelper.addLine(builder,
 					new Vec3(pos.x, focusPos.y, pos.z),
 					new Vec3(pos.x, pos.y, pos.z),
 					NEAREST_LINE_COLOR.withA(0.2));
-		}
+		});
 
 		builder.end();
 		RenderSystem.enableBlend();
@@ -461,23 +464,6 @@ public class GalaxyMapScreen extends UniversalScreen {
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 	}
 
-	public static void enumerateSectors(Vec3 centerPos, double radius, Consumer<Vec3i> posConsumer) {
-		var minSectorX = (int) Math.floor((centerPos.x - radius) / Galaxy.TM_PER_SECTOR);
-		var maxSectorX = (int) Math.floor((centerPos.x + radius) / Galaxy.TM_PER_SECTOR);
-		var minSectorY = (int) Math.floor((centerPos.y - radius) / Galaxy.TM_PER_SECTOR);
-		var maxSectorY = (int) Math.floor((centerPos.y + radius) / Galaxy.TM_PER_SECTOR);
-		var minSectorZ = (int) Math.floor((centerPos.z - radius) / Galaxy.TM_PER_SECTOR);
-		var maxSectorZ = (int) Math.floor((centerPos.z + radius) / Galaxy.TM_PER_SECTOR);
-
-		for (int x = minSectorX; x <= maxSectorX; ++x) {
-			for (int y = minSectorY; y <= maxSectorY; ++y) {
-				for (int z = minSectorZ; z <= maxSectorZ; ++z) {
-					posConsumer.accept(new Vec3i(x, y, z));
-				}
-			}
-		}
-	}
-
 	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
 		// This render method gets a tick delta instead of a tick completion percentage,
@@ -501,7 +487,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		renderGrid(partialTick);
 
-		enumerateSectors(focusPos, STAR_RENDER_RADIUS, sectorPos -> {
+		TicketedVolume.enumerateSectors(focusPos, STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
 			// TODO: figure out how to evict old volumes that we're not using. Maybe use
 			// something like vanilla's chunk ticketing system?
 			var volume = this.galaxy.getVolumeAt(sectorPos);
@@ -511,7 +497,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// selected system gizmo
 
 		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).scale(1 / TM_PER_UNIT);
+		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId())
+				.scale(1 / TM_PER_UNIT);
 
 		var prevMatrices = this.camera.setupRenderMatrices(partialTick);
 

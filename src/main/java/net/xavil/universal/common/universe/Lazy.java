@@ -10,6 +10,8 @@ public class Lazy<I, F> {
 	private @Nullable F full;
 	private final Function<I, F> evaluator;
 
+	public @Nullable Runnable evaluationHook;
+
 	public Lazy(I initial, Function<I, F> evaluator) {
 		this.initial = initial;
 		this.evaluator = evaluator;
@@ -26,6 +28,8 @@ public class Lazy<I, F> {
 	public F getFull() {
 		if (this.full == null) {
 			this.full = this.evaluator.apply(this.initial);
+			if (this.evaluationHook != null)
+				this.evaluationHook.run();
 		}
 		return this.full;
 	}

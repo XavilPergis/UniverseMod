@@ -6,9 +6,10 @@ import java.util.Random;
 import net.minecraft.core.Vec3i;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Mth;
+import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.system.BinaryNode;
 import net.xavil.universal.common.universe.system.OrbitalPlane;
 import net.xavil.universal.common.universe.system.OrbitalShape;
@@ -78,6 +79,8 @@ public final class ServerUniverse extends Universe {
 		var nodeAB = new BinaryNode(starA, starB, new OrbitalPlane(2 * Math.PI * 0.09, 0, 0), 1, Units.au(0.9));
 
 		var overworld = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD, Units.mearth(1));
+		overworld.obliquityAngle = 0.408407;
+		overworld.rotationalSpeed = 7e-5;
 		var moon1 = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.01));
 		var moon2 = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.04));
 		nodeAB.insertChild(
@@ -107,21 +110,21 @@ public final class ServerUniverse extends Universe {
 		var gz = (int) (1000 * random.nextGaussian());
 		var galaxySectorPos = new Vec3i(gx, gy, gz);
 		var galaxyVolume = getVolumeAt(galaxySectorPos, true);
-		var galaxyIds = galaxyVolume.streamIds().toArray();
-		var initialGalaxyId = galaxyIds[random.nextInt(galaxyIds.length)];
-		var startingGalaxyId = new UniverseId.SectorId(galaxySectorPos, initialGalaxyId);
+
+		var layerIds = galaxyVolume.elements.keySet().toIntArray();
+		var initialLayerId = layerIds[random.nextInt(0, layerIds.length)];
+
+		var initialLayer = galaxyVolume.elements.get(initialLayerId);
+		var initialGalaxySectorId = random.nextInt(0, initialLayer.size());
+		var initialGalaxyId = new SectorId(galaxySectorPos, new Octree.Id(initialLayerId, initialGalaxySectorId));
 
 		var sx = (int) (250 * random.nextGaussian());
 		var sy = (int) (250 * random.nextGaussian());
 		var sz = (int) (250 * random.nextGaussian());
 		var systemVolumePos = new Vec3i(sx, sy, sz);
 
-		this.startingGenerator = new StartingSystemGalaxyGenerationLayer(startingGalaxyId, systemVolumePos, rootNode,
+		this.startingGenerator = new StartingSystemGalaxyGenerationLayer(initialGalaxyId, systemVolumePos, rootNode,
 				startingNodeId);
-
-		// HACK: force discovery of the starting system id, otherwise it will remain -1.
-		// i really dislike this architecture but im not smart enough to know what else to do :(
-		galaxyVolume.getById(initialGalaxyId).getFull().getVolumeAt(systemVolumePos);
 	}
 
 }

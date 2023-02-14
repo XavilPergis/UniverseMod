@@ -27,6 +27,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public final DensityField3 densityField;
 
 	public BaseGalaxyGenerationLayer(Galaxy parentGalaxy, DensityField3 densityField) {
+		super(1);
 		this.parentGalaxy = parentGalaxy;
 		this.densityField = densityField;
 	}
@@ -53,15 +54,13 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public void generateInto(Context ctx) {
+	public void generateInto(Context ctx, Sink sink) {
 		var random = new Random(volumeSeed(ctx.volumeCoords));
-
-		final var volumeMin = ctx.volume.rootNode.min;
 
 		var sectorDensitySum = 0.0;
 		for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
 			var volumeOffsetTm = randomVec(random);
-			sectorDensitySum += this.densityField.sampleDensity(volumeMin.add(volumeOffsetTm));
+			sectorDensitySum += this.densityField.sampleDensity(ctx.volumeMin.add(volumeOffsetTm));
 		}
 		final var averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
 
@@ -79,7 +78,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
 				var volumeOffsetTm = randomVec(random);
-				var systemPos = volumeMin.add(volumeOffsetTm);
+				var systemPos = ctx.volumeMin.add(volumeOffsetTm);
 				var density = this.densityField.sampleDensity(systemPos);
 
 				if (density >= random.nextDouble(0, maxDensity)) {
@@ -88,7 +87,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 					var i2 = i;
 					var lazy = new Lazy<>(initial,
 							info -> generateStarSystem(ctx.volumeCoords, systemPos, info, i2, systemSeed));
-					ctx.volume.insert(systemPos, lazy);
+					sink.accept(systemPos, lazy);
 					successfulAttempts += 1;
 					break;
 				}

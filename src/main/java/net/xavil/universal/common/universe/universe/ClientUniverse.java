@@ -34,8 +34,11 @@ public final class ClientUniverse extends Universe {
 	public void updateFromInfoPacket(ClientboundUniverseInfoPacket packet) {
 		this.commonUniverseSeed = packet.commonSeed;
 		this.uniqueUniverseSeed = packet.uniqueSeed;
-		this.startingGenerator = new StartingSystemGalaxyGenerationLayer(packet.startingGalaxyId,
-				packet.startingSystemVolumePos, packet.startingSystem, packet.startingNodeId);
+		this.startingGenerator = new StartingSystemGalaxyGenerationLayer(
+				packet.startingId.system().galaxySector(),
+				packet.startingId.system().systemSector().sectorPos(),
+				packet.startingSystem,
+				packet.startingId.nodeId());
 	}
 
 }

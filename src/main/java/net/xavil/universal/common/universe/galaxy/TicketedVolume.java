@@ -8,12 +8,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Consumer;
-
-import javax.annotation.Nullable;
+import java.util.stream.Stream;
 
 import net.minecraft.core.Vec3i;
+import net.minecraft.world.phys.Vec3;
+import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.UniverseId;
+import net.xavil.universal.common.universe.id.SectorId;
 
 public abstract class TicketedVolume<T> {
 
@@ -88,6 +89,8 @@ public abstract class TicketedVolume<T> {
 			this.tickableTickets.add(ticket);
 		}
 
+		// Mod.LOGGER.info("[ticket] ADD pos=" + ticket.sectorPos + ", lifetime=" + ticket.lifetime);
+
 		ticket.enumerate(pos -> {
 			var sector = this.sectorMap.get(pos);
 			if (sector == null) {
@@ -101,6 +104,7 @@ public abstract class TicketedVolume<T> {
 	}
 
 	public final void removeTicket(Ticket ticket) {
+		// Mod.LOGGER.info("[ticket] REMOVE pos=" + ticket.sectorPos + ", age=" + ticket.age);
 		ticket.enumerate(pos -> {
 			var sector = this.sectorMap.get(pos);
 			sector.attachedTickets.remove(ticket);
@@ -112,20 +116,42 @@ public abstract class TicketedVolume<T> {
 		this.tickableTickets.remove(ticket);
 	}
 
+	public final Stream<Vec3i> streamLoadedSectors() {
+		return this.sectorMap.keySet().stream();
+	}
+
 	public final boolean isLoaded(Vec3i sectorPos) {
 		return this.sectorMap.containsKey(sectorPos);
 	}
 
-	public final @Nullable Octree<T> get(Vec3i sectorPos) {
+	public final Octree<T> get(Vec3i sectorPos) {
 		if (!isLoaded(sectorPos))
 			return null;
 		return this.sectorMap.get(sectorPos).volume;
 	}
 
-	public final @Nullable T get(UniverseId.SectorId sectorId) {
+	public final T get(SectorId sectorId) {
 		if (!isLoaded(sectorId.sectorPos()))
 			return null;
 		return this.sectorMap.get(sectorId.sectorPos()).volume.getById(sectorId.sectorId());
+	}
+
+	public static void enumerateSectors(Vec3 centerPos, double radius, double distancePerSector,
+			Consumer<Vec3i> posConsumer) {
+		var minSectorX = (int) Math.floor((centerPos.x - radius) / distancePerSector);
+		var maxSectorX = (int) Math.floor((centerPos.x + radius) / distancePerSector);
+		var minSectorY = (int) Math.floor((centerPos.y - radius) / distancePerSector);
+		var maxSectorY = (int) Math.floor((centerPos.y + radius) / distancePerSector);
+		var minSectorZ = (int) Math.floor((centerPos.z - radius) / distancePerSector);
+		var maxSectorZ = (int) Math.floor((centerPos.z + radius) / distancePerSector);
+
+		for (int x = minSectorX; x <= maxSectorX; ++x) {
+			for (int y = minSectorY; y <= maxSectorY; ++y) {
+				for (int z = minSectorZ; z <= maxSectorZ; ++z) {
+					posConsumer.accept(new Vec3i(x, y, z));
+				}
+			}
+		}
 	}
 
 	public void tick() {

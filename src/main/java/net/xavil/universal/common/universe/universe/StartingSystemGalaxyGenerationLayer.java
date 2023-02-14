@@ -6,22 +6,29 @@ import java.util.Random;
 import net.minecraft.core.Vec3i;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.common.universe.Lazy;
-import net.xavil.universal.common.universe.UniverseId;
+import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.universal.common.universe.id.SectorId;
+import net.xavil.universal.common.universe.id.SystemId;
+import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 
 public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
-	public final UniverseId.SectorId startingGalaxyId;
+	public final SectorId startingGalaxyId;
 	public final Vec3i startingSystemVolumePos;
+
+	// public final SystemId systemId;
+
 	public final StarSystemNode startingSystem;
 	public final int startingNodeId;
-	private int startingSystemId = -1;
+	// private int startingSystemId = -1;
 
-	public StartingSystemGalaxyGenerationLayer(UniverseId.SectorId startingGalaxyId,
+	public StartingSystemGalaxyGenerationLayer(SectorId startingGalaxyId,
 			Vec3i startingSystemVolumePos, StarSystemNode startingSystem, int startingNodeId) {
+		super(0);
 		this.startingGalaxyId = startingGalaxyId;
 		this.startingSystemVolumePos = startingSystemVolumePos;
 		this.startingSystem = startingSystem;
@@ -36,12 +43,12 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public void generateInto(Context ctx) {
+	public void generateInto(Context ctx, Sink sink) {
 		if (!ctx.galaxy.galaxyId.equals(this.startingGalaxyId))
 			return;
 		if (!ctx.volumeCoords.equals(this.startingSystemVolumePos))
 			return;
-		var pos = ctx.volume.rootNode.min.add(randomVec(ctx.random));
+		var pos = ctx.volumeMin.add(randomVec(ctx.random));
 		var system = new StarSystem(ctx.galaxy, this.startingSystem);
 		var init = new StarSystem.Info();
 		init.remainingHydrogenYg = 0;
@@ -53,13 +60,13 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 				init.stars.add(starNode);
 			}
 		});
-		this.startingSystemId = ctx.volume.insert(pos, new Lazy<>(init, n -> system));
+		sink.accept(pos, new Lazy<>(init, n -> system));
 	}
 
-	public UniverseId getStartingSystemId() {
-		return new UniverseId(this.startingGalaxyId,
-				new UniverseId.SectorId(this.startingSystemVolumePos, this.startingSystemId),
-				this.startingNodeId);
+	public SystemNodeId getStartingSystemId() {
+		var systemSectorId = new SectorId(this.startingSystemVolumePos, new Octree.Id(this.layerId, 0));
+		var system = new SystemId(this.startingGalaxyId, systemSectorId);
+		return new SystemNodeId(system, this.startingNodeId);
 	}
 
 }

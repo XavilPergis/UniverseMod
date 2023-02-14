@@ -1,25 +1,39 @@
 package net.xavil.universal.common.universe;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
-import java.util.function.BiConsumer;
+import java.util.Set;
 import java.util.function.Consumer;
-import java.util.stream.IntStream;
+import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
+import com.mojang.serialization.Codec;
+import com.mojang.serialization.codecs.RecordCodecBuilder;
+
+import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
+import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 
 public class Octree<T> {
 
+	public record Id(int layerIndex, int elementIndex) {
+		public static final Codec<Id> CODEC = RecordCodecBuilder.create(inst -> inst.group(
+				Codec.INT.fieldOf("layer").forGetter(Id::layerIndex),
+				Codec.INT.fieldOf("id").forGetter(Id::elementIndex))
+				.apply(inst, Id::new));
+	}
+
 	public record Config(int splitThreshold) {
 		public static final Config DEFAULT = new Config(8);
 	}
 
 	public Node<T> rootNode;
-	public final List<Element<T>> elements = new ArrayList<>();
+	public final Int2ObjectMap<List<Element<T>>> elements = new Int2ObjectOpenHashMap<>();
+	public final Set<Id> markedElements = new HashSet<>();
 
 	public Octree(Vec3 min, Vec3 max) {
 		this(Config.DEFAULT, min, max);
@@ -29,44 +43,49 @@ public class Octree<T> {
 		this.rootNode = new Node.Leaf<T>(config, min, max);
 	}
 
-	public int insert(Vec3 pos, T value) {
+	public int insert(Vec3 pos, int layer, T value) {
 		var id = this.elements.size();
-		var element = new Element<T>(id, pos, value);
+		var element = new Element<T>(new Id(layer, id), pos, value);
 		var newRoot = this.rootNode.insert(element);
 		if (newRoot == null) {
-			Mod.LOGGER.warn("failed to insert element " + element.id + " into octree, pos=" + element.pos);
+			Mod.LOGGER.warn("failed to insert element " + id + " into octree, pos=" + element.pos);
 			return -1;
 		}
 		this.rootNode = newRoot;
 
-		this.elements.add(element);
+		if (!this.elements.containsKey(layer)) {
+			this.elements.put(layer, new ArrayList<>());
+		}
+
+		this.elements.get(layer).add(element);
 		return id;
 	}
 
-	public @Nullable T getById(int id) {
-		return id >= elements.size() ? null : elements.get(id).value;
+	public @Nullable T getById(Id id) {
+		var layer = this.elements.get(id.layerIndex);
+		if (layer == null)
+			return null;
+		return id.elementIndex >= layer.size() ? null : layer.get(id.elementIndex).value;
 	}
 
-	public @Nullable Vec3 posById(int id) {
-		return id >= elements.size() ? null : elements.get(id).pos;
+	public @Nullable Vec3 posById(Id id) {
+		var layer = this.elements.get(id.layerIndex);
+		if (layer == null)
+			return null;
+		return id.elementIndex >= layer.size() ? null : layer.get(id.elementIndex).pos;
 	}
 
-	public int elementCount() {
-		return this.elements.size();
+	public void enumerateInRadius(Vec3 pos, double radius, Consumer<Element<T>> consumer) {
+		this.rootNode.enumerateInRadius(pos, radius, consumer);
 	}
 
-	public IntStream streamIds() {
-		return IntStream.range(0, this.elements.size());
+	public Stream<Element<T>> streamElements() {
+		var layerIdStream = this.elements.keySet().intStream();
+		// IntStream's flatMap can't map to an object stream for some reason
+		return layerIdStream.boxed().flatMap(layer -> this.elements.get((int) layer).stream());
 	}
 
-	public void enumerateInRadius(Vec3 pos, double radius, BiConsumer<Vec3, T> consumer) {
-		this.rootNode.enumerateInRadius(pos, radius, elem -> consumer.accept(elem.pos, elem.value));
-	}
-
-	public record Positioned<T>(int id, Vec3 pos, T value) {
-	}
-
-	public @Nullable Positioned<T> nearestInRadius(Vec3 pos, double radius) {
+	public @Nullable Element<T> nearestInRadius(Vec3 pos, double radius) {
 		var nearest = new Object() {
 			Element<T> elem = null;
 			double distanceSqr = Double.MAX_VALUE;
@@ -81,25 +100,19 @@ public class Octree<T> {
 					nearest.distanceSqr = distanceToCenterSqr;
 				}
 			}
-			// if (nearest.elem == null && pos.distanceToSqr(elem.pos) < radius * radius) {
-			// } else if (nearest.elem != null && pos.distanceToSqr(elem.pos) < radius *
-			// radius && nearest.distanceSqr > pos.distanceToSqr(elem.pos)) {
-			// nearest.elem = elem;
-			// nearest.distanceSqr = pos.distanceToSqr(elem.pos);
-			// }
 		});
 
 		if (nearest.elem == null)
 			return null;
-		return new Positioned<T>(nearest.elem.id, nearest.elem.pos, nearest.elem.value);
+		return nearest.elem;
 	}
 
 	public static class Element<T> {
-		public int id;
-		public Vec3 pos;
-		public T value;
+		public final Id id;
+		public final Vec3 pos;
+		public final T value;
 
-		public Element(int id, Vec3 pos, T value) {
+		public Element(Id id, Vec3 pos, T value) {
 			this.id = id;
 			this.pos = pos;
 			this.value = value;
@@ -215,7 +228,8 @@ public class Octree<T> {
 				var pppr = this.ppp.insert(element);
 				if (pppr != null) { this.ppp = pppr; return this; }
 				// @formatter:on
-				Mod.LOGGER.warn("failed to insert element " + element.id + " into branch, pos=" + element.pos);
+				Mod.LOGGER
+						.warn("failed to insert element " + element.id + " into branch, pos=" + element.pos);
 				return this;
 			}
 

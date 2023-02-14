@@ -24,15 +24,14 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.client.screen.Color;
-import net.xavil.universal.client.screen.GalaxyMapScreen;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.RenderMatricesSnapshot;
-import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.universal.common.universe.galaxy.TicketedVolume;
+import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.OrbitalPlane;
 import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
-import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
@@ -73,15 +72,35 @@ public class SkyRenderer {
 			color = starNode.getColor();
 
 		var distanceFromFocus = offset.length();
+		// if (distanceFromFocus > 1.5 * Galaxy.TM_PER_SECTOR)
+		// 	return;
 		var alpha = 1 - Mth.clamp(distanceFromFocus / (1.5 * Galaxy.TM_PER_SECTOR), 0, 1);
 		if (alpha <= 0.05)
-		return;
+			return;
 
-		alpha = Math.min(1, alpha);
-		// alpha *= brightestStar.luminosityLsol * 20;
+		// double alpha = 1;
+		double k = 1;
 
-		// var alpha = 1;
+		// if (node instanceof StarNode starNode) {
+		// 	// Mth.inverseLerp(starNode.luminosityLsol, 0, 30000)
+		// 	var t = Math.pow(starNode.luminosityLsol, 0.2);
+		// 	var d = distanceFromFocus / Galaxy.TM_PER_SECTOR;
+		// 	alpha *= t / d;
+		// 	alpha /= 4;
+		// 	// alpha *= (starNode.luminosityLsol * 20) / (distanceFromFocus /
+		// 	// Galaxy.TM_PER_SECTOR);
+		// 	alpha = Math.min(1, alpha);
+		// 	alpha = Math.max(0.1, alpha);
 
+			
+		// 	// k = Mth.lerp(alpha, 0.1, 1);
+		// }
+		
+		// because of imperfections in optics, light from a point-like source is spread
+		// out around the center point. because brighter stars emit so much more light,
+		// the outer regions collect much more light than the dimmer stars, and as such,
+		// appear larger. If you expose for brighter stars, you wont see dim stars, but
+		// the spread will be much less prominent and will look much smaller.
 		var up = forward.cross(right).reverse();
 		RenderHelper.addBillboard(builder, poseStack, up, right, forward.scale(DISTANT_STAR_DISTANCE),
 				s * DISTANT_STAR_DISTANCE, 0, color.withA(alpha));
@@ -98,24 +117,29 @@ public class SkyRenderer {
 		if (currentId == null)
 			return;
 
+		var currentSystemId = currentId.system();
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var galaxyVolume = universe.getVolumeAt(currentId.galaxySector().sectorPos());
-		var galaxy = galaxyVolume.getById(currentId.galaxySector().sectorId()).getFull();
-		var systemVolume = galaxy.getVolumeAt(currentId.systemSector().sectorPos());
-		var systemPos = systemVolume.posById(currentId.systemSector().sectorId());
+		var galaxyVolume = universe.getVolumeAt(currentSystemId.galaxySector().sectorPos());
+		var galaxy = galaxyVolume
+				.getById(currentSystemId.galaxySector().sectorId())
+				.getFull();
+		var systemVolume = galaxy.getVolumeAt(currentSystemId.systemSector().sectorPos());
+		var systemPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
 
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		var selfPos = systemVolume.posById(currentId.systemSector().sectorId());
-		GalaxyMapScreen.enumerateSectors(systemPos, Galaxy.TM_PER_SECTOR, sectorPos -> {
+		var selfPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
+		TicketedVolume.enumerateSectors(systemPos, Galaxy.TM_PER_SECTOR, Galaxy.TM_PER_SECTOR, sectorPos -> {
 			var volume = galaxy.getVolumeAt(sectorPos);
-			for (var element : volume.elements) {
-				if (element.id == currentId.systemSector().sectorId())
-					continue;
+			volume.enumerateInRadius(systemPos, Galaxy.TM_PER_SECTOR, element -> {
+				if (element.id == currentId.system().systemSector().sectorId())
+					return;
 				var brightestStar = element.value.getInitial().stars.stream()
 						.max(Comparator.comparing(star -> star.luminosityLsol)).get();
 				addBillboard(builder, new PoseStack(), selfPos, element.pos, 0.02, brightestStar);
-			}
+			});
+			// volume.streamElements().forEach(element -> {
+			// });
 		});
 
 		builder.end();
@@ -180,10 +204,10 @@ public class SkyRenderer {
 		this.distantStarsBuffer.drawChunkLayer();
 	}
 
-	private void drawSystem(PoseStack poseStack, UniverseId currentPlanetId, double time, float partialTick) {
+	private void drawSystem(PoseStack poseStack, SystemNodeId currentPlanetId, double time, float partialTick) {
 
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var system = universe.getSystem(currentPlanetId.systemId());
+		var system = universe.getSystem(currentPlanetId.system());
 
 		var positions = new HashMap<Integer, Vec3>();
 		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick, Vec3.ZERO,
@@ -193,12 +217,12 @@ public class SkyRenderer {
 		RenderSystem.enableDepthTest();
 		var builder = Tesselator.getInstance().getBuilder();
 
-		var thisPos = positions.get(currentPlanetId.systemNodeId());
+		var thisPos = positions.get(currentPlanetId.nodeId());
 		for (var entry : positions.entrySet()) {
 			var node = system.rootNode.lookup(entry.getKey());
 			var pos = entry.getValue();
 
-			if (node.getId() == currentPlanetId.systemNodeId())
+			if (node.getId() == currentPlanetId.nodeId())
 				continue;
 
 			var offset = pos.subtract(thisPos);
@@ -233,7 +257,7 @@ public class SkyRenderer {
 				// // poseStack.mulPose(Vector3f.YP.rotationDegrees((float) time * 3));
 
 				// RenderHelper.renderPlanet(builder, guh, thisPos, s,
-				// 		poseStack, Vec3.ZERO, Color.WHITE);
+				// poseStack, Vec3.ZERO, Color.WHITE);
 			} else if (node instanceof StarNode starNode) {
 				poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
 				poseStack.mulPose(Vector3f.XP.rotationDegrees(20));
@@ -271,7 +295,7 @@ public class SkyRenderer {
 		poseStack.mulPose(Vector3f.XP.rotationDegrees(50));
 		// poseStack.mulPose(Vector3f.XP.rotationDegrees(80));
 		var rotationAxis = new Vec3(0, 1, 0).zRot((float) node.obliquityAngle);
-		var rotation = new Vector3f(rotationAxis).rotation((float) (node.rotationalSpeed * 0.0001 * time));
+		var rotation = new Vector3f(rotationAxis).rotation((float) (node.rotationalSpeed * time));
 		poseStack.mulPose(rotation);
 	}
 
@@ -297,8 +321,9 @@ public class SkyRenderer {
 		this.skyTarget.bindWrite(false);
 
 		// TODO: figure out how we actually wanna handle time
-		// float time = (System.currentTimeMillis() % 1000000) / 1000f;
-		float time = (System.currentTimeMillis() % 1000000) * 10f;
+		float time = (System.currentTimeMillis() % 1000000) / 1000f;
+		// float time = (System.currentTimeMillis() % 1000000) / 10f;
+		// float time = (System.currentTimeMillis() % 1000000) * 10f;
 
 		RenderSystem.setShaderFogStart(10000);
 		RenderSystem.setShaderFogEnd(10000);

@@ -3,9 +3,6 @@ package net.xavil.universal.common.universe.system;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import net.xavil.universal.common.universe.UniverseId;
-import net.xavil.universal.common.universe.UniverseId.SectorId;
-
 // reference plane is the XZ plane, reference direction is +X
 // all angles are in radians
 public record OrbitalPlane(

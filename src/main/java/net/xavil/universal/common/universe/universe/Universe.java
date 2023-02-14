@@ -1,17 +1,18 @@
 package net.xavil.universal.common.universe.universe;
 
 import java.util.Random;
-import java.util.function.Function;
 
 import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
 import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.UniverseId;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.GalaxyType;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
+import net.xavil.universal.common.universe.id.SectorId;
+import net.xavil.universal.common.universe.id.SystemId;
+import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 
@@ -36,9 +37,18 @@ public abstract class Universe {
 
 	public void tick() {
 		this.volume.tick();
+		this.volume.streamLoadedSectors().forEach(pos -> {
+			var volume = this.volume.get(pos);
+			for (var id : volume.markedElements) {
+				var galaxy = volume.getById(id);
+				if (galaxy.hasFull()) {
+					galaxy.getFull().tick();
+				}
+			}
+		});
 	}
 
-	public StarSystem getSystem(UniverseId.SystemId id) {
+	public StarSystem getSystem(SystemId id) {
 		var galaxyVolume = getVolumeAt(id.galaxySector().sectorPos());
 		var galaxy = galaxyVolume.getById(id.galaxySector().sectorId());
 		if (galaxy == null)
@@ -50,11 +60,11 @@ public abstract class Universe {
 		return system.getFull();
 	}
 
-	public StarSystemNode getSystemNode(UniverseId id) {
-		var system = getSystem(id.systemId());
+	public StarSystemNode getSystemNode(SystemNodeId id) {
+		var system = getSystem(id.system());
 		if (system == null)
 			return null;
-		return system.rootNode.lookup(id.systemNodeId());
+		return system.rootNode.lookup(id.nodeId());
 	}
 
 	public Octree<Lazy<Galaxy.Info, Galaxy>> getVolumeAt(Vec3i volumePos) {
@@ -63,8 +73,10 @@ public abstract class Universe {
 
 	public Octree<Lazy<Galaxy.Info, Galaxy>> getVolumeAt(Vec3i volumePos, boolean create) {
 		var volume = this.volume.get(volumePos);
-		if (volume == null && create) {
+		if (create) {
 			this.volume.addTicket(volumePos, 0, 1);
+		}
+		if (volume == null && create) {
 			volume = this.volume.get(volumePos);
 		}
 		return volume;
@@ -102,10 +114,12 @@ public abstract class Universe {
 
 			var density = sampleDensity(galaxyPos);
 			if (density >= random.nextDouble(0, maxDensity)) {
-				var id = new UniverseId.SectorId(volumeCoords, currentId++);
-				Function<Galaxy.Info, Galaxy> lazyFunction = info -> generateGalaxy(id, info);
-				var lazy = new Lazy<>(generateGalaxyInfo(), lazyFunction);
-				octree.insert(galaxyPos, lazy);
+				var id = new SectorId(volumeCoords, new Octree.Id(0, currentId));
+				var lazy = new Lazy<>(generateGalaxyInfo(), info -> generateGalaxy(id, info));
+				final var currentId2 = currentId; // java moment
+				lazy.evaluationHook = () -> octree.markedElements.add(new Octree.Id(0, currentId2));
+				octree.insert(galaxyPos, 0, lazy);
+				currentId += 1;
 			}
 		}
 
@@ -123,7 +137,7 @@ public abstract class Universe {
 		return info;
 	}
 
-	public final Galaxy generateGalaxy(UniverseId.SectorId galaxyId, Galaxy.Info info) {
+	public final Galaxy generateGalaxy(SectorId galaxyId, Galaxy.Info info) {
 		var random = new Random(getCommonUniverseSeed());
 		return new Galaxy(this, galaxyId, info, info.type.createDensityField(random));
 	}

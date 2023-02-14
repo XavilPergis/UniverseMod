@@ -2,12 +2,12 @@ package net.xavil.universal.mixin.impl;
 
 import java.util.Map;
 import java.util.concurrent.Executor;
+import java.util.function.BooleanSupplier;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.resources.ResourceKey;
@@ -48,6 +48,12 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 	@Override
 	@Accessor("progressListenerFactory")
 	public abstract ChunkProgressListenerFactory universal_getProgressListenerFactory();
+
+	@Inject(method = "tickChildren", at = @At("TAIL"))
+	private void onTick(BooleanSupplier hasTimeLeft, CallbackInfo info) {
+		if (this.universe != null)
+			this.universe.tick();
+	}
 
 	@Inject(method = "createLevels", at = @At("HEAD"))
 	private void onCreateLevels(ChunkProgressListener listener, CallbackInfo info) {

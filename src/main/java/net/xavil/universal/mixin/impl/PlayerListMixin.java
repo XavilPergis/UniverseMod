@@ -25,10 +25,7 @@ public abstract class PlayerListMixin {
 		universeInfoPacket.commonSeed = universe.getCommonUniverseSeed();
 		universeInfoPacket.uniqueSeed = universe.getUniqueUniverseSeed();
 
-		var startingId = universe.getStartingSystemGenerator().getStartingSystemId();
-		universeInfoPacket.startingGalaxyId = startingId.galaxySector();
-		universeInfoPacket.startingSystemVolumePos = startingId.systemSector().sectorPos();
-		universeInfoPacket.startingNodeId = startingId.systemNodeId();
+		universeInfoPacket.startingId = universe.getStartingSystemGenerator().getStartingSystemId();
 		universeInfoPacket.startingSystem = universe.getStartingSystemGenerator().startingSystem;
 
 		ModServerNetworking.send(serverPlayer, universeInfoPacket);

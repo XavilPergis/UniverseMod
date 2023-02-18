@@ -19,6 +19,7 @@ import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.minecraft.world.level.material.Material;
 import net.xavil.universal.common.TestBlock;
+import net.xavil.universal.common.block.ModBlocks;
 import net.xavil.universal.common.dimension.DimensionCreationProperties;
 import net.xavil.universal.common.dimension.DynamicDimensionManager;
 import net.xavil.universal.common.item.StarmapItem;
@@ -47,6 +48,7 @@ public class Mod implements ModInitializer {
 
 	@Override
 	public void onInitialize() {
+		ModBlocks.register();
 		ModServerNetworking.register();
 
 		Registry.register(Registry.BLOCK, namespaced("test_block"),

@@ -1,0 +1,8 @@
+{
+	"replace": false,
+	"values": [
+		"universal:silicate_rock",
+		"universal:silicate_fine_regolith",
+		"universal:silicate_loose_regolith"
+	]
+}

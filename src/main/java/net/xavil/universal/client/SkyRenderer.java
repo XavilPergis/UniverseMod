@@ -317,7 +317,7 @@ public class SkyRenderer {
 
 		final var hpi = Math.PI / 2;
 		var latitudeOffset = Mth.clamp(Mth.lerp(tx, -hpi, hpi), -hpi, hpi);
-		var longitudeOffset = Mth.clamp(Mth.lerp(tz, -hpi, hpi), -hpi, hpi);
+		var longitudeOffset = Mth.clamp(Mth.lerp(tz, hpi, -hpi), -hpi, hpi);
 
 		poseStack.mulPose(Vector3f.XP.rotation((float) (longitudeOffset + Math.toRadians(90))));
 		poseStack.mulPose(Vector3f.YP.rotation((float) (latitudeOffset + node.rotationalSpeed * time)));
@@ -346,8 +346,8 @@ public class SkyRenderer {
 		this.skyTarget.bindWrite(false);
 
 		// TODO: figure out how we actually wanna handle time
-		double time = 1e7 + (1440.0 / 5.0) * System.currentTimeMillis() / 1000.0 - 1e10;
-		// double time = (System.currentTimeMillis() % 1000000) / 10f;
+		// double time = 1e7 + (1440.0 / 5.0) * System.currentTimeMillis() / 1000.0 - 1e10;
+		double time = (System.currentTimeMillis() % 1000000) / 10f;
 		// double time = (System.currentTimeMillis() % 1000000) * 1000f;
 
 		RenderSystem.setShaderFogStart(10000);

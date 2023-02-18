@@ -15,14 +15,14 @@ public record SystemNodeId(SystemId system, int nodeId) {
 
 	public String uniqueName() {
 		return "id"
-				+ escapeMinus(this.system.galaxySector().sectorPos().getX()) + "_"
-				+ escapeMinus(this.system.galaxySector().sectorPos().getY()) + "_"
-				+ escapeMinus(this.system.galaxySector().sectorPos().getZ()) + "_"
+				+ escapeMinus(this.system.galaxySector().sectorPos().x) + "_"
+				+ escapeMinus(this.system.galaxySector().sectorPos().y) + "_"
+				+ escapeMinus(this.system.galaxySector().sectorPos().z) + "_"
 				+ this.system.galaxySector().sectorId().layerIndex() + "_"
 				+ this.system.galaxySector().sectorId().elementIndex() + "_"
-				+ escapeMinus(this.system.systemSector().sectorPos().getX()) + "_"
-				+ escapeMinus(this.system.systemSector().sectorPos().getY()) + "_"
-				+ escapeMinus(this.system.systemSector().sectorPos().getZ()) + "_"
+				+ escapeMinus(this.system.systemSector().sectorPos().x) + "_"
+				+ escapeMinus(this.system.systemSector().sectorPos().y) + "_"
+				+ escapeMinus(this.system.systemSector().sectorPos().z) + "_"
 				+ this.system.systemSector().sectorId().layerIndex() + "_"
 				+ this.system.systemSector().sectorId().elementIndex() + "_"
 				+ this.nodeId;

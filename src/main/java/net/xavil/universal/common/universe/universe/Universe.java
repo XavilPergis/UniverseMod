@@ -2,11 +2,11 @@ package net.xavil.universal.common.universe.universe;
 
 import java.util.Random;
 
-import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
+import net.xavil.universal.common.universe.Vec3;
+import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.GalaxyType;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
@@ -87,7 +87,7 @@ public abstract class Universe {
 		var x = random.nextDouble(0, VOLUME_LENGTH_ZM);
 		var y = random.nextDouble(0, VOLUME_LENGTH_ZM);
 		var z = random.nextDouble(0, VOLUME_LENGTH_ZM);
-		return new Vec3(x, y, z);
+		return Vec3.from(x, y, z);
 	}
 
 	// galaxies per Zm^3
@@ -97,15 +97,15 @@ public abstract class Universe {
 	}
 
 	private final Octree<Lazy<Galaxy.Info, Galaxy>> generateGalaxyVolume(Vec3i volumeCoords) {
-		var volumeMin = Vec3.atLowerCornerOf(volumeCoords).scale(VOLUME_LENGTH_ZM);
+		var volumeMin = volumeCoords.lowerCorner().mul(VOLUME_LENGTH_ZM);
 		var volumeMax = volumeMin.add(VOLUME_LENGTH_ZM, VOLUME_LENGTH_ZM, VOLUME_LENGTH_ZM);
 
 		var octree = new Octree<Lazy<Galaxy.Info, Galaxy>>(volumeMin, volumeMax);
 
 		var randomSeed = getCommonUniverseSeed();
-		randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.getX());
-		randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.getY());
-		randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.getZ());
+		randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.x);
+		randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.y);
+		randomSeed ^= Mth.murmurHash3Mixer((long) volumeCoords.z);
 		var random = new Random(randomSeed);
 
 		int currentId = 0;

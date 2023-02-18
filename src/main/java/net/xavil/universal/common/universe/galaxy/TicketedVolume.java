@@ -10,10 +10,9 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 
-import net.minecraft.core.Vec3i;
-import net.minecraft.world.phys.Vec3;
-import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Octree;
+import net.xavil.universal.common.universe.Vec3;
+import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.id.SectorId;
 
 public abstract class TicketedVolume<T> {
@@ -48,10 +47,10 @@ public abstract class TicketedVolume<T> {
 		public void enumerate(Consumer<Vec3i> consumer) {
 			var center = this.sectorPos;
 			var radius = this.sectorRadius;
-			for (var x = center.getX() - radius; x <= center.getX() + radius; ++x) {
-				for (var y = center.getY() - radius; y <= center.getY() + radius; ++y) {
-					for (var z = center.getZ() - radius; z <= center.getZ() + radius; ++z) {
-						consumer.accept(new Vec3i(x, y, z));
+			for (var x = center.x - radius; x <= center.x + radius; ++x) {
+				for (var y = center.y - radius; y <= center.y + radius; ++y) {
+					for (var z = center.z - radius; z <= center.z + radius; ++z) {
+						consumer.accept(Vec3i.from(x, y, z));
 					}
 				}
 			}
@@ -148,7 +147,7 @@ public abstract class TicketedVolume<T> {
 		for (int x = minSectorX; x <= maxSectorX; ++x) {
 			for (int y = minSectorY; y <= maxSectorY; ++y) {
 				for (int z = minSectorZ; z <= maxSectorZ; ++z) {
-					posConsumer.accept(new Vec3i(x, y, z));
+					posConsumer.accept(Vec3i.from(x, y, z));
 				}
 			}
 		}

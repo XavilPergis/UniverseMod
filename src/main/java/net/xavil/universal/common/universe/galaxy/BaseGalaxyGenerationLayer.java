@@ -4,14 +4,14 @@ import java.util.Random;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.DensityField3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Units;
+import net.xavil.universal.common.universe.Vec3;
+import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemGenerator;
@@ -35,14 +35,14 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		var x = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
 		var y = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
 		var z = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
-		return new Vec3(x, y, z);
+		return Vec3.from(x, y, z);
 	}
 
 	private long volumeSeed(Vec3i volumeCoords) {
 		var seed = Mth.murmurHash3Mixer(this.parentGalaxy.parentUniverse.getCommonUniverseSeed());
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.getX());
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.getY());
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.getZ());
+		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.x);
+		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.y);
+		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.z);
 		return seed;
 	}
 

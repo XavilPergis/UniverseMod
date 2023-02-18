@@ -22,9 +22,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Units;
+import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.BinaryNode;
@@ -80,7 +80,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 		if (button == 2) {
 			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
-			var offset = new Vec3(dx, 0, realDy).yRot(-this.camera.yaw.get(partialTick).floatValue()).scale(dragScale);
+			var offset = Vec3.from(dx, 0, realDy).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
 			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 			followingId = -1;
 		} else if (button == 1) {
@@ -117,7 +117,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 	private int getClosestNode(float partialTick) {
 		int closest = -1;
-		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
+		var focusPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
 		for (var entry : this.positions.entrySet()) {
 			if (closest == -1) {
 				closest = entry.getKey();
@@ -226,7 +226,7 @@ public class SystemMapScreen extends UniversalScreen {
 		final var partialTick = this.client.getFrameTime();
 		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.TM_PER_LY;
 
-		var offset = new Vec3(right, 0, forward).yRot(-this.camera.yaw.get(partialTick).floatValue()).scale(dragScale);
+		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 	}
 
@@ -303,16 +303,17 @@ public class SystemMapScreen extends UniversalScreen {
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
-		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
-		var toCenter = centerPos.subtract(focusPos);
+		var focusPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
+		var toCenter = centerPos.sub(focusPos);
 
 		if (node instanceof BinaryNode binaryNode) {
 			var angle = StarSystemNode.getBinaryAngle(binaryNode, time);
 
 			var aCenter = centerPos.add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angle));
 			var bCenter = centerPos.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angle));
-			renderNode(binaryNode.getA(), referencePlane, time, partialTick, aCenter);
-			renderNode(binaryNode.getB(), referencePlane, time, partialTick, bCenter);
+			var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
+			renderNode(binaryNode.getA(), newPlane, time, partialTick, aCenter);
+			renderNode(binaryNode.getB(), newPlane, time, partialTick, bCenter);
 
 			if (this.showGuides) {
 				RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
@@ -365,8 +366,8 @@ public class SystemMapScreen extends UniversalScreen {
 
 			var angle = StarSystemNode.getUnaryAngle(node, childOrbit, time);
 			var center = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane, childOrbit, angle));
-
-			renderNode(childNode, referencePlane, time, partialTick, center);
+			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
+			renderNode(childNode, newPlane, time, partialTick, center);
 
 			if (this.showGuides) {
 				RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
@@ -389,7 +390,7 @@ public class SystemMapScreen extends UniversalScreen {
 			}
 		}
 
-		var projectedFocus = new Vec3(centerPos.x, focusPos.y, centerPos.z);
+		var projectedFocus = Vec3.from(centerPos.x, focusPos.y, centerPos.z);
 		var d = 0.05 * this.camera.getPos(partialTick).distanceTo(projectedFocus);
 		int maxLineSegments = 32;
 		double lineSegmentLength = d * 0.25;
@@ -413,8 +414,8 @@ public class SystemMapScreen extends UniversalScreen {
 						end = centerPos.y;
 				}
 
-				var startD = new Vec3(centerPos.x, start, centerPos.z).distanceTo(focusPos);
-				var endD = new Vec3(centerPos.x, end, centerPos.z).distanceTo(focusPos);
+				var startD = Vec3.from(centerPos.x, start, centerPos.z).distanceTo(focusPos);
+				var endD = Vec3.from(centerPos.x, end, centerPos.z).distanceTo(focusPos);
 
 				float sa = 1 - (float) Math.pow(1 - Math.max(0, 1 - (startD / maxLength)), 3);
 				float ea = 1 - (float) Math.pow(1 - Math.max(0, 1 - (endD / maxLength)), 3);
@@ -484,7 +485,7 @@ public class SystemMapScreen extends UniversalScreen {
 		if (followingId != -1) {
 			var nodePos = this.positions.get(this.followingId);
 			if (nodePos != null) {
-				this.camera.focus.set(nodePos.scale(TM_PER_UNIT));
+				this.camera.focus.set(nodePos.mul(TM_PER_UNIT));
 			}
 		}
 
@@ -513,9 +514,9 @@ public class SystemMapScreen extends UniversalScreen {
 		var k = this.camera.scale.get(partialTick);
 		RenderHelper.addBillboard(builder,
 				new PoseStack(),
-				this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT),
-				new Vec3(0.02 * k, 0, 0),
-				new Vec3(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
+				this.camera.focus.get(partialTick).div(TM_PER_UNIT),
+				Vec3.from(0.02 * k, 0, 0),
+				Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
 		builder.end();
 
 		this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
@@ -556,7 +557,7 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.lineWidth(1);
 		RenderSystem.depthMask(false);
 
-		RenderHelper.renderLine(builder, this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT), closestPos,
+		RenderHelper.renderLine(builder, this.camera.focus.get(partialTick).div(TM_PER_UNIT), closestPos,
 				partialTick, new Color(1, 1, 1, 1));
 
 		if (selectedId != -1) {

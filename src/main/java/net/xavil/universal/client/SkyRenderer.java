@@ -22,11 +22,10 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.RenderMatricesSnapshot;
-import net.xavil.universal.common.universe.Units;
+import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 import net.xavil.universal.common.universe.id.SystemNodeId;
@@ -57,12 +56,12 @@ public class SkyRenderer {
 	private void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 selfPos, Vec3 pos, double s,
 			StarSystemNode node) {
 
-		var offset = pos.subtract(selfPos);
+		var offset = pos.sub(selfPos);
 		var forward = offset.normalize();
 
-		var du = forward.dot(new Vec3(Vector3f.YP));
-		var df = forward.dot(new Vec3(Vector3f.ZN));
-		var v1 = Math.abs(du) < Math.abs(df) ? new Vec3(Vector3f.YP) : new Vec3(Vector3f.ZN);
+		var du = forward.dot(Vec3.YP);
+		var df = forward.dot(Vec3.ZN);
+		var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
 		var right = v1.cross(forward);
 		// var rotation = random.nextDouble(0, Mth.TWO_PI);
 		var rotation = 0;
@@ -108,10 +107,10 @@ public class SkyRenderer {
 		// the outer regions collect much more light than the dimmer stars, and as such,
 		// appear larger. If you expose for brighter stars, you wont see dim stars, but
 		// the spread will be much less prominent and will look much smaller.
-		var up = forward.cross(right).reverse();
-		RenderHelper.addBillboard(builder, poseStack, up, right, forward.scale(DISTANT_STAR_DISTANCE),
+		var up = forward.cross(right).neg();
+		RenderHelper.addBillboard(builder, poseStack, up, right, forward.mul(DISTANT_STAR_DISTANCE),
 				s * DISTANT_STAR_DISTANCE, 0, color.withA(alpha));
-		RenderHelper.addBillboard(builder, poseStack, up, right, forward.scale(DISTANT_STAR_DISTANCE),
+		RenderHelper.addBillboard(builder, poseStack, up, right, forward.mul(DISTANT_STAR_DISTANCE),
 				0.5 * s * DISTANT_STAR_DISTANCE, 0, Color.WHITE.withA(alpha));
 
 	}
@@ -231,17 +230,17 @@ public class SkyRenderer {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(1, 0, 0), 0.6, new
+		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(1, 0, 0), 0.6, new
 		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(0.001), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(0, 1, 0), 0.6, new
+		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(0, 1, 0), 0.6, new
 		// StarNode(StarNode.Type.BLACK_HOLE, Units.msol(1), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(0, 0, 1), 0.6, new
+		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(0, 0, 1), 0.6, new
 		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(100), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(-1, 0, 0), 0.2, new
+		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(-1, 0, 0), 0.2, new
 		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(0.001), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(0, -1, 0), 0.2, new
+		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(0, -1, 0), 0.2, new
 		// StarNode(StarNode.Type.BLACK_HOLE, Units.msol(1), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, new Vec3(0, 0, -1), 0.2, new
+		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(0, 0, -1), 0.2, new
 		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(100), 1, 1, 2000));
 		builder.end();
 		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
@@ -258,7 +257,7 @@ public class SkyRenderer {
 			if (node.getId() == currentPlanetId.nodeId())
 				continue;
 
-			var offset = pos.subtract(thisPos);
+			var offset = pos.sub(thisPos);
 			var dir = offset.normalize();
 
 			var s = 0.1 / offset.length();
@@ -300,13 +299,13 @@ public class SkyRenderer {
 	}
 
 	private static Quaternion axisAngle(Vec3 axis, double angle) {
-		return new Vector3f(axis).rotation((float) angle);
+		return new Vector3f((float) axis.x, (float) axis.y, (float) axis.z).rotation((float) angle);
 	}
 
 	private static Vec3 transformByQuaternion(Quaternion quat, Vec3 pos) {
-		var vec = new Vector3f(pos);
+		var vec = new Vector3f((float) pos.x, (float) pos.y, (float) pos.z);
 		vec.transform(quat);
-		return new Vec3(vec);
+		return Vec3.fromMinecraft(vec);
 	}
 
 	private void applyPlanetTrasform(PoseStack poseStack, StarSystemNode node, double time,

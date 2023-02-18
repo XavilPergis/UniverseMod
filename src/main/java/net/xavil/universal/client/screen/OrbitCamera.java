@@ -8,7 +8,7 @@ import com.mojang.math.Vector3f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
+import net.xavil.universal.common.universe.Vec3;
 
 public class OrbitCamera {
 
@@ -21,7 +21,7 @@ public class OrbitCamera {
 			T lerp(double t, T start, T end);
 
 			static LerpFunction<Double> DOUBLES = (t, a, b) -> Mth.lerp(t, a, b);
-			static LerpFunction<Vec3> VECTORS = (t, a, b) -> new Vec3(Mth.lerp(t, a.x, b.x), Mth.lerp(t, a.y, b.y),
+			static LerpFunction<Vec3> VECTORS = (t, a, b) -> Vec3.from(Mth.lerp(t, a.x, b.x), Mth.lerp(t, a.y, b.y),
 					Mth.lerp(t, a.z, b.z));
 		}
 
@@ -94,17 +94,17 @@ public class OrbitCamera {
 
 	public Vec3 getPos(float partialTick) {
 		var backwards = getUpVector(partialTick).cross(getRightVector(partialTick));
-		var backwardsTranslation = backwards.scale(this.scale.get(partialTick));
-		var cameraPos = this.focus.get(partialTick).scale(1 / this.renderUnitFactor).add(backwardsTranslation);
+		var backwardsTranslation = backwards.mul(this.scale.get(partialTick));
+		var cameraPos = this.focus.get(partialTick).div(this.renderUnitFactor).add(backwardsTranslation);
 		return cameraPos;
 	}
 
 	public Vec3 getUpVector(float partialTick) {
-		return new Vec3(0, 1, 0).xRot((float) -this.pitch.get(partialTick)).yRot((float) -this.yaw.get(partialTick));
+		return Vec3.YP.rotateX(-this.pitch.get(partialTick)).rotateY(-this.yaw.get(partialTick));
 	}
 
 	public Vec3 getRightVector(float partialTick) {
-		return new Vec3(1, 0, 0).xRot((float) -this.pitch.get(partialTick)).yRot((float) -this.yaw.get(partialTick));
+		return Vec3.XP.rotateX(-this.pitch.get(partialTick)).rotateY(-this.yaw.get(partialTick));
 	}
 
 	public Matrix4f getProjectionMatrix() {

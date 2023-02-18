@@ -2,10 +2,10 @@ package net.xavil.universal.common.universe.galaxy;
 
 import java.util.Random;
 
-import net.minecraft.core.Vec3i;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
+import net.xavil.universal.common.universe.Vec3;
+import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystem.Info;
 

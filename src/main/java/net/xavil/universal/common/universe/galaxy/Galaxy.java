@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import net.minecraft.core.Vec3i;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.common.universe.DensityField3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
+import net.xavil.universal.common.universe.Vec3;
+import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.Universe;
@@ -45,19 +45,15 @@ public class Galaxy {
 			}
 		};
 
-		if (parentUniverse.getStartingSystemGenerator() == null) {
-			throw new RuntimeException("why is this null. what?");
-		}
-
 		generationLayers.add(parentUniverse.getStartingSystemGenerator());
 		generationLayers.add(new BaseGalaxyGenerationLayer(this, densityField));
 	}
 
 	private long volumeSeed(Vec3i volumeCoords) {
 		var seed = Mth.murmurHash3Mixer(this.parentUniverse.getCommonUniverseSeed());
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.getX());
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.getY());
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.getZ());
+		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.x);
+		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.y);
+		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.z);
 		return seed;
 	}
 
@@ -72,7 +68,7 @@ public class Galaxy {
 	public Octree<Lazy<StarSystem.Info, StarSystem>> getVolumeAt(Vec3i volumePos, boolean create) {
 		var volume = this.volume.get(volumePos);
 		if (create) {
-			this.volume.addTicket(volumePos, 0, 1);
+			this.volume.addTicket(volumePos, 0, 10);
 		}
 		if (volume == null && create) {
 			volume = this.volume.get(volumePos);
@@ -81,7 +77,7 @@ public class Galaxy {
 	}
 
 	private Octree<Lazy<StarSystem.Info, StarSystem>> generateVolume(Vec3i volumeCoords) {
-		final var volumeMin = Vec3.atLowerCornerOf(volumeCoords).scale(TM_PER_SECTOR);
+		final var volumeMin = volumeCoords.lowerCorner().mul(TM_PER_SECTOR);
 		final var volumeMax = volumeMin.add(TM_PER_SECTOR, TM_PER_SECTOR, TM_PER_SECTOR);
 		var volume = new Octree<Lazy<StarSystem.Info, StarSystem>>(volumeMin, volumeMax);
 

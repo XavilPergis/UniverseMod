@@ -4,6 +4,7 @@
 - Figure out how to properly size celestial body billboards/cubes/spheres/whatever
 	- FOV needs to be taken into account
 - When using the spyglass, info about the targeted celestial body should be displayed
+- Custom Planetary body shader that does shadows n stuff
 
 ## Other
 - Day/night cycle based on star system configuration
@@ -24,3 +25,8 @@
 
 # Unresolved Questions
 - Since I dont want to keep world files around for planets that were barely interacted with, how do we figure out when to keep the world, and when to not?
+
+# Done
+- Implemented my own math types and converted all my code to use them
+- Fixed child planes nor working right
+- Bugfixes

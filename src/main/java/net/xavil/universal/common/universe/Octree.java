@@ -15,7 +15,6 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 
 public class Octree<T> {
@@ -92,7 +91,7 @@ public class Octree<T> {
 		};
 
 		this.rootNode.enumerateInRadius(pos, radius, elem -> {
-			var distanceToCenterSqr = pos.distanceToSqr(elem.pos);
+			var distanceToCenterSqr = pos.distanceToSquared(elem.pos);
 			var insideSphere = distanceToCenterSqr < radius * radius;
 			if (insideSphere) {
 				if (nearest.elem == null || distanceToCenterSqr < nearest.distanceSqr) {
@@ -139,8 +138,8 @@ public class Octree<T> {
 			var closestX = Mth.clamp(center.x, this.min.x, this.max.x);
 			var closestY = Mth.clamp(center.y, this.min.y, this.max.y);
 			var closestZ = Mth.clamp(center.z, this.min.z, this.max.z);
-			var diff = center.subtract(closestX, closestY, closestZ);
-			return diff.lengthSqr() < radius * radius;
+			var diff = center.sub(closestX, closestY, closestZ);
+			return diff.lengthSquared() < radius * radius;
 
 		}
 
@@ -172,7 +171,7 @@ public class Octree<T> {
 				if (!intersectsSphere(pos, radius))
 					return;
 				for (var element : this.elements) {
-					if (pos.distanceToSqr(element.pos) <= radius * radius)
+					if (pos.distanceToSquared(element.pos) <= radius * radius)
 						consumer.accept(element);
 				}
 			}
@@ -194,14 +193,14 @@ public class Octree<T> {
 				double hny = lpy, hpy = hny + halfY;
 				double hnz = lpz, hpz = hnz + halfZ;
 
-				this.nnn = new Leaf<T>(config, new Vec3(lnx, lny, lnz), new Vec3(hnx, hny, hnz));
-				this.nnp = new Leaf<T>(config, new Vec3(lnx, lny, lpz), new Vec3(hnx, hny, hpz));
-				this.npn = new Leaf<T>(config, new Vec3(lnx, lpy, lnz), new Vec3(hnx, hpy, hnz));
-				this.npp = new Leaf<T>(config, new Vec3(lnx, lpy, lpz), new Vec3(hnx, hpy, hpz));
-				this.pnn = new Leaf<T>(config, new Vec3(lpx, lny, lnz), new Vec3(hpx, hny, hnz));
-				this.pnp = new Leaf<T>(config, new Vec3(lpx, lny, lpz), new Vec3(hpx, hny, hpz));
-				this.ppn = new Leaf<T>(config, new Vec3(lpx, lpy, lnz), new Vec3(hpx, hpy, hnz));
-				this.ppp = new Leaf<T>(config, new Vec3(lpx, lpy, lpz), new Vec3(hpx, hpy, hpz));
+				this.nnn = new Leaf<T>(config, Vec3.from(lnx, lny, lnz), Vec3.from(hnx, hny, hnz));
+				this.nnp = new Leaf<T>(config, Vec3.from(lnx, lny, lpz), Vec3.from(hnx, hny, hpz));
+				this.npn = new Leaf<T>(config, Vec3.from(lnx, lpy, lnz), Vec3.from(hnx, hpy, hnz));
+				this.npp = new Leaf<T>(config, Vec3.from(lnx, lpy, lpz), Vec3.from(hnx, hpy, hpz));
+				this.pnn = new Leaf<T>(config, Vec3.from(lpx, lny, lnz), Vec3.from(hpx, hny, hnz));
+				this.pnp = new Leaf<T>(config, Vec3.from(lpx, lny, lpz), Vec3.from(hpx, hny, hpz));
+				this.ppn = new Leaf<T>(config, Vec3.from(lpx, lpy, lnz), Vec3.from(hpx, hpy, hnz));
+				this.ppp = new Leaf<T>(config, Vec3.from(lpx, lpy, lpz), Vec3.from(hpx, hpy, hpz));
 			}
 
 			@Override

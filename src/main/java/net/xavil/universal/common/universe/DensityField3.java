@@ -2,8 +2,6 @@ package net.xavil.universal.common.universe;
 
 import java.util.function.DoubleUnaryOperator;
 
-import net.minecraft.world.phys.Vec3;
-
 public interface DensityField3 {
 
 	/**
@@ -53,7 +51,7 @@ public interface DensityField3 {
 
 	static DensityField3 sphereMask(double radius) {
 		final var r2 = radius * radius;
-		return pos -> pos.lengthSqr() > r2 ? 0 : 1;
+		return pos -> pos.lengthSquared() > r2 ? 0 : 1;
 	}
 
 	static DensityField3 cylinderMask(double radius, double height) {
@@ -66,15 +64,15 @@ public interface DensityField3 {
 	}
 
 	default DensityField3 scale(double scale) {
-		return pos -> this.sampleDensity(pos.scale(scale));
+		return pos -> this.sampleDensity(pos.mul(scale));
 	}
 
 	default DensityField3 scale(double xScale, double yScale, double zScale) {
-		return pos -> this.sampleDensity(new Vec3(xScale, yScale, zScale));
+		return pos -> this.sampleDensity(Vec3.from(xScale, yScale, zScale));
 	}
 
 	default DensityField3 scale(Vec3 scale) {
-		return pos -> this.sampleDensity(pos.multiply(scale));
+		return pos -> this.sampleDensity(pos.mul(scale));
 	}
 
 	default DensityField3 rotate(Vec3 axis, double angle) {
@@ -83,9 +81,9 @@ public interface DensityField3 {
 
 	static Vec3 rotateVector(Vec3 axis, double angle, Vec3 v) {
 		// https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
-		return v.scale(Math.cos(angle))
-				.add(axis.cross(v).scale(Math.sin(angle)))
-				.add(axis.scale(axis.dot(v) * (1 - Math.cos(angle))));
+		return v.mul(Math.cos(angle))
+				.add(axis.cross(v).mul(Math.sin(angle)))
+				.add(axis.mul(axis.dot(v) * (1 - Math.cos(angle))));
 	}
 
 	default DensityField3 map(DoubleUnaryOperator mapper) {

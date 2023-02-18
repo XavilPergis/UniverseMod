@@ -12,8 +12,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
+import net.xavil.universal.common.universe.Vec3;
 
 public abstract sealed class StarSystemNode permits StarNode, BinaryNode, PlanetNode, OtherNode {
 
@@ -23,8 +23,9 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		public StarSystemNode node;
 		public OrbitalShape orbitalShape;
 		public OrbitalPlane orbitalPlane;
+		public double offset;
 
-		public UnaryOrbit(StarSystemNode node, OrbitalShape orbitalShape, OrbitalPlane orbitalPlane) {
+		public UnaryOrbit(StarSystemNode node, OrbitalShape orbitalShape, OrbitalPlane orbitalPlane, double offset) {
 			this.node = node;
 			this.orbitalShape = orbitalShape;
 			this.orbitalPlane = orbitalPlane;
@@ -41,6 +42,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	// TODO: these quantities are meaningless for binary orbits!
 	public double obliquityAngle; // rad
 	public double rotationalSpeed; // rad/s
+	// public Vec3 velocity;
+	// public Vec3 position;
 
 	public StarSystemNode(double massYg) {
 		this.massYg = massYg;
@@ -169,10 +172,10 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	}
 
 	public void insertChild(StarSystemNode child, double eccentricity, double periapsisDistance, double inclination,
-			double longitudeOfAscendingNode, double argumentOfPeriapsis) {
+			double longitudeOfAscendingNode, double argumentOfPeriapsis, double offset) {
 		final var shape = new OrbitalShape(eccentricity, periapsisDistance);
-		final var plane = new OrbitalPlane(inclination, longitudeOfAscendingNode, argumentOfPeriapsis);
-		insertChild(new UnaryOrbit(child, shape, plane));
+		final var plane = OrbitalPlane.fromOrbitalElements(inclination, longitudeOfAscendingNode, argumentOfPeriapsis);
+		insertChild(new UnaryOrbit(child, shape, plane, offset));
 	}
 
 	public void insertChild(UnaryOrbit child) {
@@ -183,54 +186,71 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return this.childNodes;
 	}
 
-	public static final double G = 6.67e-11;
+	// public void calculateInitialPositions() {
+	// }
+
+	// public void updatePositions() {
+	// 	if (this instanceof BinaryNode binaryNode) {
+	// 	}
+
+	// 	for (var childOrbit : this.childNodes) {
+	// 		var distance = this.position.distanceTo(childOrbit.node.position);
+	// 		var speed = Math.sqrt(G_TM * (this.massYg * childOrbit.node.massYg)
+	// 				* (2 / distance) - (1 / childOrbit.orbitalShape.semimajorAxisTm()));
+	// 		// var velocity =
+	// 		// F = m * a
+	// 		// a = F / m
+	// 	}
+	// 	// F = G * (m1 * m2) / r^2;
+	// }
+
+	public static final double G = 6.67e-11 * 1e14;
+	public static final double G_TM = 6.67e3;
 
 	public static double getUnaryAngle(StarSystemNode parent, StarSystemNode.UnaryOrbit orbit, double time) {
 		var a = orbit.orbitalShape.semimajorAxisTm() * 1e9;
 		// T = 2 * pi * sqrt(a^3 / (G * M))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * 1e14 * parent.massYg));
-		return 2 * Math.PI * time / period + orbit.orbitalPlane.argumentOfPeriapsisRad();
+		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G_TM * parent.massYg));
+		return 2 * Math.PI * time / period + orbit.offset;
 	}
 
 	public static double getBinaryAngle(BinaryNode node, double time) {
 		var a = node.getSemiMajorAxisA() * 1e9 + node.getSemiMajorAxisB() * 1e9;
 		// T = 2 * pi * sqrt(a^3 / (G * (M1 + M2)))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G * (1e21 * node.getA().massYg + 1e21 * node.getB().massYg)));
-		return 2 * Math.PI * time / period + node.orbitalPlane.argumentOfPeriapsisRad();
+		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G_TM * (node.getA().massYg + node.getB().massYg)));
+		return 2 * Math.PI * time / period + node.offset;
 	}
 
 	public static Vec3 getUnaryOffset(OrbitalPlane referencePlane, StarSystemNode.UnaryOrbit orbit, double angle) {
-		var plane = referencePlane.transform(orbit.orbitalPlane);
-		var apoapsisDir = new Vec3(1, 0, 0).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		var rightDir = new Vec3(0, 0, 1).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
+		var plane = orbit.orbitalPlane.withReferencePlane(referencePlane);
+		var apoapsisDir = plane.rotationFromReference().transform(Vec3.XP);
+		var rightDir = plane.rotationFromReference().transform(Vec3.ZP);
+		// var apoapsisDir = Vec3.XP.rotateX(plane.inclinationRad())
+		// 		.rotateY(plane.longitueOfAscendingNodeRad());
+		// var rightDir = Vec3.ZP.rotateX(plane.inclinationRad())
+		// 		.rotateY(plane.longitueOfAscendingNodeRad());
 		// FIXME: elliptical orbits
 		return Vec3.ZERO
-				.add(apoapsisDir.scale(Math.cos(angle) * orbit.orbitalShape.semimajorAxisTm()))
-				.add(rightDir.scale(Math.sin(angle) * orbit.orbitalShape.semiminorAxisTm()));
+				.add(apoapsisDir.mul(Math.cos(angle) * orbit.orbitalShape.semimajorAxisTm()))
+				.add(rightDir.mul(Math.sin(angle) * orbit.orbitalShape.semiminorAxisTm()));
 	}
 
 	public static Vec3 getBinaryOffsetA(OrbitalPlane referencePlane, BinaryNode node, double angle) {
-		var plane = referencePlane.transform(node.orbitalPlane);
-		var apoapsisDir = new Vec3(1, 0, 0).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		var rightDir = new Vec3(0, 0, 1).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		return apoapsisDir.scale(node.getFocalDistanceA())
-				.add(apoapsisDir.scale(Math.cos(angle) * node.getSemiMajorAxisA()))
-				.add(rightDir.scale(Math.sin(angle) * node.getSemiMinorAxisA()));
+		var plane = node.orbitalPlane.withReferencePlane(referencePlane);
+		var apoapsisDir = plane.rotationFromReference().transform(Vec3.XP);
+		var rightDir = plane.rotationFromReference().transform(Vec3.ZP);
+		return apoapsisDir.mul(node.getFocalDistanceA())
+				.add(apoapsisDir.mul(Math.cos(angle) * node.getSemiMajorAxisA()))
+				.add(rightDir.mul(Math.sin(angle) * node.getSemiMinorAxisA()));
 	}
 
 	public static Vec3 getBinaryOffsetB(OrbitalPlane referencePlane, BinaryNode node, double angle) {
-		var plane = referencePlane.transform(node.orbitalPlane);
-		var apoapsisDir = new Vec3(1, 0, 0).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		var rightDir = new Vec3(0, 0, 1).xRot((float) plane.inclinationRad())
-				.yRot((float) plane.longitueOfAscendingNodeRad());
-		return apoapsisDir.scale(-node.getFocalDistanceB())
-				.add(apoapsisDir.scale(Math.cos(angle) * -node.getSemiMajorAxisB()))
-				.add(rightDir.scale(Math.sin(angle) * -node.getSemiMinorAxisB()));
+		var plane = node.orbitalPlane.withReferencePlane(referencePlane);
+		var apoapsisDir = plane.rotationFromReference().transform(Vec3.XP);
+		var rightDir = plane.rotationFromReference().transform(Vec3.ZP);
+		return apoapsisDir.mul(-node.getFocalDistanceB())
+				.add(apoapsisDir.mul(Math.cos(angle) * -node.getSemiMajorAxisB()))
+				.add(rightDir.mul(Math.sin(angle) * -node.getSemiMinorAxisB()));
 	}
 
 	public static void positionNode(StarSystemNode node, OrbitalPlane referencePlane, double time, float partialTick,
@@ -239,14 +259,16 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			var angle = getBinaryAngle(binaryNode, time);
 			var aCenter = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angle));
 			var bCenter = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angle));
-			positionNode(binaryNode.getA(), referencePlane, time, partialTick, aCenter, consumer);
-			positionNode(binaryNode.getB(), referencePlane, time, partialTick, bCenter, consumer);
+			var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
+			positionNode(binaryNode.getA(), newPlane, time, partialTick, aCenter, consumer);
+			positionNode(binaryNode.getB(), newPlane, time, partialTick, bCenter, consumer);
 		}
 
 		for (var childOrbit : node.childOrbits()) {
 			var angle = getUnaryAngle(node, childOrbit, time);
 			var center = centerPos.add(getUnaryOffset(referencePlane, childOrbit, angle));
-			positionNode(childOrbit.node, referencePlane, time, partialTick, center, consumer);
+			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
+			positionNode(childOrbit.node, newPlane, time, partialTick, center, consumer);
 		}
 
 		consumer.accept(node, centerPos);
@@ -270,7 +292,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 					.getOrThrow(false, Mod.LOGGER::error);
 			var maxOrbitalRadius = nbt.getDouble("max_orbital_radius");
 			var squishFactor = nbt.getDouble("squish_factor");
-			node = new BinaryNode(a, b, orbitalPlane, squishFactor, maxOrbitalRadius);
+			var offset = nbt.getDouble("offset");
+			node = new BinaryNode(a, b, orbitalPlane, squishFactor, maxOrbitalRadius, offset);
 		} else if (nodeType.equals("star")) {
 			var type = StarNode.Type.values()[nbt.getInt("type")];
 			var luminosity = nbt.getDouble("luminosity");
@@ -291,12 +314,13 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			var childNbt = childList.getCompound(i);
 
 			var childNode = readNbt(childNbt.getCompound("node"));
+			var offset = childNbt.getDouble("offset");
 			var orbitalPlane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_plane"))
 					.getOrThrow(false, Mod.LOGGER::error);
 			var orbitalShape = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_shape"))
 					.getOrThrow(false, Mod.LOGGER::error);
 
-			var child = new UnaryOrbit(childNode, orbitalShape, orbitalPlane);
+			var child = new UnaryOrbit(childNode, orbitalShape, orbitalPlane, offset);
 			node.childNodes.add(child);
 		}
 
@@ -320,6 +344,7 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 					.ifPresent(n -> nbt.put("orbital_plane", n));
 			nbt.putDouble("max_orbital_radius", binaryNode.maxOrbitalRadiusTm);
 			nbt.putDouble("squish_factor", binaryNode.squishFactor);
+			nbt.putDouble("offset", binaryNode.offset);
 		} else if (node instanceof StarNode starNode) {
 			nbt.putString("node_type", "star");
 			nbt.putInt("type", starNode.type.ordinal());
@@ -336,6 +361,7 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			var childNbt = new CompoundTag();
 
 			childNbt.put("node", writeNbt(child.node));
+			childNbt.putDouble("offset", child.offset);
 
 			OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, child.orbitalPlane).resultOrPartial(Mod.LOGGER::error)
 					.ifPresent(n -> childNbt.put("orbital_plane", n));

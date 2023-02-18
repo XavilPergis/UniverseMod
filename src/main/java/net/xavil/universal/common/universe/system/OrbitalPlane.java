@@ -3,44 +3,42 @@ package net.xavil.universal.common.universe.system;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-// reference plane is the XZ plane, reference direction is +X
-// all angles are in radians
-public record OrbitalPlane(
-		// the "tilt" of the orbital plane around the ascending node
-		double inclinationRad,
-		// the "ascending node" is the axis where the tilted plane and the reference
-		// plane intersect
-		// the angle of the ascending node, measured from the reference direction
-		double longitueOfAscendingNodeRad,
-		// the "periapsis" is distance of the closest approach of the orbiting pair
-		// the angle at which periapsis occurs, measured from the ascending node
-		double argumentOfPeriapsisRad) {
+import net.xavil.universal.common.universe.Quat;
+import net.xavil.universal.common.universe.Vec3;
 
-	public static final OrbitalPlane ZERO = new OrbitalPlane(0, 0, 0);
+public record OrbitalPlane(Quat rotationFromReference) {
 
-	public OrbitalPlane transform(OrbitalPlane child) {
-		// FIXME: this is wrong
-		return new OrbitalPlane(inclinationRad + child.inclinationRad,
-				longitueOfAscendingNodeRad + child.longitueOfAscendingNodeRad,
-				argumentOfPeriapsisRad + child.argumentOfPeriapsisRad);
+	public static final OrbitalPlane ZERO = new OrbitalPlane(Quat.IDENTITY);
+
+	public static OrbitalPlane fromOrbitalElements(
+			double inclinationRad,
+			double longitudeOfAscendingNodeRad,
+			double argumentOfPeriapsisRad) {
+
+		var x = Quat.axisAngle(Vec3.YP, longitudeOfAscendingNodeRad);
+		var y = Quat.axisAngle(Vec3.XP, inclinationRad);
+		var z = Quat.axisAngle(Vec3.YP, argumentOfPeriapsisRad);
+
+		var q = x.hamiltonProduct(y).hamiltonProduct(z);
+		return new OrbitalPlane(q);
+
+		// // // https://www.orbiter-forum.com/threads/quaternions-rotations-and-orbital-elements.37264/
+		// final var a = inclinationRad / 2;
+		// final var b = (longitudeOfAscendingNodeRad + argumentOfPeriapsisRad) / 2;
+		// final var c = (longitudeOfAscendingNodeRad - argumentOfPeriapsisRad) / 2;
+		// final var w = Math.cos(a) * Math.cos(b);
+		// final var i = Math.sin(a) * Math.cos(c);
+		// final var j = Math.sin(a) * Math.sin(c);
+		// final var k = Math.cos(a) * Math.sin(b);
+		// return new OrbitalPlane(Quat.from(w, i, j, k));
 	}
 
-	public OrbitalPlane withInclination(double inclinationRad) {
-		return new OrbitalPlane(inclinationRad, longitueOfAscendingNodeRad, argumentOfPeriapsisRad);
-	}
-
-	public OrbitalPlane withLongitudeOfAscendingNode(double longitueOfAscendingNodeRad) {
-		return new OrbitalPlane(inclinationRad, longitueOfAscendingNodeRad, argumentOfPeriapsisRad);
-	}
-
-	public OrbitalPlane withArgumentOfPeriapsis(double argumentOfPeriapsisRad) {
-		return new OrbitalPlane(inclinationRad, longitueOfAscendingNodeRad, argumentOfPeriapsisRad);
+	public OrbitalPlane withReferencePlane(OrbitalPlane reference) {
+		return new OrbitalPlane(reference.rotationFromReference.hamiltonProduct(this.rotationFromReference));
 	}
 
 	public static final Codec<OrbitalPlane> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-			Codec.DOUBLE.fieldOf("inclination").forGetter(OrbitalPlane::inclinationRad),
-			Codec.DOUBLE.fieldOf("ascending_node_angle").forGetter(OrbitalPlane::longitueOfAscendingNodeRad),
-			Codec.DOUBLE.fieldOf("periapsis_angle").forGetter(OrbitalPlane::argumentOfPeriapsisRad))
+			Quat.CODEC.fieldOf("value").forGetter(OrbitalPlane::rotationFromReference))
 			.apply(inst, OrbitalPlane::new));
 
 }

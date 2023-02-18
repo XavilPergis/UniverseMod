@@ -1,9 +1,9 @@
 package net.xavil.universal.networking;
 
-import net.minecraft.core.Vec3i;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xavil.universal.common.universe.Octree;
+import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
@@ -20,13 +20,13 @@ public abstract class ModPacket {
 		var x = buf.readInt();
 		var y = buf.readInt();
 		var z = buf.readInt();
-		return new Vec3i(x, y, z);
+		return Vec3i.from(x, y, z);
 	}
 
 	public static void writeVector(FriendlyByteBuf buf, Vec3i vec) {
-		buf.writeInt(vec.getX());
-		buf.writeInt(vec.getY());
-		buf.writeInt(vec.getZ());
+		buf.writeInt(vec.x);
+		buf.writeInt(vec.y);
+		buf.writeInt(vec.z);
 	}
 
 	public static SectorId readSectorId(FriendlyByteBuf buf) {
@@ -35,13 +35,13 @@ public abstract class ModPacket {
 		var z = buf.readInt();
 		var layer = buf.readInt();
 		var id = buf.readInt();
-		return new SectorId(new Vec3i(x, y, z), new Octree.Id(layer, id));
+		return new SectorId(Vec3i.from(x, y, z), new Octree.Id(layer, id));
 	}
 
 	public static void writeSectorId(FriendlyByteBuf buf, SectorId id) {
-		buf.writeInt(id.sectorPos().getX());
-		buf.writeInt(id.sectorPos().getY());
-		buf.writeInt(id.sectorPos().getZ());
+		buf.writeInt(id.sectorPos().x);
+		buf.writeInt(id.sectorPos().y);
+		buf.writeInt(id.sectorPos().z);
 		buf.writeInt(id.sectorId().layerIndex());
 		buf.writeInt(id.sectorId().elementIndex());
 	}

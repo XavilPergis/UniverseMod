@@ -12,9 +12,10 @@ public final class BinaryNode extends StarSystemNode {
 	public double maxOrbitalRadiusTm;
 	// the percentage of the semi-major axis that the semi-minor is.
 	public double squishFactor;
+	public double offset;
 
 	public BinaryNode(StarSystemNode a, StarSystemNode b, OrbitalPlane orbitalPlane,
-			double squishFactor, double maxOrbitalRadiusTm) {
+			double squishFactor, double maxOrbitalRadiusTm, double offset) {
 		super(a.massYg + b.massYg);
 
 		this.a = a;

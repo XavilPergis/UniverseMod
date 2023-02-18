@@ -15,9 +15,9 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.Units;
+import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.system.BinaryNode;
 import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
@@ -167,9 +167,9 @@ public final class RenderHelper {
 
 	public static void addBillboard(VertexConsumer builder, Camera camera, StarSystemNode node, Vec3 center,
 			double tmPerUnit, float partialTick) {
-		double d = getCelestialBodySize(node, camera.getPosition(), center);
-		var up = new Vec3(camera.getUpVector());
-		var right = new Vec3(camera.getLeftVector()).reverse();
+		double d = getCelestialBodySize(node, Vec3.fromMinecraft(camera.getPosition()), center);
+		var up = Vec3.fromMinecraft(camera.getUpVector());
+		var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
 		addBillboard(builder, up, right, node, center, d);
 	}
 
@@ -218,9 +218,9 @@ public final class RenderHelper {
 			double scale,
 			double zOffset, Color color) {
 
-		var backwards = up.cross(right).scale(zOffset);
-		var billboardUp = up.scale(scale);
-		var billboardRight = right.scale(scale);
+		var backwards = up.cross(right).mul(zOffset);
+		var billboardUp = up.mul(scale);
+		var billboardRight = right.mul(scale);
 		addBillboard(builder, poseStack, center, billboardUp, billboardRight, backwards,
 				color.r(), color.g(), color.b(), color.a());
 
@@ -230,9 +230,9 @@ public final class RenderHelper {
 			Vec3 forward,
 			float r, float g, float b, float a) {
 		var p = poseStack.last().pose();
-		var qll = center.subtract(up).subtract(right).add(forward);
-		var qlh = center.subtract(up).add(right).add(forward);
-		var qhl = center.add(up).subtract(right).add(forward);
+		var qll = center.sub(up).sub(right).add(forward);
+		var qlh = center.sub(up).add(right).add(forward);
+		var qhl = center.add(up).sub(right).add(forward);
 		var qhh = center.add(up).add(right).add(forward);
 		builder.vertex(p, (float) qhl.x, (float) qhl.y, (float) qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
 		builder.vertex(p, (float) qll.x, (float) qll.y, (float) qll.z).color(r, g, b, a).uv(0, 0).endVertex();
@@ -253,7 +253,7 @@ public final class RenderHelper {
 
 	public static void renderGrid(BufferBuilder builder, OrbitCamera camera, double tmPerUnit, double gridUnits,
 			int scaleFactor, int gridLineCount, float partialTick) {
-		var focusPos = camera.focus.get(partialTick).scale(1 / tmPerUnit);
+		var focusPos = camera.focus.get(partialTick).div(tmPerUnit);
 		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
 		renderGrid(builder, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
 	}
@@ -328,7 +328,7 @@ public final class RenderHelper {
 			Color endColor) {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		var normal = end.subtract(start).normalize();
+		var normal = end.sub(start).normalize();
 		builder.vertex(start.x, start.y, start.z)
 				.color(startColor.r(), startColor.g(), startColor.b(), startColor.a())
 				.normal((float) normal.x, (float) normal.y, (float) normal.z)
@@ -352,7 +352,7 @@ public final class RenderHelper {
 	}
 
 	public static void addLine(VertexConsumer builder, Vec3 start, Vec3 end, Color startColor, Color endColor) {
-		var normal = end.subtract(start).normalize();
+		var normal = end.sub(start).normalize();
 		builder.vertex(start.x, start.y, start.z)
 				.color(startColor.r(), startColor.g(), startColor.b(), startColor.a())
 				.normal((float) normal.x, (float) normal.y, (float) normal.z)

@@ -3,10 +3,10 @@ package net.xavil.universal.common.universe.galaxy;
 import java.util.ArrayList;
 import java.util.Random;
 
-import net.minecraft.core.Vec3i;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
+import net.xavil.universal.common.universe.Vec3;
+import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
@@ -38,7 +38,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		var x = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
 		var y = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
 		var z = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
-		return new Vec3(x, y, z);
+		return Vec3.from(x, y, z);
 	}
 
 	@Override

@@ -31,7 +31,7 @@ public class StarSystemGenerator {
 	}
 
 	public static OrbitalPlane randomOrbitalPlane(Random random) {
-		return new OrbitalPlane(
+		return OrbitalPlane.fromOrbitalElements(
 				random.nextDouble(-Math.PI * 2, Math.PI * 2),
 				random.nextDouble(-Math.PI * 2, Math.PI * 2),
 				random.nextDouble(-Math.PI * 2, Math.PI * 2));
@@ -98,7 +98,8 @@ public class StarSystemGenerator {
 
 		// var squishFactor = Mth.lerp(1 - Math.pow(random.nextDouble(), 7), 0.2, 1);
 		var squishFactor = 1;
-		var newNode = new BinaryNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius);
+		var newNode = new BinaryNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius,
+				random.nextDouble(2 * Math.PI));
 		replaceNode(existing, newNode);
 		return newNode;
 	}
@@ -149,7 +150,8 @@ public class StarSystemGenerator {
 					Mod.LOGGER.info("Success [radius={}]", radius);
 					// var squishFactor = Mth.lerp(1 - Math.pow(random.nextDouble(), 7), 0.2, 1);
 					var squishFactor = 1;
-					var newNode = new BinaryNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius);
+					var newNode = new BinaryNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius,
+							random.nextDouble(2 * Math.PI));
 					replaceNode(existing, newNode);
 					return newNode;
 				}
@@ -197,10 +199,12 @@ public class StarSystemGenerator {
 			placePlanets(childOrbit.node);
 		}
 
+		var massMsol = node.massYg / Units.YG_PER_MSOL;
+		var stabilityLimit = Units.au(1000) * Math.pow(massMsol, 1.5) * 0.66;
+
 		var minRadius = getExclusionRadius(node);
 		var maxRadius = getMaximumRadius(node);
-		var massMsol = node.massYg / Units.YG_PER_MSOL;
-		maxRadius = Math.min(maxRadius, Units.au(1000) * Math.pow(massMsol, 2));
+		maxRadius = 1.4 * Math.min(maxRadius, stabilityLimit);
 		if (minRadius > maxRadius)
 			return;
 
@@ -222,7 +226,8 @@ public class StarSystemGenerator {
 				var planetNode = new PlanetNode(randomType, initialMass);
 				var orbitalShape = new OrbitalShape(0, initialOrbitalRadius);
 
-				var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO);
+				var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO,
+						random.nextDouble(2 * Math.PI));
 				node.insertChild(orbit);
 			}
 		}
@@ -244,7 +249,8 @@ public class StarSystemGenerator {
 			var planetNode = new PlanetNode(randomType, initialMass);
 			var orbitalShape = new OrbitalShape(0, initialOrbitalRadius);
 
-			var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO);
+			var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO,
+					random.nextDouble(2 * Math.PI));
 			node.insertChild(orbit);
 		}
 	}
@@ -274,11 +280,15 @@ public class StarSystemGenerator {
 				binaryNode.orbitalPlane = randomOrbitalPlane(random);
 			} else {
 				var t = 0.1 * Math.pow(binaryNode.maxOrbitalRadiusTm / stabilityLimit, 4);
-				binaryNode.orbitalPlane = new OrbitalPlane(
+				binaryNode.orbitalPlane = OrbitalPlane.fromOrbitalElements(
 						2 * Math.PI * random.nextDouble(-t, t),
 						2 * Math.PI * random.nextDouble(-1, 1),
 						2 * Math.PI * random.nextDouble(-1, 1));
 			}
+			// binaryNode.orbitalPlane = OrbitalPlane.fromOrbitalElements(
+			// Math.PI / 8 * random.nextDouble(-1, 1),
+			// 2 * Math.PI * random.nextDouble(-1, 1),
+			// 2 * Math.PI * random.nextDouble(-1, 1));
 		}
 		for (var childOrbit : node.childOrbits()) {
 			determineOrbitalPlanes(childOrbit.node);
@@ -287,11 +297,16 @@ public class StarSystemGenerator {
 				childOrbit.orbitalPlane = randomOrbitalPlane(random);
 			} else {
 				var t = 0.1 * Math.pow(childOrbit.orbitalShape.semimajorAxisTm() / stabilityLimit, 4);
-				childOrbit.orbitalPlane = new OrbitalPlane(
+				t += 0.2 * Math.pow(random.nextDouble(), 20);
+				childOrbit.orbitalPlane = OrbitalPlane.fromOrbitalElements(
 						2 * Math.PI * random.nextDouble(-t, t),
 						2 * Math.PI * random.nextDouble(-1, 1),
 						2 * Math.PI * random.nextDouble(-1, 1));
 			}
+			// childOrbit.orbitalPlane = OrbitalPlane.fromOrbitalElements(
+			// Math.PI / 32 * random.nextDouble(-1, 1),
+			// 2 * Math.PI * random.nextDouble(-1, 1),
+			// 2 * Math.PI * random.nextDouble(-1, 1));
 		}
 	}
 

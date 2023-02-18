@@ -1,9 +1,7 @@
 package net.xavil.universal.client.screen;
 
 import java.util.Comparator;
-import java.util.Objects;
 import java.util.Random;
-import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
@@ -23,15 +21,15 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.core.Vec3i;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
-import net.minecraft.world.phys.Vec3;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Units;
+import net.xavil.universal.common.universe.Vec3;
+import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 import net.xavil.universal.common.universe.id.SectorId;
@@ -111,7 +109,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		if (button == 2) {
 			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
-			var offset = new Vec3(dx, 0, realDy).yRot(-this.camera.yaw.get(partialTick).floatValue()).scale(dragScale);
+			var offset = Vec3.from(dx, 0, realDy).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
 			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 		} else if (button == 1) {
 			this.camera.focus.setTarget(this.camera.focus.getTarget().add(0, dragScale * dy, 0));
@@ -199,8 +197,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 			var volume = this.galaxy.getVolumeAt(sectorPos);
 			var nearestInSector = volume.nearestInRadius(pos, radius);
 			if (nearestInSector != null) {
-				if (nearestInSector.pos.distanceToSqr(pos) < nearest.distanceSqr) {
-					nearest.distanceSqr = nearestInSector.pos.distanceToSqr(pos);
+				if (nearestInSector.pos.distanceToSquared(pos) < nearest.distanceSqr) {
+					nearest.distanceSqr = nearestInSector.pos.distanceToSquared(pos);
 					nearest.id = new SectorId(sectorPos, nearestInSector.id);
 				}
 			}
@@ -260,10 +258,10 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		var focusPos = this.camera.focus.get(partialTick);
 		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).scale(1 / TM_PER_UNIT);
+		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
 		{
-			var camPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
-			var dir = selectedPos.subtract(camPos).normalize();
+			var camPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
+			var dir = selectedPos.sub(camPos).normalize();
 			RenderHelper.addLine(builder, camPos, selectedPos, SELECTION_LINE_COLOR);
 			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 0f, 1f, 0.2f)
 			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
@@ -276,9 +274,9 @@ public class GalaxyMapScreen extends UniversalScreen {
 		var nearest = getNearestSystem(focusPos, 10000);
 		if (nearest != null) {
 			var volume = this.galaxy.getVolumeAt(nearest.sectorPos());
-			var nearestPos = volume.posById(nearest.sectorId()).scale(1 / TM_PER_UNIT);
-			var camPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
-			var dir = nearestPos.subtract(camPos).normalize();
+			var nearestPos = volume.posById(nearest.sectorId()).div(TM_PER_UNIT);
+			var camPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
+			var dir = nearestPos.sub(camPos).normalize();
 			RenderHelper.addLine(builder, camPos, selectedPos, NEAREST_LINE_COLOR);
 			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 1f, 1f, 1f)
 			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
@@ -305,8 +303,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 	}
 
 	private void renderSectorBox(VertexConsumer builder, Vec3i sectorPos) {
-		var lo = Vec3.atLowerCornerOf(sectorPos).scale(UNITS_PER_SECTOR);
-		var hi = Vec3.atLowerCornerOf(sectorPos.offset(1, 1, 1)).scale(UNITS_PER_SECTOR);
+		var lo = sectorPos.lowerCorner().mul(UNITS_PER_SECTOR);
+		var hi = sectorPos.upperCorner().mul(UNITS_PER_SECTOR);
 		var color = new Color(1, 1, 1, 0.2f);
 		RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
 	}
@@ -318,7 +316,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			float partialTick) {
 
 		var focusPos = this.camera.focus.get(partialTick);
-		var cameraPos = this.camera.getPos(partialTick).scale(TM_PER_UNIT);
+		var cameraPos = this.camera.getPos(partialTick).mul(TM_PER_UNIT);
 
 		sectorOffsets.forEach(info -> {
 			var distanceFromFocus = focusPos.distanceTo(info.pos);
@@ -330,7 +328,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			var alphaFactorCamera = 1 - Mth.clamp(distanceFromCamera / STAR_RENDER_RADIUS * 4, 0, 1);
 			var alphaFactor = Math.max(alphaFactorFocus, alphaFactorCamera);
 
-			var center = info.pos.scale(1 / TM_PER_UNIT);
+			var center = info.pos.div(TM_PER_UNIT);
 
 			// TODO: do the billboarding in a vertex shader!
 
@@ -358,8 +356,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 	}
 
 	private <T> void renderOctreeDebug(BufferBuilder builder, Octree.Node<T> node, Color color) {
-		var lo = node.min.scale(1 / TM_PER_UNIT);
-		var hi = node.max.scale(1 / TM_PER_UNIT);
+		var lo = node.min.div(TM_PER_UNIT);
+		var hi = node.max.div(TM_PER_UNIT);
 		RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
 		if (node instanceof Octree.Node.Branch<T> branchNode) {
 			renderOctreeDebug(builder, branchNode.nnn, color);
@@ -420,15 +418,14 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-		
-		var focusPos = this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT);
+		var focusPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
 		volume.streamElements().forEach(element -> {
-			var pos = element.pos.scale(1 / TM_PER_UNIT);
+			var pos = element.pos.div(TM_PER_UNIT);
 			if (pos.distanceTo(focusPos) > 10)
 				return;
 			RenderHelper.addLine(builder,
-					new Vec3(pos.x, focusPos.y, pos.z),
-					new Vec3(pos.x, pos.y, pos.z),
+					Vec3.from(pos.x, focusPos.y, pos.z),
+					Vec3.from(pos.x, pos.y, pos.z),
 					NEAREST_LINE_COLOR.withA(0.2));
 		});
 
@@ -460,7 +457,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		final var partialTick = this.client.getFrameTime();
 		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.TM_PER_LY;
 
-		var offset = new Vec3(right, 0, forward).yRot(-this.camera.yaw.get(partialTick).floatValue()).scale(dragScale);
+		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 	}
 
@@ -497,8 +494,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// selected system gizmo
 
 		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId())
-				.scale(1 / TM_PER_UNIT);
+		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
 
 		var prevMatrices = this.camera.setupRenderMatrices(partialTick);
 
@@ -524,9 +520,9 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		var k = this.camera.scale.get(partialTick);
-		RenderHelper.addBillboard(builder, new PoseStack(), this.camera.focus.get(partialTick).scale(1 / TM_PER_UNIT),
-				new Vec3(0.02 * k, 0, 0),
-				new Vec3(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
+		RenderHelper.addBillboard(builder, new PoseStack(), this.camera.focus.get(partialTick).div(TM_PER_UNIT),
+				Vec3.from(0.02 * k, 0, 0),
+				Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
 		builder.end();
 
 		this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
@@ -545,15 +541,15 @@ public class GalaxyMapScreen extends UniversalScreen {
 		fillGradient(poseStack, 0, 0, 200, this.height, 0xff0a0a0a, 0xff0a0a0a);
 
 		var systemId = "";
-		if (this.currentSystemId.sectorPos().getX() < 0)
+		if (this.currentSystemId.sectorPos().x < 0)
 			systemId += "M";
-		systemId += Math.abs(this.currentSystemId.sectorPos().getX()) + ".";
-		if (this.currentSystemId.sectorPos().getY() < 0)
+		systemId += Math.abs(this.currentSystemId.sectorPos().x) + ".";
+		if (this.currentSystemId.sectorPos().y < 0)
 			systemId += "M";
-		systemId += Math.abs(this.currentSystemId.sectorPos().getY()) + ".";
-		if (this.currentSystemId.sectorPos().getZ() < 0)
+		systemId += Math.abs(this.currentSystemId.sectorPos().y) + ".";
+		if (this.currentSystemId.sectorPos().z < 0)
 			systemId += "M";
-		systemId += Math.abs(this.currentSystemId.sectorPos().getZ()) + "#";
+		systemId += Math.abs(this.currentSystemId.sectorPos().z) + "#";
 		systemId += this.currentSystemId.sectorId();
 
 		var volume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());

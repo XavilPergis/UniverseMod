@@ -7,11 +7,13 @@
 - Custom Planetary body shader that does shadows n stuff
 
 ## Other
-- Day/night cycle based on star system configuration
-- Use integration for figuring out where planets are in their orbits instead of a function based on time (it breaks down for elliptical orbits)
-- Server-authoratative celestial body positioning
-- Spyglass with larger zoom
-- Augment that shows the celestial bodies that belong to the current system
+- [ ] Day/night cycle based on star system configuration
+- [ ] Use integration for figuring out where planets are in their orbits instead of a function based on time (it breaks down for elliptical orbits)
+- [ ] Server-authoratative celestial body positioning
+- [ ] Spyglass with larger zoom
+- [ ] Augment that shows the celestial bodies that belong to the current system
+- [x] Save planet ID in server world nbt
+- [ ] Don't load every dynamically-generated world on startup
 
 # Longterm
 - Logistics ships!

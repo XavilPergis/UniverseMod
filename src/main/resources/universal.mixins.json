@@ -6,6 +6,7 @@
   "mixins": [
 	"MinecraftServerMixin",
 	"LevelMixin",
+	"ServerLevelMixin",
 	"ServerPlayerMixin",
 	"ConnectionProtocolMixin",
 	"PlayerListMixin"

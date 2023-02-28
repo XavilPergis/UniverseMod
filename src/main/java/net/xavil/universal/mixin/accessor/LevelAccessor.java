@@ -7,6 +7,7 @@ public interface LevelAccessor {
 	
 	SystemNodeId universal_getUniverseId();
 	void universal_setUniverseId(SystemNodeId id);
+	void universal_setUniverseIdRaw(SystemNodeId id);
 
 	public static SystemNodeId getUniverseId(Level level) {
 		return ((LevelAccessor) level).universal_getUniverseId();

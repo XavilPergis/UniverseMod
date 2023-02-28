@@ -533,7 +533,7 @@ public class SystemMapScreen extends UniversalScreen {
 		if (node instanceof PlanetNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			ctx.renderPlanet(planetNode, new PoseStack(), centerPos, Color.WHITE);
+			ctx.renderPlanet(planetNode, new PoseStack(), centerPos, 1e-12, Color.WHITE);
 			// RenderHelper.renderPlanet(builder, planetNode, this.camera.getPos(partialTick), 1e-12, new PoseStack(),
 			// 		centerPos, Color.WHITE);
 		} else {

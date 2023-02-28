@@ -255,7 +255,7 @@ public class SkyRenderer {
 
 			poseStack.pushPose();
 			if (node instanceof PlanetNode planetNode) {
-				ctx.render(planetNode, poseStack, offset.mul(1e12), Color.WHITE);
+				ctx.render(planetNode, poseStack, offset.mul(1e12), 1, Color.WHITE);
 
 				// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				// builder.begin(VertexFormat.Mode.QUADS,
@@ -275,7 +275,7 @@ public class SkyRenderer {
 				// BufferUploader.end(builder);
 
 			} else if (node instanceof StarNode starNode) {
-				ctx.renderStar(starNode, poseStack, offset.mul(1e12), Color.WHITE);
+				ctx.renderStar(starNode, poseStack, offset.mul(1e12), 1, Color.WHITE);
 
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);

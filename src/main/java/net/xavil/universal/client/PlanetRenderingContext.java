@@ -1,7 +1,6 @@
 package net.xavil.universal.client;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
@@ -15,8 +14,6 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Vector3f;
 import com.mojang.math.Vector4f;
 
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.xavil.universal.Mod;
@@ -61,20 +58,20 @@ public final class PlanetRenderingContext {
 		this.builder = builder;
 	}
 
-	public void render(StarSystemNode node, PoseStack poseStack, Vec3 pos, Color tintColor) {
+	public void render(StarSystemNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
 		if (node instanceof StarNode starNode)
-			renderStar(starNode, poseStack, pos, tintColor);
+			renderStar(starNode, poseStack, pos, scale, tintColor);
 		if (node instanceof PlanetNode planetNode)
-			renderPlanet(planetNode, poseStack, pos, tintColor);
+			renderPlanet(planetNode, poseStack, pos, scale, tintColor);
 	}
 
-	public void renderStar(StarNode node, PoseStack poseStack, Vec3 pos, Color tintColor) {
+	public void renderStar(StarNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
 		var planetNode = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD, node.massYg,
 				Units.METERS_PER_RSOL * node.radiusRsol / Units.METERS_PER_REARTH, node.temperatureK);
-		renderPlanet(planetNode, poseStack, pos, tintColor);
+		renderPlanet(planetNode, poseStack, pos, scale, tintColor);
 	}
 
-	public void renderPlanet(PlanetNode node, PoseStack poseStack, Vec3 pos, Color tintColor) {
+	public void renderPlanet(PlanetNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
 
 		// this could probably be smarter. Merging stars that are close enough compared
 		// to the distance of the planet, or prioritizing apparent brightness over just
@@ -115,7 +112,7 @@ public final class PlanetRenderingContext {
 		RenderSystem.setShader(() -> planetShader);
 		RenderSystem.defaultBlendFunc();
 		var baseTexture = getBaseLayer(node);
-		var radiusM = 1e-12 * 2 * Units.METERS_PER_REARTH * node.radiusRearth;
+		var radiusM = scale * 2 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// var radiusM = 2 * Units.METERS_PER_REARTH * node.radiusRearth;
 		renderTexturedCube(builder, baseTexture, poseStack, pos, radiusM, tintColor);
 		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {

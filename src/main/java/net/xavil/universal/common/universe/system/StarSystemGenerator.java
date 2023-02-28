@@ -222,9 +222,11 @@ public class StarSystemGenerator {
 
 				var typesLength = PlanetNode.Type.values().length;
 				var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
+				var r = random.nextDouble(0.02, 30);
 
-				var planetNode = new PlanetNode(randomType, initialMass);
-				var orbitalShape = new OrbitalShape(0, initialOrbitalRadius);
+				var planetNode = new PlanetNode(randomType, initialMass, r, 300);
+				var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
+				var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);
 
 				var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO,
 						random.nextDouble(2 * Math.PI));
@@ -245,9 +247,11 @@ public class StarSystemGenerator {
 
 			var typesLength = PlanetNode.Type.values().length;
 			var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
-
-			var planetNode = new PlanetNode(randomType, initialMass);
-			var orbitalShape = new OrbitalShape(0, initialOrbitalRadius);
+			var r = random.nextDouble(0.02, 30);
+			
+			var planetNode = new PlanetNode(randomType, initialMass, r, 300);
+			var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
+			var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);
 
 			var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO,
 					random.nextDouble(2 * Math.PI));

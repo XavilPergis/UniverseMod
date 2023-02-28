@@ -10,7 +10,6 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
-import net.xavil.universal.networking.ModServerNetworking;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 
 public class StarmapItem extends Item {
@@ -26,7 +25,7 @@ public class StarmapItem extends Item {
 			var levelId = LevelAccessor.getUniverseId(serverLevel);
 			var id = levelId == null ? universe.getStartingSystemGenerator().getStartingSystemId() : levelId;
 			var packet = new ClientboundOpenStarmapPacket(id);
-			ModServerNetworking.send(serverPlayer, packet);
+			serverPlayer.connection.send(packet);
 		}
 		return InteractionResultHolder.success(player.getItemInHand(interactionHand));
 	}

@@ -16,6 +16,7 @@ import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.system.BinaryNode;
@@ -44,9 +45,9 @@ public final class RenderHelper {
 		var missing = MissingTextureAtlasSprite.getLocation();
 		return switch (node.type) {
 			case EARTH_LIKE_WORLD -> BASE_WATER_LOCATION;
-			case GAS_GIANT -> missing;
-			case ICE_WORLD -> missing;
-			case ROCKY_ICE_WORLD -> missing;
+			case GAS_GIANT -> BASE_ROCKY_LOCATION;
+			case ICE_WORLD -> BASE_WATER_LOCATION;
+			case ROCKY_ICE_WORLD -> BASE_WATER_LOCATION;
 			case ROCKY_WORLD -> BASE_ROCKY_LOCATION;
 			case WATER_WORLD -> BASE_WATER_LOCATION;
 			default -> missing;
@@ -60,18 +61,35 @@ public final class RenderHelper {
 		// RenderSystem.enableDepthTest();
 		var baseTexture = getBaseLayer(node);
 
-		double d = 0.02 * getCelestialBodySize(node, camPos, center);
+		// double d = getCelestialBodySize(node, camPos, center);
+		double d = 1;
 
-		var radius = scale * Math.cbrt((node.massYg / Units.mearth(1)) / 1);
-		renderTexturedCube(builder, baseTexture, poseStack, center, radius * d, tintColor);
+		// var radius = scale * Math.cbrt((node.massYg / Units.mearth(1)) / 1);
+		var radiusM = scale * Units.METERS_PER_REARTH * node.radiusRearth;
+
+		renderTexturedCube(builder, baseTexture, poseStack, center, radiusM * d, tintColor);
 		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
-			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, center, radius * d, tintColor);
+			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, center, radiusM * d, tintColor);
+		}
+	}
+
+	public static void renderPlanet(BufferBuilder builder, PlanetNode node, PoseStack poseStack, double scale,
+			Color tintColor) {
+		RenderSystem.defaultBlendFunc();
+		// RenderSystem.depthMask(true);
+		// RenderSystem.enableDepthTest();
+		var baseTexture = getBaseLayer(node);
+		var radiusM = Units.METERS_PER_REARTH * node.radiusRearth;
+		renderTexturedCube(builder, baseTexture, poseStack, Vec3.ZERO, scale * radiusM, tintColor);
+		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
+			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, Vec3.ZERO, scale * radiusM, tintColor);
 		}
 	}
 
 	private static void renderTexturedCube(BufferBuilder builder, ResourceLocation texture, PoseStack poseStack,
 			Vec3 center, double radius, Color tintColor) {
-		RenderSystem.setShader(GameRenderer::getPositionTexColorNormalShader);
+		// RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.PLANET_SHADER));
+		RenderSystem.setShader(() -> GameRenderer.getPositionTexColorNormalShader());
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 		addCube(builder, poseStack, center, radius, tintColor);
 		builder.end();
@@ -211,7 +229,8 @@ public final class RenderHelper {
 
 		final double brightBillboardSizeFactor = 0.5;
 		RenderHelper.addBillboard(builder, new PoseStack(), up, right, center, d, 0, color);
-		RenderHelper.addBillboard(builder, new PoseStack(), up, right, center, brightBillboardSizeFactor * d, 0, Color.WHITE);
+		RenderHelper.addBillboard(builder, new PoseStack(), up, right, center, brightBillboardSizeFactor * d, 0,
+				Color.WHITE);
 	}
 
 	public static void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 up, Vec3 right, Vec3 center,
@@ -281,7 +300,7 @@ public final class RenderHelper {
 		var gridMinX = gridCellResolution * Math.floor(focusPos.x / gridCellResolution);
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
 
-		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.05f, a2 = 0.1f;
+		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.2f, a2 = 0.5f;
 
 		var gridOffset = gridCellResolution * gridLineCount / 2;
 

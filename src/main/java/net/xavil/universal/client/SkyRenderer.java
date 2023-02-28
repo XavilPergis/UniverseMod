@@ -22,9 +22,11 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
+import net.xavil.universal.Mod;
 import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.RenderMatricesSnapshot;
+import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
@@ -33,6 +35,7 @@ import net.xavil.universal.common.universe.system.OrbitalPlane;
 import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystemNode;
+import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 
@@ -46,6 +49,7 @@ public class SkyRenderer {
 
 	private VertexBuffer distantStarsBuffer = new VertexBuffer();
 	private boolean shouldRebuildStarBuffer = true;
+	private SystemNodeId previousId = null;
 
 	public void resize(int width, int height) {
 		if (this.skyTarget != null) {
@@ -116,6 +120,7 @@ public class SkyRenderer {
 	}
 
 	private void buildStars() {
+		Mod.LOGGER.info("rebuilding background stars");
 		var random = new Random(1035098490512L);
 		var builder = Tesselator.getInstance().getBuilder();
 
@@ -210,7 +215,8 @@ public class SkyRenderer {
 		this.distantStarsBuffer.drawChunkLayer();
 	}
 
-	private void drawSystem(PoseStack poseStack, SystemNodeId currentPlanetId, double time, float partialTick) {
+	private void drawSystem(PoseStack poseStack, Camera camera, SystemNodeId currentPlanetId, double time,
+			float partialTick) {
 
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
 		var system = universe.getSystem(currentPlanetId.system());
@@ -219,36 +225,23 @@ public class SkyRenderer {
 		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick, Vec3.ZERO,
 				(node, pos) -> positions.put(node.getId(), pos));
 
+		var builder = Tesselator.getInstance().getBuilder();
+		var ctx = new PlanetRenderingContext(builder);
+		system.rootNode.visit(node -> {
+			if (node instanceof StarNode starNode) {
+				final var pos = positions.get(starNode.getId());
+				var light = new PlanetRenderingContext.PointLight(pos.mul(1e12), starNode.getColor(),
+						starNode.luminosityLsol);
+				ctx.pointLights.add(light);
+			}
+		});
+
 		RenderSystem.depthMask(true);
 		RenderSystem.enableDepthTest();
 		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
-		var builder = Tesselator.getInstance().getBuilder();
 		var thisPos = positions.get(currentPlanetId.nodeId());
-
-		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(1, 0, 0), 0.6, new
-		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(0.001), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(0, 1, 0), 0.6, new
-		// StarNode(StarNode.Type.BLACK_HOLE, Units.msol(1), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(0, 0, 1), 0.6, new
-		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(100), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(-1, 0, 0), 0.2, new
-		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(0.001), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(0, -1, 0), 0.2, new
-		// StarNode(StarNode.Type.BLACK_HOLE, Units.msol(1), 1, 1, 2000));
-		// addBillboard(builder, poseStack, Vec3.ZERO, Vec3.from(0, 0, -1), 0.2, new
-		// StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(100), 1, 1, 2000));
-		builder.end();
-		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		// RenderSystem.enableDepthTest();
-		BufferUploader.end(builder);
 
 		for (var entry : positions.entrySet()) {
 			var node = system.rootNode.lookup(entry.getKey());
@@ -260,39 +253,44 @@ public class SkyRenderer {
 			var offset = pos.sub(thisPos);
 			var dir = offset.normalize();
 
-			var s = 0.1 / offset.length();
-			s = Math.max(s, 1);
-
 			poseStack.pushPose();
-			poseStack.translate(100 * dir.x, 100 * dir.y, 100 * dir.z);
 			if (node instanceof PlanetNode planetNode) {
-				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-				addBillboard(builder, poseStack, thisPos, pos, 0.05, planetNode);
-				// RenderHelper.renderPlanet(builder, planetNode, thisPos, s,
-				// poseStack, Vec3.ZERO, Color.WHITE);
-				builder.end();
-				this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
-				RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
-				RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-				RenderSystem.depthMask(false);
-				// RenderSystem.enableDepthTest();
-				BufferUploader.end(builder);
-				// RenderHelper.renderPlanet(builder, guh, thisPos, s,
-				// poseStack, Vec3.ZERO, Color.WHITE);
+				ctx.render(planetNode, poseStack, offset.mul(1e12), Color.WHITE);
+
+				// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+				// builder.begin(VertexFormat.Mode.QUADS,
+				// DefaultVertexFormat.POSITION_COLOR_TEX);
+				// var color = new Color(1, 0.5, 0.2, 1);
+				// var up = Vec3.fromMinecraft(camera.getUpVector());
+				// var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
+				// RenderHelper.addBillboard(builder, poseStack, up, right, dir.mul(1000), 10,
+				// 0, color);
+				// builder.end();
+				// this.client.getTextureManager()
+				// .getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+				// .setFilter(true, false);
+				// RenderSystem.setShaderTexture(0,
+				// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+				// RenderSystem.defaultBlendFunc();
+				// BufferUploader.end(builder);
+
 			} else if (node instanceof StarNode starNode) {
+				ctx.renderStar(starNode, poseStack, offset.mul(1e12), Color.WHITE);
+
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-				addBillboard(builder, poseStack, thisPos, pos, 0.1, starNode);
-				// RenderHelper.renderPlanet(builder, planetNode, thisPos, s,
-				// poseStack, Vec3.ZERO, Color.WHITE);
+				var color = new Color(0.3, 1, 0.2, 1);
+				var up = Vec3.fromMinecraft(camera.getUpVector());
+				var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
+				RenderHelper.addBillboard(builder, poseStack, up, right, dir.mul(1000), 10, 0, color);
 				builder.end();
-				this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
-				RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
-				RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-				RenderSystem.depthMask(false);
-				// RenderSystem.enableDepthTest();
+				this.client.getTextureManager()
+						.getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+						.setFilter(true, false);
+				RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+				RenderSystem.defaultBlendFunc();
 				BufferUploader.end(builder);
+
 			}
 			poseStack.popPose();
 		}
@@ -333,9 +331,26 @@ public class SkyRenderer {
 
 		var matrixSnapshot = RenderMatricesSnapshot.capture();
 
+		var fov = GameRendererAccessor.getFov(this.client.gameRenderer, partialTick);
+		var proj = Matrix4f.perspective(fov,
+				(float) this.client.getWindow().getWidth() / (float) this.client.getWindow().getHeight(),
+				50, 1e12f);
+		RenderSystem.setProjectionMatrix(proj);
+		RenderSystem.setShaderFogStart(Float.POSITIVE_INFINITY);
+		RenderSystem.setShaderFogEnd(Float.POSITIVE_INFINITY);
+		this.client.gameRenderer.getProjectionMatrix(partialTick);
+
 		final int width = this.client.getWindow().getWidth(), height = this.client.getWindow().getHeight();
 		if (this.skyTarget == null) {
 			this.skyTarget = new TextureTarget(width, height, true, false);
+		}
+
+		if (this.client.options.keySaveHotbarActivator.consumeClick()) {
+			this.shouldRebuildStarBuffer = true;
+		}
+		if (this.previousId == null || !this.previousId.equals(currentId)) {
+			this.shouldRebuildStarBuffer = true;
+			this.previousId = currentId;
 		}
 
 		if (this.shouldRebuildStarBuffer)
@@ -346,24 +361,19 @@ public class SkyRenderer {
 		this.skyTarget.bindWrite(false);
 
 		// TODO: figure out how we actually wanna handle time
-		// double time = 1e7 + (1440.0 / 5.0) * System.currentTimeMillis() / 1000.0 - 1e10;
+		// double time = 1e7 + (1440.0 / 5.0) * System.currentTimeMillis() / 1000.0 -
+		// 1e10;
+		// double time = (System.currentTimeMillis() % 1000000) / 1000f;
 		double time = (System.currentTimeMillis() % 1000000) / 10f;
 		// double time = (System.currentTimeMillis() % 1000000) * 1000f;
-
-		RenderSystem.setShaderFogStart(10000);
-		RenderSystem.setShaderFogEnd(10000);
 
 		poseStack.pushPose();
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
 		var planet = universe.getSystemNode(currentId);
 		applyPlanetTrasform(poseStack, planet, time, camera.getPosition().x, camera.getPosition().z);
 		drawStars(poseStack.last().pose(), projectionMatrix);
-		drawSystem(poseStack, currentId, time, partialTick);
+		drawSystem(poseStack, camera, currentId, time, partialTick);
 		poseStack.popPose();
-
-		if (this.client.options.keySaveHotbarActivator.consumeClick()) {
-			shouldRebuildStarBuffer = true;
-		}
 
 		this.client.getMainRenderTarget().bindWrite(false);
 		RenderSystem.enableBlend();

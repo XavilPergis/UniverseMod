@@ -75,7 +75,7 @@ public abstract class Universe {
 	public Octree<Lazy<Galaxy.Info, Galaxy>> getVolumeAt(Vec3i volumePos, boolean create) {
 		var volume = this.volume.get(volumePos);
 		if (create) {
-			this.volume.addTicket(volumePos, 0, 1);
+			this.volume.addTicket(volumePos, 0, 15);
 		}
 		if (volume == null && create) {
 			volume = this.volume.get(volumePos);

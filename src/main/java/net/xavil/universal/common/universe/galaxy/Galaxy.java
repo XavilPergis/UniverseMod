@@ -68,7 +68,7 @@ public class Galaxy {
 	public Octree<Lazy<StarSystem.Info, StarSystem>> getVolumeAt(Vec3i volumePos, boolean create) {
 		var volume = this.volume.get(volumePos);
 		if (create) {
-			this.volume.addTicket(volumePos, 0, 10);
+			this.volume.addTicket(volumePos, 0, 15);
 		}
 		if (volume == null && create) {
 			volume = this.volume.get(volumePos);

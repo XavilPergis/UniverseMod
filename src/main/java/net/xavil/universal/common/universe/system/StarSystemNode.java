@@ -13,6 +13,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.xavil.universal.Mod;
+import net.xavil.universal.common.Ellipse;
 import net.xavil.universal.common.universe.Vec3;
 
 public abstract sealed class StarSystemNode permits StarNode, BinaryNode, PlanetNode, OtherNode {
@@ -190,18 +191,18 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	// }
 
 	// public void updatePositions() {
-	// 	if (this instanceof BinaryNode binaryNode) {
-	// 	}
+	// if (this instanceof BinaryNode binaryNode) {
+	// }
 
-	// 	for (var childOrbit : this.childNodes) {
-	// 		var distance = this.position.distanceTo(childOrbit.node.position);
-	// 		var speed = Math.sqrt(G_TM * (this.massYg * childOrbit.node.massYg)
-	// 				* (2 / distance) - (1 / childOrbit.orbitalShape.semimajorAxisTm()));
-	// 		// var velocity =
-	// 		// F = m * a
-	// 		// a = F / m
-	// 	}
-	// 	// F = G * (m1 * m2) / r^2;
+	// for (var childOrbit : this.childNodes) {
+	// var distance = this.position.distanceTo(childOrbit.node.position);
+	// var speed = Math.sqrt(G_TM * (this.massYg * childOrbit.node.massYg)
+	// * (2 / distance) - (1 / childOrbit.orbitalShape.semimajorAxisTm()));
+	// // var velocity =
+	// // F = m * a
+	// // a = F / m
+	// }
+	// // F = G * (m1 * m2) / r^2;
 	// }
 
 	public static final double G = 6.67e-11 * 1e14;
@@ -221,14 +222,19 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return 2 * Math.PI * time / period + node.offset;
 	}
 
+	public static Ellipse getUnaryEllipse(OrbitalPlane referencePlane, Vec3 focusPos, StarSystemNode.UnaryOrbit orbit) {
+		var plane = orbit.orbitalPlane.withReferencePlane(referencePlane);
+		return Ellipse.fromOrbit(focusPos, plane, orbit.orbitalShape);
+	}
+
 	public static Vec3 getUnaryOffset(OrbitalPlane referencePlane, StarSystemNode.UnaryOrbit orbit, double angle) {
 		var plane = orbit.orbitalPlane.withReferencePlane(referencePlane);
 		var apoapsisDir = plane.rotationFromReference().transform(Vec3.XP);
 		var rightDir = plane.rotationFromReference().transform(Vec3.ZP);
 		// var apoapsisDir = Vec3.XP.rotateX(plane.inclinationRad())
-		// 		.rotateY(plane.longitueOfAscendingNodeRad());
+		// .rotateY(plane.longitueOfAscendingNodeRad());
 		// var rightDir = Vec3.ZP.rotateX(plane.inclinationRad())
-		// 		.rotateY(plane.longitueOfAscendingNodeRad());
+		// .rotateY(plane.longitueOfAscendingNodeRad());
 		// FIXME: elliptical orbits
 		return Vec3.ZERO
 				.add(apoapsisDir.mul(Math.cos(angle) * orbit.orbitalShape.semimajorAxisTm()))
@@ -266,7 +272,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 
 		for (var childOrbit : node.childOrbits()) {
 			var angle = getUnaryAngle(node, childOrbit, time);
-			var center = centerPos.add(getUnaryOffset(referencePlane, childOrbit, angle));
+			var ellipse = StarSystemNode.getUnaryEllipse(referencePlane, centerPos, childOrbit);
+			var center = ellipse.pointFromAngle(angle);
 			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
 			positionNode(childOrbit.node, newPlane, time, partialTick, center, consumer);
 		}
@@ -302,7 +309,9 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			node = new StarNode(type, massYg, luminosity, radius, temperature);
 		} else if (nodeType.equals("planet")) {
 			var type = PlanetNode.Type.values()[nbt.getInt("type")];
-			node = new PlanetNode(type, massYg);
+			var radius = nbt.getDouble("radius");
+			var temperature = nbt.getDouble("temperature");
+			node = new PlanetNode(type, massYg, radius, temperature);
 		}
 
 		node.id = id;
@@ -354,6 +363,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		} else if (node instanceof PlanetNode planetNode) {
 			nbt.putString("node_type", "planet");
 			nbt.putInt("type", planetNode.type.ordinal());
+			nbt.putDouble("radius", planetNode.radiusRearth);
+			nbt.putDouble("temperature", planetNode.temperatureK);
 		}
 
 		var children = new ListTag();

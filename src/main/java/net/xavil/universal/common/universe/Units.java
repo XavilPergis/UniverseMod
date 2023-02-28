@@ -17,6 +17,7 @@ public final class Units {
 	// W m^-2 K^-4
 	public static final double BOLTZMANN_CONSTANT = 5.670373e-8;
 	public static final double METERS_PER_RSOL = 6.957e8;
+	public static final double METERS_PER_REARTH = 6.371e6;
 
 	// Sol's effective temperature
 	public static final double K_PER_TSOL = 5780;

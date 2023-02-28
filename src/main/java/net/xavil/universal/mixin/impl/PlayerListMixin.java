@@ -10,7 +10,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.players.PlayerList;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
-import net.xavil.universal.networking.ModServerNetworking;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 
@@ -24,16 +23,12 @@ public abstract class PlayerListMixin {
 		var universeInfoPacket = new ClientboundUniverseInfoPacket();
 		universeInfoPacket.commonSeed = universe.getCommonUniverseSeed();
 		universeInfoPacket.uniqueSeed = universe.getUniqueUniverseSeed();
-
 		universeInfoPacket.startingId = universe.getStartingSystemGenerator().getStartingSystemId();
 		universeInfoPacket.startingSystem = universe.getStartingSystemGenerator().startingSystem;
+		serverPlayer.connection.send(universeInfoPacket);
 
-		ModServerNetworking.send(serverPlayer, universeInfoPacket);
-
-		var changeSystemPacket = new ClientboundChangeSystemPacket();
-		changeSystemPacket.id = LevelAccessor.getUniverseId(serverPlayer.level);
-
-		ModServerNetworking.send(serverPlayer, changeSystemPacket);
+		var changeSystemPacket = new ClientboundChangeSystemPacket(LevelAccessor.getUniverseId(serverPlayer.level));
+		serverPlayer.connection.send(changeSystemPacket);
 	}
 
 }

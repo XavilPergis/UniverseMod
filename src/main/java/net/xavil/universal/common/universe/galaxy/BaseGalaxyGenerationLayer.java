@@ -93,9 +93,9 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			}
 		}
 
-		Mod.LOGGER.info("[galaxygen] average stellar density: {}", averageSectorDensity);
-		Mod.LOGGER.info("[galaxygen] star placement attempt count: {}", starAttemptCount);
-		Mod.LOGGER.info("[galaxygen] successful star placements: {}", successfulAttempts);
+		Mod.LOGGER.debug("[galaxygen] average stellar density: {}", averageSectorDensity);
+		Mod.LOGGER.debug("[galaxygen] star placement attempt count: {}", starAttemptCount);
+		Mod.LOGGER.debug("[galaxygen] successful star placements: {}", successfulAttempts);
 
 	}
 
@@ -104,7 +104,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	private double generateStarMass(Random random, double upperBoundYg) {
 		upperBoundYg = Math.min(MAXIMUM_STAR_MASS_YG, upperBoundYg);
-		var massFactor = Math.pow(random.nextDouble(), 30);
+		var massFactor = Math.pow(random.nextDouble(), 60);
 		var massYg = Mth.lerp(massFactor, MINIMUM_STAR_MASS_YG, upperBoundYg);
 		return massYg;
 	}

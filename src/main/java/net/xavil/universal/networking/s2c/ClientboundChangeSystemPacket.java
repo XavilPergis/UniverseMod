@@ -1,24 +1,19 @@
 package net.xavil.universal.networking.s2c;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.xavil.universal.Mod;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.networking.ModPacket;
 
-public class ClientboundChangeSystemPacket extends ModPacket {
-
-	public static final ResourceLocation CHANNEL = Mod.namespaced("change_system");
+public class ClientboundChangeSystemPacket extends ModPacket<ClientGamePacketListener> {
 
 	public SystemNodeId id;
 
-	public static ClientboundChangeSystemPacket empty() {
-		return new ClientboundChangeSystemPacket();
-	};
+	public ClientboundChangeSystemPacket() {
+	}
 
-	@Override
-	public ResourceLocation getChannelName() {
-		return CHANNEL;
+	public ClientboundChangeSystemPacket(SystemNodeId id) {
+		this.id = id;
 	}
 
 	@Override

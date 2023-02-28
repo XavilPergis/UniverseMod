@@ -193,7 +193,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			double distanceSqr = Double.MAX_VALUE;
 			SectorId id = null;
 		};
-		TicketedVolume.enumerateSectors(pos, radius, Galaxy.TM_PER_SECTOR, sectorPos -> {
+		TicketedVolume.enumerateSectors(pos, STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
 			var volume = this.galaxy.getVolumeAt(sectorPos);
 			var nearestInSector = volume.nearestInRadius(pos, radius);
 			if (nearestInSector != null) {
@@ -277,7 +277,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			var nearestPos = volume.posById(nearest.sectorId()).div(TM_PER_UNIT);
 			var camPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
 			var dir = nearestPos.sub(camPos).normalize();
-			RenderHelper.addLine(builder, camPos, selectedPos, NEAREST_LINE_COLOR);
+			RenderHelper.addLine(builder, camPos, nearestPos, new Color(1, 0, 1, 1));
 			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 1f, 1f, 1f)
 			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
 			// builder.vertex(camPos.x + dir.x, camPos.y + dir.y, camPos.z +
@@ -384,16 +384,31 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// setup
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		// renderOctreeDebug(builder, volume.rootNode, new Color(1, 0, 1, 0.2f));
-		builder.end();
+		// RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+		// builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+		// // renderOctreeDebug(builder, volume.rootNode, new Color(1, 0, 1, 0.2f));
+		// // renderSectorBox(builder, volume.);
+		// // var lo = sectorPos.lowerCorner().mul(UNITS_PER_SECTOR);
+		// // var hi = sectorPos.upperCorner().mul(UNITS_PER_SECTOR);
+		// var color = new Color(1, 1, 1, 0.2f);
+		// RenderHelper.addAxisAlignedBox(builder, volume.rootNode.min.div(TM_PER_UNIT), volume.rootNode.max.div(TM_PER_UNIT), color);
 
-		RenderSystem.enableBlend();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
-		RenderSystem.depthMask(false);
-		BufferUploader.end(builder);
+		// {
+		// 	var focusPos = this.camera.focus.get(partialTick);
+		// 	var nearestInSector = volume.nearestInRadius(focusPos, 10000);
+		// 	if (nearestInSector != null) {
+		// 		var aaa = volume.posById(nearestInSector.id);
+		// 		RenderHelper.addLine(builder, focusPos.div(TM_PER_UNIT), aaa.div(TM_PER_UNIT), new Color(0, 1, 0, 1));
+		// 	}
+		// }
+
+		// builder.end();
+
+		// RenderSystem.enableBlend();
+		// RenderSystem.defaultBlendFunc();
+		// RenderSystem.disableCull();
+		// RenderSystem.depthMask(false);
+		// BufferUploader.end(builder);
 
 		// Stars
 

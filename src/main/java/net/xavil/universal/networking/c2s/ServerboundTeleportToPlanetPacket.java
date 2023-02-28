@@ -1,20 +1,18 @@
 package net.xavil.universal.networking.c2s;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
-import net.xavil.universal.Mod;
+import net.minecraft.network.protocol.game.ServerGamePacketListener;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.networking.ModPacket;
 
-public class ServerboundTeleportToPlanetPacket extends ModPacket {
-
-	public static final ResourceLocation CHANNEL = Mod.namespaced("teleport_to_planet");
+public class ServerboundTeleportToPlanetPacket extends ModPacket<ServerGamePacketListener> {
 
 	public SystemNodeId planetId;
 
-	@Override
-	public ResourceLocation getChannelName() {
-		return CHANNEL;
+	public ServerboundTeleportToPlanetPacket() {}
+
+	public ServerboundTeleportToPlanetPacket(SystemNodeId planetId) {
+		this.planetId = planetId;
 	}
 
 	@Override

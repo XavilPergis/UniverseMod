@@ -12,10 +12,14 @@ public non-sealed class PlanetNode extends StarSystemNode {
 	}
 
 	public Type type;
+	public double radiusRearth;
+	public double temperatureK;
 
-	public PlanetNode(Type type, double massYg) {
+	public PlanetNode(Type type, double massYg, double radiusRearth, double temperatureK) {
 		super(massYg);
 		this.type = type;
+		this.radiusRearth = radiusRearth;
+		this.temperatureK = temperatureK;
 	}
 
 	@Override
@@ -23,13 +27,11 @@ public non-sealed class PlanetNode extends StarSystemNode {
 		var builder = new StringBuilder("PlanetaryBodyNode " + this.id);
 		builder.append(" [");
 		builder.append("massYg=" + this.massYg + ", ");
+		builder.append("radiusRearth=" + this.radiusRearth + ", ");
+		builder.append("temperatureK=" + this.temperatureK + ", ");
 		builder.append("]");
 		return builder.toString();
 	}
-
-	// public static class Features {
-	// 	public boolean 
-	// }
 
 	// planet type (gas giant, icy world, rocky world, earth-like world, etc)
 	// mass, surface gravity, atmosphere type, landable

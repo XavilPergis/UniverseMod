@@ -1,20 +1,24 @@
 package net.xavil.universal.networking;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.network.PacketListener;
+import net.minecraft.network.protocol.Packet;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 
-public abstract class ModPacket {
-
-	public abstract ResourceLocation getChannelName();
+public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 
 	public abstract void read(FriendlyByteBuf buf);
 
 	public abstract void write(FriendlyByteBuf buf);
+
+	@Override
+	public final void handle(T listener) {
+		ModNetworking.dispatch(this, listener);
+	}
 
 	public static Vec3i readVector(FriendlyByteBuf buf) {
 		var x = buf.readInt();
@@ -60,6 +64,7 @@ public abstract class ModPacket {
 	public static SystemNodeId readSystemNodeId(FriendlyByteBuf buf) {
 		if (buf.readBoolean())
 			return null;
+
 		var systemId = readSystemId(buf);
 		var node = buf.readInt();
 		return new SystemNodeId(systemId, node);

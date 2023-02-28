@@ -42,21 +42,22 @@ public class Octree<T> {
 		this.rootNode = new Node.Leaf<T>(config, min, max);
 	}
 
-	public int insert(Vec3 pos, int layer, T value) {
-		var id = this.elements.size();
-		var element = new Element<T>(new Id(layer, id), pos, value);
+	public int insert(Vec3 pos, int layerId, T value) {
+		if (!this.elements.containsKey(layerId)) {
+			this.elements.put(layerId, new ArrayList<>());
+		}
+		final var layer = this.elements.get(layerId);
+
+		var id = layer.size();
+		var element = new Element<T>(new Id(layerId, id), pos, value);
 		var newRoot = this.rootNode.insert(element);
 		if (newRoot == null) {
 			Mod.LOGGER.warn("failed to insert element " + id + " into octree, pos=" + element.pos);
 			return -1;
 		}
 		this.rootNode = newRoot;
+		layer.add(element);
 
-		if (!this.elements.containsKey(layer)) {
-			this.elements.put(layer, new ArrayList<>());
-		}
-
-		this.elements.get(layer).add(element);
 		return id;
 	}
 

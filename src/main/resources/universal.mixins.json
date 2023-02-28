@@ -7,10 +7,12 @@
 	"MinecraftServerMixin",
 	"LevelMixin",
 	"ServerPlayerMixin",
+	"ConnectionProtocolMixin",
 	"PlayerListMixin"
   ],
   "client": [
     "MinecraftClientMixin",
+    "GameRendererMixin",
     "LevelRendererMixin"
   ],
   "injectors": {

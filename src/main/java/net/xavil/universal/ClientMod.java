@@ -1,12 +1,16 @@
 package net.xavil.universal;
 
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.screen.GalaxyMapScreen;
 import net.xavil.universal.client.screen.SystemMapScreen;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
-import net.xavil.universal.networking.ModClientNetworking;
+import net.xavil.universal.networking.ModNetworking;
 import net.xavil.universal.networking.ModPacket;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
@@ -16,10 +20,16 @@ public class ClientMod implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		ModClientNetworking.register();
+		final var client = Minecraft.getInstance();
+
+		ModNetworking.CLIENTBOUND_PLAY_HANDLER = packet -> client.execute(() -> handlePacket(packet));
+
+		ModRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
+			acceptor.accept(ModRendering.PLANET_SHADER, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+		});
 	}
 
-	public static void handlePacket(ModPacket packetUntyped) {
+	public static void handlePacket(ModPacket<ClientGamePacketListener> packetUntyped) {
 		final var client = Minecraft.getInstance();
 
 		if (packetUntyped instanceof ClientboundOpenStarmapPacket packet) {

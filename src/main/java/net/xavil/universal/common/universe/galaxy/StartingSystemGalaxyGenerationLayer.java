@@ -1,6 +1,5 @@
 package net.xavil.universal.common.universe.galaxy;
 
-import java.util.ArrayList;
 import java.util.Random;
 
 import net.xavil.universal.common.universe.Lazy;
@@ -53,10 +52,9 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		init.remainingHydrogenYg = 0;
 		init.name = "Sol";
 		init.systemAgeMya = 4600;
-		init.stars = new ArrayList<>();
 		this.startingSystem.visit(node -> {
 			if (node instanceof StarNode starNode) {
-				init.stars.add(starNode);
+				init.addStar(starNode);
 			}
 		});
 		sink.accept(pos, new Lazy<>(init, n -> system));

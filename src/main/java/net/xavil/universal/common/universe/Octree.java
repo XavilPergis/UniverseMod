@@ -61,14 +61,14 @@ public class Octree<T> {
 		return id;
 	}
 
-	public @Nullable T getById(Id id) {
+	public T getById(Id id) {
 		var layer = this.elements.get(id.layerIndex);
 		if (layer == null)
 			return null;
 		return id.elementIndex >= layer.size() ? null : layer.get(id.elementIndex).value;
 	}
 
-	public @Nullable Vec3 posById(Id id) {
+	public Vec3 posById(Id id) {
 		var layer = this.elements.get(id.layerIndex);
 		if (layer == null)
 			return null;
@@ -77,6 +77,10 @@ public class Octree<T> {
 
 	public void enumerateInRadius(Vec3 pos, double radius, Consumer<Element<T>> consumer) {
 		this.rootNode.enumerateInRadius(pos, radius, consumer);
+	}
+
+	public void enumerateElements(Consumer<Element<T>> consumer) {
+		this.elements.forEach((layerId, elements) -> elements.forEach(consumer::accept));
 	}
 
 	public Stream<Element<T>> streamElements() {

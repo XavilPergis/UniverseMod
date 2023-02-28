@@ -137,12 +137,10 @@ public final class ServerUniverse extends Universe {
 		var info = new StarSystem.Info();
 		info.systemAgeMya = startingSystem.systemAgeMya;
 		info.remainingHydrogenYg = 0;
-		info.name = startingSystem.name;
-		
-		info.stars = new ArrayList<>();
+		info.name = startingSystem.name;	
 		startingSystem.rootNode.visit(node -> {
 			if (node instanceof StarNode starNode)
-				info.stars.add(starNode);
+				info.addStar(starNode);
 		});
 
 		var rootNode = startingSystem.rootNode;

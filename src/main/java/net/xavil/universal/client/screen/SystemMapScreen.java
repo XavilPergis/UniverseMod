@@ -1,7 +1,9 @@
 package net.xavil.universal.client.screen;
 
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.annotation.Nullable;
 
@@ -53,6 +55,8 @@ public class SystemMapScreen extends UniversalScreen {
 	private boolean showGuides = true;
 	private final SystemId systemId;
 	private final Map<Integer, Vec3> positions = new HashMap<>();
+
+	private Set<String> activeDebugFeatures = new HashSet<>();
 
 	public SystemMapScreen(@Nullable Screen previousScreen, SystemId systemId, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
@@ -115,9 +119,9 @@ public class SystemMapScreen extends UniversalScreen {
 		return false;
 	}
 
-	private int getClosestNode(float partialTick) {
+	private int getClosestNode(OrbitCamera.Cached camera) {
 		int closest = -1;
-		var focusPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
+		var focusPos = camera.focus.div(TM_PER_UNIT);
 		for (var entry : this.positions.entrySet()) {
 			if (closest == -1) {
 				closest = entry.getKey();
@@ -142,7 +146,7 @@ public class SystemMapScreen extends UniversalScreen {
 		final var partialTick = this.client.getFrameTime();
 
 		if (keyCode == GLFW.GLFW_KEY_F) {
-			this.selectedId = getClosestNode(partialTick);
+			this.selectedId = getClosestNode(this.camera.cached(partialTick));
 			this.followingId = selectedId;
 			Mod.LOGGER.warn("this.selectedId = " + this.selectedId);
 		} else if (keyCode == GLFW.GLFW_KEY_R) {
@@ -163,6 +167,12 @@ public class SystemMapScreen extends UniversalScreen {
 				var packet = new ServerboundTeleportToPlanetPacket();
 				packet.planetId = new SystemNodeId(this.systemId, this.selectedId);
 				this.client.player.connection.send(packet);
+			}
+		} else if (keyCode == GLFW.GLFW_KEY_P && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
+			if (this.activeDebugFeatures.contains("orbit_path_subdivisions")) {
+				this.activeDebugFeatures.remove("orbit_path_subdivisions");
+			} else {
+				this.activeDebugFeatures.add("orbit_path_subdivisions");
 			}
 		}
 
@@ -294,40 +304,25 @@ public class SystemMapScreen extends UniversalScreen {
 		}
 	}
 
-	private void addEllipseArc(VertexConsumer builder, Ellipse ellipse, Vec3 cameraPos, Color color,
-			double endpointAngleL, double endpointAngleH, double maxDepth) {
+	private static final Color[] ORBIT_PATH_DEBUG_COLORS = { Color.RED, Color.GREEN, Color.BLUE, Color.CYAN,
+			Color.MAGENTA, Color.YELLOW, };
 
-		var midpointAngle = (endpointAngleL + endpointAngleL) / 2;
+	private void addEllipseArc(VertexConsumer builder, Ellipse ellipse, Vec3 cameraPos, Color color,
+			double endpointAngleL, double endpointAngleH, int maxDepth) {
+
 		var endpointL = ellipse.pointFromAngle(endpointAngleL);
 		var endpointH = ellipse.pointFromAngle(endpointAngleH);
-		var midpointIdeal = ellipse.pointFromAngle(midpointAngle);
 		var midpointSegment = endpointL.div(2).add(endpointH.div(2));
 
-		var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
+		// var midpointAngle = (endpointAngleL + endpointAngleL) / 2;
+		// var midpointIdeal = ellipse.pointFromAngle(midpointAngle);
+		// var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
 
 		var divisionRadius = 10 * endpointL.distanceTo(endpointH);
 
-		// var mi = 1 + (int) maxDepth;
-		// if (mi % 2 >= 1) {
-		// color = color.withR(1);
-		// } else {
-		// color = color.withR(0);
-		// }
-		// if (mi % 4 >= 2) {
-		// color = color.withG(1);
-		// } else {
-		// color = color.withG(0);
-		// }
-		// if (mi % 8 >= 4) {
-		// color = color.withB(1);
-		// } else {
-		// color = color.withB(0);
-		// }
-		// var rr = Mth.murmurHash3Mixer(0 + (int) maxDepth);
-		// var rg = Mth.murmurHash3Mixer(1 + (int) maxDepth);
-		// var rb = Mth.murmurHash3Mixer(2 + (int) maxDepth);
-		// color = new Color(rr, rg, rb, 1);
-		color = color.withA(1);
+		if (this.activeDebugFeatures.contains("orbit_path_subdivisions")) {
+			color = ORBIT_PATH_DEBUG_COLORS[maxDepth % ORBIT_PATH_DEBUG_COLORS.length];
+		}
 
 		if (maxDepth > 0 && cameraPos.distanceTo(midpointSegment) < divisionRadius) {
 			var subdivisionSegments = 2;
@@ -354,8 +349,8 @@ public class SystemMapScreen extends UniversalScreen {
 		}
 	}
 
-	private void renderNode(StarSystemNode node, OrbitalPlane referencePlane, PlanetRenderingContext ctx, double time, float partialTick,
-			Vec3 centerPos) {
+	private void renderNode(OrbitCamera.Cached camera, StarSystemNode node, OrbitalPlane referencePlane,
+			PlanetRenderingContext ctx, double time, float partialTick, Vec3 centerPos) {
 		// FIXME: elliptical orbits n stuff
 		// FIXME: every node's reference plane is the root reference plane currently,
 		// because im unsure how to transform child planes from being parent-relative to
@@ -364,7 +359,7 @@ public class SystemMapScreen extends UniversalScreen {
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
 		var cameraPos = this.camera.getPos(partialTick);
-		var focusPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
+		var focusPos = camera.focus.div(TM_PER_UNIT);
 		var toCenter = centerPos.sub(focusPos);
 
 		if (node instanceof BinaryNode binaryNode) {
@@ -373,8 +368,8 @@ public class SystemMapScreen extends UniversalScreen {
 			var aCenter = centerPos.add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angle));
 			var bCenter = centerPos.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angle));
 			var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
-			renderNode(binaryNode.getA(), newPlane, ctx, time, partialTick, aCenter);
-			renderNode(binaryNode.getB(), newPlane, ctx, time, partialTick, bCenter);
+			renderNode(camera, binaryNode.getA(), newPlane, ctx, time, partialTick, aCenter);
+			renderNode(camera, binaryNode.getB(), newPlane, ctx, time, partialTick, bCenter);
 
 			if (this.showGuides) {
 				RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
@@ -442,7 +437,7 @@ public class SystemMapScreen extends UniversalScreen {
 			// childOrbit, angle));
 			var center = ellipse.pointFromAngle(angle);
 			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
-			renderNode(childNode, newPlane, ctx, time, partialTick, center);
+			renderNode(camera, childNode, newPlane, ctx, time, partialTick, center);
 
 			if (this.showGuides) {
 				RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
@@ -534,15 +529,12 @@ public class SystemMapScreen extends UniversalScreen {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
 			ctx.renderPlanet(planetNode, new PoseStack(), centerPos, 1e-12, Color.WHITE);
-			// RenderHelper.renderPlanet(builder, planetNode, this.camera.getPos(partialTick), 1e-12, new PoseStack(),
-			// 		centerPos, Color.WHITE);
+			// RenderHelper.renderPlanet(builder, planetNode,
+			// this.camera.getPos(partialTick), 1e-12, new PoseStack(),
+			// centerPos, Color.WHITE);
 		} else {
-			RenderHelper.renderStarBillboard(builder, this.camera, node, centerPos, TM_PER_UNIT, partialTick);
+			RenderHelper.renderStarBillboard(builder, camera, node, centerPos, TM_PER_UNIT, partialTick);
 		}
-	}
-
-	private double getGridScale(float partialTick) {
-		return RenderHelper.getGridScale(this.camera, Units.TM_PER_AU, 10, partialTick);
 	}
 
 	@Override
@@ -553,7 +545,8 @@ public class SystemMapScreen extends UniversalScreen {
 		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
 		RenderSystem.depthMask(true);
 
-		var partialTick = this.client.getFrameTime();
+		final var partialTick = this.client.getFrameTime();
+		final var camera = this.camera.cached(partialTick);
 
 		if (system == null)
 			return;
@@ -571,11 +564,11 @@ public class SystemMapScreen extends UniversalScreen {
 			}
 		}
 
-		var prevMatrices = this.camera.setupRenderMatrices(partialTick);
+		var prevMatrices = camera.setupRenderMatrices(partialTick);
 
 		final var builder = Tesselator.getInstance().getBuilder();
 
-		RenderHelper.renderGrid(builder, this.camera, TM_PER_UNIT, 1e-3 * Units.TM_PER_AU,
+		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, 1e-3 * Units.TM_PER_AU,
 				10, 100, partialTick);
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
@@ -583,7 +576,7 @@ public class SystemMapScreen extends UniversalScreen {
 		var k = this.camera.scale.get(partialTick);
 		RenderHelper.addBillboard(builder,
 				new PoseStack(),
-				this.camera.focus.get(partialTick).div(TM_PER_UNIT),
+				camera.focus.div(TM_PER_UNIT),
 				Vec3.from(0.02 * k, 0, 0),
 				Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
 		builder.end();
@@ -606,9 +599,9 @@ public class SystemMapScreen extends UniversalScreen {
 			}
 		});
 
-		renderNode(system.rootNode, OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
+		renderNode(camera, system.rootNode, OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
 
-		var closestId = getClosestNode(partialTick);
+		var closestId = getClosestNode(camera);
 		var closestPos = this.positions.get(closestId);
 		RenderSystem.enableBlend();
 		RenderSystem.disableTexture();
@@ -617,7 +610,7 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.lineWidth(1);
 		RenderSystem.depthMask(false);
 
-		RenderHelper.renderLine(builder, this.camera.focus.get(partialTick).div(TM_PER_UNIT), closestPos,
+		RenderHelper.renderLine(builder, camera.focus.div(TM_PER_UNIT), closestPos,
 				partialTick, new Color(1, 1, 1, 1));
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
@@ -626,14 +619,12 @@ public class SystemMapScreen extends UniversalScreen {
 			var camPos = this.camera.getPos(partialTick);
 			var nodePos = entry.getValue();
 			var distanceFromCamera = camPos.distanceTo(nodePos);
-			var up = camera.getUpVector(partialTick);
-			var right = camera.getRightVector(partialTick);
 
 			if (this.selectedId == entry.getKey()) {
-				RenderHelper.addBillboard(builder, new PoseStack(), up, right, nodePos,
+				RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right, nodePos,
 						0.01 * distanceFromCamera, 0, new Color(1, 0.5, 0.5, 0.2));
 			} else {
-				RenderHelper.addBillboard(builder, new PoseStack(), up, right, nodePos,
+				RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right, nodePos,
 						0.01 * distanceFromCamera, 0, new Color(0.5, 0.5, 0.5, 0.2));
 			}
 

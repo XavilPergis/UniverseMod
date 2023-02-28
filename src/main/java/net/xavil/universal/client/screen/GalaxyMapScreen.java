@@ -1,8 +1,6 @@
 package net.xavil.universal.client.screen;
 
-import java.util.Comparator;
 import java.util.Random;
-import java.util.stream.Stream;
 
 import javax.annotation.Nullable;
 
@@ -242,8 +240,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		return false;
 	}
 
-	private void renderGrid(float partialTick) {
-		var prevMatrices = this.camera.setupRenderMatrices(partialTick);
+	private void renderGrid(OrbitCamera.Cached camera, float partialTick) {
+		var prevMatrices = camera.setupRenderMatrices(partialTick);
 
 		// setup
 
@@ -251,16 +249,15 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// Grid
 
-		RenderHelper.renderGrid(builder, this.camera, TM_PER_UNIT, 1, 10, 100, partialTick);
+		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, 1, 10, 100, partialTick);
 
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-		var focusPos = this.camera.focus.get(partialTick);
 		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
 		{
-			var camPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
+			var camPos = camera.focus.div(TM_PER_UNIT);
 			var dir = selectedPos.sub(camPos).normalize();
 			RenderHelper.addLine(builder, camPos, selectedPos, SELECTION_LINE_COLOR);
 			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 0f, 1f, 0.2f)
@@ -271,11 +268,11 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		}
 
-		var nearest = getNearestSystem(focusPos, 10000);
+		var nearest = getNearestSystem(camera.focus, 10000);
 		if (nearest != null) {
 			var volume = this.galaxy.getVolumeAt(nearest.sectorPos());
 			var nearestPos = volume.posById(nearest.sectorId()).div(TM_PER_UNIT);
-			var camPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
+			var camPos = camera.focus.div(TM_PER_UNIT);
 			var dir = nearestPos.sub(camPos).normalize();
 			RenderHelper.addLine(builder, camPos, nearestPos, new Color(1, 0, 1, 1));
 			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 1f, 1f, 1f)
@@ -312,30 +309,11 @@ public class GalaxyMapScreen extends UniversalScreen {
 	private static record StarInfo(Vec3 pos, StarSystemNode node) {
 	}
 
-	private void renderSectorStars(VertexConsumer builder, Stream<StarInfo> sectorOffsets,
-			float partialTick) {
+	// private void renderSectorStars(VertexConsumer builder, Stream<StarInfo>
+	// sectorOffsets,
+	// float partialTick) {
 
-		var focusPos = this.camera.focus.get(partialTick);
-		var cameraPos = this.camera.getPos(partialTick).mul(TM_PER_UNIT);
-
-		sectorOffsets.forEach(info -> {
-			var distanceFromFocus = focusPos.distanceTo(info.pos);
-			var alphaFactorFocus = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
-			if (alphaFactorFocus <= 0.05)
-				return;
-
-			var distanceFromCamera = cameraPos.distanceTo(info.pos);
-			var alphaFactorCamera = 1 - Mth.clamp(distanceFromCamera / STAR_RENDER_RADIUS * 4, 0, 1);
-			var alphaFactor = Math.max(alphaFactorFocus, alphaFactorCamera);
-
-			var center = info.pos.div(TM_PER_UNIT);
-
-			// TODO: do the billboarding in a vertex shader!
-
-			RenderHelper.addBillboard(builder, this.camera, info.node, center, TM_PER_UNIT, partialTick);
-		});
-
-	}
+	// }
 
 	private <T> int countOctreeDescendants(Octree.Node<T> node) {
 		if (node instanceof Octree.Node.Branch<T> branchNode) {
@@ -371,8 +349,9 @@ public class GalaxyMapScreen extends UniversalScreen {
 		}
 	}
 
-	private void renderStars(Octree<Lazy<StarSystem.Info, StarSystem>> volume, float partialTick) {
-		var prevMatrices = this.camera.setupRenderMatrices(partialTick);
+	private void renderStars(OrbitCamera.Cached camera, Octree<Lazy<StarSystem.Info, StarSystem>> volume,
+			float partialTick) {
+		var prevMatrices = camera.setupRenderMatrices(partialTick);
 
 		// rotate then translate rotates everything about the origin, then translates
 		// translate then rotate translates everything away from the origin and then
@@ -384,42 +363,33 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// setup
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
-		// RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-		// builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		// // renderOctreeDebug(builder, volume.rootNode, new Color(1, 0, 1, 0.2f));
-		// // renderSectorBox(builder, volume.);
-		// // var lo = sectorPos.lowerCorner().mul(UNITS_PER_SECTOR);
-		// // var hi = sectorPos.upperCorner().mul(UNITS_PER_SECTOR);
-		// var color = new Color(1, 1, 1, 0.2f);
-		// RenderHelper.addAxisAlignedBox(builder, volume.rootNode.min.div(TM_PER_UNIT), volume.rootNode.max.div(TM_PER_UNIT), color);
-
-		// {
-		// 	var focusPos = this.camera.focus.get(partialTick);
-		// 	var nearestInSector = volume.nearestInRadius(focusPos, 10000);
-		// 	if (nearestInSector != null) {
-		// 		var aaa = volume.posById(nearestInSector.id);
-		// 		RenderHelper.addLine(builder, focusPos.div(TM_PER_UNIT), aaa.div(TM_PER_UNIT), new Color(0, 1, 0, 1));
-		// 	}
-		// }
-
-		// builder.end();
-
-		// RenderSystem.enableBlend();
-		// RenderSystem.defaultBlendFunc();
-		// RenderSystem.disableCull();
-		// RenderSystem.depthMask(false);
-		// BufferUploader.end(builder);
 
 		// Stars
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		renderSectorStars(builder, volume.streamElements().map(element -> {
-			var initialInfo = element.value.getInitial();
-			var brightestStar = initialInfo.stars.stream().max(Comparator.comparing(star -> star.luminosityLsol)).get();
-			return new StarInfo(element.pos, brightestStar);
-		}), partialTick);
+		{
+			var cameraPos = camera.pos.mul(TM_PER_UNIT);
+
+			volume.enumerateElements(element -> {
+				var distanceFromFocus = camera.focus.distanceTo(element.pos);
+				var alphaFactorFocus = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
+				if (alphaFactorFocus <= 0.05)
+					return;
+
+				var distanceFromCamera = cameraPos.distanceTo(element.pos);
+				var alphaFactorCamera = 1 - Mth.clamp(distanceFromCamera / STAR_RENDER_RADIUS * 4, 0, 1);
+				var alphaFactor = Math.max(alphaFactorFocus, alphaFactorCamera);
+
+				var center = element.pos.div(TM_PER_UNIT);
+
+				// TODO: do the billboarding in a vertex shader!
+
+				var displayStar = element.value.getInitial().getDisplayStar();
+				RenderHelper.addBillboard(builder, camera, displayStar, center, TM_PER_UNIT, partialTick);
+			});
+		}
 
 		builder.end();
 
@@ -433,8 +403,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-		var focusPos = this.camera.focus.get(partialTick).div(TM_PER_UNIT);
-		volume.streamElements().forEach(element -> {
+		var focusPos = camera.focus.div(TM_PER_UNIT);
+		volume.enumerateElements(element -> {
 			var pos = element.pos.div(TM_PER_UNIT);
 			if (pos.distanceTo(focusPos) > 10)
 				return;
@@ -481,6 +451,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// This render method gets a tick delta instead of a tick completion percentage,
 		// so we have to get the partialTick manually.
 		final var partialTick = this.client.getFrameTime();
+		final var camera = this.camera.cached(partialTick);
 
 		// TODO: render distant galaxies or something as a backdrop so its not just
 		// pitch black. or maybe thats just how space is :p
@@ -495,15 +466,13 @@ public class GalaxyMapScreen extends UniversalScreen {
 		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
 		RenderSystem.depthMask(true);
 
-		var focusPos = this.camera.focus.get(partialTick);
+		renderGrid(camera, partialTick);
 
-		renderGrid(partialTick);
-
-		TicketedVolume.enumerateSectors(focusPos, STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
+		TicketedVolume.enumerateSectors(camera.focus, STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
 			// TODO: figure out how to evict old volumes that we're not using. Maybe use
 			// something like vanilla's chunk ticketing system?
 			var volume = this.galaxy.getVolumeAt(sectorPos);
-			renderStars(volume, partialTick);
+			renderStars(camera, volume, partialTick);
 		});
 
 		// selected system gizmo
@@ -511,16 +480,15 @@ public class GalaxyMapScreen extends UniversalScreen {
 		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
 
-		var prevMatrices = this.camera.setupRenderMatrices(partialTick);
+		var prevMatrices = camera.setupRenderMatrices(partialTick);
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		// RenderHelper.addBillboard(builder, this.camera, selectedPos, 0.5, 0,
 		// partialTick, new Color(1, 1, 1, 0.2f));
-		var up = camera.getUpVector(partialTick);
-		var right = camera.getRightVector(partialTick);
-		RenderHelper.addBillboard(builder, new PoseStack(), up, right, selectedPos, 0.5, 0, new Color(1, 1, 1, 0.2f));
+		RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right, selectedPos, 0.5, 0,
+				new Color(1, 1, 1, 0.2f));
 
 		builder.end();
 
@@ -535,7 +503,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		var k = this.camera.scale.get(partialTick);
-		RenderHelper.addBillboard(builder, new PoseStack(), this.camera.focus.get(partialTick).div(TM_PER_UNIT),
+		RenderHelper.addBillboard(builder, new PoseStack(), camera.focus.div(TM_PER_UNIT),
 				Vec3.from(0.02 * k, 0, 0),
 				Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
 		builder.end();
@@ -577,7 +545,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		h += this.client.font.lineHeight;
 		h += 10;
 
-		for (var star : system.stars) {
+		var systemStars = system.getStars().toList();
+		for (var star : systemStars) {
 			this.client.font.draw(poseStack, describeStar(star), 10, h, 0xffffffff);
 			h += this.client.font.lineHeight;
 		}

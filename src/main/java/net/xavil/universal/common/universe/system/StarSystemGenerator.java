@@ -38,13 +38,15 @@ public class StarSystemGenerator {
 	}
 
 	public StarSystemNode generate() {
+		final var stars = info.getStars().toList();
+
 		// should never happen
-		if (info.stars.isEmpty())
+		if (stars.isEmpty())
 			throw new IllegalArgumentException("cannot generate a star system with no stars!");
 
-		StarSystemNode current = info.stars.get(0);
-		for (var i = 1; i < info.stars.size(); ++i) {
-			final var starToInsert = info.stars.get(i);
+		StarSystemNode current = stars.get(0);
+		for (var i = 1; i < stars.size(); ++i) {
+			final var starToInsert = stars.get(i);
 			Mod.LOGGER.info("Placing star #" + i + "");
 			var newRoot = mergeStarNodes(current, starToInsert);
 			if (newRoot != null) {
@@ -248,7 +250,7 @@ public class StarSystemGenerator {
 			var typesLength = PlanetNode.Type.values().length;
 			var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
 			var r = random.nextDouble(0.02, 30);
-			
+
 			var planetNode = new PlanetNode(randomType, initialMass, r, 300);
 			var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
 			var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);

@@ -12,12 +12,9 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
-import net.xavil.universal.client.ModRendering;
-import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.system.BinaryNode;
 import net.xavil.universal.common.universe.system.PlanetNode;
@@ -41,120 +38,6 @@ public final class RenderHelper {
 
 	private static final Minecraft CLIENT = Minecraft.getInstance();
 
-	private static ResourceLocation getBaseLayer(PlanetNode node) {
-		var missing = MissingTextureAtlasSprite.getLocation();
-		return switch (node.type) {
-			case EARTH_LIKE_WORLD -> BASE_WATER_LOCATION;
-			case GAS_GIANT -> BASE_ROCKY_LOCATION;
-			case ICE_WORLD -> BASE_WATER_LOCATION;
-			case ROCKY_ICE_WORLD -> BASE_WATER_LOCATION;
-			case ROCKY_WORLD -> BASE_ROCKY_LOCATION;
-			case WATER_WORLD -> BASE_WATER_LOCATION;
-			default -> missing;
-		};
-	}
-
-	public static void renderPlanet(BufferBuilder builder, PlanetNode node, Vec3 camPos, double scale,
-			PoseStack poseStack, Vec3 center, Color tintColor) {
-		RenderSystem.defaultBlendFunc();
-		// RenderSystem.depthMask(true);
-		// RenderSystem.enableDepthTest();
-		var baseTexture = getBaseLayer(node);
-
-		// double d = getCelestialBodySize(node, camPos, center);
-		double d = 1;
-
-		// var radius = scale * Math.cbrt((node.massYg / Units.mearth(1)) / 1);
-		var radiusM = scale * Units.METERS_PER_REARTH * node.radiusRearth;
-
-		renderTexturedCube(builder, baseTexture, poseStack, center, radiusM * d, tintColor);
-		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
-			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, center, radiusM * d, tintColor);
-		}
-	}
-
-	public static void renderPlanet(BufferBuilder builder, PlanetNode node, PoseStack poseStack, double scale,
-			Color tintColor) {
-		RenderSystem.defaultBlendFunc();
-		// RenderSystem.depthMask(true);
-		// RenderSystem.enableDepthTest();
-		var baseTexture = getBaseLayer(node);
-		var radiusM = Units.METERS_PER_REARTH * node.radiusRearth;
-		renderTexturedCube(builder, baseTexture, poseStack, Vec3.ZERO, scale * radiusM, tintColor);
-		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
-			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, Vec3.ZERO, scale * radiusM, tintColor);
-		}
-	}
-
-	private static void renderTexturedCube(BufferBuilder builder, ResourceLocation texture, PoseStack poseStack,
-			Vec3 center, double radius, Color tintColor) {
-		// RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.PLANET_SHADER));
-		RenderSystem.setShader(() -> GameRenderer.getPositionTexColorNormalShader());
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-		addCube(builder, poseStack, center, radius, tintColor);
-		builder.end();
-		RenderSystem.setShaderTexture(0, texture);
-		BufferUploader.end(builder);
-	}
-
-	private static void addCube(VertexConsumer builder, PoseStack poseStack, Vec3 center, double radius,
-			Color tintColor) {
-
-		final double nr = -radius, pr = radius;
-		final var nnn = center.add(nr, nr, nr);
-		final var nnp = center.add(nr, nr, pr);
-		final var npn = center.add(nr, pr, nr);
-		final var npp = center.add(nr, pr, pr);
-		final var pnn = center.add(pr, nr, nr);
-		final var pnp = center.add(pr, nr, pr);
-		final var ppn = center.add(pr, pr, nr);
-		final var ppp = center.add(pr, pr, pr);
-
-		final var pose = poseStack.last();
-
-		// -X
-		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, -1, 0, 0, 0.00f, 0.25f);
-		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, -1, 0, 0, 0.00f, 0.50f);
-		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, -1, 0, 0, 0.25f, 0.50f);
-		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, -1, 0, 0, 0.25f, 0.25f);
-		// +X
-		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 1, 0, 0, 0.75f, 0.50f);
-		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 1, 0, 0, 0.75f, 0.25f);
-		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 1, 0, 0, 0.50f, 0.25f);
-		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 1, 0, 0, 0.50f, 0.50f);
-		// -Y
-		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, -1, 0, 0.25f, 0.75f);
-		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, -1, 0, 0.50f, 0.75f);
-		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, -1, 0, 0.50f, 0.50f);
-		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, -1, 0, 0.25f, 0.50f);
-		// +Y
-		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 1, 0, 0.50f, 0.00f);
-		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, 0, 1, 0, 0.25f, 0.00f);
-		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, 0, 1, 0, 0.25f, 0.25f);
-		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 1, 0, 0.50f, 0.25f);
-		// -Z
-		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, 0, -1, 0.75f, 0.50f);
-		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, 0, -1, 1.00f, 0.50f);
-		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, 0, 0, -1, 1.00f, 0.25f);
-		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 0, -1, 0.75f, 0.25f);
-		// +Z
-		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, 0, 1, 0.25f, 0.50f);
-		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, 0, 1, 0.50f, 0.50f);
-		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 0, 1, 0.50f, 0.25f);
-		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
-	}
-
-	private static void cubeVertex(VertexConsumer builder, PoseStack.Pose pose, Color color,
-			double x, double y, double z, double nx, double ny, double nz, float u, float v) {
-		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
-		builder
-				.vertex(pose.pose(), (float) x, (float) y, (float) z)
-				.uv(u, v)
-				.color(r, g, b, a)
-				.normal(pose.normal(), (float) nx, (float) ny, (float) nz)
-				.endVertex();
-	}
-
 	public static void renderStarBillboard(BufferBuilder builder, Camera camera, StarSystemNode node, Vec3 center,
 			double tmPerUnit, float partialTick) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
@@ -169,7 +52,8 @@ public final class RenderHelper {
 		BufferUploader.end(builder);
 	}
 
-	public static void renderStarBillboard(BufferBuilder builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
+	public static void renderStarBillboard(BufferBuilder builder, OrbitCamera.Cached camera, StarSystemNode node,
+			Vec3 center,
 			double tmPerUnit, float partialTick) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -191,12 +75,10 @@ public final class RenderHelper {
 		addBillboard(builder, up, right, node, center, d);
 	}
 
-	public static void addBillboard(VertexConsumer builder, OrbitCamera camera, StarSystemNode node, Vec3 center,
+	public static void addBillboard(VertexConsumer builder, OrbitCamera.Cached camera, StarSystemNode node, Vec3 center,
 			double tmPerUnit, float partialTick) {
-		double d = getCelestialBodySize(node, camera.getPos(partialTick), center);
-		var up = camera.getUpVector(partialTick);
-		var right = camera.getRightVector(partialTick);
-		addBillboard(builder, up, right, node, center, d);
+		double d = getCelestialBodySize(node, camera.pos, center);
+		addBillboard(builder, camera.up, camera.right, node, center, d);
 	}
 
 	public static double getCelestialBodySize(StarSystemNode node, Vec3 camPos, Vec3 bodyPos) {
@@ -259,20 +141,21 @@ public final class RenderHelper {
 		builder.vertex(p, (float) qhh.x, (float) qhh.y, (float) qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
 	}
 
-	public static double getGridScale(OrbitCamera camera, double tmPerUnit, double scaleFactor, float partialTick) {
+	public static double getGridScale(OrbitCamera.Cached camera, double tmPerUnit, double scaleFactor,
+			float partialTick) {
 		var currentThreshold = tmPerUnit;
 		var scale = tmPerUnit;
 		for (var i = 0; i < 10; ++i) {
 			currentThreshold *= scaleFactor;
-			if (camera.scale.get(partialTick) > currentThreshold)
+			if (camera.camera.scale.get(partialTick) > currentThreshold)
 				scale = currentThreshold;
 		}
 		return scale;
 	}
 
-	public static void renderGrid(BufferBuilder builder, OrbitCamera camera, double tmPerUnit, double gridUnits,
+	public static void renderGrid(BufferBuilder builder, OrbitCamera.Cached camera, double tmPerUnit, double gridUnits,
 			int scaleFactor, int gridLineCount, float partialTick) {
-		var focusPos = camera.focus.get(partialTick).div(tmPerUnit);
+		var focusPos = camera.focus.div(tmPerUnit);
 		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
 		renderGrid(builder, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
 	}

@@ -124,7 +124,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 		// there's always at least one star per system
 		var initialStarMass = generateStarMass(random, remainingHydrogenYg);
-		info.stars.add(generateStarNode(random, info.systemAgeMya, initialStarMass));
+		info.addStar(generateStarNode(random, info.systemAgeMya, initialStarMass));
 
 		// NOTE: generating the stars upfront in this simple way does not seem to be too
 		// costly to do, even directly on the render thread. It still might make sense
@@ -136,7 +136,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			var mass = generateStarMass(random, remainingHydrogenYg);
 			if (remainingHydrogenYg >= mass && remainingHydrogenYg >= MINIMUM_STAR_MASS_YG) {
 				remainingHydrogenYg -= mass;
-				info.stars.add(generateStarNode(random, info.systemAgeMya, mass));
+				info.addStar(generateStarNode(random, info.systemAgeMya, mass));
 			}
 		}
 

@@ -36,8 +36,8 @@ public enum GalaxyType {
 			// var combined = DensityField3.min(noise, DensityField3.add(centralBulge, thinDiscField));
 			// var combined = DensityField3.mul(noise, centralBulge);
 			// var combined = DensityField3.mul(noise, DensityField3.uniform(10));
-			// var combined = DensityField3.mul(DensityField3.max(DensityField3.uniform(0.03), noise), DensityField3.uniform(50));
-			var combined = DensityField3.mul(DensityField3.max(DensityField3.uniform(0.03), noise), DensityField3.uniform(20));
+			var combined = DensityField3.mul(DensityField3.max(DensityField3.uniform(0.03), noise), DensityField3.uniform(50));
+			// var combined = DensityField3.mul(DensityField3.max(DensityField3.uniform(0.03), noise), DensityField3.uniform(20));
 			// var combined = DensityField3.uniform(50);
 			// var combined = centralBulge;
 			// var combined = DensityField3.uniform(10);

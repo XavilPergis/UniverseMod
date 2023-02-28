@@ -145,9 +145,8 @@ public class SkyRenderer {
 			volume.enumerateInRadius(systemPos, Galaxy.TM_PER_SECTOR, element -> {
 				if (element.id == currentId.system().systemSector().sectorId())
 					return;
-				var brightestStar = element.value.getInitial().stars.stream()
-						.max(Comparator.comparing(star -> star.luminosityLsol)).get();
-				addBillboard(builder, new PoseStack(), selfPos, element.pos, 0.02, brightestStar);
+				var displayStar = element.value.getInitial().getDisplayStar();
+				addBillboard(builder, new PoseStack(), selfPos, element.pos, 0.02, displayStar);
 			});
 			// volume.streamElements().forEach(element -> {
 			// });
@@ -331,14 +330,11 @@ public class SkyRenderer {
 
 		var matrixSnapshot = RenderMatricesSnapshot.capture();
 
-		var fov = GameRendererAccessor.getFov(this.client.gameRenderer, partialTick);
-		var proj = Matrix4f.perspective(fov,
-				(float) this.client.getWindow().getWidth() / (float) this.client.getWindow().getHeight(),
-				50, 1e12f);
+		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 10000f, 1e12f, partialTick);
+
 		RenderSystem.setProjectionMatrix(proj);
 		RenderSystem.setShaderFogStart(Float.POSITIVE_INFINITY);
 		RenderSystem.setShaderFogEnd(Float.POSITIVE_INFINITY);
-		this.client.gameRenderer.getProjectionMatrix(partialTick);
 
 		final int width = this.client.getWindow().getWidth(), height = this.client.getWindow().getHeight();
 		if (this.skyTarget == null) {

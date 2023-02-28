@@ -123,23 +123,48 @@ public class OrbitCamera {
 		return res;
 	}
 
-	public RenderMatricesSnapshot setupRenderMatrices(float partialTick) {
-		var snapshot = RenderMatricesSnapshot.capture();
-		RenderSystem.setProjectionMatrix(getProjectionMatrix());
+	public Cached cached(float partialTick) {
+		return new Cached(this,
+				getUpVector(partialTick),
+				getRightVector(partialTick),
+				this.focus.get(partialTick),
+				getPos(partialTick),
+				getOrientation(partialTick));
+	}
 
-		var poseStack = RenderSystem.getModelViewStack();
-		poseStack.setIdentity();
+	public static class Cached {
+		public final OrbitCamera camera;
+		public final Vec3 up, right;
+		public final Vec3 focus;
+		public final Vec3 pos;
+		public final Quaternion orientation;
 
-		var rotation = getOrientation(partialTick);
-		poseStack.mulPose(rotation);
-		Matrix3f inverseViewRotationMatrix = poseStack.last().normal().copy();
-		if (inverseViewRotationMatrix.invert()) {
-			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
+		public Cached(OrbitCamera camera, Vec3 up, Vec3 right, Vec3 focus, Vec3 pos, Quaternion orientation) {
+			this.camera = camera;
+			this.up = up;
+			this.right = right;
+			this.focus = focus;
+			this.pos = pos;
+			this.orientation = orientation;
 		}
 
-		var cameraPos = getPos(partialTick);
-		poseStack.translate(-cameraPos.x, -cameraPos.y, -cameraPos.z);
-		RenderSystem.applyModelViewMatrix();
-		return snapshot;
+		public RenderMatricesSnapshot setupRenderMatrices(float partialTick) {
+			var snapshot = RenderMatricesSnapshot.capture();
+			RenderSystem.setProjectionMatrix(this.camera.getProjectionMatrix());
+
+			var poseStack = RenderSystem.getModelViewStack();
+			poseStack.setIdentity();
+
+			poseStack.mulPose(this.orientation);
+			Matrix3f inverseViewRotationMatrix = poseStack.last().normal().copy();
+			if (inverseViewRotationMatrix.invert()) {
+				RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
+			}
+
+			poseStack.translate(-this.pos.x, -this.pos.y, -this.pos.z);
+			RenderSystem.applyModelViewMatrix();
+			return snapshot;
+		}
+
 	}
 }

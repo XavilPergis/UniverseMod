@@ -1,5 +1,7 @@
 package net.xavil.universal.common.universe.system;
 
+import net.xavil.universal.common.Ellipse;
+
 // The position of this node represents the barycenter of the binary system
 public final class BinaryNode extends StarSystemNode {
 	private StarSystemNode a;
@@ -47,12 +49,14 @@ public final class BinaryNode extends StarSystemNode {
 		this.offset = offset;
 	}
 
-	public double getFocalDistanceA() {
-		return (this.b.massYg / this.a.massYg) * this.orbitalShapeB.focalDistance();
+	public Ellipse getEllipseA(OrbitalPlane referencePlane) {
+		final var plane = this.orbitalPlane.withReferencePlane(referencePlane);
+		return Ellipse.fromOrbit(this.position, plane, orbitalShapeA, false);
 	}
 
-	public double getFocalDistanceB() {
-		return this.orbitalShapeB.focalDistance();
+	public Ellipse getEllipseB(OrbitalPlane referencePlane) {
+		final var plane = this.orbitalPlane.withReferencePlane(referencePlane);
+		return Ellipse.fromOrbit(this.position, plane, orbitalShapeB, true);
 	}
 
 	@Override

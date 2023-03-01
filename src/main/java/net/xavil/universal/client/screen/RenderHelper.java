@@ -184,6 +184,7 @@ public final class RenderHelper {
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
 
 		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.2f, a2 = 0.5f;
+		final double gridFadeFactor = 2.3;
 
 		var gridOffset = gridCellResolution * gridLineCount / 2;
 
@@ -200,8 +201,19 @@ public final class RenderHelper {
 			for (var j = 0; j < gridLineCount; ++j) {
 				var lt = j / (double) gridLineCount;
 				var ht = (j + 1) / (double) gridLineCount;
-				builder.vertex(Mth.lerp(lt, lx, hx), focusPos.y, z).color(r, g, b, la).normal(1, 0, 0).endVertex();
-				builder.vertex(Mth.lerp(ht, lx, hx), focusPos.y, z).color(r, g, b, la).normal(1, 0, 0).endVertex();
+				var lp = Vec3.from(Mth.lerp(lt, lx, hx), focusPos.y, z);
+				var hp = Vec3.from(Mth.lerp(ht, lx, hx), focusPos.y, z);
+
+				var ld = lp.distanceTo(focusPos);
+				var hd = hp.distanceTo(focusPos);
+				if (ld <= gridDiameter / gridFadeFactor) {
+					var rla = la * Mth.clamp(5 * Mth.inverseLerp(ld, gridDiameter / gridFadeFactor, 0), 0, 1);
+					var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter / gridFadeFactor, 0), 0, 1);
+					builder.vertex(Mth.lerp(lt, lx, hx), focusPos.y, z).color(r, g, b, (float) rla).normal(1, 0, 0)
+							.endVertex();
+					builder.vertex(Mth.lerp(ht, lx, hx), focusPos.y, z).color(r, g, b, (float) rha).normal(1, 0, 0)
+							.endVertex();
+				}
 			}
 		}
 		// Z
@@ -215,8 +227,19 @@ public final class RenderHelper {
 			for (var j = 0; j < gridLineCount; ++j) {
 				var lt = j / (double) gridLineCount;
 				var ht = (j + 1) / (double) gridLineCount;
-				builder.vertex(x, focusPos.y, Mth.lerp(lt, lz, hz)).color(r, g, b, la).normal(0, 0, 1).endVertex();
-				builder.vertex(x, focusPos.y, Mth.lerp(ht, lz, hz)).color(r, g, b, la).normal(0, 0, 1).endVertex();
+				var lp = Vec3.from(x, focusPos.y, Mth.lerp(lt, lz, hz));
+				var hp = Vec3.from(x, focusPos.y, Mth.lerp(ht, lz, hz));
+
+				var ld = lp.distanceTo(focusPos);
+				var hd = hp.distanceTo(focusPos);
+				if (ld <= gridDiameter / gridFadeFactor) {
+					var rla = la * Mth.clamp(5 * Mth.inverseLerp(ld, gridDiameter / gridFadeFactor, 0), 0, 1);
+					var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter / gridFadeFactor, 0), 0, 1);
+					builder.vertex(x, focusPos.y, Mth.lerp(lt, lz, hz)).color(r, g, b, (float) rla).normal(0, 0, 1)
+							.endVertex();
+					builder.vertex(x, focusPos.y, Mth.lerp(ht, lz, hz)).color(r, g, b, (float) rha).normal(0, 0, 1)
+							.endVertex();
+				}
 			}
 		}
 

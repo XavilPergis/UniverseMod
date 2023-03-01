@@ -36,6 +36,7 @@ import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
+import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universal.networking.c2s.ServerboundTeleportToPlanetPacket;
 
 public class SystemMapScreen extends UniversalScreen {
@@ -45,8 +46,8 @@ public class SystemMapScreen extends UniversalScreen {
 
 	public static final double TM_PER_UNIT = Units.TM_PER_AU;
 
-	public static final Color BINARY_PATH_COLOR = new Color(0.5f, 0.4f, 0.1f, 0.5f);
-	public static final Color UNARY_PATH_COLOR = new Color(0.2f, 0.2f, 0.2f, 0.5f);
+	public static final Color BINARY_PATH_COLOR = new Color(0.1f, 0.4f, 0.5f, 0.5f);
+	public static final Color UNARY_PATH_COLOR = new Color(0.5f, 0.4f, 0.1f, 0.5f);
 
 	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
 	private OrbitCamera camera = new OrbitCamera(TM_PER_UNIT);
@@ -56,7 +57,7 @@ public class SystemMapScreen extends UniversalScreen {
 	private final SystemId systemId;
 	private final Map<Integer, Vec3> positions = new HashMap<>();
 
-	private Set<String> activeDebugFeatures = new HashSet<>();
+	private static final Set<String> ACTIVE_DEBUG_FEATURES = new HashSet<>();
 
 	public SystemMapScreen(@Nullable Screen previousScreen, SystemId systemId, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
@@ -169,10 +170,10 @@ public class SystemMapScreen extends UniversalScreen {
 				this.client.player.connection.send(packet);
 			}
 		} else if (keyCode == GLFW.GLFW_KEY_P && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
-			if (this.activeDebugFeatures.contains("orbit_path_subdivisions")) {
-				this.activeDebugFeatures.remove("orbit_path_subdivisions");
+			if (ACTIVE_DEBUG_FEATURES.contains("orbit_path_subdivisions")) {
+				ACTIVE_DEBUG_FEATURES.remove("orbit_path_subdivisions");
 			} else {
-				this.activeDebugFeatures.add("orbit_path_subdivisions");
+				ACTIVE_DEBUG_FEATURES.add("orbit_path_subdivisions");
 			}
 		}
 
@@ -307,7 +308,7 @@ public class SystemMapScreen extends UniversalScreen {
 	private static final Color[] ORBIT_PATH_DEBUG_COLORS = { Color.RED, Color.GREEN, Color.BLUE, Color.CYAN,
 			Color.MAGENTA, Color.YELLOW, };
 
-	private void addEllipseArc(VertexConsumer builder, Ellipse ellipse, Vec3 cameraPos, Color color,
+	private static void addEllipseArc(VertexConsumer builder, Ellipse ellipse, Vec3 cameraPos, Color color,
 			double endpointAngleL, double endpointAngleH, int maxDepth) {
 
 		var endpointL = ellipse.pointFromAngle(endpointAngleL);
@@ -320,7 +321,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 		var divisionRadius = 10 * endpointL.distanceTo(endpointH);
 
-		if (this.activeDebugFeatures.contains("orbit_path_subdivisions")) {
+		if (ACTIVE_DEBUG_FEATURES.contains("orbit_path_subdivisions")) {
 			color = ORBIT_PATH_DEBUG_COLORS[maxDepth % ORBIT_PATH_DEBUG_COLORS.length];
 		}
 
@@ -339,14 +340,61 @@ public class SystemMapScreen extends UniversalScreen {
 
 	}
 
-	private void addEllipse(VertexConsumer builder, Ellipse ellipse, Vec3 cameraPos, Color color) {
+	private static void addEllipse(VertexConsumer builder, Ellipse ellipse, Vec3 cameraPos, Color color) {
 		var basePathSegments = 32;
-		var maxDepth = 5;
+		var maxDepth = 6;
 		for (var i = 0; i < basePathSegments; ++i) {
 			var angleL = 2 * Math.PI * (i / (double) basePathSegments);
 			var angleH = 2 * Math.PI * ((i + 1) / (double) basePathSegments);
 			addEllipseArc(builder, ellipse, cameraPos, color, angleL, angleH, maxDepth);
 		}
+	}
+
+	private static void showBinaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
+			float partialTick, BinaryNode node) {
+		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+
+		if (!(node.getA() instanceof BinaryNode))
+		{
+			var ellipse = node.getEllipseA(node.referencePlane);
+			addEllipse(builder, ellipse, camera.pos, BINARY_PATH_COLOR.withA(0.5));
+		}
+		if (!(node.getB() instanceof BinaryNode))
+		{
+			var ellipse = node.getEllipseB(node.referencePlane);
+			addEllipse(builder, ellipse, camera.pos, BINARY_PATH_COLOR.withA(0.5));
+		}
+
+		RenderHelper.addLine(builder, node.getA().position, node.getB().position, BINARY_PATH_COLOR.withA(0.2));
+
+		builder.end();
+		RenderSystem.lineWidth(2f);
+		RenderSystem.enableBlend();
+		RenderSystem.disableTexture();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.depthMask(false);
+		BufferUploader.end(builder);
+	}
+
+	private static void showUnaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
+			float partialTick, StarSystemNode.UnaryOrbit orbit) {
+		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+
+		var ellipse = orbit.getEllipse(orbit.parentNode.referencePlane);
+
+		addEllipse(builder, ellipse, camera.pos, UNARY_PATH_COLOR.withA(0.5));
+
+		builder.end();
+		RenderSystem.lineWidth(2f);
+		RenderSystem.enableBlend();
+		RenderSystem.disableTexture();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.depthMask(false);
+		BufferUploader.end(builder);
 	}
 
 	private void renderNode(OrbitCamera.Cached camera, StarSystemNode node, OrbitalPlane referencePlane,
@@ -358,182 +406,108 @@ public class SystemMapScreen extends UniversalScreen {
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
-		var cameraPos = this.camera.getPos(partialTick);
-		var focusPos = camera.focus.div(TM_PER_UNIT);
-		var toCenter = centerPos.sub(focusPos);
+		// var focusPos = camera.focus.div(TM_PER_UNIT);
+		// var toCenter = centerPos.sub(focusPos);
 
 		if (node instanceof BinaryNode binaryNode) {
-			var angle = StarSystemNode.getBinaryAngle(binaryNode, time);
+			// var angle = StarSystemNode.getBinaryAngle(binaryNode, time);
 
-			var aCenter = centerPos.add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angle));
-			var bCenter = centerPos.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angle));
-			var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
-			renderNode(camera, binaryNode.getA(), newPlane, ctx, time, partialTick, aCenter);
-			renderNode(camera, binaryNode.getB(), newPlane, ctx, time, partialTick, bCenter);
+			// var aCenter = centerPos.add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angle));
+			// var bCenter = centerPos.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angle));
+			// var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
+			renderNode(camera, binaryNode.getA(), OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
+			renderNode(camera, binaryNode.getB(), OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
 
 			if (this.showGuides) {
-				RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-				builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-				var pathSegments = 64;
-				if (!(binaryNode.getA() instanceof BinaryNode)) {
-					var plane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
-					var upDir = plane.rotationFromReference().transform(Vec3.XP);
-					var rightDir = plane.rotationFromReference().transform(Vec3.ZP);
-
-					// return upDir.mul(node.getFocalDistanceA())
-					// .add(upDir.mul(Math.cos(angle) * node.getSemiMajorAxisA()))
-					// .add(rightDir.mul(Math.sin(angle) * node.getSemiMinorAxisA()));
-
-					// addEllipse(builder, ellipse, cameraPos, BINARY_PATH_COLOR.withA(0.5));
-					// for (var i = 0; i < pathSegments; ++i) {
-					// var angleL = 2 * Math.PI * (i / (double) pathSegments);
-					// var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
-					// var aCenterL = centerPos
-					// .add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angleL));
-					// var aCenterH = centerPos
-					// .add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angleH));
-					// RenderHelper.addLine(builder, aCenterL, aCenterH,
-					// BINARY_PATH_COLOR.withA(0.5));
-					// }
-				}
-				if (!(binaryNode.getB() instanceof BinaryNode)) {
-					for (var i = 0; i < pathSegments; ++i) {
-						var angleL = 2 * Math.PI * (i / (double) pathSegments);
-						var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
-						var bCenterL = centerPos
-								.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angleL));
-						var bCenterH = centerPos
-								.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angleH));
-						RenderHelper.addLine(builder, bCenterL, bCenterH, BINARY_PATH_COLOR.withA(0.5));
-					}
-				}
-
-				// var d = 0.01 * this.camera.getPos(partialTick).distanceTo(centerPos);
-				// RenderHelper.addLine(builder, centerPos.subtract(d, 0, d), centerPos.add(d,
-				// 0, d),
-				// BINARY_PATH_COLOR.withA(0.2));
-				// RenderHelper.addLine(builder, centerPos.subtract(-d, 0, d), centerPos.add(-d,
-				// 0, d),
-				// BINARY_PATH_COLOR.withA(0.2));
-				RenderHelper.addLine(builder, aCenter, bCenter, BINARY_PATH_COLOR.withA(0.2));
-
-				builder.end();
-				RenderSystem.enableBlend();
-				RenderSystem.disableTexture();
-				RenderSystem.defaultBlendFunc();
-				RenderSystem.disableCull();
-				RenderSystem.depthMask(false);
-				BufferUploader.end(builder);
+				showBinaryGuides(builder, camera, binaryNode.referencePlane, partialTick, binaryNode);
 			}
 		}
 
 		for (var childOrbit : node.childOrbits()) {
 			var childNode = childOrbit.node;
 
-			var ellipse = StarSystemNode.getUnaryEllipse(referencePlane, centerPos, childOrbit);
+			// var ellipse = childOrbit.getEllipse(childNode.referencePlane);
 
-			var angle = StarSystemNode.getUnaryAngle(node, childOrbit, time);
+			// var angle = StarSystemNode.getUnaryAngle(node, childOrbit, time);
 			// var center = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane,
 			// childOrbit, angle));
-			var center = ellipse.pointFromAngle(angle);
-			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
-			renderNode(camera, childNode, newPlane, ctx, time, partialTick, center);
+			// var center = ellipse.pointFromAngle(angle);
+			// var newPlane = childOrbit.orbitalPlane.withReferencePlane(childNode.referencePlane);
+			renderNode(camera, childNode, OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
 
 			if (this.showGuides) {
-				RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-				builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-
-				// var ellipse = StarSystemNode.getUnaryEllipse(referencePlane, centerPos,
-				// childOrbit);
-				addEllipse(builder, ellipse, cameraPos, BINARY_PATH_COLOR.withA(0.5));
-
-				// var pathSegments = 64;
-				// for (var i = 0; i < pathSegments; ++i) {
-				// var angleL = 2 * Math.PI * (i / (double) pathSegments);
-				// var angleH = 2 * Math.PI * ((i + 1) / (double) pathSegments);
-				// var centerL = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane,
-				// childOrbit, angleL));
-				// var centerH = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane,
-				// childOrbit, angleH));
-				// RenderHelper.addLine(builder, centerL, centerH, UNARY_PATH_COLOR.withA(1));
-				// }
-				builder.end();
-				RenderSystem.enableBlend();
-				RenderSystem.disableTexture();
-				RenderSystem.defaultBlendFunc();
-				RenderSystem.disableCull();
-				RenderSystem.depthMask(false);
-				BufferUploader.end(builder);
+				showUnaryGuides(builder, camera, childNode.referencePlane, partialTick, childOrbit);
 			}
 		}
 
-		var projectedFocus = Vec3.from(centerPos.x, focusPos.y, centerPos.z);
-		var d = 0.05 * this.camera.getPos(partialTick).distanceTo(projectedFocus);
-		int maxLineSegments = 32;
-		double lineSegmentLength = d * 0.25;
-		var k = 4;
-		var maxLength = 2 * maxLineSegments * lineSegmentLength;
+		// var projectedFocus = Vec3.from(centerPos.x, focusPos.y, centerPos.z);
+		// var d = 0.05 * this.camera.getPos(partialTick).distanceTo(projectedFocus);
+		// int maxLineSegments = 32;
+		// double lineSegmentLength = d * 0.25;
+		// var k = 4;
+		// var maxLength = 2 * maxLineSegments * lineSegmentLength;
 
-		if (this.showGuides && toCenter.x * toCenter.x + toCenter.z * toCenter.z < k * maxLength * k * maxLength) {
+		// if (this.showGuides && toCenter.x * toCenter.x + toCenter.z * toCenter.z < k * maxLength * k * maxLength) {
 			RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-			builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+		// 	builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-			double currentOffset = 0, prevOffset = 0;
-			for (var i = 0; i < maxLineSegments; ++i) {
-				var start = focusPos.y + prevOffset;
-				var end = focusPos.y + (currentOffset + prevOffset) / 2;
+		// 	double currentOffset = 0, prevOffset = 0;
+		// 	for (var i = 0; i < maxLineSegments; ++i) {
+		// 		var start = focusPos.y + prevOffset;
+		// 		var end = focusPos.y + (currentOffset + prevOffset) / 2;
 
-				if (focusPos.y < centerPos.y) {
-					if (end > centerPos.y)
-						end = centerPos.y;
-				} else {
-					if (end < centerPos.y)
-						end = centerPos.y;
-				}
+		// 		if (focusPos.y < centerPos.y) {
+		// 			if (end > centerPos.y)
+		// 				end = centerPos.y;
+		// 		} else {
+		// 			if (end < centerPos.y)
+		// 				end = centerPos.y;
+		// 		}
 
-				var startD = Vec3.from(centerPos.x, start, centerPos.z).distanceTo(focusPos);
-				var endD = Vec3.from(centerPos.x, end, centerPos.z).distanceTo(focusPos);
+		// 		var startD = Vec3.from(centerPos.x, start, centerPos.z).distanceTo(focusPos);
+		// 		var endD = Vec3.from(centerPos.x, end, centerPos.z).distanceTo(focusPos);
 
-				float sa = 1 - (float) Math.pow(1 - Math.max(0, 1 - (startD / maxLength)), 3);
-				float ea = 1 - (float) Math.pow(1 - Math.max(0, 1 - (endD / maxLength)), 3);
-				builder.vertex(centerPos.x, start, centerPos.z)
-						.color(0.5f, 0.5f, 0.5f, 0.5f * sa).normal(0, 1, 0).endVertex();
-				builder.vertex(centerPos.x, end, centerPos.z)
-						.color(0.5f, 0.5f, 0.5f, 0.5f * ea).normal(0, 1, 0).endVertex();
+		// 		float sa = 1 - (float) Math.pow(1 - Math.max(0, 1 - (startD / maxLength)), 3);
+		// 		float ea = 1 - (float) Math.pow(1 - Math.max(0, 1 - (endD / maxLength)), 3);
+		// 		builder.vertex(centerPos.x, start, centerPos.z)
+		// 				.color(0.5f, 0.5f, 0.5f, 0.5f * sa).normal(0, 1, 0).endVertex();
+		// 		builder.vertex(centerPos.x, end, centerPos.z)
+		// 				.color(0.5f, 0.5f, 0.5f, 0.5f * ea).normal(0, 1, 0).endVertex();
 
-				prevOffset = currentOffset;
-				if (focusPos.y < centerPos.y) {
-					currentOffset += 2 * lineSegmentLength;
-					if (prevOffset > centerPos.y - focusPos.y) {
-						break;
-					}
-				} else {
-					currentOffset -= 2 * lineSegmentLength;
-					if (prevOffset < centerPos.y - focusPos.y) {
-						break;
-					}
-				}
+		// 		prevOffset = currentOffset;
+		// 		if (focusPos.y < centerPos.y) {
+		// 			currentOffset += 2 * lineSegmentLength;
+		// 			if (prevOffset > centerPos.y - focusPos.y) {
+		// 				break;
+		// 			}
+		// 		} else {
+		// 			currentOffset -= 2 * lineSegmentLength;
+		// 			if (prevOffset < centerPos.y - focusPos.y) {
+		// 				break;
+		// 			}
+		// 		}
 
-			}
+		// 	}
 
-			builder.end();
-			RenderSystem.enableBlend();
-			RenderSystem.disableTexture();
-			RenderSystem.defaultBlendFunc();
-			RenderSystem.disableCull();
-			RenderSystem.depthMask(false);
-			BufferUploader.end(builder);
-		}
+		// 	builder.end();
+		// 	RenderSystem.lineWidth(1f);
+		// 	RenderSystem.enableBlend();
+		// 	RenderSystem.disableTexture();
+		// 	RenderSystem.defaultBlendFunc();
+		// 	RenderSystem.disableCull();
+		// 	RenderSystem.depthMask(false);
+		// 	BufferUploader.end(builder);
+		// }
 
 		if (node instanceof PlanetNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			ctx.renderPlanet(planetNode, new PoseStack(), centerPos, 1e-12, Color.WHITE);
+			ctx.renderPlanet(planetNode, new PoseStack(), planetNode.position, 1e-12, Color.WHITE);
 			// RenderHelper.renderPlanet(builder, planetNode,
 			// this.camera.getPos(partialTick), 1e-12, new PoseStack(),
 			// centerPos, Color.WHITE);
 		} else {
-			RenderHelper.renderStarBillboard(builder, camera, node, centerPos, TM_PER_UNIT, partialTick);
+			RenderHelper.renderStarBillboard(builder, camera, node, node.position, TM_PER_UNIT, partialTick);
 		}
 	}
 
@@ -551,10 +525,12 @@ public class SystemMapScreen extends UniversalScreen {
 		if (system == null)
 			return;
 
-		// TODO: figure out how we actually wanna handle time
-		double time = (System.currentTimeMillis() % 1000000) / 1000f;
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
 
-		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick, Vec3.ZERO,
+		// FIXME: `Minecraft` has a `pausePartialTick` field that we should use instead of 0 here.
+		double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
+
+		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick,
 				(node, pos) -> this.positions.put(node.getId(), pos));
 
 		if (followingId != -1) {
@@ -568,8 +544,10 @@ public class SystemMapScreen extends UniversalScreen {
 
 		final var builder = Tesselator.getInstance().getBuilder();
 
-		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, 1e-3 * Units.TM_PER_AU,
-				10, 100, partialTick);
+		// RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, 1e-3 * Units.TM_PER_AU,
+		// 		10, 40, partialTick);
+		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.TM_PER_AU,
+				10, 40, partialTick);
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -611,7 +589,7 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.depthMask(false);
 
 		RenderHelper.renderLine(builder, camera.focus.div(TM_PER_UNIT), closestPos,
-				partialTick, new Color(1, 1, 1, 1));
+				2, new Color(1, 1, 1, 1));
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);

@@ -34,7 +34,6 @@ import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 
@@ -249,7 +248,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// Grid
 
-		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, 1, 10, 100, partialTick);
+		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, 1, 10, 40, partialTick);
 
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
@@ -305,15 +304,6 @@ public class GalaxyMapScreen extends UniversalScreen {
 		var color = new Color(1, 1, 1, 0.2f);
 		RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
 	}
-
-	private static record StarInfo(Vec3 pos, StarSystemNode node) {
-	}
-
-	// private void renderSectorStars(VertexConsumer builder, Stream<StarInfo>
-	// sectorOffsets,
-	// float partialTick) {
-
-	// }
 
 	private <T> int countOctreeDescendants(Octree.Node<T> node) {
 		if (node instanceof Octree.Node.Branch<T> branchNode) {
@@ -384,7 +374,10 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 				var center = element.pos.div(TM_PER_UNIT);
 
-				// TODO: do the billboarding in a vertex shader!
+				// we should maybe consider doing the billboarding in a vertex shader, because
+				// that way we can build all the geometry for a sector into a vertex buffer and
+				// just emit a few draw calls, instead of having to build the buffer from
+				// scratch each frame.
 
 				var displayStar = element.value.getInitial().getDisplayStar();
 				RenderHelper.addBillboard(builder, camera, displayStar, center, TM_PER_UNIT, partialTick);

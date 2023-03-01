@@ -69,11 +69,24 @@ public final class ServerUniverse extends Universe {
 		sol.obliquityAngle = Math.toRadians(7.25);
 		sol.rotationalSpeed = 2.90307e-6;
 
-		final var testStar = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(0.4));
-		sol.obliquityAngle = Math.toRadians(7.25);
-		sol.rotationalSpeed = 2.90307e-6;
+		// final var s1 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(0.5));
+		// final var s2 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(1));
+		// final var s3 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(5));
+
+		// final var b1 = new BinaryNode(s1, s2, OrbitalPlane.ZERO, 0.5, 1, 0);
+		// final var b2 = new BinaryNode(b1, s3, OrbitalPlane.ZERO, 0.2, 10, 0);
+
+		// final var testStar = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(0.4));
+		// sol.obliquityAngle = Math.toRadians(7.25);
+		// sol.rotationalSpeed = 2.90307e-6;
 
 		// @formatter:off
+		// final var a = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(1), 0.3829, 427);
+		// a.obliquityAngle = Math.toRadians(0);
+		// a.rotationalSpeed = 1.24099e-8;
+		// final var b = new PlanetNode(PlanetNode.Type.ROCKY_ICE_WORLD, Units.mearth(0.01), 0.3829, 427);
+		// b.obliquityAngle = Math.toRadians(0);
+		// b.rotationalSpeed = 1.24099e-8;
 		final var mercury = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.055), 0.3829, 427);
 		mercury.obliquityAngle = Math.toRadians(0.034);
 		mercury.rotationalSpeed = 1.24099e-6;
@@ -100,6 +113,7 @@ public final class ServerUniverse extends Universe {
 		neptune.rotationalSpeed = 1.08338253e-4;
 
 		sol.insertChild(mercury, 0.205630,  Units.au(0.387098), Math.toRadians(7.005),   Math.toRadians(48.331),    Math.toRadians(29.124),    0);
+		// sol.insertChild(mercury, 0.9,       Units.au(3.1),      Math.toRadians(86),      Math.toRadians(48.331),    Math.toRadians(29.124),    0);
 		sol.insertChild(venus,   0.006772,  Units.au(0.723332), Math.toRadians(3.39458), Math.toRadians(76.680),    Math.toRadians(54.884),    0);
 		sol.insertChild(earth,   0.0167086, Units.au(1),        Math.toRadians(0.00005), Math.toRadians(-11.26064), Math.toRadians(114.20783), 0);
 		sol.insertChild(mars,    0.0934,    Units.au(1.523680), Math.toRadians(1.850),   Math.toRadians(49.57854),  Math.toRadians(286.5),     0);
@@ -107,6 +121,8 @@ public final class ServerUniverse extends Universe {
 		sol.insertChild(saturn,  0.0565,    Units.au(9.5826),   Math.toRadians(2.485),   Math.toRadians(113.665),   Math.toRadians(339.392),   0);
 		sol.insertChild(uranus,  0.04717,   Units.au(19.19126), Math.toRadians(0.773),   Math.toRadians(74.006),    Math.toRadians(96.998857), 0);
 		sol.insertChild(neptune, 0.008678,  Units.au(30.07),    Math.toRadians(1.770),   Math.toRadians(131.783),   Math.toRadians(273.187),   0);
+		// s1.insertChild(a, 0.5,   Units.au(1), Math.toRadians(0),   Math.toRadians(0), Math.toRadians(0), 0);
+		// a.insertChild(b, 0,   Units.au(0.01), Math.toRadians(45),   Math.toRadians(0), Math.toRadians(0), 0);
 
 		final var moon = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.0123), 0.2727, 250);
 		moon.obliquityAngle = Math.toRadians(6.687);
@@ -132,9 +148,10 @@ public final class ServerUniverse extends Universe {
 		jupiter.insertChild(callisto, 0.0074, Units.au(0.01258), Math.toRadians(2.017), 0, 0, 12);
 		// @formatter:on
 
-		var root = new BinaryNode(sol, testStar, OrbitalPlane.ZERO, 1, Units.au(100), 0);
+		// var root = new BinaryNode(sol, testStar, OrbitalPlane.ZERO, 1, Units.au(100), 0);
+		// var root = b2;
 
-		return new StartingSystem(4600, "Sol", root, earth);
+		return new StartingSystem(4600, "Sol", sol, earth);
 	}
 
 	public void prepare() {

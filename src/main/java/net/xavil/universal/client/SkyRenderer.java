@@ -136,6 +136,10 @@ public class SkyRenderer {
 				.getFull();
 		var systemVolume = galaxy.getVolumeAt(currentSystemId.systemSector().sectorPos());
 		var systemPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
+		if (systemPos == null) {
+			Mod.LOGGER.error("could not build background stars because the system pos was null.");
+			return;
+		}
 
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
@@ -221,7 +225,7 @@ public class SkyRenderer {
 		var system = universe.getSystem(currentPlanetId.system());
 
 		var positions = new HashMap<Integer, Vec3>();
-		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick, Vec3.ZERO,
+		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick,
 				(node, pos) -> positions.put(node.getId(), pos));
 
 		var builder = Tesselator.getInstance().getBuilder();
@@ -328,6 +332,11 @@ public class SkyRenderer {
 		if (isSkyVisible || currentId == null)
 			return false;
 
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		var currentNode = universe.getSystemNode(currentId);
+		if (currentNode == null)
+			return false;
+
 		var matrixSnapshot = RenderMatricesSnapshot.capture();
 
 		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 10000f, 1e12f, partialTick);
@@ -360,13 +369,12 @@ public class SkyRenderer {
 		// double time = 1e7 + (1440.0 / 5.0) * System.currentTimeMillis() / 1000.0 -
 		// 1e10;
 		// double time = (System.currentTimeMillis() % 1000000) / 1000f;
-		double time = (System.currentTimeMillis() % 1000000) / 10f;
+		// double time = (System.currentTimeMillis() % 1000000) / 10f;
+		double time = universe.getCelestialTime(partialTick);
 		// double time = (System.currentTimeMillis() % 1000000) * 1000f;
 
 		poseStack.pushPose();
-		var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var planet = universe.getSystemNode(currentId);
-		applyPlanetTrasform(poseStack, planet, time, camera.getPosition().x, camera.getPosition().z);
+		applyPlanetTrasform(poseStack, currentNode, time, camera.getPosition().x, camera.getPosition().z);
 		drawStars(poseStack.last().pose(), projectionMatrix);
 		drawSystem(poseStack, camera, currentId, time, partialTick);
 		poseStack.popPose();

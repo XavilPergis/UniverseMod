@@ -11,7 +11,7 @@ import net.xavil.universal.mixin.accessor.LevelAccessor;
 @Mixin(Level.class)
 public abstract class LevelMixin implements LevelAccessor {
 
-	private SystemNodeId systemNodeId;
+	private SystemNodeId systemNodeId = null;
 
 	@Override
 	public SystemNodeId universal_getUniverseId() {

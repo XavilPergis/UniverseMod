@@ -118,6 +118,10 @@ public final class Vec3 {
 		return mul(1 / length());
 	}
 
+	public Vec3 projectOnto(Vec3 other) {
+		return other.mul(this.dot(other) / other.lengthSquared());
+	}
+
 	public Vec3 rotateX(double angle) {
 		final double c = Math.cos(angle), s = Math.sin(angle);
 		final var nx = this.x;

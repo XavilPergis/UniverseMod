@@ -71,7 +71,7 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 		return this.universe;
 	}
 
-	@Inject(method = "loadLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/MinecraftServer;createLevels(Lnet/minecraft/server/level/progress/ChunkProgressListener;)V", shift = At.Shift.AFTER))
+	@Inject(method = "createLevels", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getDataStorage()Lnet/minecraft/world/level/storage/DimensionDataStorage;"))
 	private void prepareStartingVolume(CallbackInfo info) {
 		this.universe.prepare();
 		var overworld = ((MinecraftServer) (Object) this).overworld();

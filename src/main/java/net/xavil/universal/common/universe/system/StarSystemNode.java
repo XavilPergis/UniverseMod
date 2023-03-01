@@ -21,25 +21,33 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	public static final int UNASSINED_ID = -1;
 
 	public static class UnaryOrbit {
-		public StarSystemNode node;
+		public final StarSystemNode parentNode;
+		public final StarSystemNode node;
 		public OrbitalShape orbitalShape;
 		public OrbitalPlane orbitalPlane;
 		public double offset;
 
-		public UnaryOrbit(StarSystemNode node, OrbitalShape orbitalShape, OrbitalPlane orbitalPlane, double offset) {
+		public UnaryOrbit(StarSystemNode parentNode, StarSystemNode node, OrbitalShape orbitalShape,
+				OrbitalPlane orbitalPlane, double offset) {
+			this.parentNode = parentNode;
 			this.node = node;
 			this.orbitalShape = orbitalShape;
 			this.orbitalPlane = orbitalPlane;
 		}
 
+		public Ellipse getEllipse(OrbitalPlane referencePlane) {
+			var plane = this.orbitalPlane.withReferencePlane(referencePlane);
+			return Ellipse.fromOrbit(this.parentNode.position, plane, this.orbitalShape);
+		}
+
 	}
 
 	protected int id = UNASSINED_ID;
-	protected @Nullable StarSystemNode parentUnaryNode = null;
 	protected @Nullable BinaryNode parentBinaryNode = null;
 	protected final List<UnaryOrbit> childNodes = new ArrayList<>();
 
 	public Vec3 position = Vec3.ZERO;
+	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
 
 	public double massYg; // Yg
 	// TODO: these quantities are meaningless for binary orbits!
@@ -164,19 +172,11 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return this.parentBinaryNode;
 	}
 
-	public void setUnaryParent(StarSystemNode parent) {
-		this.parentUnaryNode = parent;
-	}
-
-	public StarSystemNode getUnaryParent() {
-		return this.parentUnaryNode;
-	}
-
 	public void insertChild(StarSystemNode child, double eccentricity, double periapsisDistance, double inclination,
 			double longitudeOfAscendingNode, double argumentOfPeriapsis, double offset) {
 		final var shape = new OrbitalShape(eccentricity, periapsisDistance);
 		final var plane = OrbitalPlane.fromOrbitalElements(inclination, longitudeOfAscendingNode, argumentOfPeriapsis);
-		insertChild(new UnaryOrbit(child, shape, plane, offset));
+		insertChild(new UnaryOrbit(this, child, shape, plane, offset));
 	}
 
 	public void insertChild(UnaryOrbit child) {
@@ -187,166 +187,68 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return this.childNodes;
 	}
 
-	// public void calculateInitialPositions() {
-	// }
-
-	// public void updatePositions() {
-	// if (this instanceof BinaryNode binaryNode) {
-	// }
-
-	// for (var childOrbit : this.childNodes) {
-	// var distance = this.position.distanceTo(childOrbit.node.position);
-	// var speed = Math.sqrt(G_TM * (this.massYg * childOrbit.node.massYg)
-	// * (2 / distance) - (1 / childOrbit.orbitalShape.semimajorAxisTm()));
-	// // var velocity =
-	// // F = m * a
-	// // a = F / m
-	// }
-	// // F = G * (m1 * m2) / r^2;
-	// }
-
 	public static final double G = 6.67e-11 * 1e14;
 	public static final double G_YG = 6.67e3;
 
 	// mu is the "standard gravitational parameter", which is the mass of the larger
 	// object for unary orbits, and the sum of the masses for binary orbits.
 	public static double orbitalPeriod(OrbitalShape shape, double mu) {
-		final var a = shape.semiMajor();
+		final var a = shape.semiMajor() * 1e9; // Tm -> km
 		return 2 * Math.PI * Math.sqrt(a * a * a / (G_YG * mu));
 	}
 
-	public static double getUnaryAngle(StarSystemNode parent, StarSystemNode.UnaryOrbit orbit, double time) {
-		var a = orbit.orbitalShape.semiMajor() * 1e9;
-		// T = 2 * pi * sqrt(a^3 / (G * M))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G_YG * parent.massYg));
-		return 2 * Math.PI * time / period + orbit.offset;
-	}
-
-	public static double getBinaryAngle(BinaryNode node, double time) {
-		var a = node.orbitalShapeA.semiMajor() * 1e9 + node.orbitalShapeB.semiMajor() * 1e9;
-		// T = 2 * pi * sqrt(a^3 / (G * (M1 + M2)))
-		var period = 2 * Math.PI * Math.sqrt(a * a * a / (G_YG * (node.getA().massYg + node.getB().massYg)));
-		return 2 * Math.PI * time / period + node.offset;
-	}
-
-	public static Ellipse getUnaryEllipse(OrbitalPlane referencePlane, Vec3 focusPos, StarSystemNode.UnaryOrbit orbit) {
-		var plane = orbit.orbitalPlane.withReferencePlane(referencePlane);
-		return Ellipse.fromOrbit(focusPos, plane, orbit.orbitalShape);
-	}
-
-	public static Vec3 getUnaryOffset(OrbitalPlane referencePlane, StarSystemNode.UnaryOrbit orbit, double angle) {
-		var plane = orbit.orbitalPlane.withReferencePlane(referencePlane);
-		var apoapsisDir = plane.rotationFromReference().transform(Vec3.XP);
-		var rightDir = plane.rotationFromReference().transform(Vec3.ZP);
-		// var apoapsisDir = Vec3.XP.rotateX(plane.inclinationRad())
-		// .rotateY(plane.longitueOfAscendingNodeRad());
-		// var rightDir = Vec3.ZP.rotateX(plane.inclinationRad())
-		// .rotateY(plane.longitueOfAscendingNodeRad());
-		// FIXME: elliptical orbits
-		return Vec3.ZERO
-				.add(apoapsisDir.mul(Math.cos(angle) * orbit.orbitalShape.semiMajor()))
-				.add(rightDir.mul(Math.sin(angle) * orbit.orbitalShape.semiMinor()));
-	}
-
-	public static Vec3 getBinaryOffsetA(OrbitalPlane referencePlane, BinaryNode node, double angle) {
-		var plane = node.orbitalPlane.withReferencePlane(referencePlane);
-		var apoapsisDir = plane.rotationFromReference().transform(Vec3.XP);
-		var rightDir = plane.rotationFromReference().transform(Vec3.ZP);
-		return apoapsisDir.mul(node.getFocalDistanceA())
-				.add(apoapsisDir.mul(Math.cos(angle) * node.orbitalShapeA.semiMajor()))
-				.add(rightDir.mul(Math.sin(angle) * node.orbitalShapeA.semiMinor()));
-	}
-
-	public static Vec3 getBinaryOffsetB(OrbitalPlane referencePlane, BinaryNode node, double angle) {
-		var plane = node.orbitalPlane.withReferencePlane(referencePlane);
-		var apoapsisDir = plane.rotationFromReference().transform(Vec3.XP);
-		var rightDir = plane.rotationFromReference().transform(Vec3.ZP);
-		return apoapsisDir.mul(-node.getFocalDistanceB())
-				.add(apoapsisDir.mul(Math.cos(angle) * -node.orbitalShapeB.semiMajor()))
-				.add(rightDir.mul(Math.sin(angle) * -node.orbitalShapeB.semiMinor()));
-	}
-
 	public static void positionNode(StarSystemNode node, OrbitalPlane referencePlane, double time, float partialTick,
-			Vec3 centerPos, BiConsumer<StarSystemNode, Vec3> consumer) {
+			BiConsumer<StarSystemNode, Vec3> consumer) {
+
+		node.referencePlane = referencePlane;
+
 		if (node instanceof BinaryNode binaryNode) {
-			var angle = getBinaryAngle(binaryNode, time);
-			var aCenter = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode, angle));
-			var bCenter = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode, angle));
+
+			// 1e9 is for Tm -> km
+			final var a = 1e9 * (binaryNode.orbitalShapeA.semiMajor() + binaryNode.orbitalShapeB.semiMajor());
+			var orbitalPeriod = 2 * Math.PI * Math.sqrt(a * a * a / (G_YG * node.massYg));
+
+			var ellipseA = binaryNode.getEllipseA(referencePlane);
+			// var orbitalPeriodA = orbitalPeriod(binaryNode.orbitalShapeA, node.massYg);
+			var meanAnomalyA = (2 * Math.PI / orbitalPeriod) * time + binaryNode.offset;
+			var trueAnomalyA = calculateTrueAnomaly(meanAnomalyA, binaryNode.orbitalShapeA.eccentricity());
+			binaryNode.getA().position = ellipseA.pointFromTrueAnomaly(-trueAnomalyA);
+
+			var ellipseB = binaryNode.getEllipseB(referencePlane);
+			// var orbitalPeriodB = orbitalPeriod(binaryNode.orbitalShapeB, node.massYg);
+			var meanAnomalyB = (2 * Math.PI / orbitalPeriod) * time + binaryNode.offset;
+			var trueAnomalyB = calculateTrueAnomaly(meanAnomalyB, binaryNode.orbitalShapeB.eccentricity());
+			binaryNode.getB().position = ellipseB.pointFromTrueAnomaly(trueAnomalyB);
+
 			var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
-			positionNode(binaryNode.getA(), newPlane, time, partialTick, aCenter, consumer);
-			positionNode(binaryNode.getB(), newPlane, time, partialTick, bCenter, consumer);
+			positionNode(binaryNode.getA(), newPlane, time, partialTick, consumer);
+			positionNode(binaryNode.getB(), newPlane, time, partialTick, consumer);
 		}
 
 		for (var childOrbit : node.childOrbits()) {
-			var angle = getUnaryAngle(node, childOrbit, time);
-			var ellipse = StarSystemNode.getUnaryEllipse(referencePlane, centerPos, childOrbit);
-			var center = ellipse.pointFromAngle(angle);
+			var ellipse = childOrbit.getEllipse(referencePlane);
+			var orbitalPeriod = orbitalPeriod(childOrbit.orbitalShape, node.massYg);
+			var meanAnomaly = (2 * Math.PI / orbitalPeriod) * time + childOrbit.offset;
+			var trueAnomaly = calculateTrueAnomaly(meanAnomaly, childOrbit.orbitalShape.eccentricity());
+			childOrbit.node.position = ellipse.pointFromTrueAnomaly(trueAnomaly);
+
 			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
-			positionNode(childOrbit.node, newPlane, time, partialTick, center, consumer);
+			positionNode(childOrbit.node, newPlane, time, partialTick, consumer);
 		}
 
-		consumer.accept(node, centerPos);
+		consumer.accept(node, node.position);
 	}
 
 	// super stolen from
 	// https://github.com/RegrowthStudios/SoACode-Public/blob/c3ddd69355b534d5e70e2e6d0c489b4e93ab1ffe/SoA/OrbitComponentUpdater.cpp#L70
 	private static double calculateTrueAnomaly(double meanAnomaly, double e) {
-		final var iterationCount = 3;
+		final var iterationCount = 10;
 		var E = meanAnomaly;
 		for (var n = 0; n < iterationCount; ++n) {
 			double F = E - e * Math.sin(E) - meanAnomaly;
 			E -= F / (1 - e * Math.cos(E));
 		}
 		return Math.atan2(Math.sqrt(1 - e * e) * Math.sin(E), Math.cos(E) - e);
-	}
-
-	public void updatePosition(OrbitalPlane referencePlane, double celestialTime, float partialTick, Vec3 centerPos) {
-		if (this instanceof BinaryNode binaryNode) {
-			// var angle = getBinaryAngle(binaryNode, time);
-			// var aCenter = centerPos.add(getBinaryOffsetA(referencePlane, binaryNode,
-			// angle));
-			// var bCenter = centerPos.add(getBinaryOffsetB(referencePlane, binaryNode,
-			// angle));
-			// var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
-			// positionNode(binaryNode.getA(), newPlane, time, partialTick, aCenter,
-			// consumer);
-			// positionNode(binaryNode.getB(), newPlane, time, partialTick, bCenter,
-			// consumer);
-		}
-
-		for (var childOrbit : childOrbits()) {
-
-			var ellipse = StarSystemNode.getUnaryEllipse(referencePlane, centerPos, childOrbit);
-
-			// // 1. Calculate the mean anomaly
-			var orbitalPeriod = orbitalPeriod(childOrbit.orbitalShape, this.massYg);
-			double meanAnomaly = (2 * Math.PI / orbitalPeriod) * celestialTime + childOrbit.offset;
-			// cmp.currentMeanAnomaly = (f32) meanAnomaly;
-
-			double trueAnomaly = calculateTrueAnomaly(meanAnomaly, childOrbit.orbitalShape.eccentricity());
-
-			var pos = ellipse.pointFromTrueAnomaly(trueAnomaly);
-
-			this.position = pos;
-
-			// f64 v = calculateTrueAnomaly(meanAnomaly, cmp.e);
-
-			// // Calculate radius
-			// // http://www.stargazing.net/kepler/ellipse.html
-			// f64 r = cmp.a * (1.0 - cmp.e * cmp.e) / (1.0 + cmp.e * cos(v));
-
-			// f64 w = cmp.p - cmp.o; /// < Argument of periapsis
-
-			// var distance = this.position.distanceTo(childOrbit.node.position);
-			// var speed = Math.sqrt(G_YG * this.massYg * (2 / distance - 1 /
-			// childOrbit.orbitalShape.semimajorAxisTm()));
-			// var angle = getUnaryAngle(this, childOrbit, time);
-			// var ellipse = StarSystemNode.getUnaryEllipse(referencePlane, centerPos,
-			// childOrbit);
-			// var center = ellipse.pointFromAngle(angle);
-			// var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
-			// positionNode(childOrbit.node, newPlane, time, partialTick, center, consumer);
-		}
 	}
 
 	public static StarSystemNode readNbt(CompoundTag nbt) {
@@ -362,7 +264,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		var rotationalSpeed = nbt.getDouble("rotational_speed");
 		var nodeType = nbt.getString("node_type");
 
-		Mod.LOGGER.warn(nbt.getAsString());
+		var referencePlane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, nbt.get("reference_plane"))
+				.getOrThrow(false, Mod.LOGGER::error);
 
 		if (nodeType.equals("binary")) {
 			var a = readNbt(nbt.getCompound("a"));
@@ -389,6 +292,7 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		}
 
 		node.position = position;
+		node.referencePlane = referencePlane;
 		node.id = id;
 		node.obliquityAngle = obliquityAngle;
 		node.rotationalSpeed = rotationalSpeed;
@@ -404,7 +308,7 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			var orbitalShape = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_shape"))
 					.getOrThrow(false, Mod.LOGGER::error);
 
-			var child = new UnaryOrbit(childNode, orbitalShape, orbitalPlane, offset);
+			var child = new UnaryOrbit(node, childNode, orbitalShape, orbitalPlane, offset);
 			node.childNodes.add(child);
 		}
 
@@ -421,6 +325,10 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		nbt.putDouble("z", node.position.z);
 		nbt.putDouble("obliquity", node.obliquityAngle);
 		nbt.putDouble("rotational_speed", node.rotationalSpeed);
+
+		OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, node.referencePlane)
+				.resultOrPartial(Mod.LOGGER::error)
+				.ifPresent(n -> nbt.put("reference_plane", n));
 
 		if (node instanceof BinaryNode binaryNode) {
 			nbt.putString("node_type", "binary");

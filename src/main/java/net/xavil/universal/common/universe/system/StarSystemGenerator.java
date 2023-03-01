@@ -207,7 +207,7 @@ public class StarSystemGenerator {
 		var minRadius = getExclusionRadius(node);
 		var maxRadius = getMaximumRadius(node);
 		maxRadius = 1.4 * Math.min(maxRadius, stabilityLimit);
-		if (minRadius > maxRadius)
+		if (minRadius >= maxRadius)
 			return;
 
 		if (node instanceof StarNode starNode) {
@@ -230,7 +230,7 @@ public class StarSystemGenerator {
 				var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
 				var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);
 
-				var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO,
+				var orbit = new StarSystemNode.UnaryOrbit(node, planetNode, orbitalShape, OrbitalPlane.ZERO,
 						random.nextDouble(2 * Math.PI));
 				node.insertChild(orbit);
 			}
@@ -255,7 +255,7 @@ public class StarSystemGenerator {
 			var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
 			var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);
 
-			var orbit = new StarSystemNode.UnaryOrbit(planetNode, orbitalShape, OrbitalPlane.ZERO,
+			var orbit = new StarSystemNode.UnaryOrbit(node, planetNode, orbitalShape, OrbitalPlane.ZERO,
 					random.nextDouble(2 * Math.PI));
 			node.insertChild(orbit);
 		}

@@ -108,7 +108,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 		if (scrollDelta > 0) {
 			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.001));
+			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.0001));
 			// this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.5));
 			return true;
 		} else if (scrollDelta < 0) {
@@ -374,7 +374,7 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.disableTexture();
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
-		RenderSystem.depthMask(false);
+		// RenderSystem.depthMask(false);
 		BufferUploader.end(builder);
 	}
 
@@ -393,7 +393,7 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.disableTexture();
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
-		RenderSystem.depthMask(false);
+		// RenderSystem.depthMask(false);
 		BufferUploader.end(builder);
 	}
 

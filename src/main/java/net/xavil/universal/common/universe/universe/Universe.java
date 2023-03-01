@@ -55,7 +55,9 @@ public abstract class Universe {
 	public double getCelestialTime(float partialTick) {
 		// return 3000 * (1440.0 / 5.0) * (this.celestialTimeTicks + partialTick) / 20.0;
 		// return 3.154e+7 * (this.celestialTimeTicks + partialTick) / 20.0;
-		return (1440.0 / 5.0) * (this.celestialTimeTicks + partialTick) / 20.0;
+		// return (1440.0 / 5.0) * (this.celestialTimeTicks + partialTick) / 20.0;
+		// return (this.celestialTimeTicks + partialTick) / 20.0;
+		return 10 * (this.celestialTimeTicks + partialTick) / 20.0;
 		// return (this.celestialTimeTicks + partialTick) / 200000000.0;
 	}
 

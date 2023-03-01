@@ -1,13 +1,11 @@
 package net.xavil.universal.client;
 
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.Random;
 
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
@@ -26,7 +24,6 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.RenderMatricesSnapshot;
-import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
@@ -218,6 +215,11 @@ public class SkyRenderer {
 		this.distantStarsBuffer.drawChunkLayer();
 	}
 
+	private Vec3 viewPos(PoseStack poseStack, Vec3 currentCelestialPos, Vec3 celestialPos) {
+		var rel = celestialPos.sub(currentCelestialPos);
+		return rel.transformBy(poseStack.last()).mul(1e12);
+	}
+
 	private void drawSystem(PoseStack poseStack, Camera camera, SystemNodeId currentPlanetId, double time,
 			float partialTick) {
 
@@ -228,12 +230,15 @@ public class SkyRenderer {
 		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick,
 				(node, pos) -> positions.put(node.getId(), pos));
 
+		var thisPos = positions.get(currentPlanetId.nodeId());
+
 		var builder = Tesselator.getInstance().getBuilder();
 		var ctx = new PlanetRenderingContext(builder);
 		system.rootNode.visit(node -> {
 			if (node instanceof StarNode starNode) {
 				final var pos = positions.get(starNode.getId());
-				var light = new PlanetRenderingContext.PointLight(pos.mul(1e12), starNode.getColor(),
+				var posView = viewPos(poseStack, thisPos, pos);
+				var light = new PlanetRenderingContext.PointLight(posView, starNode.getColor(),
 						starNode.luminosityLsol);
 				ctx.pointLights.add(light);
 			}
@@ -244,8 +249,6 @@ public class SkyRenderer {
 		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
-		var thisPos = positions.get(currentPlanetId.nodeId());
-
 		for (var entry : positions.entrySet()) {
 			var node = system.rootNode.lookup(entry.getKey());
 			var pos = entry.getValue();
@@ -253,46 +256,47 @@ public class SkyRenderer {
 			if (node.getId() == currentPlanetId.nodeId())
 				continue;
 
-			var offset = pos.sub(thisPos);
+			// var offset = viewPos(poseStack, thisPos, pos);
+			var offset = pos.sub(thisPos).mul(1e12);
 			var dir = offset.normalize();
 
 			poseStack.pushPose();
 			if (node instanceof PlanetNode planetNode) {
-				ctx.render(planetNode, poseStack, offset.mul(1e12), 1, Color.WHITE);
-
-				// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+				ctx.render(planetNode, poseStack, offset, 1, Color.WHITE);
+				
+				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				// builder.begin(VertexFormat.Mode.QUADS,
-				// DefaultVertexFormat.POSITION_COLOR_TEX);
-				// var color = new Color(1, 0.5, 0.2, 1);
+				// 		DefaultVertexFormat.POSITION_COLOR_TEX);
+				// var color = new Color(1, 0.5, 0.2, 0.5);
 				// var up = Vec3.fromMinecraft(camera.getUpVector());
 				// var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
-				// RenderHelper.addBillboard(builder, poseStack, up, right, dir.mul(1000), 10,
-				// 0, color);
+				// RenderHelper.addBillboard(builder, poseStack, up, right, dir.mul(1e9), 1e7,
+				// 		0, color);
 				// builder.end();
 				// this.client.getTextureManager()
-				// .getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-				// .setFilter(true, false);
+				// 		.getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+				// 		.setFilter(true, false);
 				// RenderSystem.setShaderTexture(0,
-				// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+				// 		RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
 				// RenderSystem.defaultBlendFunc();
 				// BufferUploader.end(builder);
 
 			} else if (node instanceof StarNode starNode) {
-				ctx.renderStar(starNode, poseStack, offset.mul(1e12), 1, Color.WHITE);
+				ctx.renderStar(starNode, poseStack, offset, 1, Color.WHITE);
 
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-				var color = new Color(0.3, 1, 0.2, 1);
-				var up = Vec3.fromMinecraft(camera.getUpVector());
-				var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
-				RenderHelper.addBillboard(builder, poseStack, up, right, dir.mul(1000), 10, 0, color);
-				builder.end();
-				this.client.getTextureManager()
-						.getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-						.setFilter(true, false);
-				RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-				RenderSystem.defaultBlendFunc();
-				BufferUploader.end(builder);
+				// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+				// var color = new Color(0.3, 1, 0.2, 1);
+				// var up = Vec3.fromMinecraft(camera.getUpVector());
+				// var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
+				// RenderHelper.addBillboard(builder, poseStack, up, right, dir.mul(1e9), 1e8, 0, color);
+				// builder.end();
+				// this.client.getTextureManager()
+				// 		.getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+				// 		.setFilter(true, false);
+				// RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+				// RenderSystem.defaultBlendFunc();
+				// BufferUploader.end(builder);
 
 			}
 			poseStack.popPose();
@@ -339,7 +343,7 @@ public class SkyRenderer {
 
 		var matrixSnapshot = RenderMatricesSnapshot.capture();
 
-		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 10000f, 1e12f, partialTick);
+		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1e8f, 1e13f, partialTick);
 
 		RenderSystem.setProjectionMatrix(proj);
 		RenderSystem.setShaderFogStart(Float.POSITIVE_INFINITY);

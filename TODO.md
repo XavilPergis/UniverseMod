@@ -5,6 +5,7 @@
 	- FOV needs to be taken into account
 - When using the spyglass, info about the targeted celestial body should be displayed
 - Custom Planetary body shader that does shadows n stuff
+- [ ] Render the galaxy somehow
 
 ## Other
 - [ ] Day/night cycle based on star system configuration
@@ -13,6 +14,8 @@
 - [ ] Augment that shows the celestial bodies that belong to the current system
 - [x] Save planet ID in server world nbt
 - [ ] Don't load every dynamically-generated world on startup
+- [ ] Galaxy selection screen
+- [ ] Save celestial time
 
 # Longterm
 - Logistics ships!

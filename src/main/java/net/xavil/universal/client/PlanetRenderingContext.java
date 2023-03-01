@@ -78,15 +78,17 @@ public final class PlanetRenderingContext {
 		// distance.
 		final var sortedLights = new ArrayList<>(this.pointLights);
 		sortedLights.sort(Comparator.comparingDouble(light -> light.pos.distanceTo(pos)));
-		// Collections.reverse(sortedLights);
 
 		final var lightCount = Math.min(4, sortedLights.size());
 
 		var planetShader = ModRendering.getShader(ModRendering.PLANET_SHADER);
 
-		// if (sortedLights.size() > 0) sortedLights.set(0, new PointLight(sortedLights.get(0).pos, Color.RED, 1));
-		// if (sortedLights.size() > 1) sortedLights.set(1, new PointLight(sortedLights.get(1).pos, Color.GREEN, 1));
-		// if (sortedLights.size() > 2) sortedLights.set(2, new PointLight(sortedLights.get(2).pos, Color.BLUE, 1));
+		// if (sortedLights.size() > 0) sortedLights.set(0, new
+		// PointLight(sortedLights.get(0).pos, Color.RED, 5));
+		// if (sortedLights.size() > 1) sortedLights.set(1, new
+		// PointLight(sortedLights.get(1).pos, Color.GREEN, 5));
+		// if (sortedLights.size() > 2) sortedLights.set(2, new
+		// PointLight(sortedLights.get(2).pos, Color.BLUE, 5));
 
 		for (var i = 0; i < 4; ++i) {
 			var lightColor = planetShader.getUniform("LightColor" + i);
@@ -98,7 +100,6 @@ public final class PlanetRenderingContext {
 			final var light = sortedLights.get(i);
 			var lightPos = planetShader.getUniform("LightPos" + i);
 			var aaa = new Vector4f(new Vector3f(light.pos.asMinecraft()));
-			aaa.normalize();
 			if (lightPos != null)
 				lightPos.set(aaa);
 			var lightColor = planetShader.getUniform("LightColor" + i);
@@ -113,6 +114,7 @@ public final class PlanetRenderingContext {
 		RenderSystem.defaultBlendFunc();
 		var baseTexture = getBaseLayer(node);
 		var radiusM = scale * 2 * Units.METERS_PER_REARTH * node.radiusRearth;
+		// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// var radiusM = 2 * Units.METERS_PER_REARTH * node.radiusRearth;
 		renderTexturedCube(builder, baseTexture, poseStack, pos, radiusM, tintColor);
 		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
@@ -124,10 +126,107 @@ public final class PlanetRenderingContext {
 			Vec3 center, double radius, Color tintColor) {
 		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.PLANET_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-		addCube(builder, poseStack, center, radius, tintColor);
+		// addCube(builder, poseStack, center, radius, tintColor);
+		addNormSphere(builder, poseStack, center, radius, tintColor);
 		builder.end();
 		RenderSystem.setShaderTexture(0, texture);
 		BufferUploader.end(builder);
+	}
+
+	private static void addNormSphere(VertexConsumer builder, PoseStack poseStack, Vec3 center, double radius,
+			Color tintColor) {
+
+		poseStack.pushPose();
+		poseStack.translate(center.x, center.y, center.z);
+		// final double nr = -radius, pr = radius;
+		final var pose = poseStack.last();
+		final var subdivisions = 10;
+
+		// -X
+		for (var py = 0; py < subdivisions; ++py) {
+			var ly = (2 * (double) py / (double) subdivisions) - 1;
+			var hy = (2 * (double) (py + 1) / (double) subdivisions) - 1;
+			for (var pz = 0; pz < subdivisions; ++pz) {
+				var lz = (2 * (double) pz / (double) subdivisions) - 1;
+				var hz = (2 * (double) (pz + 1) / (double) subdivisions) - 1;
+				normSphereVertex(builder, pose, tintColor, radius, -1, hy, lz, 0.50f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, -1, ly, lz, 0.25f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, -1, ly, hz, 0.25f, 0.25f);
+				normSphereVertex(builder, pose, tintColor, radius, -1, hy, hz, 0.50f, 0.25f);
+			}
+		}
+
+		// +X
+		for (var py = 0; py < subdivisions; ++py) {
+			var ly = (2 * (double) py / (double) subdivisions) - 1;
+			var hy = (2 * (double) (py + 1) / (double) subdivisions) - 1;
+			for (var pz = 0; pz < subdivisions; ++pz) {
+				var lz = (2 * (double) pz / (double) subdivisions) - 1;
+				var hz = (2 * (double) (pz + 1) / (double) subdivisions) - 1;
+				normSphereVertex(builder, pose, tintColor, radius, 1, ly, lz, 0.50f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, 1, hy, lz, 0.25f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, 1, hy, hz, 0.25f, 0.25f);
+				normSphereVertex(builder, pose, tintColor, radius, 1, ly, hz, 0.50f, 0.25f);
+			}
+		}
+
+		// -Y
+		for (var px = 0; px < subdivisions; ++px) {
+			var lx = (2 * (double) px / (double) subdivisions) - 1;
+			var hx = (2 * (double) (px + 1) / (double) subdivisions) - 1;
+			for (var pz = 0; pz < subdivisions; ++pz) {
+				var lz = (2 * (double) pz / (double) subdivisions) - 1;
+				var hz = (2 * (double) (pz + 1) / (double) subdivisions) - 1;
+				normSphereVertex(builder, pose, tintColor, radius, lx, -1, lz, 0.50f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, hx, -1, lz, 0.25f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, hx, -1, hz, 0.25f, 0.25f);
+				normSphereVertex(builder, pose, tintColor, radius, lx, -1, hz, 0.50f, 0.25f);
+			}
+		}
+
+		// +Y
+		for (var px = 0; px < subdivisions; ++px) {
+			var lx = (2 * (double) px / (double) subdivisions) - 1;
+			var hx = (2 * (double) (px + 1) / (double) subdivisions) - 1;
+			for (var pz = 0; pz < subdivisions; ++pz) {
+				var lz = (2 * (double) pz / (double) subdivisions) - 1;
+				var hz = (2 * (double) (pz + 1) / (double) subdivisions) - 1;
+				normSphereVertex(builder, pose, tintColor, radius, hx, 1, lz, 0.50f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, lx, 1, lz, 0.25f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, lx, 1, hz, 0.25f, 0.25f);
+				normSphereVertex(builder, pose, tintColor, radius, hx, 1, hz, 0.50f, 0.25f);
+			}
+		}
+
+		// -Z
+		for (var px = 0; px < subdivisions; ++px) {
+			var lx = (2 * (double) px / (double) subdivisions) - 1;
+			var hx = (2 * (double) (px + 1) / (double) subdivisions) - 1;
+			for (var py = 0; py < subdivisions; ++py) {
+				var ly = (2 * (double) py / (double) subdivisions) - 1;
+				var hy = (2 * (double) (py + 1) / (double) subdivisions) - 1;
+				normSphereVertex(builder, pose, tintColor, radius, hx, ly, -1, 0.50f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, lx, ly, -1, 0.25f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, lx, hy, -1, 0.25f, 0.25f);
+				normSphereVertex(builder, pose, tintColor, radius, hx, hy, -1, 0.50f, 0.25f);
+			}
+		}
+
+		// +Z
+		for (var px = 0; px < subdivisions; ++px) {
+			var lx = (2 * (double) px / (double) subdivisions) - 1;
+			var hx = (2 * (double) (px + 1) / (double) subdivisions) - 1;
+			for (var py = 0; py < subdivisions; ++py) {
+				var ly = (2 * (double) py / (double) subdivisions) - 1;
+				var hy = (2 * (double) (py + 1) / (double) subdivisions) - 1;
+				normSphereVertex(builder, pose, tintColor, radius, lx, ly, 1, 0.50f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, hx, ly, 1, 0.25f, 0.00f);
+				normSphereVertex(builder, pose, tintColor, radius, hx, hy, 1, 0.25f, 0.25f);
+				normSphereVertex(builder, pose, tintColor, radius, lx, hy, 1, 0.50f, 0.25f);
+			}
+		}
+
+		poseStack.popPose();
 	}
 
 	private static void addCube(VertexConsumer builder, PoseStack poseStack, Vec3 center, double radius,
@@ -175,6 +274,19 @@ public final class PlanetRenderingContext {
 		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, 0, 1, 0.50f, 0.50f);
 		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 0, 1, 0.50f, 0.25f);
 		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
+	}
+
+	private static void normSphereVertex(VertexConsumer builder, PoseStack.Pose pose, Color color, double radius,
+			double x, double y, double z, float u, float v) {
+		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
+		var pos = Vec3.from(x, y, z);
+		var n = pos.normalize();
+		var p = n.mul(radius);
+		builder.vertex(pose.pose(), (float) p.x, (float) p.y, (float) p.z)
+				.uv(u, v)
+				.color(r, g, b, a)
+				.normal(pose.normal(), (float) n.x, (float) n.y, (float) n.z)
+				.endVertex();
 	}
 
 	private static void cubeVertex(VertexConsumer builder, PoseStack.Pose pose, Color color,

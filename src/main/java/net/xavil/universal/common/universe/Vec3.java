@@ -1,6 +1,9 @@
 package net.xavil.universal.common.universe;
 
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector3f;
+import com.mojang.math.Vector4f;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
@@ -120,6 +123,16 @@ public final class Vec3 {
 
 	public Vec3 projectOnto(Vec3 other) {
 		return other.mul(this.dot(other) / other.lengthSquared());
+	}
+
+	public Vec3 transformBy(PoseStack.Pose pose) {
+		return transformBy(pose.pose());
+	}
+
+	public Vec3 transformBy(Matrix4f matrix) {
+		var vec = new Vector4f((float) this.x, (float) this.y, (float) this.z, 1f);
+		vec.transform(matrix);
+		return new Vec3(vec.x() / vec.w(), vec.y() / vec.w(), vec.z() / vec.w());
 	}
 
 	public Vec3 rotateX(double angle) {

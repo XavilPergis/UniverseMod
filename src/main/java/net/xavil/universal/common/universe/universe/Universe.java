@@ -30,6 +30,8 @@ public abstract class Universe {
 		}
 	};
 
+	public long celestialTimeTicks = 0;
+
 	public abstract long getCommonUniverseSeed();
 
 	public abstract long getUniqueUniverseSeed();
@@ -37,6 +39,7 @@ public abstract class Universe {
 	public abstract StartingSystemGalaxyGenerationLayer getStartingSystemGenerator();
 
 	public void tick() {
+		this.celestialTimeTicks += 1;
 		this.volume.tick();
 		this.volume.streamLoadedSectors().forEach(pos -> {
 			var volume = this.volume.get(pos);

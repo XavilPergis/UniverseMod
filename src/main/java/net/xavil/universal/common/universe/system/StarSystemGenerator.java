@@ -112,7 +112,7 @@ public class StarSystemGenerator {
 			// by how much...
 			return Units.au(0.5) * starNode.massYg / Units.YG_PER_MSOL;
 		} else if (node instanceof BinaryNode binaryNode) {
-			return BINARY_SYSTEM_SPACING_FACTOR * binaryNode.maxOrbitalRadiusTm;
+			return BINARY_SYSTEM_SPACING_FACTOR * binaryNode.orbitalShapeB.semiMajor();
 		}
 		return 0;
 	}
@@ -125,7 +125,7 @@ public class StarSystemGenerator {
 		// In a circular orbit, apastron is not well-defined, since the bodies are
 		// equidistant at all times. In this way, the apastron defined in StarSystemNode
 		// for a circular orbit is just the orbit's diameter.
-		return parent.maxOrbitalRadiusTm / BINARY_SYSTEM_SPACING_FACTOR;
+		return parent.orbitalShapeB.semiMajor() / BINARY_SYSTEM_SPACING_FACTOR;
 	}
 
 	private @Nullable StarSystemNode mergeStarWithBinary(BinaryNode existing, StarNode toInsert) {
@@ -282,10 +282,10 @@ public class StarSystemGenerator {
 			// basically, we want to determine if stars are in orbit because they formed in
 			// different cores with different orbital planes and found their ways into
 			// orbits, or if they formed as part of a disc fragmentation event.
-			if (binaryNode.maxOrbitalRadiusTm > stabilityLimit) {
+			if (binaryNode.orbitalShapeB.semiMajor() > stabilityLimit) {
 				binaryNode.orbitalPlane = randomOrbitalPlane(random);
 			} else {
-				var t = 0.1 * Math.pow(binaryNode.maxOrbitalRadiusTm / stabilityLimit, 4);
+				var t = 0.1 * Math.pow(binaryNode.orbitalShapeB.semiMajor() / stabilityLimit, 4);
 				binaryNode.orbitalPlane = OrbitalPlane.fromOrbitalElements(
 						2 * Math.PI * random.nextDouble(-t, t),
 						2 * Math.PI * random.nextDouble(-1, 1),
@@ -299,10 +299,10 @@ public class StarSystemGenerator {
 		for (var childOrbit : node.childOrbits()) {
 			determineOrbitalPlanes(childOrbit.node);
 
-			if (childOrbit.orbitalShape.semimajorAxisTm() > stabilityLimit) {
+			if (childOrbit.orbitalShape.semiMajor() > stabilityLimit) {
 				childOrbit.orbitalPlane = randomOrbitalPlane(random);
 			} else {
-				var t = 0.1 * Math.pow(childOrbit.orbitalShape.semimajorAxisTm() / stabilityLimit, 4);
+				var t = 0.1 * Math.pow(childOrbit.orbitalShape.semiMajor() / stabilityLimit, 4);
 				t += 0.2 * Math.pow(random.nextDouble(), 20);
 				childOrbit.orbitalPlane = OrbitalPlane.fromOrbitalElements(
 						2 * Math.PI * random.nextDouble(-t, t),

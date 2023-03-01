@@ -1,6 +1,5 @@
 package net.xavil.universal.common.universe.universe;
 
-import java.util.ArrayList;
 import java.util.Random;
 
 import net.minecraft.server.MinecraftServer;
@@ -17,6 +16,7 @@ import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
+import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 
 public final class ServerUniverse extends Universe {
 
@@ -48,6 +48,15 @@ public final class ServerUniverse extends Universe {
 	@Override
 	public StartingSystemGalaxyGenerationLayer getStartingSystemGenerator() {
 		return this.startingGenerator;
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.celestialTimeTicks % 200 == 0) {
+			var syncPacket = new ClientboundSyncCelestialTimePacket(this.celestialTimeTicks);
+			this.server.getPlayerList().broadcastAll(syncPacket);
+		}
 	}
 
 	private record StartingSystem(double systemAgeMya, String name, StarSystemNode rootNode,

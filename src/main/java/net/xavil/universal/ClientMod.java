@@ -14,6 +14,7 @@ import net.xavil.universal.networking.ModNetworking;
 import net.xavil.universal.networking.ModPacket;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
+import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 
 public class ClientMod implements ClientModInitializer {
@@ -43,6 +44,9 @@ public class ClientMod implements ClientModInitializer {
 			universe.updateFromInfoPacket(packet);
 		} else if (packetUntyped instanceof ClientboundChangeSystemPacket packet) {
 			LevelAccessor.setUniverseId(client.level, packet.id);
+		} else if (packetUntyped instanceof ClientboundSyncCelestialTimePacket packet) {
+			var universe = MinecraftClientAccessor.getUniverse(client);
+			universe.celestialTimeTicks = packet.celestialTimeTicks;
 		}
 	}
 

@@ -7,90 +7,52 @@ public final class BinaryNode extends StarSystemNode {
 
 	// binary orbits always share a common orbital plane
 	public OrbitalPlane orbitalPlane;
-
-	// distance from the barycenter to the furthest edge of either orbit
-	public double maxOrbitalRadiusTm;
-	// the percentage of the semi-major axis that the semi-minor is.
-	public double squishFactor;
+	public OrbitalShape orbitalShapeA;
+	public OrbitalShape orbitalShapeB;
 	public double offset;
+
+	public BinaryNode(double massYg, StarSystemNode a, StarSystemNode b, OrbitalPlane orbitalPlane,
+			OrbitalShape orbitalShapeA, OrbitalShape orbitalShapeB, double offset) {
+		super(massYg);
+		this.a = a;
+		this.b = b;
+		this.orbitalPlane = orbitalPlane;
+		this.orbitalShapeA = orbitalShapeA;
+		this.orbitalShapeB = orbitalShapeB;
+		this.offset = offset;
+	}
 
 	public BinaryNode(StarSystemNode a, StarSystemNode b, OrbitalPlane orbitalPlane,
 			double squishFactor, double maxOrbitalRadiusTm, double offset) {
 		super(a.massYg + b.massYg);
 
-		this.a = a;
-		this.b = b;
+		if (a.massYg > b.massYg) {
+			this.a = a;
+			this.b = b;
+		} else {
+			this.a = b;
+			this.b = a;
+		}
+
+		// object with the smaller mass has the larger orbit.
+		final var majorB = maxOrbitalRadiusTm;
+		final var minorB = squishFactor * maxOrbitalRadiusTm;
+		final var shapeB = OrbitalShape.fromAxes(majorB, minorB);
+		final var shapeA = OrbitalShape.fromEccentricity(shapeB.eccentricity(),
+				(this.b.massYg / this.a.massYg) * shapeB.semiMajor());
+
 		this.orbitalPlane = orbitalPlane;
-		this.maxOrbitalRadiusTm = maxOrbitalRadiusTm;
-		this.squishFactor = squishFactor;
-	}
-
-	// F -> distance between center of ellipse and one of its foci
-	// F = sqrt(a^2 - b^2)
-	// e = sqrt(1 - (b^2 / a^2))
-
-	private double getSemiMajorLarger() {
-		// r - F
-		return this.maxOrbitalRadiusTm * (1 - (1 - this.squishFactor * this.squishFactor) / 2);
-	}
-
-	private double getSemiMinorLarger() {
-		// S * r
-		return this.squishFactor * this.maxOrbitalRadiusTm;
-	}
-
-	// distance from center of the larger ellipse to the barycenter (one of its
-	// foci)
-	private double getFocalDistanceLarger() {
-		// a = r - F, b = S * r, F = sqrt(a^2 - b^2)
-		// solving for F yields F = r * (1 - S^2) / 2
-		return this.maxOrbitalRadiusTm * (1 - this.squishFactor * this.squishFactor) / 2;
-	}
-
-	public double getSemiMajorAxisA() {
-		var res = getSemiMajorLarger();
-		if (this.b.massYg < this.a.massYg)
-			res *= this.b.massYg / this.a.massYg;
-		return res;
-	}
-
-	public double getSemiMajorAxisB() {
-		var res = getSemiMajorLarger();
-		if (this.a.massYg < this.b.massYg)
-			res *= this.a.massYg / this.b.massYg;
-		return res;
-	}
-
-	public double getSemiMinorAxisA() {
-		var res = getSemiMinorLarger();
-		if (this.b.massYg < this.a.massYg)
-			res *= this.b.massYg / this.a.massYg;
-		return res;
-	}
-
-	public double getSemiMinorAxisB() {
-		var res = getSemiMinorLarger();
-		if (this.a.massYg < this.b.massYg)
-			res *= this.a.massYg / this.b.massYg;
-		return res;
+		this.orbitalShapeA = shapeA;
+		this.orbitalShapeB = shapeB;
+		this.offset = offset;
 	}
 
 	public double getFocalDistanceA() {
-		var res = getFocalDistanceLarger();
-		// the focal distance of the smaller orbit is just a scaled version of the
-		// larger orbit's:
-		// a = k*r-F_s, b = k*S*r, F_s = sqrt(a^2 - b^2)
-		// solving for F_s yields F_s = k * r * (1 - S^2) / 2, which is k * F
-		if (this.b.massYg < this.a.massYg)
-			res *= this.b.massYg / this.a.massYg;
-		return res;
+		return (this.b.massYg / this.a.massYg) * this.orbitalShapeB.focalDistance();
 	}
 
 	public double getFocalDistanceB() {
-		var res = getFocalDistanceLarger();
-		if (this.a.massYg < this.b.massYg)
-			res *= this.a.massYg / this.b.massYg;
-		return res;
+		return this.orbitalShapeB.focalDistance();
 	}
 
 	@Override
@@ -99,8 +61,8 @@ public final class BinaryNode extends StarSystemNode {
 		builder.append(" [");
 		builder.append("massYg=" + this.massYg);
 		builder.append(", orbitalPlane=" + this.orbitalPlane);
-		builder.append(", squishFactor=" + this.squishFactor);
-		builder.append(", maxOrbitalRadiusTm=" + this.maxOrbitalRadiusTm);
+		builder.append(", orbitalShapeA=" + this.orbitalShapeA);
+		builder.append(", orbitalShapeB=" + this.orbitalShapeB);
 		builder.append("]");
 		return builder.toString();
 	}

@@ -19,6 +19,11 @@ public class StarmapItem extends Item {
 	}
 
 	@Override
+	public boolean isFoil(ItemStack stack) {
+		return true;
+	}
+
+	@Override
 	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand interactionHand) {
 		if (player instanceof ServerPlayer serverPlayer && level instanceof ServerLevel serverLevel) {
 			var universe = MinecraftServerAccessor.getUniverse(serverPlayer.server);

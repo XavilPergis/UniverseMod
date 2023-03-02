@@ -21,6 +21,8 @@ import net.xavil.universal.common.block.ModBlocks;
 import net.xavil.universal.common.dimension.DimensionCreationProperties;
 import net.xavil.universal.common.dimension.DynamicDimensionManager;
 import net.xavil.universal.common.item.StarmapItem;
+import net.xavil.universal.common.universe.system.PlanetNode;
+import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.ModNetworking;
@@ -89,21 +91,26 @@ public class Mod implements ModInitializer {
 				var yaw = sender.getRespawnAngle();
 				sender.teleportTo(server.overworld(), p.getX(), p.getY(), p.getZ(), yaw, 0);
 			} else {
-				final var key = DynamicDimensionManager
-						.getKey(new ResourceLocation("dynamic", packet.planetId.uniqueName()));
-				final var manager = DynamicDimensionManager.get(server);
-				final var newLevel = manager.getOrCreateLevel(key, () -> {
-					var registryAccess = server.registryAccess();
-					var type = registryAccess.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY)
-							.getOrCreateHolder(DimensionType.OVERWORLD_LOCATION);
-					var generator = WorldGenSettings.makeDefaultOverworld(registryAccess, new Random().nextLong());
-					return DimensionCreationProperties.basic(new LevelStem(type, generator));
-				});
+				if (systemNode instanceof PlanetNode planetNode) {
+					var propertiesSupplier = planetNode.dimensionProperties(server);
+					if (propertiesSupplier != null) {
+						final var key = DynamicDimensionManager
+								.getKey(new ResourceLocation("dynamic", packet.planetId.uniqueName()));
+						final var manager = DynamicDimensionManager.get(server);
+						final var newLevel = manager.getOrCreateLevel(key, propertiesSupplier);
 
-				LevelAccessor.setUniverseId(newLevel, packet.planetId);
+						LevelAccessor.setUniverseId(newLevel, packet.planetId);
 
-				// TODO: find actual spawn pos
-				sender.teleportTo(newLevel, 0, 100, 0, 0, 0);
+						// TODO: find actual spawn pos
+						sender.teleportTo(newLevel, 0, 100, 0, 0, 0);
+					} else {
+						Mod.LOGGER.warn("tried to teleport to non-landable node " + packet.planetId);
+						return;
+					}
+				} else {
+					Mod.LOGGER.warn("tried to teleport to non-landable node " + packet.planetId);
+					return;
+				}
 			}
 
 			var changeSystemPacket = new ClientboundChangeSystemPacket(packet.planetId);

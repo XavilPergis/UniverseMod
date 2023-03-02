@@ -232,13 +232,12 @@ public class SkyRenderer {
 		var thisPos = positions.get(currentPlanetId.nodeId());
 
 		var builder = Tesselator.getInstance().getBuilder();
-		var ctx = new PlanetRenderingContext(builder);
+		var ctx = new PlanetRenderingContext();
 		system.rootNode.visit(node -> {
 			if (node instanceof StarNode starNode) {
 				final var pos = positions.get(starNode.getId());
 				var posView = viewPos(poseStack, thisPos, pos);
-				var light = new PlanetRenderingContext.PointLight(posView, starNode.getColor(),
-						starNode.luminosityLsol);
+				var light = PlanetRenderingContext.PointLight.fromStar(posView, starNode);
 				ctx.pointLights.add(light);
 			}
 		});
@@ -258,7 +257,7 @@ public class SkyRenderer {
 				continue;
 
 			var offset = pos.sub(thisPos).mul(1e12);
-			ctx.render(node, poseStack, offset, 1, Color.WHITE);
+			ctx.render(builder, node, poseStack, offset, 1, Color.WHITE);
 		}
 	}
 

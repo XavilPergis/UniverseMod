@@ -1,5 +1,6 @@
 package net.xavil.universal.client.screen;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -15,6 +16,7 @@ import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
+import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
@@ -55,7 +57,12 @@ public class SystemMapScreen extends UniversalScreen {
 	private int selectedId = -1;
 	private boolean showGuides = true;
 	private final SystemId systemId;
-	private final Map<Integer, Vec3> positions = new HashMap<>();
+
+	private static class ClientNodeInfo {
+		public VertexBuffer vertexBuffer;
+	}
+
+	private final Map<Integer, ClientNodeInfo> clientInfo = new HashMap<>();
 
 	private static final Set<String> ACTIVE_DEBUG_FEATURES = new HashSet<>();
 
@@ -120,22 +127,26 @@ public class SystemMapScreen extends UniversalScreen {
 		return false;
 	}
 
-	private int getClosestNode(OrbitCamera.Cached camera) {
-		int closest = -1;
+	private StarSystemNode getClosestNode(OrbitCamera.Cached camera) {
+		StarSystemNode closest = null;
 		var focusPos = camera.focus.div(TM_PER_UNIT);
-		for (var entry : this.positions.entrySet()) {
-			if (closest == -1) {
-				closest = entry.getKey();
+
+		final var nodes = new ArrayList<StarSystemNode>();
+		this.system.rootNode.visit(nodes::add);
+
+		for (var node : nodes) {
+			if (closest == null) {
+				closest = node;
 				continue;
 			}
-			var node = this.system.rootNode.lookup(entry.getKey());
 			if (!(node instanceof BinaryNode)) {
-				var currentDist = entry.getValue().distanceTo(focusPos);
-				var closestDist = this.positions.get(closest).distanceTo(focusPos);
+				var currentDist = node.position.distanceTo(focusPos);
+				var closestDist = closest.position.distanceTo(focusPos);
 				if (currentDist < closestDist)
-					closest = entry.getKey();
+					closest = node;
 			}
 		}
+
 		return closest;
 	}
 
@@ -147,7 +158,7 @@ public class SystemMapScreen extends UniversalScreen {
 		final var partialTick = this.client.getFrameTime();
 
 		if (keyCode == GLFW.GLFW_KEY_F) {
-			this.selectedId = getClosestNode(this.camera.cached(partialTick));
+			this.selectedId = getClosestNode(this.camera.cached(partialTick)).getId();
 			this.followingId = selectedId;
 			Mod.LOGGER.warn("this.selectedId = " + this.selectedId);
 		} else if (keyCode == GLFW.GLFW_KEY_R) {
@@ -413,24 +424,30 @@ public class SystemMapScreen extends UniversalScreen {
 		if (node instanceof PlanetNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			// TM_PER_UNIT * 1e-12;
-			ctx.renderPlanet(planetNode, new PoseStack(), planetNode.position, 1e12, Color.WHITE);
+			ctx.renderPlanet(builder, planetNode, new PoseStack(), planetNode.position, 1e12, Color.WHITE);
 		} else {
-			ctx.render(node, new PoseStack(), node.position, 1e12, Color.WHITE);
-			// RenderHelper.renderStarBillboard(builder, camera, node, node.position, TM_PER_UNIT, partialTick);
+			RenderHelper.renderStarBillboard(builder, camera, node, node.position, TM_PER_UNIT, partialTick);
+			// ctx.render(builder, node, new PoseStack(), node.position, 1e12, Color.WHITE);
 		}
 	}
 
 	private void render3d(OrbitCamera.Cached camera, float partialTick) {
 		final var builder = Tesselator.getInstance().getBuilder();
 
+		// system.rootNode.visit(node -> {
+		// 	if (!this.clientInfo.containsKey(node.getId())) {
+		// 		var info = new ClientNodeInfo();
+		// 		info.vertexBuffer = new VertexBuffer();
+		// 		this.clientInfo.put(node.getId(), info);
+		// 	}
+		// });
+
 		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.TM_PER_AU, 10, 40, partialTick);
 
-		var ctx = new PlanetRenderingContext(builder);
+		var ctx = new PlanetRenderingContext();
 		system.rootNode.visit(node -> {
 			if (node instanceof StarNode starNode) {
-				final var pos = positions.get(starNode.getId());
-				var light = new PlanetRenderingContext.PointLight(pos, starNode.getColor(), starNode.luminosityLsol);
+				var light = PlanetRenderingContext.PointLight.fromStar(starNode.position, starNode);
 				ctx.pointLights.add(light);
 			}
 		});
@@ -458,8 +475,7 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.disableDepthTest();
 		BufferUploader.end(builder);
 
-		var closestId = getClosestNode(camera);
-		var closestPos = this.positions.get(closestId);
+		var closestPos = getClosestNode(camera).position;
 		RenderSystem.enableBlend();
 		RenderSystem.disableTexture();
 		RenderSystem.defaultBlendFunc();
@@ -472,20 +488,19 @@ public class SystemMapScreen extends UniversalScreen {
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		for (var entry : this.positions.entrySet()) {
+		this.system.rootNode.visit(node -> {
 			var camPos = this.camera.getPos(partialTick);
-			var nodePos = entry.getValue();
+			var nodePos = node.position;
 			var distanceFromCamera = camPos.distanceTo(nodePos);
 
-			if (this.selectedId == entry.getKey()) {
+			if (this.selectedId == node.getId()) {
 				RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right, nodePos,
 						0.01 * distanceFromCamera, 0, new Color(1, 0.5, 0.5, 0.2));
 			} else {
 				RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right, nodePos,
 						0.01 * distanceFromCamera, 0, new Color(0.5, 0.5, 0.5, 0.2));
 			}
-
-		}
+		});
 		builder.end();
 		this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
 				.setFilter(true, false);
@@ -557,6 +572,15 @@ public class SystemMapScreen extends UniversalScreen {
 	}
 
 	@Override
+	public void onClose() {
+		super.onClose();
+		this.clientInfo.values().forEach(info -> {
+			if (info.vertexBuffer != null)
+				info.vertexBuffer.close();
+		});
+	}
+
+	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
 		RenderSystem.depthMask(false);
 		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
@@ -575,10 +599,11 @@ public class SystemMapScreen extends UniversalScreen {
 		double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
 
 		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick,
-				(node, pos) -> this.positions.put(node.getId(), pos));
+				(node, pos) -> {
+				});
 
 		if (followingId != -1) {
-			var nodePos = this.positions.get(this.followingId);
+			var nodePos = this.system.rootNode.lookup(this.followingId).position;
 			if (nodePos != null) {
 				this.camera.focus.set(nodePos.mul(TM_PER_UNIT));
 			}

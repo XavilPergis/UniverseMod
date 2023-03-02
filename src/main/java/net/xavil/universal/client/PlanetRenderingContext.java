@@ -56,24 +56,35 @@ public final class PlanetRenderingContext {
 	}
 
 	public record PointLight(Vec3 pos, Color color, double luminosity) {
+		public static PointLight fromStar(Vec3 pos, StarNode node) {
+			return new PointLight(pos, node.getColor(), node.luminosityLsol);
+		}
 	}
 
 	public final List<PointLight> pointLights = new ArrayList<>();
-	private final BufferBuilder builder;
 	private final Minecraft client = Minecraft.getInstance();
+	private int renderedPlanetCount = 0;
+	private int renderedStarCount = 0;
 
-	public PlanetRenderingContext(BufferBuilder builder) {
-		this.builder = builder;
+	public PlanetRenderingContext() {
 	}
 
-	public void render(StarSystemNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
+	public int getRenderedPlanetCount() {
+		return this.renderedPlanetCount;
+	}
+
+	public int getRenderedStarCount() {
+		return this.renderedStarCount;
+	}
+
+	public void render(BufferBuilder builder, StarSystemNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
 		if (node instanceof StarNode starNode)
-			renderStar(starNode, poseStack, pos, scale, tintColor);
+			renderStar(builder, starNode, poseStack, pos, scale, tintColor);
 		if (node instanceof PlanetNode planetNode)
-			renderPlanet(planetNode, poseStack, pos, scale, tintColor);
+			renderPlanet(builder, planetNode, poseStack, pos, scale, tintColor);
 	}
 
-	public void renderStar(StarNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
+	public void renderStar(BufferBuilder builder, StarNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		// addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
@@ -92,12 +103,49 @@ public final class PlanetRenderingContext {
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
 		BufferUploader.end(builder);
-		// var planetNode = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD, node.massYg,
-		// 		Units.METERS_PER_RSOL * node.radiusRsol / Units.METERS_PER_REARTH, node.temperatureK);
+
+		this.renderedStarCount += 1;
+		// var planetNode = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD,
+		// node.massYg,
+		// Units.METERS_PER_RSOL * node.radiusRsol / Units.METERS_PER_REARTH,
+		// node.temperatureK);
 		// renderPlanet(planetNode, poseStack, pos, scale, tintColor);
 	}
 
-	public void renderPlanet(PlanetNode node, PoseStack poseStack, Vec3 pos, double metersPerUnit, Color tintColor) {
+	private void setupLighting(Vec3 pos) {
+
+		final int maxLightCount = 4;
+
+		// this could probably be smarter. Merging stars that are close enough compared
+		// to the distance of the planet, or prioritizing apparent brightness over just
+		// distance.
+		final var sortedLights = new ArrayList<>(this.pointLights);
+		sortedLights.sort(Comparator.comparingDouble(light -> light.pos.distanceTo(pos)));
+
+		final var lightCount = Math.min(maxLightCount, sortedLights.size());
+
+		var planetShader = ModRendering.getShader(ModRendering.PLANET_SHADER);
+
+		for (var i = 0; i < maxLightCount; ++i) {
+			var lightColor = planetShader.safeGetUniform("LightColor" + i);
+			lightColor.set(new Vector4f(0, 0, 0, -1));
+		}
+
+		for (var i = 0; i < lightCount; ++i) {
+			var lightColor = planetShader.safeGetUniform("LightColor" + i);
+			var lightPos = planetShader.safeGetUniform("LightPos" + i);
+
+			final var light = sortedLights.get(i);
+
+			float r = light.color.r(), g = light.color.g(), b = light.color.b();
+			float luminosity = (float) Math.max(light.luminosity, 0.4);
+			lightColor.set(new Vector4f(r, g, b, luminosity));
+			lightPos.set(new Vector4f(new Vector3f(light.pos.asMinecraft())));
+		}
+
+	}
+
+	public void renderPlanet(BufferBuilder builder, PlanetNode node, PoseStack poseStack, Vec3 pos, double metersPerUnit, Color tintColor) {
 
 		var radiusM = 2 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// final var metersPerUnit = 1 / unitsPerMeter;
@@ -106,35 +154,7 @@ public final class PlanetRenderingContext {
 		if (posView.length() * metersPerUnit > 800 * radiusM)
 			return;
 
-		// this could probably be smarter. Merging stars that are close enough compared
-		// to the distance of the planet, or prioritizing apparent brightness over just
-		// distance.
-		final var sortedLights = new ArrayList<>(this.pointLights);
-		sortedLights.sort(Comparator.comparingDouble(light -> light.pos.distanceTo(pos)));
-
-		final var lightCount = Math.min(4, sortedLights.size());
-
-		var planetShader = ModRendering.getShader(ModRendering.PLANET_SHADER);
-
-		for (var i = 0; i < 4; ++i) {
-			var lightColor = planetShader.getUniform("LightColor" + i);
-			if (lightColor != null)
-				lightColor.set(new Vector4f(0, 0, 0, -1));
-		}
-
-		for (var i = 0; i < lightCount; ++i) {
-			final var light = sortedLights.get(i);
-			var lightPos = planetShader.getUniform("LightPos" + i);
-			var aaa = new Vector4f(new Vector3f(light.pos.asMinecraft()));
-			if (lightPos != null)
-				lightPos.set(aaa);
-			var lightColor = planetShader.getUniform("LightColor" + i);
-			if (lightColor != null) {
-				float r = light.color.r(), g = light.color.g(), b = light.color.b();
-				float luminosity = (float) Math.max(light.luminosity, 0.4);
-				lightColor.set(new Vector4f(r, g, b, luminosity));
-			}
-		}
+		setupLighting(pos);
 
 		if (node.type == PlanetNode.Type.GAS_GIANT) {
 			Minecraft.getInstance().getTextureManager().getTexture(BASE_GAS_GIANT_LOCATION).setFilter(true, false);
@@ -151,6 +171,8 @@ public final class PlanetRenderingContext {
 		if (node.type == PlanetNode.Type.ROCKY_WORLD) {
 			renderTexturedCube(builder, FEATURE_CRATERS_LOCATION, poseStack, pos, radiusUnits, tintColor);
 		}
+
+		this.renderedPlanetCount += 1;
 	}
 
 	private static void renderTexturedCube(BufferBuilder builder, ResourceLocation texture, PoseStack poseStack,
@@ -171,7 +193,7 @@ public final class PlanetRenderingContext {
 		poseStack.pushPose();
 		poseStack.translate(center.x, center.y, center.z);
 		final var pose = poseStack.last();
-		final var subdivisions = 10;
+		final var subdivisions = 5;
 
 		// -X
 		double nxlu = 0.00f, nxlv = 0.5f, nxhu = 0.25f, nxhv = 0.25f;

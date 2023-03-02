@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -14,10 +15,14 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Vector3f;
 import com.mojang.math.Vector4f;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.screen.Color;
+import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.system.PlanetNode;
@@ -30,6 +35,8 @@ public final class PlanetRenderingContext {
 			.namespaced("textures/misc/celestialbodies/base_rocky.png");
 	public static final ResourceLocation BASE_WATER_LOCATION = Mod
 			.namespaced("textures/misc/celestialbodies/base_water.png");
+	public static final ResourceLocation BASE_GAS_GIANT_LOCATION = Mod
+			.namespaced("textures/misc/celestialbodies/base_gas_giant.png");
 	public static final ResourceLocation FEATURE_CRATERS_LOCATION = Mod
 			.namespaced("textures/misc/celestialbodies/craters.png");
 	public static final ResourceLocation FEATURE_EARTH_LIKE_LOCATION = Mod
@@ -39,7 +46,7 @@ public final class PlanetRenderingContext {
 		var missing = MissingTextureAtlasSprite.getLocation();
 		return switch (node.type) {
 			case EARTH_LIKE_WORLD -> BASE_WATER_LOCATION;
-			case GAS_GIANT -> BASE_ROCKY_LOCATION;
+			case GAS_GIANT -> BASE_GAS_GIANT_LOCATION;
 			case ICE_WORLD -> BASE_WATER_LOCATION;
 			case ROCKY_ICE_WORLD -> BASE_WATER_LOCATION;
 			case ROCKY_WORLD -> BASE_ROCKY_LOCATION;
@@ -53,6 +60,7 @@ public final class PlanetRenderingContext {
 
 	public final List<PointLight> pointLights = new ArrayList<>();
 	private final BufferBuilder builder;
+	private final Minecraft client = Minecraft.getInstance();
 
 	public PlanetRenderingContext(BufferBuilder builder) {
 		this.builder = builder;
@@ -66,12 +74,37 @@ public final class PlanetRenderingContext {
 	}
 
 	public void renderStar(StarNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
-		var planetNode = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD, node.massYg,
-				Units.METERS_PER_RSOL * node.radiusRsol / Units.METERS_PER_REARTH, node.temperatureK);
-		renderPlanet(planetNode, poseStack, pos, scale, tintColor);
+		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
+		double d = RenderHelper.getCelestialBodySize(node, pos, Vec3.ZERO);
+
+		var aaa = new PoseStack();
+		aaa.last().pose().multiply(RenderSystem.getModelViewMatrix());
+		aaa.last().pose().multiply(poseStack.last().pose());
+		// var aaa = RenderSystem.getModelViewMatrix().copy();
+		RenderHelper.addBillboard(builder, Vec3.YP, Vec3.XP, node, pos, d);
+
+		builder.end();
+		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
+		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		RenderSystem.depthMask(false);
+		RenderSystem.enableDepthTest();
+		BufferUploader.end(builder);
+		// var planetNode = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD, node.massYg,
+		// 		Units.METERS_PER_RSOL * node.radiusRsol / Units.METERS_PER_REARTH, node.temperatureK);
+		// renderPlanet(planetNode, poseStack, pos, scale, tintColor);
 	}
 
-	public void renderPlanet(PlanetNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
+	public void renderPlanet(PlanetNode node, PoseStack poseStack, Vec3 pos, double metersPerUnit, Color tintColor) {
+
+		var radiusM = 2 * Units.METERS_PER_REARTH * node.radiusRearth;
+		// final var metersPerUnit = 1 / unitsPerMeter;
+
+		var posView = node.position.transformBy(RenderSystem.getModelViewMatrix());
+		if (posView.length() * metersPerUnit > 800 * radiusM)
+			return;
 
 		// this could probably be smarter. Merging stars that are close enough compared
 		// to the distance of the planet, or prioritizing apparent brightness over just
@@ -82,13 +115,6 @@ public final class PlanetRenderingContext {
 		final var lightCount = Math.min(4, sortedLights.size());
 
 		var planetShader = ModRendering.getShader(ModRendering.PLANET_SHADER);
-
-		// if (sortedLights.size() > 0) sortedLights.set(0, new
-		// PointLight(sortedLights.get(0).pos, Color.RED, 5));
-		// if (sortedLights.size() > 1) sortedLights.set(1, new
-		// PointLight(sortedLights.get(1).pos, Color.GREEN, 5));
-		// if (sortedLights.size() > 2) sortedLights.set(2, new
-		// PointLight(sortedLights.get(2).pos, Color.BLUE, 5));
 
 		for (var i = 0; i < 4; ++i) {
 			var lightColor = planetShader.getUniform("LightColor" + i);
@@ -103,27 +129,33 @@ public final class PlanetRenderingContext {
 			if (lightPos != null)
 				lightPos.set(aaa);
 			var lightColor = planetShader.getUniform("LightColor" + i);
-			if (lightColor != null)
-				lightColor
-						.set(new Vector4f(light.color.r(), light.color.g(), light.color.b(), (float) light.luminosity));
+			if (lightColor != null) {
+				float r = light.color.r(), g = light.color.g(), b = light.color.b();
+				float luminosity = (float) Math.max(light.luminosity, 0.4);
+				lightColor.set(new Vector4f(r, g, b, luminosity));
+			}
 		}
 
-		// var planetShader = GameRenderer.getPositionTexColorNormalShader();
+		if (node.type == PlanetNode.Type.GAS_GIANT) {
+			Minecraft.getInstance().getTextureManager().getTexture(BASE_GAS_GIANT_LOCATION).setFilter(true, false);
+		}
 
-		RenderSystem.setShader(() -> planetShader);
 		RenderSystem.defaultBlendFunc();
 		var baseTexture = getBaseLayer(node);
-		var radiusM = scale * 2 * Units.METERS_PER_REARTH * node.radiusRearth;
+		var radiusUnits = radiusM / metersPerUnit;
 		// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
-		// var radiusM = 2 * Units.METERS_PER_REARTH * node.radiusRearth;
-		renderTexturedCube(builder, baseTexture, poseStack, pos, radiusM, tintColor);
+		renderTexturedCube(builder, baseTexture, poseStack, pos, radiusUnits, tintColor);
 		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
-			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, pos, radiusM, tintColor);
+			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, pos, radiusUnits, tintColor);
+		}
+		if (node.type == PlanetNode.Type.ROCKY_WORLD) {
+			renderTexturedCube(builder, FEATURE_CRATERS_LOCATION, poseStack, pos, radiusUnits, tintColor);
 		}
 	}
 
 	private static void renderTexturedCube(BufferBuilder builder, ResourceLocation texture, PoseStack poseStack,
 			Vec3 center, double radius, Color tintColor) {
+		// RenderSystem.setShader(() -> GameRenderer.getPositionTexColorNormalShader());
 		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.PLANET_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 		// addCube(builder, poseStack, center, radius, tintColor);
@@ -138,91 +170,144 @@ public final class PlanetRenderingContext {
 
 		poseStack.pushPose();
 		poseStack.translate(center.x, center.y, center.z);
-		// final double nr = -radius, pr = radius;
 		final var pose = poseStack.last();
 		final var subdivisions = 10;
 
 		// -X
-		for (var py = 0; py < subdivisions; ++py) {
-			var ly = (2 * (double) py / (double) subdivisions) - 1;
-			var hy = (2 * (double) (py + 1) / (double) subdivisions) - 1;
-			for (var pz = 0; pz < subdivisions; ++pz) {
-				var lz = (2 * (double) pz / (double) subdivisions) - 1;
-				var hz = (2 * (double) (pz + 1) / (double) subdivisions) - 1;
-				normSphereVertex(builder, pose, tintColor, radius, -1, hy, lz, 0.50f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, -1, ly, lz, 0.25f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, -1, ly, hz, 0.25f, 0.25f);
-				normSphereVertex(builder, pose, tintColor, radius, -1, hy, hz, 0.50f, 0.25f);
+		double nxlu = 0.00f, nxlv = 0.5f, nxhu = 0.25f, nxhv = 0.25f;
+		for (var pa = 0; pa < subdivisions; ++pa) {
+			double lpa = (double) pa / (double) subdivisions, hpa = (double) (pa + 1) / (double) subdivisions;
+			double la = 2 * lpa - 1, ha = 2 * hpa - 1;
+			la = Math.tan(Math.PI / 4 * la);
+			ha = Math.tan(Math.PI / 4 * ha);
+			var lv = (float) Mth.lerp(lpa, nxlv, nxhv);
+			var hv = (float) Mth.lerp(hpa, nxlv, nxhv);
+			for (var pb = 0; pb < subdivisions; ++pb) {
+				double lpb = (double) pb / (double) subdivisions, hpb = (double) (pb + 1) / (double) subdivisions;
+				double lb = 2 * lpb - 1, hb = 2 * hpb - 1;
+				lb = Math.tan(Math.PI / 4 * lb);
+				hb = Math.tan(Math.PI / 4 * hb);
+				var lu = (float) Mth.lerp(lpb, nxlu, nxhu);
+				var hu = (float) Mth.lerp(hpb, nxlu, nxhu);
+				normSphereVertex(builder, pose, tintColor, radius, -1, ha, lb, lu, hv);
+				normSphereVertex(builder, pose, tintColor, radius, -1, la, lb, lu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, -1, la, hb, hu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, -1, ha, hb, hu, hv);
 			}
 		}
 
 		// +X
-		for (var py = 0; py < subdivisions; ++py) {
-			var ly = (2 * (double) py / (double) subdivisions) - 1;
-			var hy = (2 * (double) (py + 1) / (double) subdivisions) - 1;
-			for (var pz = 0; pz < subdivisions; ++pz) {
-				var lz = (2 * (double) pz / (double) subdivisions) - 1;
-				var hz = (2 * (double) (pz + 1) / (double) subdivisions) - 1;
-				normSphereVertex(builder, pose, tintColor, radius, 1, ly, lz, 0.50f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, 1, hy, lz, 0.25f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, 1, hy, hz, 0.25f, 0.25f);
-				normSphereVertex(builder, pose, tintColor, radius, 1, ly, hz, 0.50f, 0.25f);
+		double pxlu = 0.75f, pxlv = 0.50f, pxhu = 0.50f, pxhv = 0.25f;
+		for (var pa = 0; pa < subdivisions; ++pa) {
+			double lpa = (double) pa / (double) subdivisions, hpa = (double) (pa + 1) / (double) subdivisions;
+			double la = 2 * lpa - 1, ha = 2 * hpa - 1;
+			la = Math.tan(Math.PI / 4 * la);
+			ha = Math.tan(Math.PI / 4 * ha);
+			var lv = (float) Mth.lerp(lpa, pxlv, pxhv);
+			var hv = (float) Mth.lerp(hpa, pxlv, pxhv);
+			for (var pb = 0; pb < subdivisions; ++pb) {
+				double lpb = (double) pb / (double) subdivisions, hpb = (double) (pb + 1) / (double) subdivisions;
+				double lb = 2 * lpb - 1, hb = 2 * hpb - 1;
+				lb = Math.tan(Math.PI / 4 * lb);
+				hb = Math.tan(Math.PI / 4 * hb);
+				var lu = (float) Mth.lerp(lpb, pxlu, pxhu);
+				var hu = (float) Mth.lerp(hpb, pxlu, pxhu);
+				normSphereVertex(builder, pose, tintColor, radius, 1, ha, lb, lu, hv);
+				normSphereVertex(builder, pose, tintColor, radius, 1, la, lb, lu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, 1, la, hb, hu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, 1, ha, hb, hu, hv);
 			}
 		}
 
 		// -Y
-		for (var px = 0; px < subdivisions; ++px) {
-			var lx = (2 * (double) px / (double) subdivisions) - 1;
-			var hx = (2 * (double) (px + 1) / (double) subdivisions) - 1;
-			for (var pz = 0; pz < subdivisions; ++pz) {
-				var lz = (2 * (double) pz / (double) subdivisions) - 1;
-				var hz = (2 * (double) (pz + 1) / (double) subdivisions) - 1;
-				normSphereVertex(builder, pose, tintColor, radius, lx, -1, lz, 0.50f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, hx, -1, lz, 0.25f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, hx, -1, hz, 0.25f, 0.25f);
-				normSphereVertex(builder, pose, tintColor, radius, lx, -1, hz, 0.50f, 0.25f);
+		double nylu = 0.25f, nylv = 0.75f, nyhu = 0.50f, nyhv = 0.50f;
+		for (var pa = 0; pa < subdivisions; ++pa) {
+			double lpa = (double) pa / (double) subdivisions, hpa = (double) (pa + 1) / (double) subdivisions;
+			double la = 2 * lpa - 1, ha = 2 * hpa - 1;
+			la = Math.tan(Math.PI / 4 * la);
+			ha = Math.tan(Math.PI / 4 * ha);
+			var lu = (float) Mth.lerp(lpa, nylu, nyhu);
+			var hu = (float) Mth.lerp(hpa, nylu, nyhu);
+			for (var pb = 0; pb < subdivisions; ++pb) {
+				double lpb = (double) pb / (double) subdivisions, hpb = (double) (pb + 1) / (double) subdivisions;
+				double lb = 2 * lpb - 1, hb = 2 * hpb - 1;
+				lb = Math.tan(Math.PI / 4 * lb);
+				hb = Math.tan(Math.PI / 4 * hb);
+				var lv = (float) Mth.lerp(lpb, nylv, nyhv);
+				var hv = (float) Mth.lerp(hpb, nylv, nyhv);
+				normSphereVertex(builder, pose, tintColor, radius, ha, -1, lb, hu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, la, -1, lb, lu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, la, -1, hb, lu, hv);
+				normSphereVertex(builder, pose, tintColor, radius, ha, -1, hb, hu, hv);
 			}
 		}
 
 		// +Y
-		for (var px = 0; px < subdivisions; ++px) {
-			var lx = (2 * (double) px / (double) subdivisions) - 1;
-			var hx = (2 * (double) (px + 1) / (double) subdivisions) - 1;
-			for (var pz = 0; pz < subdivisions; ++pz) {
-				var lz = (2 * (double) pz / (double) subdivisions) - 1;
-				var hz = (2 * (double) (pz + 1) / (double) subdivisions) - 1;
-				normSphereVertex(builder, pose, tintColor, radius, hx, 1, lz, 0.50f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, lx, 1, lz, 0.25f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, lx, 1, hz, 0.25f, 0.25f);
-				normSphereVertex(builder, pose, tintColor, radius, hx, 1, hz, 0.50f, 0.25f);
+		double pylu = 0.25f, pylv = 0.00f, pyhu = 0.50f, pyhv = 0.25f;
+		for (var pa = 0; pa < subdivisions; ++pa) {
+			double lpa = (double) pa / (double) subdivisions, hpa = (double) (pa + 1) / (double) subdivisions;
+			double la = 2 * lpa - 1, ha = 2 * hpa - 1;
+			la = Math.tan(Math.PI / 4 * la);
+			ha = Math.tan(Math.PI / 4 * ha);
+			var lu = (float) Mth.lerp(lpa, pylu, pyhu);
+			var hu = (float) Mth.lerp(hpa, pylu, pyhu);
+			for (var pb = 0; pb < subdivisions; ++pb) {
+				double lpb = (double) pb / (double) subdivisions, hpb = (double) (pb + 1) / (double) subdivisions;
+				double lb = 2 * lpb - 1, hb = 2 * hpb - 1;
+				lb = Math.tan(Math.PI / 4 * lb);
+				hb = Math.tan(Math.PI / 4 * hb);
+				var lv = (float) Mth.lerp(lpb, pylv, pyhv);
+				var hv = (float) Mth.lerp(hpb, pylv, pyhv);
+				normSphereVertex(builder, pose, tintColor, radius, ha, 1, lb, hu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, la, 1, lb, lu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, la, 1, hb, lu, hv);
+				normSphereVertex(builder, pose, tintColor, radius, ha, 1, hb, hu, hv);
 			}
 		}
 
 		// -Z
-		for (var px = 0; px < subdivisions; ++px) {
-			var lx = (2 * (double) px / (double) subdivisions) - 1;
-			var hx = (2 * (double) (px + 1) / (double) subdivisions) - 1;
-			for (var py = 0; py < subdivisions; ++py) {
-				var ly = (2 * (double) py / (double) subdivisions) - 1;
-				var hy = (2 * (double) (py + 1) / (double) subdivisions) - 1;
-				normSphereVertex(builder, pose, tintColor, radius, hx, ly, -1, 0.50f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, lx, ly, -1, 0.25f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, lx, hy, -1, 0.25f, 0.25f);
-				normSphereVertex(builder, pose, tintColor, radius, hx, hy, -1, 0.50f, 0.25f);
+		double nzlu = 1.00f, nzlv = 0.50f, nzhu = 0.75f, nzhv = 0.25f;
+		for (var pa = 0; pa < subdivisions; ++pa) {
+			double lpa = (double) pa / (double) subdivisions, hpa = (double) (pa + 1) / (double) subdivisions;
+			double la = 2 * lpa - 1, ha = 2 * hpa - 1;
+			la = Math.tan(Math.PI / 4 * la);
+			ha = Math.tan(Math.PI / 4 * ha);
+			var lu = (float) Mth.lerp(lpa, nzlu, nzhu);
+			var hu = (float) Mth.lerp(hpa, nzlu, nzhu);
+			for (var pb = 0; pb < subdivisions; ++pb) {
+				double lpb = (double) pb / (double) subdivisions, hpb = (double) (pb + 1) / (double) subdivisions;
+				double lb = 2 * lpb - 1, hb = 2 * hpb - 1;
+				lb = Math.tan(Math.PI / 4 * lb);
+				hb = Math.tan(Math.PI / 4 * hb);
+				var lv = (float) Mth.lerp(lpb, nzlv, nzhv);
+				var hv = (float) Mth.lerp(hpb, nzlv, nzhv);
+				normSphereVertex(builder, pose, tintColor, radius, ha, lb, -1, hu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, la, lb, -1, lu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, la, hb, -1, lu, hv);
+				normSphereVertex(builder, pose, tintColor, radius, ha, hb, -1, hu, hv);
 			}
 		}
 
 		// +Z
-		for (var px = 0; px < subdivisions; ++px) {
-			var lx = (2 * (double) px / (double) subdivisions) - 1;
-			var hx = (2 * (double) (px + 1) / (double) subdivisions) - 1;
-			for (var py = 0; py < subdivisions; ++py) {
-				var ly = (2 * (double) py / (double) subdivisions) - 1;
-				var hy = (2 * (double) (py + 1) / (double) subdivisions) - 1;
-				normSphereVertex(builder, pose, tintColor, radius, lx, ly, 1, 0.50f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, hx, ly, 1, 0.25f, 0.00f);
-				normSphereVertex(builder, pose, tintColor, radius, hx, hy, 1, 0.25f, 0.25f);
-				normSphereVertex(builder, pose, tintColor, radius, lx, hy, 1, 0.50f, 0.25f);
+		double pzlu = 0.25f, pzlv = 0.50f, pzhu = 0.50f, pzhv = 0.25f;
+		for (var pa = 0; pa < subdivisions; ++pa) {
+			double lpa = (double) pa / (double) subdivisions, hpa = (double) (pa + 1) / (double) subdivisions;
+			double la = 2 * lpa - 1, ha = 2 * hpa - 1;
+			la = Math.tan(Math.PI / 4 * la);
+			ha = Math.tan(Math.PI / 4 * ha);
+			var lu = (float) Mth.lerp(lpa, pzlu, pzhu);
+			var hu = (float) Mth.lerp(hpa, pzlu, pzhu);
+			for (var pb = 0; pb < subdivisions; ++pb) {
+				double lpb = (double) pb / (double) subdivisions, hpb = (double) (pb + 1) / (double) subdivisions;
+				double lb = 2 * lpb - 1, hb = 2 * hpb - 1;
+				lb = Math.tan(Math.PI / 4 * lb);
+				hb = Math.tan(Math.PI / 4 * hb);
+				var lv = (float) Mth.lerp(lpb, pzlv, pzhv);
+				var hv = (float) Mth.lerp(hpb, pzlv, pzhv);
+				normSphereVertex(builder, pose, tintColor, radius, ha, lb, 1, hu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, la, lb, 1, lu, lv);
+				normSphereVertex(builder, pose, tintColor, radius, la, hb, 1, lu, hv);
+				normSphereVertex(builder, pose, tintColor, radius, ha, hb, 1, hu, hv);
 			}
 		}
 

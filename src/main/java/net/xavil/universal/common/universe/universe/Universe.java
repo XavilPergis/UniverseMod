@@ -57,7 +57,7 @@ public abstract class Universe {
 		// return 3.154e+7 * (this.celestialTimeTicks + partialTick) / 20.0;
 		// return (1440.0 / 5.0) * (this.celestialTimeTicks + partialTick) / 20.0;
 		// return (this.celestialTimeTicks + partialTick) / 20.0;
-		return 10 * (this.celestialTimeTicks + partialTick) / 20.0;
+		return 100 * (this.celestialTimeTicks + partialTick) / 20.0;
 		// return (this.celestialTimeTicks + partialTick) / 200000000.0;
 	}
 

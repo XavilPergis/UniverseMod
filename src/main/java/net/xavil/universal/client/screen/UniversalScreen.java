@@ -16,6 +16,14 @@ public abstract class UniversalScreen extends Screen {
 		this.previousScreen = previousScreen;
 	}
 
+	/**
+	 * Controls whether the client will render the world. This should be overridden
+	 * to return false when the screen is completely covered by a background.
+	 */
+	public boolean shouldRenderWorld() {
+		return true;
+	}
+
 	@Override
 	public void onClose() {
 		// NOTE: explicitly not calling super's onClose because we want to set the

@@ -26,6 +26,11 @@
 	- Maybe you have to collect data on a planet before you can land
 	- Preliminary scans could show material composition (eg. what % tin the planet is made of)
 	- Intensive scans could be needed to actually land on the planet
+- Render sky into HDR buffer and then tonemap when copying to main buffer
+
+## Pretty stuff to make exploration worthwhile
+- Aurorae
+- Ringed Worlds
 
 # Unresolved Questions
 - Since I dont want to keep world files around for planets that were barely interacted with, how do we figure out when to keep the world, and when to not?

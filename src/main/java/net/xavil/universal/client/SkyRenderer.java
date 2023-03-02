@@ -29,7 +29,6 @@ import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.OrbitalPlane;
-import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
@@ -247,6 +246,8 @@ public class SkyRenderer {
 		RenderSystem.depthMask(true);
 		RenderSystem.enableDepthTest();
 		RenderSystem.enableBlend();
+		RenderSystem.disableCull();
+
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
 		for (var entry : positions.entrySet()) {
@@ -256,50 +257,8 @@ public class SkyRenderer {
 			if (node.getId() == currentPlanetId.nodeId())
 				continue;
 
-			// var offset = viewPos(poseStack, thisPos, pos);
 			var offset = pos.sub(thisPos).mul(1e12);
-			var dir = offset.normalize();
-
-			poseStack.pushPose();
-			if (node instanceof PlanetNode planetNode) {
-				ctx.render(planetNode, poseStack, offset, 1, Color.WHITE);
-				
-				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-				// builder.begin(VertexFormat.Mode.QUADS,
-				// 		DefaultVertexFormat.POSITION_COLOR_TEX);
-				// var color = new Color(1, 0.5, 0.2, 0.5);
-				// var up = Vec3.fromMinecraft(camera.getUpVector());
-				// var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
-				// RenderHelper.addBillboard(builder, poseStack, up, right, dir.mul(1e9), 1e7,
-				// 		0, color);
-				// builder.end();
-				// this.client.getTextureManager()
-				// 		.getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-				// 		.setFilter(true, false);
-				// RenderSystem.setShaderTexture(0,
-				// 		RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-				// RenderSystem.defaultBlendFunc();
-				// BufferUploader.end(builder);
-
-			} else if (node instanceof StarNode starNode) {
-				ctx.renderStar(starNode, poseStack, offset, 1, Color.WHITE);
-
-				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-				// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-				// var color = new Color(0.3, 1, 0.2, 1);
-				// var up = Vec3.fromMinecraft(camera.getUpVector());
-				// var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
-				// RenderHelper.addBillboard(builder, poseStack, up, right, dir.mul(1e9), 1e8, 0, color);
-				// builder.end();
-				// this.client.getTextureManager()
-				// 		.getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-				// 		.setFilter(true, false);
-				// RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-				// RenderSystem.defaultBlendFunc();
-				// BufferUploader.end(builder);
-
-			}
-			poseStack.popPose();
+			ctx.render(node, poseStack, offset, 1, Color.WHITE);
 		}
 	}
 
@@ -326,7 +285,7 @@ public class SkyRenderer {
 
 		poseStack.mulPose(Vector3f.XP.rotation((float) (longitudeOffset + Math.toRadians(90))));
 		poseStack.mulPose(Vector3f.YP.rotation((float) (latitudeOffset + node.rotationalSpeed * time)));
-		poseStack.mulPose(Vector3f.XP.rotation((float) -node.obliquityAngle));
+		poseStack.mulPose(Vector3f.XP.rotation((float) -(node.obliquityAngle + Math.toRadians(35))));
 	}
 
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float partialTick, Camera camera,

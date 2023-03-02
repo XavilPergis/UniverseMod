@@ -440,6 +440,11 @@ public class GalaxyMapScreen extends UniversalScreen {
 	}
 
 	@Override
+	public boolean shouldRenderWorld() {
+		return false;
+	}
+
+	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
 		// This render method gets a tick delta instead of a tick completion percentage,
 		// so we have to get the partialTick manually.

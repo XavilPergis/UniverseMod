@@ -355,13 +355,11 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-		if (!(node.getA() instanceof BinaryNode))
-		{
+		if (!(node.getA() instanceof BinaryNode)) {
 			var ellipse = node.getEllipseA(node.referencePlane);
 			addEllipse(builder, ellipse, camera.pos, BINARY_PATH_COLOR.withA(0.5));
 		}
-		if (!(node.getB() instanceof BinaryNode))
-		{
+		if (!(node.getB() instanceof BinaryNode)) {
 			var ellipse = node.getEllipseB(node.referencePlane);
 			addEllipse(builder, ellipse, camera.pos, BINARY_PATH_COLOR.withA(0.5));
 		}
@@ -397,157 +395,49 @@ public class SystemMapScreen extends UniversalScreen {
 		BufferUploader.end(builder);
 	}
 
-	private void renderNode(OrbitCamera.Cached camera, StarSystemNode node, OrbitalPlane referencePlane,
-			PlanetRenderingContext ctx, double time, float partialTick, Vec3 centerPos) {
-		// FIXME: elliptical orbits n stuff
-		// FIXME: every node's reference plane is the root reference plane currently,
-		// because im unsure how to transform child planes from being parent-relative to
-		// root-relative.
+	private void renderNode(OrbitCamera.Cached camera, StarSystemNode node, PlanetRenderingContext ctx,
+			float partialTick) {
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
-		// var focusPos = camera.focus.div(TM_PER_UNIT);
-		// var toCenter = centerPos.sub(focusPos);
-
-		if (node instanceof BinaryNode binaryNode) {
-			// var angle = StarSystemNode.getBinaryAngle(binaryNode, time);
-
-			// var aCenter = centerPos.add(StarSystemNode.getBinaryOffsetA(referencePlane, binaryNode, angle));
-			// var bCenter = centerPos.add(StarSystemNode.getBinaryOffsetB(referencePlane, binaryNode, angle));
-			// var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
-			renderNode(camera, binaryNode.getA(), OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
-			renderNode(camera, binaryNode.getB(), OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
-
-			if (this.showGuides) {
-				showBinaryGuides(builder, camera, binaryNode.referencePlane, partialTick, binaryNode);
-			}
+		if (node instanceof BinaryNode binaryNode && this.showGuides) {
+			showBinaryGuides(builder, camera, binaryNode.referencePlane, partialTick, binaryNode);
 		}
 
 		for (var childOrbit : node.childOrbits()) {
-			var childNode = childOrbit.node;
-
-			// var ellipse = childOrbit.getEllipse(childNode.referencePlane);
-
-			// var angle = StarSystemNode.getUnaryAngle(node, childOrbit, time);
-			// var center = centerPos.add(StarSystemNode.getUnaryOffset(referencePlane,
-			// childOrbit, angle));
-			// var center = ellipse.pointFromAngle(angle);
-			// var newPlane = childOrbit.orbitalPlane.withReferencePlane(childNode.referencePlane);
-			renderNode(camera, childNode, OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
-
 			if (this.showGuides) {
-				showUnaryGuides(builder, camera, childNode.referencePlane, partialTick, childOrbit);
+				showUnaryGuides(builder, camera, childOrbit.node.referencePlane, partialTick, childOrbit);
 			}
 		}
-
-		// var projectedFocus = Vec3.from(centerPos.x, focusPos.y, centerPos.z);
-		// var d = 0.05 * this.camera.getPos(partialTick).distanceTo(projectedFocus);
-		// int maxLineSegments = 32;
-		// double lineSegmentLength = d * 0.25;
-		// var k = 4;
-		// var maxLength = 2 * maxLineSegments * lineSegmentLength;
-
-		// if (this.showGuides && toCenter.x * toCenter.x + toCenter.z * toCenter.z < k * maxLength * k * maxLength) {
-			RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-		// 	builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-
-		// 	double currentOffset = 0, prevOffset = 0;
-		// 	for (var i = 0; i < maxLineSegments; ++i) {
-		// 		var start = focusPos.y + prevOffset;
-		// 		var end = focusPos.y + (currentOffset + prevOffset) / 2;
-
-		// 		if (focusPos.y < centerPos.y) {
-		// 			if (end > centerPos.y)
-		// 				end = centerPos.y;
-		// 		} else {
-		// 			if (end < centerPos.y)
-		// 				end = centerPos.y;
-		// 		}
-
-		// 		var startD = Vec3.from(centerPos.x, start, centerPos.z).distanceTo(focusPos);
-		// 		var endD = Vec3.from(centerPos.x, end, centerPos.z).distanceTo(focusPos);
-
-		// 		float sa = 1 - (float) Math.pow(1 - Math.max(0, 1 - (startD / maxLength)), 3);
-		// 		float ea = 1 - (float) Math.pow(1 - Math.max(0, 1 - (endD / maxLength)), 3);
-		// 		builder.vertex(centerPos.x, start, centerPos.z)
-		// 				.color(0.5f, 0.5f, 0.5f, 0.5f * sa).normal(0, 1, 0).endVertex();
-		// 		builder.vertex(centerPos.x, end, centerPos.z)
-		// 				.color(0.5f, 0.5f, 0.5f, 0.5f * ea).normal(0, 1, 0).endVertex();
-
-		// 		prevOffset = currentOffset;
-		// 		if (focusPos.y < centerPos.y) {
-		// 			currentOffset += 2 * lineSegmentLength;
-		// 			if (prevOffset > centerPos.y - focusPos.y) {
-		// 				break;
-		// 			}
-		// 		} else {
-		// 			currentOffset -= 2 * lineSegmentLength;
-		// 			if (prevOffset < centerPos.y - focusPos.y) {
-		// 				break;
-		// 			}
-		// 		}
-
-		// 	}
-
-		// 	builder.end();
-		// 	RenderSystem.lineWidth(1f);
-		// 	RenderSystem.enableBlend();
-		// 	RenderSystem.disableTexture();
-		// 	RenderSystem.defaultBlendFunc();
-		// 	RenderSystem.disableCull();
-		// 	RenderSystem.depthMask(false);
-		// 	BufferUploader.end(builder);
-		// }
 
 		if (node instanceof PlanetNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			ctx.renderPlanet(planetNode, new PoseStack(), planetNode.position, 1e-12, Color.WHITE);
-			// RenderHelper.renderPlanet(builder, planetNode,
-			// this.camera.getPos(partialTick), 1e-12, new PoseStack(),
-			// centerPos, Color.WHITE);
+			// TM_PER_UNIT * 1e-12;
+			ctx.renderPlanet(planetNode, new PoseStack(), planetNode.position, 1e12, Color.WHITE);
 		} else {
-			RenderHelper.renderStarBillboard(builder, camera, node, node.position, TM_PER_UNIT, partialTick);
+			ctx.render(node, new PoseStack(), node.position, 1e12, Color.WHITE);
+			// RenderHelper.renderStarBillboard(builder, camera, node, node.position, TM_PER_UNIT, partialTick);
 		}
 	}
 
-	@Override
-	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
-		RenderSystem.depthMask(false);
-		// fillGradient(poseStack, 0, 0, this.width, this.height, 0xcf000000,
-		// 0xcf000000);
-		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
-		RenderSystem.depthMask(true);
-
-		final var partialTick = this.client.getFrameTime();
-		final var camera = this.camera.cached(partialTick);
-
-		if (system == null)
-			return;
-
-		final var universe = MinecraftClientAccessor.getUniverse(this.client);
-
-		// FIXME: `Minecraft` has a `pausePartialTick` field that we should use instead of 0 here.
-		double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
-
-		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick,
-				(node, pos) -> this.positions.put(node.getId(), pos));
-
-		if (followingId != -1) {
-			var nodePos = this.positions.get(this.followingId);
-			if (nodePos != null) {
-				this.camera.focus.set(nodePos.mul(TM_PER_UNIT));
-			}
-		}
-
-		var prevMatrices = camera.setupRenderMatrices(partialTick);
-
+	private void render3d(OrbitCamera.Cached camera, float partialTick) {
 		final var builder = Tesselator.getInstance().getBuilder();
 
-		// RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, 1e-3 * Units.TM_PER_AU,
-		// 		10, 40, partialTick);
-		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.TM_PER_AU,
-				10, 40, partialTick);
+		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.TM_PER_AU, 10, 40, partialTick);
+
+		var ctx = new PlanetRenderingContext(builder);
+		system.rootNode.visit(node -> {
+			if (node instanceof StarNode starNode) {
+				final var pos = positions.get(starNode.getId());
+				var light = new PlanetRenderingContext.PointLight(pos, starNode.getColor(), starNode.luminosityLsol);
+				ctx.pointLights.add(light);
+			}
+		});
+
+		system.rootNode.visit(node -> {
+			renderNode(camera, node, ctx, partialTick);
+		});
 
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -567,17 +457,6 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.disableCull();
 		RenderSystem.disableDepthTest();
 		BufferUploader.end(builder);
-
-		var ctx = new PlanetRenderingContext(builder);
-		system.rootNode.visit(node -> {
-			if (node instanceof StarNode starNode) {
-				final var pos = positions.get(starNode.getId());
-				var light = new PlanetRenderingContext.PointLight(pos, starNode.getColor(), starNode.luminosityLsol);
-				ctx.pointLights.add(light);
-			}
-		});
-
-		renderNode(camera, system.rootNode, OrbitalPlane.ZERO, ctx, time, partialTick, Vec3.ZERO);
 
 		var closestId = getClosestNode(camera);
 		var closestPos = this.positions.get(closestId);
@@ -616,8 +495,9 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.disableCull();
 		RenderSystem.disableDepthTest();
 		BufferUploader.end(builder);
+	}
 
-		prevMatrices.restore();
+	private void render2d(PoseStack poseStack, float partialTick) {
 
 		if (this.selectedId != -1) {
 			int h = 0;
@@ -669,6 +549,45 @@ public class SystemMapScreen extends UniversalScreen {
 		// new NodeRenderer(poseStack).renderNodeMain(system.rootNode);
 		// poseStack.popPose();
 
+	}
+
+	@Override
+	public boolean shouldRenderWorld() {
+		return false;
+	}
+
+	@Override
+	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
+		RenderSystem.depthMask(false);
+		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
+		RenderSystem.depthMask(true);
+
+		final var partialTick = this.client.getFrameTime();
+		final var camera = this.camera.cached(partialTick);
+
+		if (system == null)
+			return;
+
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+
+		// FIXME: `Minecraft` has a `pausePartialTick` field that we should use instead
+		// of 0 here.
+		double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
+
+		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick,
+				(node, pos) -> this.positions.put(node.getId(), pos));
+
+		if (followingId != -1) {
+			var nodePos = this.positions.get(this.followingId);
+			if (nodePos != null) {
+				this.camera.focus.set(nodePos.mul(TM_PER_UNIT));
+			}
+		}
+
+		final var prevMatrices = camera.setupRenderMatrices(partialTick);
+		render3d(camera, partialTick);
+		prevMatrices.restore();
+		render2d(poseStack, partialTick);
 		super.render(poseStack, mouseX, mouseY, tickDelta);
 	}
 

@@ -300,6 +300,7 @@ public class SkyRenderer {
 			return false;
 
 		var matrixSnapshot = RenderMatricesSnapshot.capture();
+		poseStack.pushPose();
 
 		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1e8f, 1e13f, partialTick);
 
@@ -335,11 +336,9 @@ public class SkyRenderer {
 		double time = universe.getCelestialTime(partialTick);
 		// double time = (System.currentTimeMillis() % 1000000) * 1000f;
 
-		poseStack.pushPose();
 		applyPlanetTrasform(poseStack, currentNode, time, camera.getPosition().x, camera.getPosition().z);
 		drawStars(poseStack.last().pose(), projectionMatrix);
 		drawSystem(poseStack, camera, currentId, time, partialTick);
-		poseStack.popPose();
 
 		this.client.getMainRenderTarget().bindWrite(false);
 		RenderSystem.enableBlend();
@@ -352,6 +351,7 @@ public class SkyRenderer {
 		RenderSystem.enableTexture();
 		RenderSystem.depthMask(true);
 
+		poseStack.popPose();
 		matrixSnapshot.restore();
 		return true;
 	}

@@ -100,7 +100,7 @@ public final class PlanetRenderingContext {
 		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
+		RenderSystem.depthMask(true);
 		RenderSystem.enableDepthTest();
 		BufferUploader.end(builder);
 

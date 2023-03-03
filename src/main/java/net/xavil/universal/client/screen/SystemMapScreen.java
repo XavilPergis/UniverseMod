@@ -25,7 +25,6 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
-import net.xavil.universal.Mod;
 import net.xavil.universal.client.PlanetRenderingContext;
 import net.xavil.universal.common.Ellipse;
 import net.xavil.universal.common.universe.Units;
@@ -160,7 +159,6 @@ public class SystemMapScreen extends UniversalScreen {
 		if (keyCode == GLFW.GLFW_KEY_F) {
 			this.selectedId = getClosestNode(this.camera.cached(partialTick)).getId();
 			this.followingId = selectedId;
-			Mod.LOGGER.warn("this.selectedId = " + this.selectedId);
 		} else if (keyCode == GLFW.GLFW_KEY_R) {
 			this.followingId = selectedId;
 		} else if (keyCode == GLFW.GLFW_KEY_Q) {
@@ -319,63 +317,81 @@ public class SystemMapScreen extends UniversalScreen {
 	private static final Color[] ORBIT_PATH_DEBUG_COLORS = { Color.RED, Color.GREEN, Color.BLUE, Color.CYAN,
 			Color.MAGENTA, Color.YELLOW, };
 
-	private static void addEllipseArc(VertexConsumer builder, Ellipse ellipse, Vec3 cameraPos, Color color,
-			double endpointAngleL, double endpointAngleH, int maxDepth) {
+	private static void addEllipseArc(VertexConsumer builder, OrbitCamera.Cached camera, Ellipse ellipse, Color color,
+			double endpointAngleL, double endpointAngleH, int maxDepth, boolean fadeOut) {
 
-		var endpointL = ellipse.pointFromAngle(endpointAngleL);
-		var endpointH = ellipse.pointFromAngle(endpointAngleH);
+		var subdivisionSegments = 2;
+
+		var endpointL = ellipse.pointFromTrueAnomaly(endpointAngleL);
+		var endpointH = ellipse.pointFromTrueAnomaly(endpointAngleH);
 		var midpointSegment = endpointL.div(2).add(endpointH.div(2));
 
-		// var midpointAngle = (endpointAngleL + endpointAngleL) / 2;
-		// var midpointIdeal = ellipse.pointFromAngle(midpointAngle);
-		// var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
+		var segmentLength = endpointL.distanceTo(endpointH);
 
-		var divisionRadius = 10 * endpointL.distanceTo(endpointH);
+		var maxDistance = 10 * camera.scale;
+		var divisionFactor = 10;
+
+		// var midpointAngle = (endpointAngleL + endpointAngleL) / 2;
+		// var midpointIdeal = ellipse.pointFromTrueAnomaly(midpointAngle);
+		// var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
 
 		if (ACTIVE_DEBUG_FEATURES.contains("orbit_path_subdivisions")) {
 			color = ORBIT_PATH_DEBUG_COLORS[maxDepth % ORBIT_PATH_DEBUG_COLORS.length];
 		}
 
-		if (maxDepth > 0 && cameraPos.distanceTo(midpointSegment) < divisionRadius) {
-			var subdivisionSegments = 2;
+		var isSegmentVisible = !fadeOut || midpointSegment.distanceTo(camera.pos) < segmentLength / 2 + maxDistance;
+		var insideDivisionRadius = camera.pos.distanceTo(midpointSegment) < divisionFactor * segmentLength;
+		if (maxDepth > 0 && isSegmentVisible && insideDivisionRadius) {
 			for (var i = 0; i < subdivisionSegments; ++i) {
 				var percentL = i / (double) subdivisionSegments;
 				var percentH = (i + 1) / (double) subdivisionSegments;
 				var angleL = Mth.lerp(percentL, endpointAngleL, endpointAngleH);
 				var angleH = Mth.lerp(percentH, endpointAngleL, endpointAngleH);
-				addEllipseArc(builder, ellipse, cameraPos, color, angleL, angleH, maxDepth - 1);
+				addEllipseArc(builder, camera, ellipse, color, angleL, angleH, maxDepth - 1, fadeOut);
 			}
+
+			// RenderHelper.addLine(builder, endpointL, endpointH, color.withA(0.1));
 		} else {
-			RenderHelper.addLine(builder, endpointL, endpointH, color);
+			double alphaL = color.a(), alphaH = color.a();
+			if (fadeOut) {
+				var distL = camera.pos.distanceTo(endpointL);
+				var distH = camera.pos.distanceTo(endpointH);
+				alphaL *= Math.max(0, 1 - Mth.inverseLerp(distL, 0, maxDistance));
+				alphaH *= Math.max(0, 1 - Mth.inverseLerp(distH, 0, maxDistance));
+			}
+			RenderHelper.addLine(builder, endpointL, endpointH, color.withA(alphaL), color.withA(alphaH));
 		}
 
 	}
 
-	private static void addEllipse(VertexConsumer builder, Ellipse ellipse, Vec3 cameraPos, Color color) {
+	private static void addEllipse(VertexConsumer builder, OrbitCamera.Cached camera, Ellipse ellipse, Color color,
+			boolean fadeOut) {
 		var basePathSegments = 32;
-		var maxDepth = 6;
+		var maxDepth = 10;
 		for (var i = 0; i < basePathSegments; ++i) {
 			var angleL = 2 * Math.PI * (i / (double) basePathSegments);
 			var angleH = 2 * Math.PI * ((i + 1) / (double) basePathSegments);
-			addEllipseArc(builder, ellipse, cameraPos, color, angleL, angleH, maxDepth);
+			addEllipseArc(builder, camera, ellipse, color, angleL, angleH, maxDepth, fadeOut);
 		}
 	}
 
-	private static void showBinaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
+	private void showBinaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
 			float partialTick, BinaryNode node) {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		if (!(node.getA() instanceof BinaryNode)) {
 			var ellipse = node.getEllipseA(node.referencePlane);
-			addEllipse(builder, ellipse, camera.pos, BINARY_PATH_COLOR.withA(0.5));
+			var isSelected = this.selectedId != node.getA().getId();
+			var color = isSelected ? BINARY_PATH_COLOR.withA(0.5) : new Color(0.2, 1.0, 0.2, 1.0);
+			addEllipse(builder, camera, ellipse, color, isSelected);
 		}
 		if (!(node.getB() instanceof BinaryNode)) {
 			var ellipse = node.getEllipseB(node.referencePlane);
-			addEllipse(builder, ellipse, camera.pos, BINARY_PATH_COLOR.withA(0.5));
+			var isSelected = this.selectedId != node.getB().getId();
+			var color = isSelected ? BINARY_PATH_COLOR.withA(0.5) : new Color(0.2, 1.0, 0.2, 1.0);
+			addEllipse(builder, camera, ellipse, color, isSelected);
 		}
-
-		RenderHelper.addLine(builder, node.getA().position, node.getB().position, BINARY_PATH_COLOR.withA(0.2));
 
 		builder.end();
 		RenderSystem.lineWidth(2f);
@@ -383,18 +399,19 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.disableTexture();
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
-		// RenderSystem.depthMask(false);
+		RenderSystem.depthMask(true);
 		BufferUploader.end(builder);
 	}
 
-	private static void showUnaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
+	private void showUnaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
 			float partialTick, StarSystemNode.UnaryOrbit orbit) {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		var ellipse = orbit.getEllipse(orbit.parentNode.referencePlane);
-
-		addEllipse(builder, ellipse, camera.pos, UNARY_PATH_COLOR.withA(0.5));
+		var isSelected = this.selectedId != orbit.node.getId();
+		var color = isSelected ? UNARY_PATH_COLOR.withA(0.5) : new Color(0.2, 1.0, 0.2, 1.0);
+		addEllipse(builder, camera, ellipse, color, isSelected);
 
 		builder.end();
 		RenderSystem.lineWidth(2f);
@@ -402,7 +419,7 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.disableTexture();
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
-		// RenderSystem.depthMask(false);
+		RenderSystem.depthMask(true);
 		BufferUploader.end(builder);
 	}
 
@@ -410,16 +427,6 @@ public class SystemMapScreen extends UniversalScreen {
 			float partialTick) {
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
-
-		if (node instanceof BinaryNode binaryNode && this.showGuides) {
-			showBinaryGuides(builder, camera, binaryNode.referencePlane, partialTick, binaryNode);
-		}
-
-		for (var childOrbit : node.childOrbits()) {
-			if (this.showGuides) {
-				showUnaryGuides(builder, camera, childOrbit.node.referencePlane, partialTick, childOrbit);
-			}
-		}
 
 		if (node instanceof PlanetNode planetNode) {
 			RenderSystem.depthMask(true);
@@ -429,17 +436,28 @@ public class SystemMapScreen extends UniversalScreen {
 			RenderHelper.renderStarBillboard(builder, camera, node, node.position, TM_PER_UNIT, partialTick);
 			// ctx.render(builder, node, new PoseStack(), node.position, 1e12, Color.WHITE);
 		}
+
+		if (node instanceof BinaryNode binaryNode && this.showGuides) {
+			showBinaryGuides(builder, camera, binaryNode.referencePlane, partialTick, binaryNode);
+		}
+
+		for (var childOrbit : node.childOrbits()) {
+			if (!this.showGuides)
+				continue;
+			showUnaryGuides(builder, camera, childOrbit.node.referencePlane, partialTick, childOrbit);
+		}
+
 	}
 
 	private void render3d(OrbitCamera.Cached camera, float partialTick) {
 		final var builder = Tesselator.getInstance().getBuilder();
 
 		// system.rootNode.visit(node -> {
-		// 	if (!this.clientInfo.containsKey(node.getId())) {
-		// 		var info = new ClientNodeInfo();
-		// 		info.vertexBuffer = new VertexBuffer();
-		// 		this.clientInfo.put(node.getId(), info);
-		// 	}
+		// if (!this.clientInfo.containsKey(node.getId())) {
+		// var info = new ClientNodeInfo();
+		// info.vertexBuffer = new VertexBuffer();
+		// this.clientInfo.put(node.getId(), info);
+		// }
 		// });
 
 		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.TM_PER_AU, 10, 40, partialTick);

@@ -124,12 +124,7 @@ public class OrbitCamera {
 	}
 
 	public Cached cached(float partialTick) {
-		return new Cached(this,
-				getUpVector(partialTick),
-				getRightVector(partialTick),
-				this.focus.get(partialTick),
-				getPos(partialTick),
-				getOrientation(partialTick));
+		return new Cached(this, partialTick);
 	}
 
 	public static class Cached {
@@ -138,15 +133,32 @@ public class OrbitCamera {
 		public final Vec3 focus;
 		public final Vec3 pos;
 		public final Quaternion orientation;
+		public final double scale;
 
-		public Cached(OrbitCamera camera, Vec3 up, Vec3 right, Vec3 focus, Vec3 pos, Quaternion orientation) {
+		public Cached(OrbitCamera camera, float partialTick) {
+			this(camera,
+					camera.getUpVector(partialTick),
+					camera.getRightVector(partialTick),
+					camera.focus.get(partialTick),
+					camera.getPos(partialTick),
+					camera.getOrientation(partialTick),
+					camera.scale.get(partialTick));
+		}
+
+		public Cached(OrbitCamera camera, Vec3 up, Vec3 right, Vec3 focus, Vec3 pos, Quaternion orientation,
+				double scale) {
 			this.camera = camera;
 			this.up = up;
 			this.right = right;
 			this.focus = focus;
 			this.pos = pos;
 			this.orientation = orientation;
+			this.scale = scale;
 		}
+
+		// public Vec3 toCameraSpace(Vec3 posWorld) {
+		// 	return posWorld.sub(this.pos);
+		// }
 
 		public RenderMatricesSnapshot setupRenderMatrices(float partialTick) {
 			var snapshot = RenderMatricesSnapshot.capture();

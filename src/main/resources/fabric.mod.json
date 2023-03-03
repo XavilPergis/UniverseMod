@@ -15,15 +15,10 @@
 	"icon": "assets/modid/icon.png",
 	"environment": "*",
 	"entrypoints": {
-		"preLaunch": [
-			"net.xavil.universal.PreLaunchMod"
-		],
-		"main": [
-			"net.xavil.universal.Mod"
-		],
-		"client": [
-			"net.xavil.universal.ClientMod"
-		]
+		"preLaunch": ["net.xavil.universal.PreLaunchMod"],
+		"main": ["net.xavil.universal.Mod"],
+		"client": ["net.xavil.universal.ClientMod"],
+		"cardinal-components": ["net.xavil.universal.ModComponents"]
 	},
 	"mixins": [
 		"universal.mixins.json"
@@ -34,5 +29,10 @@
 		"minecraft": "~1.18.2",
 		"java": ">=17"
 	},
-	"suggests": {}
+	"suggests": {},
+	"custom": {
+		"cardinal-components": [
+			"universal:system_node_id"
+		]
+	}
 }

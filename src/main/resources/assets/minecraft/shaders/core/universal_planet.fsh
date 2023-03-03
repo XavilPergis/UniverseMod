@@ -56,8 +56,11 @@ vec3 contribution(vec4 color, vec4 pos) {
 }
 
 void main() {
-    vec4 color = texture(Sampler0, texCoord0) * vertexColor;
-    if (color.a < 0.1) {
+	float gamma = 2.2;
+    vec4 baseColor = texture(Sampler0, texCoord0) * vertexColor;
+	baseColor.rgb = pow(baseColor.rgb, vec3(gamma));
+
+    if (baseColor.a < 0.1) {
         discard;
     }
 
@@ -68,6 +71,10 @@ void main() {
 	res += contribution(LightColor2, LightPos2);
 	res += contribution(LightColor3, LightPos3);
 
-    fragColor = vec4(aces_tonemap(res * color.rgb), 1);
-    // fragColor = vec4(color.rgb, 1);
+	vec3 finalColor = res * baseColor.rgb;
+
+    // finalColor = pow(finalColor, vec3(1.0 / gamma));
+	finalColor = aces_tonemap(finalColor);
+
+    fragColor = vec4(finalColor, 1);
 }

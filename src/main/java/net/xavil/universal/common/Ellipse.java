@@ -37,10 +37,6 @@ public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 		return Math.sqrt(1 - (semiMinor * semiMinor) / (semiMajor * semiMajor));
 	}
 
-	public Vec3 pointFromAngle(double angle) {
-		return this.center.add(this.right.mul(Math.cos(angle))).add(this.up.mul(Math.sin(angle)));
-	}
-
 	public Vec3 pointFromTrueAnomaly(double angle) {
 		// https://en.wikipedia.org/wiki/True_anomaly#Radius_from_true_anomaly
 		var e = eccentricity(right.length(), up.length());

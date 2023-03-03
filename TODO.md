@@ -16,6 +16,22 @@
 - [ ] Don't load every dynamically-generated world on startup
 - [ ] Galaxy selection screen
 - [ ] Save celestial time
+- [ ] Gravity
+	- Basic movement adjustment
+		- [ ] SmoothSwimmingMoveControl
+		- [ ] FallingBlockEntity
+		- [ ] ItemEntity
+		- [ ] PrimedTnt
+		- [ ] AbstractArrow
+		- [ ] FishingHook
+		- [ ] LlamaSpit
+		- [ ] ShulkerBullet
+		- [ ] ThrowableProjectile
+		- [ ] AbstractMinecart
+		- [ ] Boat ???
+		- [ ] ExperienceOrb
+		- [ ] LivingEntity
+	- Disable elytra flight in planets with no or thin atmospheres
 
 # Longterm
 - Logistics ships!
@@ -31,6 +47,8 @@
 ## Pretty stuff to make exploration worthwhile
 - Aurorae
 - Ringed Worlds
+- Accretion Discs
+	- Black holes may or may not be accreting
 
 # Unresolved Questions
 - Since I dont want to keep world files around for planets that were barely interacted with, how do we figure out when to keep the world, and when to not?

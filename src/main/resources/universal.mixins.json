@@ -9,7 +9,8 @@
 	"ServerLevelMixin",
 	"ServerPlayerMixin",
 	"ConnectionProtocolMixin",
-	"PlayerListMixin"
+	"PlayerListMixin",
+	"gravity.LivingEntityMixin"
   ],
   "client": [
     "MinecraftClientMixin",

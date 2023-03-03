@@ -27,6 +27,7 @@ public class StarmapItem extends Item {
 	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand interactionHand) {
 		if (player instanceof ServerPlayer serverPlayer && level instanceof ServerLevel serverLevel) {
 			var universe = MinecraftServerAccessor.getUniverse(serverPlayer.server);
+			// var levelId = ModComponents.SYSTEM_NODE_ID.getNullable(serverLevel);
 			var levelId = LevelAccessor.getUniverseId(serverLevel);
 			var id = levelId == null ? universe.getStartingSystemGenerator().getStartingSystemId() : levelId;
 			var packet = new ClientboundOpenStarmapPacket(id);

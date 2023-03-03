@@ -21,9 +21,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.RenderMatricesSnapshot;
+import net.xavil.universal.common.universe.Quat;
 import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
@@ -59,6 +61,8 @@ public class SkyRenderer {
 		var offset = pos.sub(selfPos);
 		var forward = offset.normalize();
 
+		s = 1e5 * 2 * RenderHelper.getCelestialBodySize(selfPos, node, pos);
+
 		var du = forward.dot(Vec3.YP);
 		var df = forward.dot(Vec3.ZN);
 		var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
@@ -68,8 +72,10 @@ public class SkyRenderer {
 		right = transformByQuaternion(axisAngle(forward, rotation), right);
 
 		var color = Color.WHITE;
-		if (node instanceof StarNode starNode)
+		if (node instanceof StarNode starNode) {
 			color = starNode.getColor();
+			// s *= Math.log(starNode.luminosityLsol);
+		}
 
 		var distanceFromFocus = offset.length();
 		if (distanceFromFocus > 1.5 * Galaxy.TM_PER_SECTOR)
@@ -84,10 +90,15 @@ public class SkyRenderer {
 
 		if (node instanceof StarNode starNode) {
 			// Mth.inverseLerp(starNode.luminosityLsol, 0, 30000)
-			var t = Math.pow(starNode.luminosityLsol, 0.2);
-			var d = distanceFromFocus / Galaxy.TM_PER_SECTOR;
+			var t = Math.pow(starNode.luminosityLsol, 0.4);
+			// var t = starNode.luminosityLsol;
+
+			// how many Tm can a star with 1 Lsol of luminosity be seen from
+			final var referenceMaxVisibleDistance = 547229.011;
+
+			var d = distanceFromFocus / referenceMaxVisibleDistance;
 			alpha *= t / d;
-			alpha /= 4;
+			// alpha /= 4;
 			// alpha *= (starNode.luminosityLsol * 20) / (distanceFromFocus /
 			// Galaxy.TM_PER_SECTOR);
 			alpha = Math.min(1, alpha);
@@ -107,11 +118,14 @@ public class SkyRenderer {
 		// the outer regions collect much more light than the dimmer stars, and as such,
 		// appear larger. If you expose for brighter stars, you wont see dim stars, but
 		// the spread will be much less prominent and will look much smaller.
+
+		// VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 up,
+		// Vec3 right, Vec3 center, double scale, double zOffset, Color color
 		var up = forward.cross(right).neg();
-		RenderHelper.addBillboard(builder, poseStack, up, right, forward.mul(DISTANT_STAR_DISTANCE),
-				s * DISTANT_STAR_DISTANCE, 0, color.withA(alpha));
-		RenderHelper.addBillboard(builder, poseStack, up, right, forward.mul(DISTANT_STAR_DISTANCE),
-				0.5 * s * DISTANT_STAR_DISTANCE, 0, Color.WHITE.withA(alpha));
+		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e5),
+				s * 1, 0, color.withA(alpha));
+		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e5),
+				s * 0.5 * 1, 0, Color.WHITE.withA(alpha));
 
 	}
 
@@ -219,8 +233,10 @@ public class SkyRenderer {
 		return rel.transformBy(poseStack.last()).mul(1e12);
 	}
 
-	private void drawSystem(PoseStack poseStack, Camera camera, SystemNodeId currentPlanetId, double time,
+	private void drawSystem(PoseStack poseStack, CachedCamera<?> camera, SystemNodeId currentPlanetId, double time,
 			float partialTick) {
+
+		camera.setupRenderMatrices();
 
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
 		var system = universe.getSystem(currentPlanetId.system());
@@ -237,7 +253,7 @@ public class SkyRenderer {
 			if (node instanceof StarNode starNode) {
 				final var pos = positions.get(starNode.getId());
 				var posView = viewPos(poseStack, thisPos, pos);
-				var light = PlanetRenderingContext.PointLight.fromStar(posView, starNode);
+				var light = PlanetRenderingContext.PointLight.fromStar(pos, starNode);
 				ctx.pointLights.add(light);
 			}
 		});
@@ -256,8 +272,8 @@ public class SkyRenderer {
 			if (node.getId() == currentPlanetId.nodeId())
 				continue;
 
-			var offset = pos.sub(thisPos).mul(1e12);
-			ctx.render(builder, node, poseStack, offset, 1, Color.WHITE);
+			// var offset = pos.sub(thisPos).mul(1e12);
+			ctx.render(builder, camera, node, poseStack, Color.WHITE);
 		}
 	}
 
@@ -271,9 +287,7 @@ public class SkyRenderer {
 		return Vec3.fromMinecraft(vec);
 	}
 
-	private void applyPlanetTrasform(PoseStack poseStack, StarSystemNode node, double time,
-			double viewX, double viewZ) {
-
+	private Quat getPlanetTransform(StarSystemNode node, double time, double viewX, double viewZ) {
 		var worldBorder = this.client.level.getWorldBorder();
 		var tx = Mth.inverseLerp(viewX, worldBorder.getMinX(), worldBorder.getMaxX());
 		var tz = Mth.inverseLerp(viewZ, worldBorder.getMinZ(), worldBorder.getMaxZ());
@@ -282,9 +296,11 @@ public class SkyRenderer {
 		var latitudeOffset = Mth.clamp(Mth.lerp(tx, -hpi, hpi), -hpi, hpi);
 		var longitudeOffset = Mth.clamp(Mth.lerp(tz, hpi, -hpi), -hpi, hpi);
 
-		poseStack.mulPose(Vector3f.XP.rotation((float) (longitudeOffset + Math.toRadians(90))));
-		poseStack.mulPose(Vector3f.YP.rotation((float) (latitudeOffset + node.rotationalSpeed * time)));
-		poseStack.mulPose(Vector3f.XP.rotation((float) -(node.obliquityAngle + Math.toRadians(35))));
+		var a = Quat.axisAngle(Vec3.XP, longitudeOffset + Math.toRadians(90));
+		var b = Quat.axisAngle(Vec3.YP, latitudeOffset + node.rotationalSpeed * time);
+		var c = Quat.axisAngle(Vec3.XP, -node.obliquityAngle);
+
+		return a.hamiltonProduct(b).hamiltonProduct(c);
 	}
 
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float partialTick, Camera camera,
@@ -299,10 +315,22 @@ public class SkyRenderer {
 		if (currentNode == null)
 			return false;
 
-		var matrixSnapshot = RenderMatricesSnapshot.capture();
-		poseStack.pushPose();
-
 		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1e8f, 1e13f, partialTick);
+
+		double time = universe.getCelestialTime(partialTick);
+
+		// TODO: is this right? what about when spectating entities?
+		// this whole thing feels kinda brittle tbh, since we reconstruct the projection
+		// matrix and view rotations from scratch ourselves. This means they can get out
+		// of sync with the real things, which other mods might modify!
+		var xRot = this.client.player.getViewXRot(partialTick);
+		var yRot = this.client.player.getViewYRot(partialTick);
+
+		var aaa = getPlanetTransform(currentNode, time, camera.getPosition().x, camera.getPosition().z);
+
+		var celestialCamera = CachedCamera.create(camera, currentNode.position.mul(1e12), xRot, yRot, aaa, proj);
+		var matrixSnapshot = celestialCamera.setupRenderMatrices();
+		poseStack.pushPose();
 
 		RenderSystem.setProjectionMatrix(proj);
 		RenderSystem.setShaderFogStart(Float.POSITIVE_INFINITY);
@@ -328,17 +356,10 @@ public class SkyRenderer {
 		this.skyTarget.clear(false);
 		this.skyTarget.bindWrite(false);
 
-		// TODO: figure out how we actually wanna handle time
-		// double time = 1e7 + (1440.0 / 5.0) * System.currentTimeMillis() / 1000.0 -
-		// 1e10;
-		// double time = (System.currentTimeMillis() % 1000000) / 1000f;
-		// double time = (System.currentTimeMillis() % 1000000) / 10f;
-		double time = universe.getCelestialTime(partialTick);
-		// double time = (System.currentTimeMillis() % 1000000) * 1000f;
-
-		applyPlanetTrasform(poseStack, currentNode, time, camera.getPosition().x, camera.getPosition().z);
-		drawStars(poseStack.last().pose(), projectionMatrix);
-		drawSystem(poseStack, camera, currentId, time, partialTick);
+		// applyPlanetTransform(poseStack, currentNode, time, camera.getPosition().x,
+		// 		camera.getPosition().z);
+		drawStars(poseStack.last().pose(), proj);
+		drawSystem(new PoseStack(), celestialCamera, currentId, time, partialTick);
 
 		this.client.getMainRenderTarget().bindWrite(false);
 		RenderSystem.enableBlend();

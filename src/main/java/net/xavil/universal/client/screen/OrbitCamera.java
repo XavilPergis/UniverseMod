@@ -1,13 +1,10 @@
 package net.xavil.universal.client.screen;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.math.Matrix3f;
 import com.mojang.math.Matrix4f;
-import com.mojang.math.Quaternion;
-import com.mojang.math.Vector3f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
+import net.xavil.universal.common.universe.Quat;
 import net.xavil.universal.common.universe.Vec3;
 
 public class OrbitCamera {
@@ -66,7 +63,13 @@ public class OrbitCamera {
 		}
 	}
 
-	public final double renderUnitFactor;
+	// how many meters there are for one abstract "camera unit". You can multiply
+	// `focus`, or the result from `getPos()` by this factor to get those quantities
+	// in meters.
+	public final double metersPerUnit;
+
+	// The amount of units that 
+	public final double renderScaleFactor;
 
 	public final MotionSmoother<Vec3> focus = MotionSmoother.smoothVectors(0.6);
 	public final MotionSmoother<Double> yaw = MotionSmoother.smoothDoubles(0.6);
@@ -78,8 +81,9 @@ public class OrbitCamera {
 	public double nearPlane = 0.01;
 	public double farPlane = 10000;
 
-	public OrbitCamera(double renderUnitFactor) {
-		this.renderUnitFactor = renderUnitFactor;
+	public OrbitCamera(double metersPerUnit, double renderScaleFactor) {
+		this.metersPerUnit = metersPerUnit;
+		this.renderScaleFactor = renderScaleFactor;
 	}
 
 	public void tick() {
@@ -95,7 +99,7 @@ public class OrbitCamera {
 	public Vec3 getPos(float partialTick) {
 		var backwards = getUpVector(partialTick).cross(getRightVector(partialTick));
 		var backwardsTranslation = backwards.mul(this.scale.get(partialTick));
-		var cameraPos = this.focus.get(partialTick).div(this.renderUnitFactor).add(backwardsTranslation);
+		var cameraPos = this.focus.get(partialTick).div(this.renderScaleFactor).add(backwardsTranslation);
 		return cameraPos;
 	}
 
@@ -115,24 +119,24 @@ public class OrbitCamera {
 				(float) (this.scale.get(0) * this.farPlane));
 	}
 
-	public Quaternion getOrientation(float partialTick) {
-		var xRot = Vector3f.XP.rotation(this.pitch.get(partialTick).floatValue());
-		var yRot = Vector3f.YP.rotation(this.yaw.get(partialTick).floatValue() + Mth.PI);
-		var res = new Quaternion(xRot);
-		res.mul(yRot);
-		return res;
+	public Quat getOrientation(float partialTick) {
+		// var xRot = Vector3f.XP.rotation(this.pitch.get(partialTick).floatValue());
+		// var yRot = Vector3f.YP.rotation(this.yaw.get(partialTick).floatValue() +
+		// Mth.PI);
+		// var res = new Quaternion(xRot);
+		// res.mul(yRot);
+		// return res;
+		var xRot = Quat.axisAngle(Vec3.XP, this.pitch.get(partialTick));
+		var yRot = Quat.axisAngle(Vec3.YP, this.yaw.get(partialTick) + Mth.PI);
+		return xRot.hamiltonProduct(yRot);
 	}
 
 	public Cached cached(float partialTick) {
 		return new Cached(this, partialTick);
 	}
 
-	public static class Cached {
-		public final OrbitCamera camera;
-		public final Vec3 up, right;
+	public static class Cached extends CachedCamera<OrbitCamera> {
 		public final Vec3 focus;
-		public final Vec3 pos;
-		public final Quaternion orientation;
 		public final double scale;
 
 		public Cached(OrbitCamera camera, float partialTick) {
@@ -142,40 +146,16 @@ public class OrbitCamera {
 					camera.focus.get(partialTick),
 					camera.getPos(partialTick),
 					camera.getOrientation(partialTick),
-					camera.scale.get(partialTick));
+					camera.scale.get(partialTick),
+					camera.metersPerUnit,
+					camera.getProjectionMatrix());
 		}
 
-		public Cached(OrbitCamera camera, Vec3 up, Vec3 right, Vec3 focus, Vec3 pos, Quaternion orientation,
-				double scale) {
-			this.camera = camera;
-			this.up = up;
-			this.right = right;
+		public Cached(OrbitCamera camera, Vec3 up, Vec3 right, Vec3 focus, Vec3 pos, Quat orientation,
+				double scale, double metersPerUnit, Matrix4f projectionMatrix) {
+			super(camera, pos, up, right, orientation, metersPerUnit, projectionMatrix);
 			this.focus = focus;
-			this.pos = pos;
-			this.orientation = orientation;
 			this.scale = scale;
-		}
-
-		// public Vec3 toCameraSpace(Vec3 posWorld) {
-		// 	return posWorld.sub(this.pos);
-		// }
-
-		public RenderMatricesSnapshot setupRenderMatrices(float partialTick) {
-			var snapshot = RenderMatricesSnapshot.capture();
-			RenderSystem.setProjectionMatrix(this.camera.getProjectionMatrix());
-
-			var poseStack = RenderSystem.getModelViewStack();
-			poseStack.setIdentity();
-
-			poseStack.mulPose(this.orientation);
-			Matrix3f inverseViewRotationMatrix = poseStack.last().normal().copy();
-			if (inverseViewRotationMatrix.invert()) {
-				RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
-			}
-
-			poseStack.translate(-this.pos.x, -this.pos.y, -this.pos.z);
-			RenderSystem.applyModelViewMatrix();
-			return snapshot;
 		}
 
 	}

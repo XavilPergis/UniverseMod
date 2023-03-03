@@ -9,14 +9,13 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
-import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.system.BinaryNode;
 import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystemNode;
@@ -38,108 +37,117 @@ public final class RenderHelper {
 
 	private static final Minecraft CLIENT = Minecraft.getInstance();
 
-	public static void renderStarBillboard(BufferBuilder builder, Camera camera, StarSystemNode node, Vec3 center,
-			double tmPerUnit, float partialTick) {
+	public static void renderStarBillboard(BufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
+			StarSystemNode node) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
+		addBillboard(builder, camera, poseStack, node);
 		builder.end();
 		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
+		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
 		BufferUploader.end(builder);
 	}
 
-	public static void renderStarBillboard(BufferBuilder builder, OrbitCamera.Cached camera, StarSystemNode node,
-			Vec3 center,
-			double tmPerUnit, float partialTick) {
-		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
-		builder.end();
-		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		BufferUploader.end(builder);
+	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+			StarSystemNode node) {
+		double d = getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
+		addBillboard(builder, camera, poseStack, node, d, node.position);
 	}
 
-	public static void addBillboard(VertexConsumer builder, Camera camera, StarSystemNode node, Vec3 center,
-			double tmPerUnit, float partialTick) {
-		double d = getCelestialBodySize(node, Vec3.fromMinecraft(camera.getPosition()), center);
-		var up = Vec3.fromMinecraft(camera.getUpVector());
-		var right = Vec3.fromMinecraft(camera.getLeftVector()).neg();
-		addBillboard(builder, up, right, node, center, d);
+	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+			StarSystemNode node, Vec3 pos) {
+		double d = getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos);
+		addBillboard(builder, camera, poseStack, node, d, pos);
 	}
 
-	public static void addBillboard(VertexConsumer builder, OrbitCamera.Cached camera, StarSystemNode node, Vec3 center,
-			double tmPerUnit, float partialTick) {
-		double d = getCelestialBodySize(node, camera.pos, center);
-		addBillboard(builder, camera.up, camera.right, node, center, d);
-	}
+	public static double getCelestialBodySize(Vec3 camPos, StarSystemNode node, Vec3 pos) {
 
-	public static double getCelestialBodySize(StarSystemNode node, Vec3 camPos, Vec3 bodyPos) {
-		final double starMinSize = 0.01, starBaseSize = 0.05, starRadiusFactor = 0.5;
-		final double otherMinSize = 0.01, otherBaseSize = 0.000075;
-
-		var distanceFromCamera = camPos.distanceTo(bodyPos);
-
-		double d = 0;
+		double minAngularDiameterRad = Math.toRadians(0.5);
 		if (node instanceof StarNode starNode) {
-			var r = 0.1 * Math.min(10, starNode.radiusRsol);
-			d = Math.max(starMinSize * distanceFromCamera,
-					Math.max(starBaseSize, starRadiusFactor * r));
-		} else if (node instanceof PlanetNode planetNode) {
-			d = Math.max(otherMinSize * distanceFromCamera, otherBaseSize);
-		} else if (!(node instanceof BinaryNode)) {
-			d = Math.max(otherMinSize * distanceFromCamera, otherBaseSize);
+			minAngularDiameterRad = Math.toRadians(Mth.clamp(Math.log(starNode.luminosityLsol), 0.5, 0.7));
 		}
 
-		return d;
+		// how many times we need to scale the billboard by to render the star at the
+		// correct size. if the billboard texture were a circle with a diameter of the
+		// size of the image, then this would be 1. if the diameter were 1/2 the size,
+		// then this would be 2.
+		final double billboardFactor = 3.5;
+
+		double radius = 0;
+		if (node instanceof StarNode starNode) {
+			radius = starNode.radiusRsol * Units.METERS_PER_RSOL / 1e12;
+		} else if (node instanceof PlanetNode planetNode) {
+			radius = planetNode.radiusRearth * Units.METERS_PER_REARTH / 1e12;
+		}
+
+		var distanceFromCameraTm = camPos.distanceTo(pos);
+		var angularRadius = (radius / distanceFromCameraTm);
+		angularRadius = Math.max(angularRadius, minAngularDiameterRad / 2);
+		return billboardFactor * distanceFromCameraTm * (angularRadius / 2);
 	}
 
-	public static void addBillboard(VertexConsumer builder, Vec3 up, Vec3 right, StarSystemNode node, Vec3 center,
-			double d) {
+	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+			StarSystemNode node, double d, Vec3 pos) {
 
 		var color = Color.WHITE;
 		if (node instanceof StarNode starNode) {
 			color = starNode.getColor();
 		}
 
-		final double brightBillboardSizeFactor = 0.5;
-		RenderHelper.addBillboard(builder, new PoseStack(), up, right, center, d, 0, color);
-		RenderHelper.addBillboard(builder, new PoseStack(), up, right, center, brightBillboardSizeFactor * d, 0,
-				Color.WHITE);
+		final double brightBillboardSizeFactor = 0.9;
+		RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
+				camera.toCameraSpace(pos), d, 0, color);
+		RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
+				camera.toCameraSpace(pos),
+				brightBillboardSizeFactor * d, 0, Color.WHITE);
 	}
 
-	public static void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 up, Vec3 right, Vec3 center,
-			double scale,
-			double zOffset, Color color) {
+	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 up,
+			Vec3 right, Vec3 center, double scale, double zOffset, Color color) {
+		addBillboardCamspace(builder, poseStack, camera.toCameraSpace(up), camera.toCameraSpace(right),
+				camera.toCameraSpace(center), scale, zOffset, color);
+	}
 
+	public static void addBillboardCamspace(VertexConsumer builder, PoseStack poseStack, Vec3 up,
+			Vec3 right, Vec3 center, double scale, double zOffset, Color color) {
 		var backwards = up.cross(right).mul(zOffset);
-		var billboardUp = up.mul(scale);
-		var billboardRight = right.mul(scale);
-		addBillboard(builder, poseStack, center, billboardUp, billboardRight, backwards,
-				color.r(), color.g(), color.b(), color.a());
+		var bu = up.mul(scale);
+		var br = right.mul(scale);
 
-	}
-
-	public static void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 center, Vec3 up, Vec3 right,
-			Vec3 forward,
-			float r, float g, float b, float a) {
 		var p = poseStack.last().pose();
-		var qll = center.sub(up).sub(right).add(forward);
-		var qlh = center.sub(up).add(right).add(forward);
-		var qhl = center.add(up).sub(right).add(forward);
-		var qhh = center.add(up).add(right).add(forward);
+		var qll = center.sub(bu).sub(br).add(backwards);
+		var qlh = center.sub(bu).add(br).add(backwards);
+		var qhl = center.add(bu).sub(br).add(backwards);
+		var qhh = center.add(bu).add(br).add(backwards);
+		float r = color.r(), g = color.g(), b = color.b(), a = color.a();
 		builder.vertex(p, (float) qhl.x, (float) qhl.y, (float) qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
 		builder.vertex(p, (float) qll.x, (float) qll.y, (float) qll.z).color(r, g, b, a).uv(0, 0).endVertex();
 		builder.vertex(p, (float) qlh.x, (float) qlh.y, (float) qlh.z).color(r, g, b, a).uv(0, 1).endVertex();
 		builder.vertex(p, (float) qhh.x, (float) qhh.y, (float) qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
 	}
+
+	// public static void addBillboard(VertexConsumer builder, CachedCamera<?>
+	// camera, PoseStack poseStack, Vec3 center,
+	// Vec3 up, Vec3 right, Vec3 forward, Color color) {
+	// var p = poseStack.last().pose();
+	// var qll = center.sub(up).sub(right).add(forward);
+	// var qlh = center.sub(up).add(right).add(forward);
+	// var qhl = center.add(up).sub(right).add(forward);
+	// var qhh = center.add(up).add(right).add(forward);
+	// float r = color.r(), g = color.g(), b = color.b(), a = color.a();
+	// builder.vertex(p, (float) qhl.x, (float) qhl.y, (float) qhl.z).color(r, g, b,
+	// a).uv(1, 0).endVertex();
+	// builder.vertex(p, (float) qll.x, (float) qll.y, (float) qll.z).color(r, g, b,
+	// a).uv(0, 0).endVertex();
+	// builder.vertex(p, (float) qlh.x, (float) qlh.y, (float) qlh.z).color(r, g, b,
+	// a).uv(0, 1).endVertex();
+	// builder.vertex(p, (float) qhh.x, (float) qhh.y, (float) qhh.z).color(r, g, b,
+	// a).uv(1, 1).endVertex();
+	// }
 
 	public static double getGridScale(OrbitCamera.Cached camera, double tmPerUnit, double scaleFactor,
 			float partialTick) {
@@ -157,14 +165,14 @@ public final class RenderHelper {
 			int scaleFactor, int gridLineCount, float partialTick) {
 		var focusPos = camera.focus.div(tmPerUnit);
 		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
-		renderGrid(builder, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
+		renderGrid(builder, camera, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
 	}
 
-	public static void renderGrid(BufferBuilder builder, Vec3 focusPos, double gridDiameter, int subcellsPerCell,
-			int gridLineCount) {
+	public static void renderGrid(BufferBuilder builder, CachedCamera<?> camera, Vec3 focusPos, double gridDiameter,
+			int subcellsPerCell, int gridLineCount) {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		addGrid(builder, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
+		addGrid(builder, camera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
 		builder.end();
 		RenderSystem.enableBlend();
 		RenderSystem.disableTexture();
@@ -175,8 +183,8 @@ public final class RenderHelper {
 		BufferUploader.end(builder);
 	}
 
-	public static void addGrid(VertexConsumer builder, Vec3 focusPos, double gridDiameter, int subcellsPerCell,
-			int gridLineCount) {
+	public static void addGrid(VertexConsumer builder, CachedCamera<?> camera, Vec3 focusPos,
+			double gridDiameter, int subcellsPerCell, int gridLineCount) {
 
 		var gridCellResolution = gridDiameter / gridLineCount;
 
@@ -184,6 +192,7 @@ public final class RenderHelper {
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
 
 		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.2f, a2 = 0.5f;
+		var color = new Color(r, g, b, 1);
 		final double gridFadeFactor = 2.3;
 
 		var gridOffset = gridCellResolution * gridLineCount / 2;
@@ -209,10 +218,9 @@ public final class RenderHelper {
 				if (ld <= gridDiameter / gridFadeFactor) {
 					var rla = la * Mth.clamp(5 * Mth.inverseLerp(ld, gridDiameter / gridFadeFactor, 0), 0, 1);
 					var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter / gridFadeFactor, 0), 0, 1);
-					builder.vertex(Mth.lerp(lt, lx, hx), focusPos.y, z).color(r, g, b, (float) rla).normal(1, 0, 0)
-							.endVertex();
-					builder.vertex(Mth.lerp(ht, lx, hx), focusPos.y, z).color(r, g, b, (float) rha).normal(1, 0, 0)
-							.endVertex();
+					var start = camera.toCameraSpace(Vec3.from(Mth.lerp(lt, lx, hx), focusPos.y, z));
+					var end = camera.toCameraSpace(Vec3.from(Mth.lerp(ht, lx, hx), focusPos.y, z));
+					addLine(builder, start, end, color.withA(rla), color.withA(rha));
 				}
 			}
 		}
@@ -235,45 +243,56 @@ public final class RenderHelper {
 				if (ld <= gridDiameter / gridFadeFactor) {
 					var rla = la * Mth.clamp(5 * Mth.inverseLerp(ld, gridDiameter / gridFadeFactor, 0), 0, 1);
 					var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter / gridFadeFactor, 0), 0, 1);
-					builder.vertex(x, focusPos.y, Mth.lerp(lt, lz, hz)).color(r, g, b, (float) rla).normal(0, 0, 1)
-							.endVertex();
-					builder.vertex(x, focusPos.y, Mth.lerp(ht, lz, hz)).color(r, g, b, (float) rha).normal(0, 0, 1)
-							.endVertex();
+					var start = camera.toCameraSpace(Vec3.from(x, focusPos.y, Mth.lerp(lt, lz, hz)));
+					var end = camera.toCameraSpace(Vec3.from(x, focusPos.y, Mth.lerp(ht, lz, hz)));
+					addLine(builder, start, end, color.withA(rla), color.withA(rha));
 				}
 			}
 		}
 
 	}
 
-	public static void renderLine(BufferBuilder builder, Vec3 start, Vec3 end, double lineWidth, Color color) {
-		renderLine(builder, start, end, lineWidth, color, color);
-	}
+	// public static void renderLine(BufferBuilder builder, Vec3 start, Vec3 end,
+	// double lineWidth, Color color) {
+	// renderLine(builder, start, end, lineWidth, color, color);
+	// }
 
-	public static void renderLine(BufferBuilder builder, Vec3 start, Vec3 end, double lineWidth, Color startColor,
-			Color endColor) {
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		var normal = end.sub(start).normalize();
-		builder.vertex(start.x, start.y, start.z)
-				.color(startColor.r(), startColor.g(), startColor.b(), startColor.a())
-				.normal((float) normal.x, (float) normal.y, (float) normal.z)
-				.endVertex();
-		builder.vertex(end.x, end.y, end.z)
-				.color(endColor.r(), endColor.g(), endColor.b(), endColor.a())
-				.normal((float) normal.x, (float) normal.y, (float) normal.z)
-				.endVertex();
-		builder.end();
-		RenderSystem.enableBlend();
-		RenderSystem.disableTexture();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
-		RenderSystem.depthMask(false);
-		RenderSystem.lineWidth((float) lineWidth);
-		BufferUploader.end(builder);
+	// public static void renderLine(BufferBuilder builder, Vec3 start, Vec3 end,
+	// double lineWidth, Color startColor,
+	// Color endColor) {
+	// RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+	// builder.begin(VertexFormat.Mode.LINES,
+	// DefaultVertexFormat.POSITION_COLOR_NORMAL);
+	// var normal = end.sub(start).normalize();
+	// builder.vertex(start.x, start.y, start.z)
+	// .color(startColor.r(), startColor.g(), startColor.b(), startColor.a())
+	// .normal((float) normal.x, (float) normal.y, (float) normal.z)
+	// .endVertex();
+	// builder.vertex(end.x, end.y, end.z)
+	// .color(endColor.r(), endColor.g(), endColor.b(), endColor.a())
+	// .normal((float) normal.x, (float) normal.y, (float) normal.z)
+	// .endVertex();
+	// builder.end();
+	// RenderSystem.enableBlend();
+	// RenderSystem.disableTexture();
+	// RenderSystem.defaultBlendFunc();
+	// RenderSystem.disableCull();
+	// RenderSystem.depthMask(false);
+	// RenderSystem.lineWidth((float) lineWidth);
+	// BufferUploader.end(builder);
+	// }
+
+	public static void addLine(VertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end, Color color) {
+		addLine(builder, camera, start, end, color, color);
 	}
 
 	public static void addLine(VertexConsumer builder, Vec3 start, Vec3 end, Color color) {
 		addLine(builder, start, end, color, color);
+	}
+
+	public static void addLine(VertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end, Color startColor,
+			Color endColor) {
+		addLine(builder, camera.toCameraSpace(start), camera.toCameraSpace(end), startColor, endColor);
 	}
 
 	public static void addLine(VertexConsumer builder, Vec3 start, Vec3 end, Color startColor, Color endColor) {
@@ -288,43 +307,44 @@ public final class RenderHelper {
 				.endVertex();
 	}
 
-	public static void addAxisAlignedBox(VertexConsumer builder, Vec3 p0, Vec3 p1, Color color) {
-		double lx = p0.x < p1.x ? p0.x : p1.x;
-		double ly = p0.y < p1.y ? p0.y : p1.y;
-		double lz = p0.z < p1.z ? p0.z : p1.z;
-		double hx = p0.x >= p1.x ? p0.x : p1.x;
-		double hy = p0.y >= p1.y ? p0.y : p1.y;
-		double hz = p0.z >= p1.z ? p0.z : p1.z;
+	// public static void addAxisAlignedBox(VertexConsumer builder, Vec3 p0, Vec3
+	// p1, Color color) {
+	// double lx = p0.x < p1.x ? p0.x : p1.x;
+	// double ly = p0.y < p1.y ? p0.y : p1.y;
+	// double lz = p0.z < p1.z ? p0.z : p1.z;
+	// double hx = p0.x >= p1.x ? p0.x : p1.x;
+	// double hy = p0.y >= p1.y ? p0.y : p1.y;
+	// double hz = p0.z >= p1.z ? p0.z : p1.z;
 
-		float r = color.r(), g = color.g(), b = color.b(), a = color.a();
+	// float r = color.r(), g = color.g(), b = color.b(), a = color.a();
 
-		// X axis
-		builder.vertex(lx, ly, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(hx, ly, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(lx, ly, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(hx, ly, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(lx, hy, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(hx, hy, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(lx, hy, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		builder.vertex(hx, hy, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-		// Y axis
-		builder.vertex(lx, ly, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(lx, hy, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(lx, ly, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(lx, hy, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(hx, ly, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(hx, hy, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(hx, ly, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		builder.vertex(hx, hy, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-		// Z axis
-		builder.vertex(lx, ly, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(lx, ly, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(lx, hy, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(lx, hy, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(hx, ly, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(hx, ly, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(hx, hy, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-		builder.vertex(hx, hy, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	}
+	// // X axis
+	// builder.vertex(lx, ly, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
+	// builder.vertex(hx, ly, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
+	// builder.vertex(lx, ly, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
+	// builder.vertex(hx, ly, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
+	// builder.vertex(lx, hy, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
+	// builder.vertex(hx, hy, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
+	// builder.vertex(lx, hy, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
+	// builder.vertex(hx, hy, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
+	// // Y axis
+	// builder.vertex(lx, ly, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
+	// builder.vertex(lx, hy, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
+	// builder.vertex(lx, ly, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
+	// builder.vertex(lx, hy, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
+	// builder.vertex(hx, ly, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
+	// builder.vertex(hx, hy, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
+	// builder.vertex(hx, ly, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
+	// builder.vertex(hx, hy, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
+	// // Z axis
+	// builder.vertex(lx, ly, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	// builder.vertex(lx, ly, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	// builder.vertex(lx, hy, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	// builder.vertex(lx, hy, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	// builder.vertex(hx, ly, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	// builder.vertex(hx, ly, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	// builder.vertex(hx, hy, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	// builder.vertex(hx, hy, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
+	// }
 
 }

@@ -1,5 +1,6 @@
 package net.xavil.universal.common.universe;
 
+import com.mojang.math.Quaternion;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
@@ -24,6 +25,14 @@ public final class Quat {
 		this.i = i;
 		this.j = j;
 		this.k = k;
+	}
+
+	public static Quat fromMinecraft(Quaternion quat) {
+		return new Quat(quat.r(), quat.i(), quat.j(), quat.k());
+	}
+
+	public Quaternion toMinecraft() {
+		return new Quaternion((float) i, (float) j, (float) k, (float) w);
 	}
 
 	public static Quat from(double w, double i, double j, double k) {
@@ -61,6 +70,11 @@ public final class Quat {
 
 	public Quat conjugate() {
 		return new Quat(w, -i, -j, -k);
+	}
+
+	public Quat inverse() {
+		var len2 = w * w + i * i + j * j + k * k;
+		return new Quat(w / len2, -i / len2, -j / len2, -k / len2);
 	}
 
 	public Quat normalize() {

@@ -16,6 +16,7 @@
 - [ ] Don't load every dynamically-generated world on startup
 - [ ] Galaxy selection screen
 - [ ] Save celestial time
+- [ ] Sync system node ID when dying
 - [ ] Gravity
 	- Basic movement adjustment
 		- [ ] SmoothSwimmingMoveControl

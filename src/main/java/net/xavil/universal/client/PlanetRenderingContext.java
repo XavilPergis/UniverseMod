@@ -21,6 +21,7 @@ import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.Units;
@@ -77,32 +78,39 @@ public final class PlanetRenderingContext {
 		return this.renderedStarCount;
 	}
 
-	public void render(BufferBuilder builder, StarSystemNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
+	public void render(BufferBuilder builder, CachedCamera<?> camera, StarSystemNode node, PoseStack poseStack,
+			Color tintColor) {
 		if (node instanceof StarNode starNode)
-			renderStar(builder, starNode, poseStack, pos, scale, tintColor);
+			renderStar(builder, camera, starNode, poseStack, tintColor);
 		if (node instanceof PlanetNode planetNode)
-			renderPlanet(builder, planetNode, poseStack, pos, scale, tintColor);
+			renderPlanet(builder, camera, planetNode, poseStack, tintColor);
 	}
 
-	public void renderStar(BufferBuilder builder, StarNode node, PoseStack poseStack, Vec3 pos, double scale, Color tintColor) {
+	public void renderStar(BufferBuilder builder, CachedCamera<?> camera, StarNode node, PoseStack poseStack,
+			Color tintColor) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		// addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
-		double d = RenderHelper.getCelestialBodySize(node, pos, Vec3.ZERO);
-
-		var aaa = new PoseStack();
-		aaa.last().pose().multiply(RenderSystem.getModelViewMatrix());
-		aaa.last().pose().multiply(poseStack.last().pose());
-		// var aaa = RenderSystem.getModelViewMatrix().copy();
-		RenderHelper.addBillboard(builder, Vec3.YP, Vec3.XP, node, pos, d);
-
-		builder.end();
-		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
+		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(true);
-		RenderSystem.enableDepthTest();
-		BufferUploader.end(builder);
+		// addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
+		// double d = RenderHelper.getCelestialBodySize(camera, node);
+
+		// TODO: tint
+		RenderHelper.renderStarBillboard(builder, camera, poseStack, node);
+
+		// var aaa = new PoseStack();
+		// aaa.last().pose().multiply(RenderSystem.getModelViewMatrix());
+		// aaa.last().pose().multiply(poseStack.last().pose());
+		// // var aaa = RenderSystem.getModelViewMatrix().copy();
+		// // RenderHelper.addBillboard(builder, Vec3.YP, Vec3.XP, node, pos, d);
+
+		// builder.end();
+		// this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
+		// RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		// RenderSystem.depthMask(true);
+		// RenderSystem.enableDepthTest();
+		// BufferUploader.end(builder);
 
 		this.renderedStarCount += 1;
 		// var planetNode = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD,
@@ -112,7 +120,7 @@ public final class PlanetRenderingContext {
 		// renderPlanet(planetNode, poseStack, pos, scale, tintColor);
 	}
 
-	private void setupLighting(Vec3 pos) {
+	private void setupLighting(CachedCamera<?> camera, PoseStack poseStack, Vec3 sortOrigin) {
 
 		final int maxLightCount = 4;
 
@@ -120,7 +128,7 @@ public final class PlanetRenderingContext {
 		// to the distance of the planet, or prioritizing apparent brightness over just
 		// distance.
 		final var sortedLights = new ArrayList<>(this.pointLights);
-		sortedLights.sort(Comparator.comparingDouble(light -> light.pos.distanceTo(pos)));
+		sortedLights.sort(Comparator.comparingDouble(light -> light.pos.distanceTo(sortOrigin)));
 
 		final var lightCount = Math.min(maxLightCount, sortedLights.size());
 
@@ -140,21 +148,30 @@ public final class PlanetRenderingContext {
 			float r = light.color.r(), g = light.color.g(), b = light.color.b();
 			float luminosity = (float) Math.max(light.luminosity, 0.4);
 			lightColor.set(new Vector4f(r, g, b, luminosity));
-			lightPos.set(new Vector4f(new Vector3f(light.pos.asMinecraft())));
+
+			var pos = camera.toCameraSpace(light.pos);
+			var shaderPos = new Vector4f((float) pos.x, (float) pos.y, (float) pos.z, 1);
+			// shaderPos.transform(poseStack.last().pose());
+			// poseStack
+			lightPos.set(shaderPos);
 		}
 
 	}
 
-	public void renderPlanet(BufferBuilder builder, PlanetNode node, PoseStack poseStack, Vec3 pos, double metersPerUnit, Color tintColor) {
+	public void renderPlanet(BufferBuilder builder, CachedCamera<?> camera, PlanetNode node, PoseStack poseStack,
+			Color tintColor) {
 
 		var radiusM = 2 * Units.METERS_PER_REARTH * node.radiusRearth;
+		// var radiusM = 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// final var metersPerUnit = 1 / unitsPerMeter;
 
-		var posView = node.position.transformBy(RenderSystem.getModelViewMatrix());
-		if (posView.length() * metersPerUnit > 800 * radiusM)
+		var distanceFromCamera = camera.pos.mul(camera.metersPerUnit).distanceTo(node.position.mul(1e12));
+		if (distanceFromCamera > 800 * radiusM)
 			return;
 
-		setupLighting(pos);
+		var nodePosUnits = node.position.mul(1e12 / camera.metersPerUnit);
+
+		setupLighting(camera, poseStack, nodePosUnits);
 
 		if (node.type == PlanetNode.Type.GAS_GIANT) {
 			Minecraft.getInstance().getTextureManager().getTexture(BASE_GAS_GIANT_LOCATION).setFilter(true, false);
@@ -162,36 +179,36 @@ public final class PlanetRenderingContext {
 
 		RenderSystem.defaultBlendFunc();
 		var baseTexture = getBaseLayer(node);
-		var radiusUnits = radiusM / metersPerUnit;
+		var radiusUnits = radiusM / camera.metersPerUnit;
 		// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
-		renderTexturedCube(builder, baseTexture, poseStack, pos, radiusUnits, tintColor);
+		renderPlanetLayer(builder, camera, baseTexture, poseStack, nodePosUnits, radiusUnits, tintColor);
 		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
-			renderTexturedCube(builder, FEATURE_EARTH_LIKE_LOCATION, poseStack, pos, radiusUnits, tintColor);
+			renderPlanetLayer(builder, camera, FEATURE_EARTH_LIKE_LOCATION, poseStack, nodePosUnits, radiusUnits, tintColor);
 		}
 		if (node.type == PlanetNode.Type.ROCKY_WORLD) {
-			renderTexturedCube(builder, FEATURE_CRATERS_LOCATION, poseStack, pos, radiusUnits, tintColor);
+			renderPlanetLayer(builder, camera, FEATURE_CRATERS_LOCATION, poseStack, nodePosUnits, radiusUnits, tintColor);
 		}
 
 		this.renderedPlanetCount += 1;
 	}
 
-	private static void renderTexturedCube(BufferBuilder builder, ResourceLocation texture, PoseStack poseStack,
-			Vec3 center, double radius, Color tintColor) {
+	private static void renderPlanetLayer(BufferBuilder builder, CachedCamera<?> camera, ResourceLocation texture,
+			PoseStack poseStack, Vec3 center, double radius, Color tintColor) {
 		// RenderSystem.setShader(() -> GameRenderer.getPositionTexColorNormalShader());
 		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.PLANET_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 		// addCube(builder, poseStack, center, radius, tintColor);
-		addNormSphere(builder, poseStack, center, radius, tintColor);
+		addNormSphere(builder, camera, poseStack, center, radius, tintColor);
 		builder.end();
 		RenderSystem.setShaderTexture(0, texture);
 		BufferUploader.end(builder);
 	}
 
-	private static void addNormSphere(VertexConsumer builder, PoseStack poseStack, Vec3 center, double radius,
-			Color tintColor) {
+	private static void addNormSphere(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
+			double radius, Color tintColor) {
 
 		poseStack.pushPose();
-		poseStack.translate(center.x, center.y, center.z);
+		// poseStack.translate(center.x, center.y, center.z);
 		final var pose = poseStack.last();
 		final var subdivisions = 5;
 
@@ -211,10 +228,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lu = (float) Mth.lerp(lpb, nxlu, nxhu);
 				var hu = (float) Mth.lerp(hpb, nxlu, nxhu);
-				normSphereVertex(builder, pose, tintColor, radius, -1, ha, lb, lu, hv);
-				normSphereVertex(builder, pose, tintColor, radius, -1, la, lb, lu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, -1, la, hb, hu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, -1, ha, hb, hu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, -1, ha, lb, lu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, -1, la, lb, lu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, -1, la, hb, hu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, -1, ha, hb, hu, hv);
 			}
 		}
 
@@ -234,10 +251,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lu = (float) Mth.lerp(lpb, pxlu, pxhu);
 				var hu = (float) Mth.lerp(hpb, pxlu, pxhu);
-				normSphereVertex(builder, pose, tintColor, radius, 1, ha, lb, lu, hv);
-				normSphereVertex(builder, pose, tintColor, radius, 1, la, lb, lu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, 1, la, hb, hu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, 1, ha, hb, hu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, 1, ha, lb, lu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, 1, la, lb, lu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, 1, la, hb, hu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, 1, ha, hb, hu, hv);
 			}
 		}
 
@@ -257,10 +274,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lv = (float) Mth.lerp(lpb, nylv, nyhv);
 				var hv = (float) Mth.lerp(hpb, nylv, nyhv);
-				normSphereVertex(builder, pose, tintColor, radius, ha, -1, lb, hu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, la, -1, lb, lu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, la, -1, hb, lu, hv);
-				normSphereVertex(builder, pose, tintColor, radius, ha, -1, hb, hu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, ha, -1, lb, hu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, la, -1, lb, lu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, la, -1, hb, lu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, ha, -1, hb, hu, hv);
 			}
 		}
 
@@ -280,10 +297,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lv = (float) Mth.lerp(lpb, pylv, pyhv);
 				var hv = (float) Mth.lerp(hpb, pylv, pyhv);
-				normSphereVertex(builder, pose, tintColor, radius, ha, 1, lb, hu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, la, 1, lb, lu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, la, 1, hb, lu, hv);
-				normSphereVertex(builder, pose, tintColor, radius, ha, 1, hb, hu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, ha, 1, lb, hu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, la, 1, lb, lu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, la, 1, hb, lu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, ha, 1, hb, hu, hv);
 			}
 		}
 
@@ -303,10 +320,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lv = (float) Mth.lerp(lpb, nzlv, nzhv);
 				var hv = (float) Mth.lerp(hpb, nzlv, nzhv);
-				normSphereVertex(builder, pose, tintColor, radius, ha, lb, -1, hu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, la, lb, -1, lu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, la, hb, -1, lu, hv);
-				normSphereVertex(builder, pose, tintColor, radius, ha, hb, -1, hu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, ha, lb, -1, hu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, la, lb, -1, lu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, la, hb, -1, lu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, ha, hb, -1, hu, hv);
 			}
 		}
 
@@ -326,18 +343,18 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lv = (float) Mth.lerp(lpb, pzlv, pzhv);
 				var hv = (float) Mth.lerp(hpb, pzlv, pzhv);
-				normSphereVertex(builder, pose, tintColor, radius, ha, lb, 1, hu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, la, lb, 1, lu, lv);
-				normSphereVertex(builder, pose, tintColor, radius, la, hb, 1, lu, hv);
-				normSphereVertex(builder, pose, tintColor, radius, ha, hb, 1, hu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, ha, lb, 1, hu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, la, lb, 1, lu, lv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, la, hb, 1, lu, hv);
+				normSphereVertex(builder, camera, pose, center, tintColor, radius, ha, hb, 1, hu, hv);
 			}
 		}
 
 		poseStack.popPose();
 	}
 
-	private static void addCube(VertexConsumer builder, PoseStack poseStack, Vec3 center, double radius,
-			Color tintColor) {
+	private static void addCube(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
+			double radius, Color tintColor) {
 
 		final double nr = -radius, pr = radius;
 		final var nnn = center.add(nr, nr, nr);
@@ -352,51 +369,52 @@ public final class PlanetRenderingContext {
 		final var pose = poseStack.last();
 
 		// -X
-		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, -1, 0, 0, 0.00f, 0.25f);
-		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, -1, 0, 0, 0.00f, 0.50f);
-		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, -1, 0, 0, 0.25f, 0.50f);
-		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, -1, 0, 0, 0.25f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, -1, 0, 0, 0.00f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, -1, 0, 0, 0.00f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, -1, 0, 0, 0.25f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, -1, 0, 0, 0.25f, 0.25f);
 		// +X
-		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 1, 0, 0, 0.75f, 0.50f);
-		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 1, 0, 0, 0.75f, 0.25f);
-		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 1, 0, 0, 0.50f, 0.25f);
-		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 1, 0, 0, 0.50f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 1, 0, 0, 0.75f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 1, 0, 0, 0.75f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 1, 0, 0, 0.50f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 1, 0, 0, 0.50f, 0.50f);
 		// -Y
-		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, -1, 0, 0.25f, 0.75f);
-		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, -1, 0, 0.50f, 0.75f);
-		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, -1, 0, 0.50f, 0.50f);
-		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, -1, 0, 0.25f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, -1, 0, 0.25f, 0.75f);
+		cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, -1, 0, 0.50f, 0.75f);
+		cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, -1, 0, 0.50f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, -1, 0, 0.25f, 0.50f);
 		// +Y
-		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 1, 0, 0.50f, 0.00f);
-		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, 0, 1, 0, 0.25f, 0.00f);
-		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, 0, 1, 0, 0.25f, 0.25f);
-		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 1, 0, 0.50f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 1, 0, 0.50f, 0.00f);
+		cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, 0, 1, 0, 0.25f, 0.00f);
+		cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 1, 0, 0.25f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 1, 0, 0.50f, 0.25f);
 		// -Z
-		cubeVertex(builder, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, 0, -1, 0.75f, 0.50f);
-		cubeVertex(builder, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, 0, -1, 1.00f, 0.50f);
-		cubeVertex(builder, pose, tintColor, npn.x, npn.y, npn.z, 0, 0, -1, 1.00f, 0.25f);
-		cubeVertex(builder, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 0, -1, 0.75f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, 0, -1, 0.75f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, 0, -1, 1.00f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, 0, 0, -1, 1.00f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 0, -1, 0.75f, 0.25f);
 		// +Z
-		cubeVertex(builder, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, 0, 1, 0.25f, 0.50f);
-		cubeVertex(builder, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, 0, 1, 0.50f, 0.50f);
-		cubeVertex(builder, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 0, 1, 0.50f, 0.25f);
-		cubeVertex(builder, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, 0, 1, 0.25f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, 0, 1, 0.50f, 0.50f);
+		cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 0, 1, 0.50f, 0.25f);
+		cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
 	}
 
-	private static void normSphereVertex(VertexConsumer builder, PoseStack.Pose pose, Color color, double radius,
-			double x, double y, double z, float u, float v) {
+	private static void normSphereVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose, Vec3 center,
+			Color color, double radius, double x, double y, double z, float u, float v) {
 		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
 		var pos = Vec3.from(x, y, z);
-		var n = pos.normalize();
-		var p = n.mul(radius);
-		builder.vertex(pose.pose(), (float) p.x, (float) p.y, (float) p.z)
+		var n = pos.normalize().normalize();
+		// var p = camera.toCameraSpace(n.mul(radius));
+		var p = camera.toCameraSpace(n.mul(radius)).add(center);
+		builder.vertex((float) p.x, (float) p.y, (float) p.z)
 				.uv(u, v)
 				.color(r, g, b, a)
-				.normal(pose.normal(), (float) n.x, (float) n.y, (float) n.z)
+				.normal((float) n.x, (float) n.y, (float) n.z)
 				.endVertex();
 	}
 
-	private static void cubeVertex(VertexConsumer builder, PoseStack.Pose pose, Color color,
+	private static void cubeVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose, Color color,
 			double x, double y, double z, double nx, double ny, double nz, float u, float v) {
 		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
 		builder.vertex(pose.pose(), (float) x, (float) y, (float) z)

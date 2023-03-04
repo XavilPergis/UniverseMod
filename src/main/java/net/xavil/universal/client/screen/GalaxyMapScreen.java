@@ -80,13 +80,6 @@ public class GalaxyMapScreen extends UniversalScreen {
 		this.camera.focus.set(volume.posById(this.currentSystemId.sectorId()));
 	}
 
-	private void updateTickets() {
-		// this.galaxyVolumeTicket =
-		// this.universe.volume.addTicket(startingSystem.galaxySector().sectorPos(), 0);
-
-		// ticket around the camera's focus
-	}
-
 	@Override
 	public void onClose() {
 		super.onClose();
@@ -131,7 +124,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			return true;
 		} else if (scrollDelta < 0) {
 			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 100));
+			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 10000));
 			return true;
 		}
 
@@ -253,32 +246,23 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
-		{
-			var camPos = camera.focus.div(TM_PER_UNIT);
-			var dir = selectedPos.sub(camPos).normalize();
-			RenderHelper.addLine(builder, camPos, selectedPos, SELECTION_LINE_COLOR);
-			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 0f, 1f, 0.2f)
-			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
-			// builder.vertex(selectedPos.x, selectedPos.y, selectedPos.z).color(1f, 0f, 1f,
-			// 0.2f)
-			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
+		if (camera.scale < 300) {
+			var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
+			var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
+			{
+				var camPos = camera.focus.div(TM_PER_UNIT);
+				RenderHelper.addLine(builder, camera, camPos, selectedPos, SELECTION_LINE_COLOR);
+	
+			}
+	
+			var nearest = getNearestSystem(camera.focus, 10000);
+			if (nearest != null) {
+				var volume = this.galaxy.getVolumeAt(nearest.sectorPos());
+				var nearestPos = volume.posById(nearest.sectorId()).div(TM_PER_UNIT);
+				var camPos = camera.focus.div(TM_PER_UNIT);
+				RenderHelper.addLine(builder, camera, camPos, nearestPos, new Color(1, 0, 1, 1));
+			}
 
-		}
-
-		var nearest = getNearestSystem(camera.focus, 10000);
-		if (nearest != null) {
-			var volume = this.galaxy.getVolumeAt(nearest.sectorPos());
-			var nearestPos = volume.posById(nearest.sectorId()).div(TM_PER_UNIT);
-			var camPos = camera.focus.div(TM_PER_UNIT);
-			var dir = nearestPos.sub(camPos).normalize();
-			RenderHelper.addLine(builder, camPos, nearestPos, new Color(1, 0, 1, 1));
-			// builder.vertex(camPos.x, camPos.y, camPos.z).color(1f, 1f, 1f, 1f)
-			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
-			// builder.vertex(camPos.x + dir.x, camPos.y + dir.y, camPos.z +
-			// dir.z).color(1f, 1f, 1f, 0f)
-			// .normal((float) dir.x, (float) dir.y, (float) dir.z).endVertex();
 		}
 
 		builder.end();
@@ -299,44 +283,45 @@ public class GalaxyMapScreen extends UniversalScreen {
 	}
 
 	// private void renderSectorBox(VertexConsumer builder, Vec3i sectorPos) {
-	// 	var lo = sectorPos.lowerCorner().mul(UNITS_PER_SECTOR);
-	// 	var hi = sectorPos.upperCorner().mul(UNITS_PER_SECTOR);
-	// 	var color = new Color(1, 1, 1, 0.2f);
-	// 	RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
+	// var lo = sectorPos.lowerCorner().mul(UNITS_PER_SECTOR);
+	// var hi = sectorPos.upperCorner().mul(UNITS_PER_SECTOR);
+	// var color = new Color(1, 1, 1, 0.2f);
+	// RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
 	// }
 
 	// private <T> int countOctreeDescendants(Octree.Node<T> node) {
-	// 	if (node instanceof Octree.Node.Branch<T> branchNode) {
-	// 		int size = 0;
-	// 		size += countOctreeDescendants(branchNode.nnn);
-	// 		size += countOctreeDescendants(branchNode.nnp);
-	// 		size += countOctreeDescendants(branchNode.npn);
-	// 		size += countOctreeDescendants(branchNode.npp);
-	// 		size += countOctreeDescendants(branchNode.pnn);
-	// 		size += countOctreeDescendants(branchNode.pnp);
-	// 		size += countOctreeDescendants(branchNode.ppn);
-	// 		size += countOctreeDescendants(branchNode.ppp);
-	// 		return size;
-	// 	} else if (node instanceof Octree.Node.Leaf<T> leafNode) {
-	// 		return leafNode.elements.size();
-	// 	}
-	// 	return 0;
+	// if (node instanceof Octree.Node.Branch<T> branchNode) {
+	// int size = 0;
+	// size += countOctreeDescendants(branchNode.nnn);
+	// size += countOctreeDescendants(branchNode.nnp);
+	// size += countOctreeDescendants(branchNode.npn);
+	// size += countOctreeDescendants(branchNode.npp);
+	// size += countOctreeDescendants(branchNode.pnn);
+	// size += countOctreeDescendants(branchNode.pnp);
+	// size += countOctreeDescendants(branchNode.ppn);
+	// size += countOctreeDescendants(branchNode.ppp);
+	// return size;
+	// } else if (node instanceof Octree.Node.Leaf<T> leafNode) {
+	// return leafNode.elements.size();
+	// }
+	// return 0;
 	// }
 
-	// private <T> void renderOctreeDebug(BufferBuilder builder, Octree.Node<T> node, Color color) {
-	// 	var lo = node.min.div(TM_PER_UNIT);
-	// 	var hi = node.max.div(TM_PER_UNIT);
-	// 	RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
-	// 	if (node instanceof Octree.Node.Branch<T> branchNode) {
-	// 		renderOctreeDebug(builder, branchNode.nnn, color);
-	// 		renderOctreeDebug(builder, branchNode.nnp, color);
-	// 		renderOctreeDebug(builder, branchNode.npn, color);
-	// 		renderOctreeDebug(builder, branchNode.npp, color);
-	// 		renderOctreeDebug(builder, branchNode.pnn, color);
-	// 		renderOctreeDebug(builder, branchNode.pnp, color);
-	// 		renderOctreeDebug(builder, branchNode.ppn, color);
-	// 		renderOctreeDebug(builder, branchNode.ppp, color);
-	// 	}
+	// private <T> void renderOctreeDebug(BufferBuilder builder, Octree.Node<T>
+	// node, Color color) {
+	// var lo = node.min.div(TM_PER_UNIT);
+	// var hi = node.max.div(TM_PER_UNIT);
+	// RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
+	// if (node instanceof Octree.Node.Branch<T> branchNode) {
+	// renderOctreeDebug(builder, branchNode.nnn, color);
+	// renderOctreeDebug(builder, branchNode.nnp, color);
+	// renderOctreeDebug(builder, branchNode.npn, color);
+	// renderOctreeDebug(builder, branchNode.npp, color);
+	// renderOctreeDebug(builder, branchNode.pnn, color);
+	// renderOctreeDebug(builder, branchNode.pnp, color);
+	// renderOctreeDebug(builder, branchNode.ppn, color);
+	// renderOctreeDebug(builder, branchNode.ppp, color);
+	// }
 	// }
 
 	private void renderStars(OrbitCamera.Cached camera, Octree<Lazy<StarSystem.Info, StarSystem>> volume,
@@ -352,6 +337,14 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// setup
 
+		final var maxVisibleScale = 300;
+
+		if (camera.scale > maxVisibleScale) {
+			return;
+		}
+
+		// final var scaleAlpha = 1 - Mth.clamp(camera.scale / maxVisibleScale, 0, 1);
+
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
 		// Stars
@@ -359,30 +352,22 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		{
-			// var cameraPos = camera.pos.mul(TM_PER_UNIT);
+		volume.enumerateElements(element -> {
+			var distanceFromFocus = camera.focus.distanceTo(element.pos);
+			var alphaFactorFocus = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
+			if (alphaFactorFocus <= 0.05)
+				return;
 
-			volume.enumerateElements(element -> {
-				var distanceFromFocus = camera.focus.distanceTo(element.pos);
-				var alphaFactorFocus = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
-				if (alphaFactorFocus <= 0.05)
-					return;
+			var center = element.pos.div(TM_PER_UNIT);
 
-				// var distanceFromCamera = cameraPos.distanceTo(element.pos);
-				// var alphaFactorCamera = 1 - Mth.clamp(distanceFromCamera / STAR_RENDER_RADIUS * 4, 0, 1);
-				// var alphaFactor = Math.max(alphaFactorFocus, alphaFactorCamera);
+			// we should maybe consider doing the billboarding in a vertex shader, because
+			// that way we can build all the geometry for a sector into a vertex buffer and
+			// just emit a few draw calls, instead of having to build the buffer from
+			// scratch each frame.
 
-				var center = element.pos.div(TM_PER_UNIT);
-
-				// we should maybe consider doing the billboarding in a vertex shader, because
-				// that way we can build all the geometry for a sector into a vertex buffer and
-				// just emit a few draw calls, instead of having to build the buffer from
-				// scratch each frame.
-
-				var displayStar = element.value.getInitial().getDisplayStar();
-				RenderHelper.addBillboard(builder, camera, new PoseStack(), displayStar, center);
-			});
-		}
+			var displayStar = element.value.getInitial().getDisplayStar();
+			RenderHelper.addBillboard(builder, camera, new PoseStack(), displayStar, center);
+		});
 
 		builder.end();
 
@@ -468,31 +453,38 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		renderGrid(camera, partialTick);
 
-		TicketedVolume.enumerateSectors(camera.focus, STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
-			// TODO: figure out how to evict old volumes that we're not using. Maybe use
-			// something like vanilla's chunk ticketing system?
-			var volume = this.galaxy.getVolumeAt(sectorPos);
-			renderStars(camera, volume, partialTick);
-		});
+		if (camera.scale < 300) {
+			TicketedVolume.enumerateSectors(camera.focus, STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
+				// TODO: figure out how to evict old volumes that we're not using. Maybe use
+				// something like vanilla's chunk ticketing system?
+				var volume = this.galaxy.getVolumeAt(sectorPos);
+				renderStars(camera, volume, partialTick);
+			});
+		}
+
 
 		// selected system gizmo
 
-		var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-		var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
+		// var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
+		// var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
 
 		var prevMatrices = camera.setupRenderMatrices();
 
 		// BufferBuilder builder = Tesselator.getInstance().getBuilder();
 		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// builder.begin(VertexFormat.Mode.QUADS,
+		// DefaultVertexFormat.POSITION_COLOR_TEX);
 		// // RenderHelper.addBillboard(builder, this.camera, selectedPos, 0.5, 0,
 		// // partialTick, new Color(1, 1, 1, 0.2f));
-		// RenderHelper.addBillboard(builder, camera, new PoseStack(), selectedPos, 0.5, 0, new Color(1, 1, 1, 0.2f));
+		// RenderHelper.addBillboard(builder, camera, new PoseStack(), selectedPos, 0.5,
+		// 0, new Color(1, 1, 1, 0.2f));
 
 		// builder.end();
 
-		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION).setFilter(true, false);
-		// RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION).setFilter(true,
+		// false);
+		// RenderSystem.setShaderTexture(0,
+		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
 		// RenderSystem.enableBlend();
 		// RenderSystem.defaultBlendFunc();
 		// RenderSystem.disableCull();
@@ -500,16 +492,19 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// BufferUploader.end(builder);
 
 		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// builder.begin(VertexFormat.Mode.QUADS,
+		// DefaultVertexFormat.POSITION_COLOR_TEX);
 		// var k = this.camera.scale.get(partialTick);
-		// RenderHelper.addBillboard(builder, new PoseStack(), camera.focus.div(TM_PER_UNIT),
-		// 		Vec3.from(0.02 * k, 0, 0),
-		// 		Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
+		// RenderHelper.addBillboard(builder, new PoseStack(),
+		// camera.focus.div(TM_PER_UNIT),
+		// Vec3.from(0.02 * k, 0, 0),
+		// Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
 		// builder.end();
 
 		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-		// 		.setFilter(true, false);
-		// RenderSystem.setShaderTexture(0, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+		// .setFilter(true, false);
+		// RenderSystem.setShaderTexture(0,
+		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
 		// RenderSystem.enableBlend();
 		// RenderSystem.defaultBlendFunc();
 		// RenderSystem.disableCull();

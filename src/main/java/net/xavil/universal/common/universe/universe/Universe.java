@@ -53,15 +53,9 @@ public abstract class Universe {
 	}
 
 	public double getCelestialTime(float partialTick) {
-		// if (partialTick > 0) partialTick = 0;
-		// return 3000 * (1440.0 / 5.0) * (this.celestialTimeTicks + partialTick) / 20.0;
-		// return 3.154e+7 * (this.celestialTimeTicks + partialTick) / 20.0;
-		// return (1440.0 / 5.0) * (this.celestialTimeTicks + partialTick) / 20.0;
-		// return (this.celestialTimeTicks + partialTick) / 20.0;
+		return (this.celestialTimeTicks + partialTick) / 20.0;
 		// return (this.celestialTimeTicks + partialTick) / 120.0;
-		return 60 * (this.celestialTimeTicks + partialTick) / 20.0;
-		// return 2e6 + 319000;
-		// return (this.celestialTimeTicks + partialTick) / 200000000.0;
+		// return 60 * (this.celestialTimeTicks + partialTick) / 20.0;
 	}
 
 	public StarSystem getSystem(SystemId id) {

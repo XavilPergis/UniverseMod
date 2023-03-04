@@ -185,10 +185,10 @@ public final class ServerUniverse extends Universe {
 		var initialGalaxySectorId = random.nextInt(0, initialLayer.size());
 		var initialGalaxyId = new SectorId(galaxySectorPos, new Octree.Id(initialLayerId, initialGalaxySectorId));
 
-		var sx = (int) (250 * random.nextGaussian());
-		var sy = (int) (250 * random.nextGaussian());
-		var sz = (int) (250 * random.nextGaussian());
-		var systemVolumePos = Vec3i.from(sx, sy, sz);
+		// var sx = (int) (250 * random.nextGaussian());
+		// var sy = (int) (250 * random.nextGaussian());
+		// var sz = (int) (250 * random.nextGaussian());
+		var systemVolumePos = Vec3i.ZERO;
 
 		this.startingGenerator = new StartingSystemGalaxyGenerationLayer(initialGalaxyId, systemVolumePos, rootNode,
 				startingNodeId);

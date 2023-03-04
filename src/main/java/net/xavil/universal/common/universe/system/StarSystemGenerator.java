@@ -261,6 +261,22 @@ public class StarSystemGenerator {
 		}
 	}
 
+	private double timeUntilTidallyLockedMya(StarSystemNode.UnaryOrbit orbit) {
+		if (orbit.node instanceof PlanetNode planetNode) {
+
+			var rigidity = planetNode.type.rigidity;
+			if (Double.isNaN(rigidity))
+				return Double.NaN;
+
+			var meanRadiusM = Units.METERS_PER_REARTH * planetNode.radiusRearth;
+
+			var denom = 1e9 * orbit.node.massYg * Math.pow(1e9 * orbit.parentNode.massYg, 2);
+			var lockingTime = 6 * Math.pow(orbit.orbitalShape.semiMajor() * 1e12, 6) * meanRadiusM * rigidity / denom;
+			return lockingTime / 1e4;
+		}
+		return Double.NaN;
+	}
+
 	private void determineOrbitalPlanes(StarSystemNode node) {
 
 		var massMsol = node.massYg / Units.YG_PER_MSOL;
@@ -271,9 +287,9 @@ public class StarSystemGenerator {
 
 		// earth speed: approx. 7e-5 rad/s
 		// conservation of angular momentum? small bodies might spin MUCH faster
-		node.rotationalSpeed = Mth.lerp(Math.pow(random.nextDouble(), 4), 0.2 * 7e-5, 200 * 7e-5);
+		node.rotationalPeriod = Mth.lerp(random.nextDouble(), 0.2 * 86400, 4 * 86400);
 		if (random.nextFloat() < 0.05)
-			node.rotationalSpeed *= -1;
+			node.rotationalPeriod *= -1;
 
 		if (node instanceof BinaryNode binaryNode) {
 			determineOrbitalPlanes(binaryNode.getA());
@@ -298,6 +314,11 @@ public class StarSystemGenerator {
 		}
 		for (var childOrbit : node.childOrbits()) {
 			determineOrbitalPlanes(childOrbit.node);
+
+			var lockingTimeMya = timeUntilTidallyLockedMya(childOrbit);
+			var orbitalPeriod = StarSystemNode.orbitalPeriod(childOrbit.orbitalShape, childOrbit.parentNode.massYg);
+			var lockingPercentage = Math.min(1, lockingTimeMya / this.info.systemAgeMya);
+			node.rotationalPeriod = Mth.lerp(lockingPercentage, node.rotationalPeriod, orbitalPeriod);
 
 			if (childOrbit.orbitalShape.semiMajor() > stabilityLimit) {
 				childOrbit.orbitalPlane = randomOrbitalPlane(random);

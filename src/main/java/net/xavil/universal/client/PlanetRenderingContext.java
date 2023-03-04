@@ -29,6 +29,7 @@ import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.system.PlanetNode;
 import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystemNode;
+import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 
 public final class PlanetRenderingContext {
 
@@ -57,17 +58,19 @@ public final class PlanetRenderingContext {
 	}
 
 	public record PointLight(Vec3 pos, Color color, double luminosity) {
-		public static PointLight fromStar(Vec3 pos, StarNode node) {
-			return new PointLight(pos, node.getColor(), node.luminosityLsol);
+		public static PointLight fromStar(StarNode node) {
+			return new PointLight(node.position, node.getColor(), node.luminosityLsol);
 		}
 	}
 
 	public final List<PointLight> pointLights = new ArrayList<>();
 	private final Minecraft client = Minecraft.getInstance();
+	private final double celestialTime;
 	private int renderedPlanetCount = 0;
 	private int renderedStarCount = 0;
 
-	public PlanetRenderingContext() {
+	public PlanetRenderingContext(double celestialTime) {
+		this.celestialTime = celestialTime;
 	}
 
 	public int getRenderedPlanetCount() {
@@ -89,14 +92,23 @@ public final class PlanetRenderingContext {
 	public void renderStar(BufferBuilder builder, CachedCamera<?> camera, StarNode node, PoseStack poseStack,
 			Color tintColor) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// builder.begin(VertexFormat.Mode.QUADS,
+		// DefaultVertexFormat.POSITION_COLOR_TEX);
 		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		// addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
 		// double d = RenderHelper.getCelestialBodySize(camera, node);
 
+
+		poseStack.pushPose();
+		// var rotationalSpeed = 2 * Math.PI / node.rotationalPeriod;
+		// poseStack.mulPose(Vector3f.YP.rotationDegrees((float) (rotationalSpeed * this.celestialTime)));
+
+
 		// TODO: tint
 		RenderHelper.renderStarBillboard(builder, camera, poseStack, node);
+
+		poseStack.popPose();
 
 		// var aaa = new PoseStack();
 		// aaa.last().pose().multiply(RenderSystem.getModelViewMatrix());
@@ -105,9 +117,11 @@ public final class PlanetRenderingContext {
 		// // RenderHelper.addBillboard(builder, Vec3.YP, Vec3.XP, node, pos, d);
 
 		// builder.end();
-		// this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
+		// this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true,
+		// false);
 		// RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
-		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
+		// GlStateManager.DestFactor.ONE);
 		// RenderSystem.depthMask(true);
 		// RenderSystem.enableDepthTest();
 		// BufferUploader.end(builder);
@@ -147,7 +161,7 @@ public final class PlanetRenderingContext {
 
 			float r = light.color.r(), g = light.color.g(), b = light.color.b();
 			float luminosity = (float) Math.max(light.luminosity, 0.4);
-			lightColor.set(new Vector4f(r, g, b, luminosity));
+			lightColor.set(new Vector4f(r, g, b, luminosity * 15));
 
 			var pos = camera.toCameraSpace(light.pos);
 			var shaderPos = new Vector4f((float) pos.x, (float) pos.y, (float) pos.z, 1);
@@ -161,6 +175,10 @@ public final class PlanetRenderingContext {
 	public void renderPlanet(BufferBuilder builder, CachedCamera<?> camera, PlanetNode node, PoseStack poseStack,
 			Color tintColor) {
 
+		poseStack.pushPose();
+		var rotationalSpeed = 200 * Math.PI / node.rotationalPeriod;
+		poseStack.mulPose(Vector3f.YP.rotationDegrees((float) (rotationalSpeed * this.celestialTime)));
+
 		var radiusM = 2 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// var radiusM = 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// final var metersPerUnit = 1 / unitsPerMeter;
@@ -173,21 +191,27 @@ public final class PlanetRenderingContext {
 
 		setupLighting(camera, poseStack, nodePosUnits);
 
-		if (node.type == PlanetNode.Type.GAS_GIANT) {
-			Minecraft.getInstance().getTextureManager().getTexture(BASE_GAS_GIANT_LOCATION).setFilter(true, false);
-		}
+		// if (node.type == PlanetNode.Type.GAS_GIANT) {
+		// }
 
 		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
 		var baseTexture = getBaseLayer(node);
+		Minecraft.getInstance().getTextureManager().getTexture(baseTexture).setFilter(false, false);
+
 		var radiusUnits = radiusM / camera.metersPerUnit;
 		// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		renderPlanetLayer(builder, camera, baseTexture, poseStack, nodePosUnits, radiusUnits, tintColor);
 		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
-			renderPlanetLayer(builder, camera, FEATURE_EARTH_LIKE_LOCATION, poseStack, nodePosUnits, radiusUnits, tintColor);
+			renderPlanetLayer(builder, camera, FEATURE_EARTH_LIKE_LOCATION, poseStack, nodePosUnits, radiusUnits,
+					tintColor);
 		}
-		if (node.type == PlanetNode.Type.ROCKY_WORLD) {
-			renderPlanetLayer(builder, camera, FEATURE_CRATERS_LOCATION, poseStack, nodePosUnits, radiusUnits, tintColor);
-		}
+		// if (node.type == PlanetNode.Type.ROCKY_WORLD) {
+		// 	renderPlanetLayer(builder, camera, FEATURE_CRATERS_LOCATION, poseStack, nodePosUnits, radiusUnits,
+		// 			tintColor);
+		// }
+
+		poseStack.popPose();
 
 		this.renderedPlanetCount += 1;
 	}
@@ -201,6 +225,7 @@ public final class PlanetRenderingContext {
 		addNormSphere(builder, camera, poseStack, center, radius, tintColor);
 		builder.end();
 		RenderSystem.setShaderTexture(0, texture);
+		RenderSystem.disableCull();
 		BufferUploader.end(builder);
 	}
 
@@ -210,7 +235,7 @@ public final class PlanetRenderingContext {
 		poseStack.pushPose();
 		// poseStack.translate(center.x, center.y, center.z);
 		final var pose = poseStack.last();
-		final var subdivisions = 5;
+		final var subdivisions = 10;
 
 		// -X
 		double nxlu = 0.00f, nxlv = 0.5f, nxhu = 0.25f, nxhv = 0.25f;
@@ -400,11 +425,12 @@ public final class PlanetRenderingContext {
 		cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
 	}
 
-	private static void normSphereVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose, Vec3 center,
+	private static void normSphereVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose,
+			Vec3 center,
 			Color color, double radius, double x, double y, double z, float u, float v) {
 		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
 		var pos = Vec3.from(x, y, z);
-		var n = pos.normalize().normalize();
+		var n = pos.normalize().transformBy(pose);
 		// var p = camera.toCameraSpace(n.mul(radius));
 		var p = camera.toCameraSpace(n.mul(radius)).add(center);
 		builder.vertex((float) p.x, (float) p.y, (float) p.z)

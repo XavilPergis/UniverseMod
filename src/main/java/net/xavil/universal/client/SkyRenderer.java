@@ -6,6 +6,7 @@ import java.util.Random;
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
@@ -24,7 +25,6 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
-import net.xavil.universal.client.screen.RenderMatricesSnapshot;
 import net.xavil.universal.common.universe.Quat;
 import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -61,7 +61,7 @@ public class SkyRenderer {
 		var offset = pos.sub(selfPos);
 		var forward = offset.normalize();
 
-		s = 1e5 * 2 * RenderHelper.getCelestialBodySize(selfPos, node, pos);
+		s = 1e9 * 2 * RenderHelper.getCelestialBodySize(selfPos, node, pos);
 
 		var du = forward.dot(Vec3.YP);
 		var df = forward.dot(Vec3.ZN);
@@ -90,7 +90,7 @@ public class SkyRenderer {
 
 		if (node instanceof StarNode starNode) {
 			// Mth.inverseLerp(starNode.luminosityLsol, 0, 30000)
-			var t = Math.pow(starNode.luminosityLsol, 0.4);
+			var t = Math.pow(starNode.luminosityLsol, 0.5);
 			// var t = starNode.luminosityLsol;
 
 			// how many Tm can a star with 1 Lsol of luminosity be seen from
@@ -122,9 +122,9 @@ public class SkyRenderer {
 		// VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 up,
 		// Vec3 right, Vec3 center, double scale, double zOffset, Color color
 		var up = forward.cross(right).neg();
-		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e5),
+		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e9),
 				s * 1, 0, color.withA(alpha));
-		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e5),
+		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e9),
 				s * 0.5 * 1, 0, Color.WHITE.withA(alpha));
 
 	}
@@ -160,7 +160,7 @@ public class SkyRenderer {
 				if (element.id == currentId.system().systemSector().sectorId())
 					return;
 				var displayStar = element.value.getInitial().getDisplayStar();
-				addBillboard(builder, new PoseStack(), selfPos, element.pos, 0.02, displayStar);
+				addBillboard(builder, new PoseStack(), selfPos, element.pos, 1, displayStar);
 			});
 			// volume.streamElements().forEach(element -> {
 			// });
@@ -233,27 +233,19 @@ public class SkyRenderer {
 		return rel.transformBy(poseStack.last()).mul(1e12);
 	}
 
-	private void drawSystem(PoseStack poseStack, CachedCamera<?> camera, SystemNodeId currentPlanetId, double time,
-			float partialTick) {
+	private void drawSystem(CachedCamera<?> camera, SystemNodeId currentNodeId, double time, float partialTick) {
 
 		camera.setupRenderMatrices();
 
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var system = universe.getSystem(currentPlanetId.system());
-
-		var positions = new HashMap<Integer, Vec3>();
-		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick,
-				(node, pos) -> positions.put(node.getId(), pos));
-
-		var thisPos = positions.get(currentPlanetId.nodeId());
+		var system = universe.getSystem(currentNodeId.system());
+		var currentNode = system.rootNode.lookup(currentNodeId.nodeId());
 
 		var builder = Tesselator.getInstance().getBuilder();
-		var ctx = new PlanetRenderingContext();
+		var ctx = new PlanetRenderingContext(time);
 		system.rootNode.visit(node -> {
 			if (node instanceof StarNode starNode) {
-				final var pos = positions.get(starNode.getId());
-				var posView = viewPos(poseStack, thisPos, pos);
-				var light = PlanetRenderingContext.PointLight.fromStar(pos, starNode);
+				var light = PlanetRenderingContext.PointLight.fromStar(starNode);
 				ctx.pointLights.add(light);
 			}
 		});
@@ -265,16 +257,28 @@ public class SkyRenderer {
 
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
-		for (var entry : positions.entrySet()) {
-			var node = system.rootNode.lookup(entry.getKey());
-			var pos = entry.getValue();
+		system.rootNode.visit(node -> {
 
-			if (node.getId() == currentPlanetId.nodeId())
-				continue;
+			if (node.getId() == currentNodeId.nodeId())
+				return;
 
-			// var offset = pos.sub(thisPos).mul(1e12);
-			ctx.render(builder, camera, node, poseStack, Color.WHITE);
-		}
+			if (node instanceof StarNode starNode) {
+				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+				addBillboard(builder, new PoseStack(), currentNode.position, starNode.position, 1, starNode);
+				builder.end();
+				this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
+				RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
+				RenderSystem.enableBlend();
+				RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+				RenderSystem.depthMask(false);
+				RenderSystem.enableDepthTest();
+				RenderSystem.disableCull();
+				BufferUploader.end(builder);
+			} else {
+				ctx.render(builder, camera, node, new PoseStack(), Color.WHITE);
+			}
+		});
 	}
 
 	private static Quaternion axisAngle(Vec3 axis, double angle) {
@@ -296,8 +300,10 @@ public class SkyRenderer {
 		var latitudeOffset = Mth.clamp(Mth.lerp(tx, -hpi, hpi), -hpi, hpi);
 		var longitudeOffset = Mth.clamp(Mth.lerp(tz, hpi, -hpi), -hpi, hpi);
 
+		var rotationalSpeed = 2 * Math.PI / node.rotationalPeriod;
+
 		var a = Quat.axisAngle(Vec3.XP, longitudeOffset + Math.toRadians(90));
-		var b = Quat.axisAngle(Vec3.YP, latitudeOffset + node.rotationalSpeed * time);
+		var b = Quat.axisAngle(Vec3.YP, latitudeOffset + rotationalSpeed * time);
 		var c = Quat.axisAngle(Vec3.XP, -node.obliquityAngle);
 
 		return a.hamiltonProduct(b).hamiltonProduct(c);
@@ -315,9 +321,12 @@ public class SkyRenderer {
 		if (currentNode == null)
 			return false;
 
-		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1e8f, 1e13f, partialTick);
-
 		double time = universe.getCelestialTime(partialTick);
+
+		var currentSystem = universe.getSystem(currentId.system());
+		currentSystem.rootNode.updatePositions(time);
+
+		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1e4f, 1e13f, partialTick);
 
 		// TODO: is this right? what about when spectating entities?
 		// this whole thing feels kinda brittle tbh, since we reconstruct the projection
@@ -356,10 +365,8 @@ public class SkyRenderer {
 		this.skyTarget.clear(false);
 		this.skyTarget.bindWrite(false);
 
-		// applyPlanetTransform(poseStack, currentNode, time, camera.getPosition().x,
-		// 		camera.getPosition().z);
-		drawStars(poseStack.last().pose(), proj);
-		drawSystem(new PoseStack(), celestialCamera, currentId, time, partialTick);
+		drawStars(RenderSystem.getModelViewMatrix(), proj);
+		drawSystem(celestialCamera, currentId, time, partialTick);
 
 		this.client.getMainRenderTarget().bindWrite(false);
 		RenderSystem.enableBlend();

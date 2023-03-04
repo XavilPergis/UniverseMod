@@ -17,17 +17,19 @@ import net.xavil.universal.common.dimension.DimensionCreationProperties;
 public non-sealed class PlanetNode extends StarSystemNode {
 
 	public enum Type {
-		GAS_GIANT(false),
-		ICE_WORLD(true),
-		ROCKY_WORLD(true),
-		ROCKY_ICE_WORLD(true),
-		WATER_WORLD(true),
-		EARTH_LIKE_WORLD(true);
+		GAS_GIANT(false, Double.NaN),
+		ICE_WORLD(true, 4e9),
+		ROCKY_WORLD(true, 3e10),
+		ROCKY_ICE_WORLD(true, 1e10),
+		WATER_WORLD(true, 3e10),
+		EARTH_LIKE_WORLD(true, 3e10);
 
 		public final boolean isLandable;
+		public final double rigidity;
 
-		private Type(boolean isLandable) {
+		private Type(boolean isLandable, double rigidity) {
 			this.isLandable = isLandable;
+			this.rigidity = rigidity;
 		}
 	}
 

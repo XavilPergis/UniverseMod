@@ -49,18 +49,19 @@ public final class RenderHelper {
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
+		RenderSystem.disableCull();
 		BufferUploader.end(builder);
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
 			StarSystemNode node) {
-		double d = getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
+		double d = 1 * (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
 		addBillboard(builder, camera, poseStack, node, d, node.position);
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
 			StarSystemNode node, Vec3 pos) {
-		double d = getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos);
+		double d = 1 * (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos);
 		addBillboard(builder, camera, poseStack, node, d, pos);
 	}
 

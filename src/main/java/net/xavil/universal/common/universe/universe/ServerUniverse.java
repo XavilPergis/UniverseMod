@@ -67,7 +67,7 @@ public final class ServerUniverse extends Universe {
 		// NOTE: reference plane is the ecliptic plane
 		final var sol = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(1));
 		sol.obliquityAngle = Math.toRadians(7.25);
-		sol.rotationalSpeed = 2.90307e-6;
+		sol.rotationalPeriod = 2.90307e-6;
 
 		// final var s1 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(0.5));
 		// final var s2 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(1));
@@ -89,28 +89,28 @@ public final class ServerUniverse extends Universe {
 		// b.rotationalSpeed = 1.24099e-8;
 		final var mercury = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.055), 0.3829, 427);
 		mercury.obliquityAngle = Math.toRadians(0.034);
-		mercury.rotationalSpeed = 1.24099e-6;
+		mercury.rotationalPeriod = 2 * Math.PI / 1.24099e-6;
 		final var venus = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.815), 0.9499, 737);
 		venus.obliquityAngle = Math.toRadians(0.034);
-		venus.rotationalSpeed = -4.13193e-7;
+		venus.rotationalPeriod = 2 * Math.PI / -4.13193e-7;
 		final var earth = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD, Units.mearth(1), 1, 287.91);
 		earth.obliquityAngle = Math.toRadians(23.4392811);
-		earth.rotationalSpeed = 7.29211e-5;
+		earth.rotationalPeriod = 2 * Math.PI / 7.29211e-5;
 		final var mars = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.107), 0.5314, 213);
 		mars.obliquityAngle = Math.toRadians(25.19);
-		mars.rotationalSpeed = 7.088216e-5;
+		mars.rotationalPeriod = 2 * Math.PI / 7.088216e-5;
 		final var jupiter = new PlanetNode(PlanetNode.Type.GAS_GIANT, Units.mearth(317.8), 10.973, 165);
 		jupiter.obliquityAngle = Math.toRadians(3.13);
-		jupiter.rotationalSpeed = 1.7583764e-4;
+		jupiter.rotationalPeriod = 2 * Math.PI / 1.7583764e-4;
 		final var saturn = new PlanetNode(PlanetNode.Type.GAS_GIANT, Units.mearth(95.159), 9.1402, 97);
 		saturn.obliquityAngle = Math.toRadians(26.73);
-		saturn.rotationalSpeed = 1.65539181e-4;
+		saturn.rotationalPeriod = 2 * Math.PI / 1.65539181e-4;
 		final var uranus = new PlanetNode(PlanetNode.Type.GAS_GIANT, Units.mearth(14.536), 3.9763, 76);
 		uranus.obliquityAngle = Math.toRadians(97.77);
-		uranus.rotationalSpeed = -1.01239075e-4;
+		uranus.rotationalPeriod = 2 * Math.PI / -1.01239075e-4;
 		final var neptune = new PlanetNode(PlanetNode.Type.GAS_GIANT, Units.mearth(17.147), 3.8603, 72);
 		neptune.obliquityAngle = Math.toRadians(28.32);
-		neptune.rotationalSpeed = 1.08338253e-4;
+		neptune.rotationalPeriod = 2 * Math.PI / 1.08338253e-4;
 
 		sol.insertChild(mercury, 0.205630,  Units.au(0.387098), Math.toRadians(7.005),   Math.toRadians(48.331),    Math.toRadians(29.124),    0);
 		// sol.insertChild(mercury, 0.9,       Units.au(3.1),      Math.toRadians(86),      Math.toRadians(48.331),    Math.toRadians(29.124),    0);
@@ -126,21 +126,21 @@ public final class ServerUniverse extends Universe {
 
 		final var moon = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.0123), 0.2727, 250);
 		moon.obliquityAngle = Math.toRadians(6.687);
-		moon.rotationalSpeed = 2.4626008e-6;
+		moon.rotationalPeriod = 2 * Math.PI / 2.4626008e-6;
 		earth.insertChild(moon, 0.0549, Units.au(0.00257), Math.toRadians(5.145), 0, 0, 8);
 
 		final var io = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(0.015), 0.286, 110);
 		io.obliquityAngle = Math.toRadians(0);
-		io.rotationalSpeed = 4.1105928e-5;
+		io.rotationalPeriod = 2 * Math.PI / 4.1105928e-5;
 		final var europa = new PlanetNode(PlanetNode.Type.ROCKY_ICE_WORLD, Units.mearth(0.008), 0.245, 102);
 		europa.obliquityAngle = Math.toRadians(0);
-		europa.rotationalSpeed = 2.04782725e-5;
+		europa.rotationalPeriod = 2 * Math.PI / 2.04782725e-5;
 		final var gyanmede = new PlanetNode(PlanetNode.Type.ROCKY_ICE_WORLD, Units.mearth(0.413), 0.2727, 110);
 		gyanmede.obliquityAngle = Math.toRadians(0);
-		gyanmede.rotationalSpeed = 1.01644439e-5;
+		gyanmede.rotationalPeriod = 2 * Math.PI / 1.01644439e-5;
 		final var callisto = new PlanetNode(PlanetNode.Type.ROCKY_ICE_WORLD, Units.mearth(0.018), 0.378, 134);
 		callisto.obliquityAngle = Math.toRadians(0);
-		callisto.rotationalSpeed = 4.3574793e-6;
+		callisto.rotationalPeriod = 2 * Math.PI / 4.3574793e-6;
 
 		jupiter.insertChild(io,       0.0041, Units.au(0.00281), Math.toRadians(2.213), 0, 0, 9);
 		jupiter.insertChild(europa,   0.0090, Units.au(0.00448), Math.toRadians(1.791), 0, 0, 10);

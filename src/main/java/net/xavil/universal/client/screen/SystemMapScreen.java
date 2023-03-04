@@ -17,6 +17,7 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.math.Vector3f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -465,10 +466,16 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.TM_PER_AU, 10,
 				40, partialTick);
 
-		var ctx = new PlanetRenderingContext();
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+
+		// FIXME: `Minecraft` has a `pausePartialTick` field that we should use instead
+		// of 0 here.
+		double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
+
+		var ctx = new PlanetRenderingContext(time);
 		system.rootNode.visit(node -> {
 			if (node instanceof StarNode starNode) {
-				var light = PlanetRenderingContext.PointLight.fromStar(starNode.position, starNode);
+				var light = PlanetRenderingContext.PointLight.fromStar(starNode);
 				ctx.pointLights.add(light);
 			}
 		});
@@ -614,7 +621,6 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.depthMask(true);
 
 		final var partialTick = this.client.getFrameTime();
-		final var camera = this.camera.cached(partialTick);
 
 		if (system == null)
 			return;
@@ -625,9 +631,7 @@ public class SystemMapScreen extends UniversalScreen {
 		// of 0 here.
 		double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
 
-		StarSystemNode.positionNode(system.rootNode, OrbitalPlane.ZERO, time, partialTick,
-				(node, pos) -> {
-				});
+		system.rootNode.updatePositions(time);
 
 		if (followingId != -1) {
 			var nodePos = this.system.rootNode.lookup(this.followingId).position;
@@ -635,6 +639,8 @@ public class SystemMapScreen extends UniversalScreen {
 				this.camera.focus.set(nodePos.mul(TM_PER_UNIT));
 			}
 		}
+
+		final var camera = this.camera.cached(partialTick);
 
 		final var prevMatrices = camera.setupRenderMatrices();
 		render3d(camera, partialTick);

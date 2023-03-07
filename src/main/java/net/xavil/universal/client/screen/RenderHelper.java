@@ -14,11 +14,12 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
-import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.system.PlanetNode;
-import net.xavil.universal.common.universe.system.StarNode;
-import net.xavil.universal.common.universe.system.StarSystemNode;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.util.Units;
+import net.xavil.util.math.Color;
+import net.xavil.util.math.Vec3;
 
 public final class RenderHelper {
 
@@ -38,7 +39,7 @@ public final class RenderHelper {
 	private static final Minecraft CLIENT = Minecraft.getInstance();
 
 	public static void renderStarBillboard(BufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
-			StarSystemNode node) {
+			CelestialNode node) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		addBillboard(builder, camera, poseStack, node);
@@ -54,21 +55,21 @@ public final class RenderHelper {
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
-			StarSystemNode node) {
+			CelestialNode node) {
 		double d = 1 * (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
 		addBillboard(builder, camera, poseStack, node, d, node.position);
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
-			StarSystemNode node, Vec3 pos) {
+			CelestialNode node, Vec3 pos) {
 		double d = 1 * (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos);
 		addBillboard(builder, camera, poseStack, node, d, pos);
 	}
 
-	public static double getCelestialBodySize(Vec3 camPos, StarSystemNode node, Vec3 pos) {
+	public static double getCelestialBodySize(Vec3 camPos, CelestialNode node, Vec3 pos) {
 
 		double minAngularDiameterRad = Math.toRadians(0.5);
-		if (node instanceof StarNode starNode) {
+		if (node instanceof StellarCelestialNode starNode) {
 			minAngularDiameterRad = Math.toRadians(Mth.clamp(Math.log(starNode.luminosityLsol), 0.5, 0.7));
 		}
 
@@ -79,10 +80,10 @@ public final class RenderHelper {
 		final double billboardFactor = 3.5;
 
 		double radius = 0;
-		if (node instanceof StarNode starNode) {
-			radius = starNode.radiusRsol * Units.METERS_PER_RSOL / 1e12;
-		} else if (node instanceof PlanetNode planetNode) {
-			radius = planetNode.radiusRearth * Units.METERS_PER_REARTH / 1e12;
+		if (node instanceof StellarCelestialNode starNode) {
+			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
+		} else if (node instanceof PlanetaryCelestialNode planetNode) {
+			radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
 		}
 
 		var distanceFromCameraTm = camPos.distanceTo(pos);
@@ -92,10 +93,10 @@ public final class RenderHelper {
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
-			StarSystemNode node, double d, Vec3 pos) {
+			CelestialNode node, double d, Vec3 pos) {
 
 		var color = Color.WHITE;
-		if (node instanceof StarNode starNode) {
+		if (node instanceof StellarCelestialNode starNode) {
 			color = starNode.getColor();
 		}
 
@@ -105,6 +106,11 @@ public final class RenderHelper {
 		RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
 				camera.toCameraSpace(pos),
 				brightBillboardSizeFactor * d, 0, Color.WHITE);
+	}
+
+	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center, double scale, Color color) {
+		addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
+				camera.toCameraSpace(center), scale, 0, color);
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 up,

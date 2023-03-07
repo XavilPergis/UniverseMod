@@ -4,10 +4,10 @@ import java.util.Random;
 
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystem.Info;
+import net.xavil.util.math.Vec3;
+import net.xavil.util.math.Vec3i;
 
 public abstract class GalaxyGenerationLayer {
 

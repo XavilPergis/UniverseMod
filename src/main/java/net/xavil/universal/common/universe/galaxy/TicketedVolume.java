@@ -11,9 +11,9 @@ import java.util.function.Consumer;
 import java.util.stream.Stream;
 
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.id.SectorId;
+import net.xavil.util.math.Vec3;
+import net.xavil.util.math.Vec3i;
 
 public abstract class TicketedVolume<T> {
 

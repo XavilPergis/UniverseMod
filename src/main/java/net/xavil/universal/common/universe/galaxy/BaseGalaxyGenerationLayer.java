@@ -7,14 +7,14 @@ import javax.annotation.Nullable;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.NameTemplate;
-import net.xavil.universal.common.universe.DensityField3;
+import net.xavil.universal.common.universe.DensityFields;
 import net.xavil.universal.common.universe.Lazy;
-import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.Vec3i;
-import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemGenerator;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Units;
+import net.xavil.util.math.Vec3;
+import net.xavil.util.math.Vec3i;
 
 public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
@@ -23,12 +23,12 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public static final int DENSITY_SAMPLE_COUNT = 2500;
 
 	public final Galaxy parentGalaxy;
-	public final DensityField3 densityField;
+	public final DensityFields densityFields;
 
-	public BaseGalaxyGenerationLayer(Galaxy parentGalaxy, DensityField3 densityField) {
+	public BaseGalaxyGenerationLayer(Galaxy parentGalaxy, DensityFields densityFields) {
 		super(1);
 		this.parentGalaxy = parentGalaxy;
-		this.densityField = densityField;
+		this.densityFields = densityFields;
 	}
 
 	private static Vec3 randomVec(Random random) {
@@ -59,7 +59,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		var sectorDensitySum = 0.0;
 		for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
 			var volumeOffsetTm = randomVec(random);
-			sectorDensitySum += this.densityField.sampleDensity(ctx.volumeMin.add(volumeOffsetTm));
+			sectorDensitySum += this.densityFields.stellarDensity.sampleDensity(ctx.volumeMin.add(volumeOffsetTm));
 		}
 		final var averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
 
@@ -78,10 +78,10 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
 				var volumeOffsetTm = randomVec(random);
 				var systemPos = ctx.volumeMin.add(volumeOffsetTm);
-				var density = this.densityField.sampleDensity(systemPos);
+				var density = this.densityFields.stellarDensity.sampleDensity(systemPos);
 
 				if (density >= random.nextDouble(0, maxDensity)) {
-					var initial = generateStarSystemInfo(ctx.volumeCoords, volumeOffsetTm, infoSeed);
+					var initial = generateStarSystemInfo(ctx.volumeCoords, systemPos, infoSeed);
 					var systemSeed = systemSeed(ctx.volumeCoords, i);
 					var i2 = i;
 					var lazy = new Lazy<>(initial,
@@ -99,8 +99,8 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	}
 
-	public final double MINIMUM_STAR_MASS_YG = Units.YG_PER_MSOL * 0.1;
-	public final double MAXIMUM_STAR_MASS_YG = Units.YG_PER_MSOL * 30.0;
+	public final double MINIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 0.1;
+	public final double MAXIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 30.0;
 
 	private double generateStarMass(Random random, double upperBoundYg) {
 		upperBoundYg = Math.min(MAXIMUM_STAR_MASS_YG, upperBoundYg);
@@ -110,17 +110,16 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	// Basic system info
-	private StarSystem.Info generateStarSystemInfo(Vec3i volumeCoords, Vec3 volumeOffsetTm, long seed) {
+	private StarSystem.Info generateStarSystemInfo(Vec3i volumeCoords, Vec3 systemPos, long seed) {
 		var random = new Random(seed);
 		var info = new StarSystem.Info();
 
-		// TODO: systems tend to form in clusters, so a better idea might be to have a
-		// noise field and use that as the system age directly, so we get a nice mix of
-		// very young systems and old systems.
-		var systemAgeFactor = Math.pow(random.nextDouble(), 3);
-		info.systemAgeMya = Mth.lerp(systemAgeFactor, 1, this.parentGalaxy.info.ageMya);
+		var minSystemAgeFactor = Math.min(1, this.densityFields.minAgeFactor.sampleDensity(systemPos));
+		var systemAgeFactor = Math.pow(random.nextDouble(), 2);
+
+		info.systemAgeMya = this.parentGalaxy.info.ageMya * Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
 		// noise field for driving this too; once again because stars form in clusters
-		var remainingHydrogenYg = random.nextDouble(Units.YG_PER_MSOL * 0.1, Units.YG_PER_MSOL * 100);
+		var remainingHydrogenYg = random.nextDouble(Units.Yg_PER_Msol * 0.1, Units.Yg_PER_Msol * 100);
 
 		// there's always at least one star per system
 		var initialStarMass = generateStarMass(random, remainingHydrogenYg);
@@ -158,29 +157,29 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		return new StarSystem(this.parentGalaxy, rootNode);
 	}
 
-	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.msol(10);
-	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = Units.msol(25);
+	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.fromMsol(10);
+	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = Units.fromMsol(25);
 
-	private static @Nullable StarNode generateStarNode(Random random, double systemAgeMya, double massYg) {
-		final var starLifetime = StarNode.mainSequenceLifetimeFromMass(massYg);
+	private static @Nullable StellarCelestialNode generateStarNode(Random random, double systemAgeMya, double massYg) {
+		final var starLifetime = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
 
 		// angular_momentum/angular_velocity = mass * radius^2
 
 		// TODO: conservation of angular momentum when star changes mass or radius
-		var targetType = StarNode.Type.MAIN_SEQUENCE;
+		var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
 		if (systemAgeMya > starLifetime) {
 			if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
-				targetType = StarNode.Type.WHITE_DWARF;
+				targetType = StellarCelestialNode.Type.WHITE_DWARF;
 			} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
-				targetType = StarNode.Type.NEUTRON_STAR;
+				targetType = StellarCelestialNode.Type.NEUTRON_STAR;
 			} else {
-				targetType = StarNode.Type.BLACK_HOLE;
+				targetType = StellarCelestialNode.Type.BLACK_HOLE;
 			}
 		} else if (systemAgeMya > starLifetime * 0.8) {
-			targetType = StarNode.Type.GIANT;
+			targetType = StellarCelestialNode.Type.GIANT;
 		}
 
-		var node = StarNode.fromMass(random, targetType, massYg);
+		var node = StellarCelestialNode.fromMass(random, targetType, massYg);
 		return node;
 	}
 

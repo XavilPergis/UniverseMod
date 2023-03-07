@@ -1,4 +1,6 @@
-package net.xavil.universal.common.universe;
+package net.xavil.util.math;
+
+import java.util.Random;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
@@ -8,7 +10,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.Position;
-import net.minecraft.util.Mth;
+import net.xavil.util.FastHasher;
 
 public final class Vec3 {
 
@@ -44,6 +46,13 @@ public final class Vec3 {
 
 	public static Vec3 fromCorner(Vec3i intVec) {
 		return new Vec3(intVec.x, intVec.y, intVec.z);
+	}
+
+	public static Vec3 random(Random random, Vec3 min, Vec3 max) {
+		var x = random.nextDouble(min.x, max.x);
+		var y = random.nextDouble(min.y, max.y);
+		var z = random.nextDouble(min.z, max.z);
+		return new Vec3(x, y, z);
 	}
 
 	public Vec3 add(double x, double y, double z) {
@@ -186,11 +195,11 @@ public final class Vec3 {
 
 	@Override
 	public int hashCode() {
-		long hash = 0L;
-		hash ^= Mth.murmurHash3Mixer(Double.doubleToRawLongBits(this.x));
-		hash ^= Mth.murmurHash3Mixer(Double.doubleToRawLongBits(this.y));
-		hash ^= Mth.murmurHash3Mixer(Double.doubleToRawLongBits(this.z));
-		return ((int) hash) ^ (int) (hash >> 32);
+		return FastHasher.create()
+			.appendDouble(this.x)
+			.appendDouble(this.y)
+			.appendDouble(this.z)
+			.currentHashInt();
 	}
 
 }

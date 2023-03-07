@@ -6,14 +6,24 @@ import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
-import net.xavil.universal.common.universe.Units;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.universal.common.universe.system.gen.AccreteContext;
+import net.xavil.universal.common.universe.system.gen.ProtoplanetaryDisc;
+import net.xavil.universal.common.universe.system.gen.SimulationParameters;
+import net.xavil.universegen.system.BinaryCelestialNode;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.CelestialNodeChild;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.util.Units;
+import net.xavil.util.math.Formulas;
+import net.xavil.util.math.OrbitalPlane;
 
 public class StarSystemGenerator {
 
 	// how many times larger the radius of an orbit around a binary pair needs to be
 	// than the maximum radius of the existing binary pair.
-	public static final double BINARY_SYSTEM_SPACING_FACTOR = 3;
+	public static final double BINARY_SYSTEM_SPACING_FACTOR = 4;
 	public static final int PLANET_SEED_COUNT = 100;
 
 	protected final Random random;
@@ -37,14 +47,14 @@ public class StarSystemGenerator {
 				random.nextDouble(-Math.PI * 2, Math.PI * 2));
 	}
 
-	public StarSystemNode generate() {
+	public CelestialNode generate() {
 		final var stars = info.getStars().toList();
 
 		// should never happen
 		if (stars.isEmpty())
 			throw new IllegalArgumentException("cannot generate a star system with no stars!");
 
-		StarSystemNode current = stars.get(0);
+		CelestialNode current = stars.get(0);
 		for (var i = 1; i < stars.size(); ++i) {
 			final var starToInsert = stars.get(i);
 			Mod.LOGGER.info("Placing star #" + i + "");
@@ -59,13 +69,14 @@ public class StarSystemGenerator {
 		// TODO: if stars have very large mass differences, we might consider putting
 		// the smaller star in a unary orbit around the mroe massive star
 
+		current = convertBinaryOrbits(current);
 		placePlanets(current);
 		determineOrbitalPlanes(current);
 
 		return current;
 	}
 
-	private static void replaceNode(StarSystemNode existing, BinaryNode newNode) {
+	private static void replaceNode(CelestialNode existing, BinaryCelestialNode newNode) {
 		// set up backlinks
 		var parent = existing.getBinaryParent();
 		if (parent != null) {
@@ -79,7 +90,7 @@ public class StarSystemGenerator {
 		newNode.getB().setBinaryParent(newNode);
 	}
 
-	private @Nullable StarSystemNode mergeSingleStar(StarNode existing, StarNode toInsert) {
+	private @Nullable CelestialNode mergeSingleStar(StellarCelestialNode existing, StellarCelestialNode toInsert) {
 
 		// if the node we are placing ourselves into orbit with is already part of a
 		// binary orbit, then there is a maximum radius of the new binary node: one
@@ -100,24 +111,22 @@ public class StarSystemGenerator {
 
 		// var squishFactor = Mth.lerp(1 - Math.pow(random.nextDouble(), 7), 0.2, 1);
 		var squishFactor = 1;
-		var newNode = new BinaryNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius,
+		var newNode = new BinaryCelestialNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius,
 				random.nextDouble(2 * Math.PI));
 		replaceNode(existing, newNode);
 		return newNode;
 	}
 
-	private static double getExclusionRadius(StarSystemNode node) {
-		if (node instanceof StarNode starNode) {
-			// TODO: exclusion zone for more massive stars should be larger, but im not sure
-			// by how much...
-			return Units.au(0.5) * starNode.massYg / Units.YG_PER_MSOL;
-		} else if (node instanceof BinaryNode binaryNode) {
+	private static double getExclusionRadius(CelestialNode node) {
+		if (node instanceof StellarCelestialNode starNode) {
+			return 10 * Units.m_PER_Rsol / 1e12 * starNode.radiusRsol;
+		} else if (node instanceof BinaryCelestialNode binaryNode) {
 			return BINARY_SYSTEM_SPACING_FACTOR * binaryNode.orbitalShapeB.semiMajor();
 		}
 		return 0;
 	}
 
-	private double getMaximumRadius(StarSystemNode node) {
+	private double getMaximumRadius(CelestialNode node) {
 		var parent = node.getBinaryParent();
 		if (parent == null)
 			return maximumSystemRadius;
@@ -128,7 +137,7 @@ public class StarSystemGenerator {
 		return parent.orbitalShapeB.semiMajor() / BINARY_SYSTEM_SPACING_FACTOR;
 	}
 
-	private @Nullable StarSystemNode mergeStarWithBinary(BinaryNode existing, StarNode toInsert) {
+	private @Nullable CelestialNode mergeStarWithBinary(BinaryCelestialNode existing, StellarCelestialNode toInsert) {
 
 		// i kinda hate this, but i cant think of a nicer way to do this rn.
 		boolean triedPType = false, triedSTypeA = false, triedSTypeB = false;
@@ -152,7 +161,7 @@ public class StarSystemGenerator {
 					Mod.LOGGER.info("Success [radius={}]", radius);
 					// var squishFactor = Mth.lerp(1 - Math.pow(random.nextDouble(), 7), 0.2, 1);
 					var squishFactor = 1;
-					var newNode = new BinaryNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius,
+					var newNode = new BinaryCelestialNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius,
 							random.nextDouble(2 * Math.PI));
 					replaceNode(existing, newNode);
 					return newNode;
@@ -181,94 +190,226 @@ public class StarSystemGenerator {
 		return null;
 	}
 
-	private @Nullable StarSystemNode mergeStarNodes(StarSystemNode existing, StarNode toInsert) {
+	private @Nullable CelestialNode mergeStarNodes(CelestialNode existing, StellarCelestialNode toInsert) {
 
-		if (existing instanceof StarNode starNode) {
+		if (existing instanceof StellarCelestialNode starNode) {
 			return mergeSingleStar(starNode, toInsert);
-		} else if (existing instanceof BinaryNode binaryNode) {
+		} else if (existing instanceof BinaryCelestialNode binaryNode) {
 			return mergeStarWithBinary(binaryNode, toInsert);
 		}
 
 		throw new IllegalArgumentException("tried to merge non-stellar nodes!");
 	}
 
-	private void placePlanets(StarSystemNode node) {
-		if (node instanceof BinaryNode binaryNode) {
-			placePlanets(binaryNode.getA());
-			placePlanets(binaryNode.getB());
-		}
+	public static final double UNARY_ORBIT_THRESHOLD = 0.05;
+
+	private CelestialNode convertBinaryOrbits(CelestialNode node) {
 		for (var childOrbit : node.childOrbits()) {
-			placePlanets(childOrbit.node);
+			convertBinaryOrbits(childOrbit.node);
 		}
 
-		var massMsol = node.massYg / Units.YG_PER_MSOL;
-		var stabilityLimit = Units.au(1000) * Math.pow(massMsol, 1.5) * 0.66;
-
-		var minRadius = getExclusionRadius(node);
-		var maxRadius = getMaximumRadius(node);
-		maxRadius = 1.4 * Math.min(maxRadius, stabilityLimit);
-		if (minRadius >= maxRadius)
-			return;
-
-		if (node instanceof StarNode starNode) {
-
-			var capturedPlanetCountDouble = Mth.lerp(Math.pow(random.nextDouble(), 2), 0, 20);
-			var capturedPlanetCount = (int) Math.floor(capturedPlanetCountDouble);
-
-			for (var i = 0; i < capturedPlanetCount; ++i) {
-				// FIXME: do something real
-				// we want to take into account how much dust and gas the stars snatched up
-				// we dont want to have overlapping orbits
-				var initialMass = random.nextDouble(10, 1e7);
-				var initialOrbitalRadius = random.nextDouble(minRadius, maxRadius);
-
-				var typesLength = PlanetNode.Type.values().length;
-				var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
-				var r = random.nextDouble(0.02, 30);
-
-				var planetNode = new PlanetNode(randomType, initialMass, r, 300);
-				var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
-				var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);
-
-				var orbit = new StarSystemNode.UnaryOrbit(node, planetNode, orbitalShape, OrbitalPlane.ZERO,
-						random.nextDouble(2 * Math.PI));
-				node.insertChild(orbit);
+		if (node instanceof BinaryCelestialNode binaryNode) {
+			binaryNode.setA(convertBinaryOrbits(binaryNode.getA()));
+			binaryNode.setB(convertBinaryOrbits(binaryNode.getB()));
+			if (UNARY_ORBIT_THRESHOLD * binaryNode.getA().massYg > binaryNode.getB().massYg) {
+				final var unary = new CelestialNodeChild<>(binaryNode.getA(), binaryNode.getB(),
+						binaryNode.orbitalShapeB, binaryNode.orbitalPlane, 0);
+				binaryNode.getA().insertChild(unary);
+				return binaryNode.getA();
 			}
 		}
 
-		var capturedPlanetCountDouble = Mth.lerp(Math.pow(random.nextDouble(), 20), 0, 20);
-		var capturedPlanetCount = (int) Math.floor(capturedPlanetCountDouble);
-
-		// TODO: captured objects should probably have higher eccentricities than usual
-		for (var i = 0; i < capturedPlanetCount; ++i) {
-			// FIXME: do something real
-			// we want to take into account how much dust and gas the stars snatched up
-			// we dont want to have overlapping orbits
-			var initialMass = random.nextDouble(10, 1e7);
-			var initialOrbitalRadius = random.nextDouble(minRadius, maxRadius);
-
-			var typesLength = PlanetNode.Type.values().length;
-			var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
-			var r = random.nextDouble(0.02, 30);
-
-			var planetNode = new PlanetNode(randomType, initialMass, r, 300);
-			var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
-			var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);
-
-			var orbit = new StarSystemNode.UnaryOrbit(node, planetNode, orbitalShape, OrbitalPlane.ZERO,
-					random.nextDouble(2 * Math.PI));
-			node.insertChild(orbit);
-		}
+		return node;
 	}
 
-	private double timeUntilTidallyLockedMya(StarSystemNode.UnaryOrbit orbit) {
-		if (orbit.node instanceof PlanetNode planetNode) {
+	private void placePlanetsAroundStar(StellarCelestialNode node) {
+
+		var params = new SimulationParameters();
+		var ctx = new AccreteContext(params, random, node.luminosityLsol, node.massYg / Units.Yg_PER_Msol);
+		var protoDisc = new ProtoplanetaryDisc(ctx);
+
+		try {
+			protoDisc.collapseDisc(node);
+		} catch (Exception ex) {
+			ex.printStackTrace();
+			Mod.LOGGER.error("accrete error " + ex);
+		}
+
+		// var minRadius = getExclusionRadius(node);
+		// var maxRadius = getMaximumRadius(node);
+
+		// var protoDiscMass = random.nextDouble(0.001, 0.3) * node.massYg;
+		// var protoDiscDustPercent = random.nextDouble(0.001, 0.05);
+		// var protoDiscSize = random.nextDouble(0.001, 0.3);
+
+		// var curRadius = 2 * random.nextDouble() + minRadius;
+		// var maxAttempts = random.nextInt(0, 30);
+		// for (var attempt = 0; attempt < maxAttempts; ++attempt) {
+		// if (random.nextDouble() < 0.05 || curRadius > maxRadius)
+		// break;
+
+		// // idk lol
+		// var frostLine = Units.fromAu(5) * Math.sqrt(node.luminosityLsol);
+
+		// var albedo = random.nextDouble();
+
+		// var starLuminosityW = Units.W_PER_Lsol * node.luminosityLsol;
+		// var temperatureK = Math.pow(starLuminosityW * (1 - albedo) / (Math.PI *
+		// Units.BOLTZMANN_CONSTANT_W_PER_m2K4), 0.25)
+		// / (2 * Math.sqrt(curRadius * 1e12));
+
+		// PlanetNode.Type type = null;
+
+		// double planetRadius = 1;
+		// var initialMass = Units.fromMearth(random.nextDouble(0.01, 500));
+		// if (curRadius < frostLine) {
+		// initialMass = Units.fromMearth(random.nextDouble(0.05, 2));
+		// }
+
+		// if (curRadius > frostLine) {
+		// boolean isGasGiant = random.nextDouble() < 0.6;
+		// if (isGasGiant) {
+		// initialMass = Units.fromMearth(random.nextDouble(50, 500));
+		// type = PlanetNode.Type.GAS_GIANT;
+		// planetRadius = (Units.m_PER_Rjupiter / Units.m_PER_Rearth) *
+		// random.nextDouble(0.7, 1.5);
+		// } else {
+		// initialMass = Units.fromMearth(random.nextDouble(0.1, 10));
+		// var isRocky = random.nextDouble() < 0.5;
+		// type = isRocky ? PlanetNode.Type.ROCKY_ICE_WORLD : PlanetNode.Type.ICE_WORLD;
+		// planetRadius = initialMass / Units.Yg_PER_Mearth * random.nextDouble(0.6,
+		// 1.4);
+		// }
+		// } else if (curRadius > frostLine * 0.8) {
+		// initialMass = Units.fromMearth(random.nextDouble(0.05, 2));
+		// if (temperatureK > 280 && temperatureK < 290 && initialMass > 0.8) {
+		// type = PlanetNode.Type.EARTH_LIKE_WORLD;
+		// planetRadius = initialMass / Units.Yg_PER_Mearth * random.nextDouble(0.85,
+		// 1.15);
+		// } else {
+		// type = PlanetNode.Type.ROCKY_WORLD;
+		// planetRadius = initialMass / Units.Yg_PER_Mearth * random.nextDouble(0.85,
+		// 1.15);
+		// }
+		// } else {
+		// initialMass = Units.fromMearth(random.nextDouble(0.05, 2));
+		// type = PlanetNode.Type.ROCKY_WORLD;
+		// planetRadius = initialMass / Units.Yg_PER_Mearth * random.nextDouble(0.5,
+		// 1.15);
+		// }
+
+		// // var typesLength = PlanetNode.Type.values().length;
+		// // var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
+		// // var planetRadius = random.nextDouble(0.02, 30);
+
+		// var planetNode = new PlanetNode(type, initialMass, planetRadius,
+		// temperatureK);
+		// var ecc = Math.pow(random.nextDouble(0, 1), 3) / 2;
+		// var orbitalShape = new OrbitalShape(ecc, curRadius);
+
+		// var orbit = new StarSystemNode.UnaryOrbit(node, planetNode, orbitalShape,
+		// OrbitalPlane.ZERO,
+		// random.nextDouble(2 * Math.PI));
+		// node.insertChild(orbit);
+
+		// curRadius *= Mth.lerp(Math.pow(random.nextDouble(), 4), 1.4, 6);
+
+		// placePlanets(planetNode);
+		// }
+	}
+
+	private void placePlanetsAroundGasGiant(PlanetaryCelestialNode node) {
+		var minRadius = 5 * (Units.m_PER_Rearth / 1e12) * node.radiusRearth;
+		var largeMoonCount = random.nextInt(0, 5);
+	}
+
+	private void placePlanets(CelestialNode node) {
+		if (node instanceof BinaryCelestialNode binaryNode) {
+			placePlanets(binaryNode.getA());
+			placePlanets(binaryNode.getB());
+		} else if (node instanceof StellarCelestialNode starNode) {
+			for (var childOrbit : node.childOrbits()) {
+				placePlanets(childOrbit.node);
+			}
+
+			placePlanetsAroundStar(starNode);
+		} else if (node instanceof PlanetaryCelestialNode planetNode) {
+			placePlanetsAroundGasGiant(planetNode);
+		}
+
+		// var massMsol = node.massYg / Units.YG_PER_MSOL;
+		// var stabilityLimit = Units.au(1000) * Math.pow(massMsol, 1.5) * 0.66;
+
+		// var minRadius = getExclusionRadius(node);
+		// var maxRadius = getMaximumRadius(node);
+		// maxRadius = 1.4 * Math.min(maxRadius, stabilityLimit);
+		// if (minRadius >= maxRadius)
+		// return;
+
+		// if (node instanceof StarNode starNode) {
+
+		// var capturedPlanetCountDouble = Mth.lerp(Math.pow(random.nextDouble(), 2), 0,
+		// 20);
+		// var capturedPlanetCount = (int) Math.floor(capturedPlanetCountDouble);
+
+		// for (var i = 0; i < capturedPlanetCount; ++i) {
+		// // FIXME: do something real
+		// // we want to take into account how much dust and gas the stars snatched up
+		// // we dont want to have overlapping orbits
+		// var initialMass = random.nextDouble(10, 1e7);
+		// var initialOrbitalRadius = random.nextDouble(minRadius, maxRadius);
+
+		// var typesLength = PlanetNode.Type.values().length;
+		// var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
+		// var r = random.nextDouble(0.02, 30);
+
+		// var planetNode = new PlanetNode(randomType, initialMass, r, 300);
+		// var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
+		// var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);
+
+		// var orbit = new StarSystemNode.UnaryOrbit(node, planetNode, orbitalShape,
+		// OrbitalPlane.ZERO,
+		// random.nextDouble(2 * Math.PI));
+		// node.insertChild(orbit);
+		// }
+		// }
+
+		// var capturedPlanetCountDouble = Mth.lerp(Math.pow(random.nextDouble(), 20),
+		// 0, 20);
+		// var capturedPlanetCount = (int) Math.floor(capturedPlanetCountDouble);
+
+		// // TODO: captured objects should probably have higher eccentricities than
+		// usual
+		// for (var i = 0; i < capturedPlanetCount; ++i) {
+		// // FIXME: do something real
+		// // we want to take into account how much dust and gas the stars snatched up
+		// // we dont want to have overlapping orbits
+		// var initialMass = random.nextDouble(10, 1e7);
+		// var initialOrbitalRadius = random.nextDouble(minRadius, maxRadius);
+
+		// var typesLength = PlanetNode.Type.values().length;
+		// var randomType = PlanetNode.Type.values()[random.nextInt(typesLength)];
+		// var r = random.nextDouble(0.02, 30);
+
+		// var planetNode = new PlanetNode(randomType, initialMass, r, 300);
+		// var ecc = Math.pow(random.nextDouble(0, 0.5), 3);
+		// var orbitalShape = new OrbitalShape(ecc, initialOrbitalRadius);
+
+		// var orbit = new StarSystemNode.UnaryOrbit(node, planetNode, orbitalShape,
+		// OrbitalPlane.ZERO,
+		// random.nextDouble(2 * Math.PI));
+		// node.insertChild(orbit);
+		// }
+	}
+
+	private double timeUntilTidallyLockedMya(CelestialNodeChild<?> orbit) {
+		if (orbit.node instanceof PlanetaryCelestialNode planetNode) {
 
 			var rigidity = planetNode.type.rigidity;
 			if (Double.isNaN(rigidity))
 				return Double.NaN;
 
-			var meanRadiusM = Units.METERS_PER_REARTH * planetNode.radiusRearth;
+			var meanRadiusM = Units.m_PER_Rearth * planetNode.radiusRearth;
 
 			var denom = 1e9 * orbit.node.massYg * Math.pow(1e9 * orbit.parentNode.massYg, 2);
 			var lockingTime = 6 * Math.pow(orbit.orbitalShape.semiMajor() * 1e12, 6) * meanRadiusM * rigidity / denom;
@@ -277,10 +418,10 @@ public class StarSystemGenerator {
 		return Double.NaN;
 	}
 
-	private void determineOrbitalPlanes(StarSystemNode node) {
+	private void determineOrbitalPlanes(CelestialNode node) {
 
-		var massMsol = node.massYg / Units.YG_PER_MSOL;
-		var stabilityLimit = Units.au(1000) * Math.pow(massMsol, 1.5) * 0.66;
+		var massMsol = node.massYg / Units.Yg_PER_Msol;
+		var stabilityLimit = Units.fromAu(10000) * Math.pow(massMsol, 1.5) * 0.66;
 
 		var ta = 2 * Math.PI * Math.pow(random.nextDouble(), 4);
 		node.obliquityAngle = random.nextDouble(-ta, ta);
@@ -291,7 +432,7 @@ public class StarSystemGenerator {
 		if (random.nextFloat() < 0.05)
 			node.rotationalPeriod *= -1;
 
-		if (node instanceof BinaryNode binaryNode) {
+		if (node instanceof BinaryCelestialNode binaryNode) {
 			determineOrbitalPlanes(binaryNode.getA());
 			determineOrbitalPlanes(binaryNode.getB());
 
@@ -316,11 +457,12 @@ public class StarSystemGenerator {
 			determineOrbitalPlanes(childOrbit.node);
 
 			var lockingTimeMya = timeUntilTidallyLockedMya(childOrbit);
-			var orbitalPeriod = StarSystemNode.orbitalPeriod(childOrbit.orbitalShape, childOrbit.parentNode.massYg);
+			var orbitalPeriod = Formulas.orbitalPeriod(childOrbit.orbitalShape.semiMajor(),
+					childOrbit.parentNode.massYg);
 			var lockingPercentage = Math.min(1, lockingTimeMya / this.info.systemAgeMya);
 			node.rotationalPeriod = Mth.lerp(lockingPercentage, node.rotationalPeriod, orbitalPeriod);
 
-			if (childOrbit.orbitalShape.semiMajor() > stabilityLimit) {
+			if (childOrbit.orbitalShape.semiMajor() > stabilityLimit || childOrbit.orbitalShape.eccentricity() > 0.3) {
 				childOrbit.orbitalPlane = randomOrbitalPlane(random);
 			} else {
 				var t = 0.1 * Math.pow(childOrbit.orbitalShape.semiMajor() / stabilityLimit, 4);

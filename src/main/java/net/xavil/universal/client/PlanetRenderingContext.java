@@ -22,14 +22,13 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.screen.CachedCamera;
-import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
-import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.system.PlanetNode;
-import net.xavil.universal.common.universe.system.StarNode;
-import net.xavil.universal.common.universe.system.StarSystemNode;
-import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Units;
+import net.xavil.util.math.Color;
+import net.xavil.util.math.Vec3;
 
 public final class PlanetRenderingContext {
 
@@ -44,7 +43,7 @@ public final class PlanetRenderingContext {
 	public static final ResourceLocation FEATURE_EARTH_LIKE_LOCATION = Mod
 			.namespaced("textures/misc/celestialbodies/earth_like.png");
 
-	private static ResourceLocation getBaseLayer(PlanetNode node) {
+	private static ResourceLocation getBaseLayer(PlanetaryCelestialNode node) {
 		var missing = MissingTextureAtlasSprite.getLocation();
 		return switch (node.type) {
 			case EARTH_LIKE_WORLD -> BASE_WATER_LOCATION;
@@ -58,7 +57,7 @@ public final class PlanetRenderingContext {
 	}
 
 	public record PointLight(Vec3 pos, Color color, double luminosity) {
-		public static PointLight fromStar(StarNode node) {
+		public static PointLight fromStar(StellarCelestialNode node) {
 			return new PointLight(node.position, node.getColor(), node.luminosityLsol);
 		}
 	}
@@ -81,15 +80,15 @@ public final class PlanetRenderingContext {
 		return this.renderedStarCount;
 	}
 
-	public void render(BufferBuilder builder, CachedCamera<?> camera, StarSystemNode node, PoseStack poseStack,
+	public void render(BufferBuilder builder, CachedCamera<?> camera, CelestialNode node, PoseStack poseStack,
 			Color tintColor) {
-		if (node instanceof StarNode starNode)
+		if (node instanceof StellarCelestialNode starNode)
 			renderStar(builder, camera, starNode, poseStack, tintColor);
-		if (node instanceof PlanetNode planetNode)
+		if (node instanceof PlanetaryCelestialNode planetNode)
 			renderPlanet(builder, camera, planetNode, poseStack, tintColor);
 	}
 
-	public void renderStar(BufferBuilder builder, CachedCamera<?> camera, StarNode node, PoseStack poseStack,
+	public void renderStar(BufferBuilder builder, CachedCamera<?> camera, StellarCelestialNode node, PoseStack poseStack,
 			Color tintColor) {
 		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		// builder.begin(VertexFormat.Mode.QUADS,
@@ -172,14 +171,14 @@ public final class PlanetRenderingContext {
 
 	}
 
-	public void renderPlanet(BufferBuilder builder, CachedCamera<?> camera, PlanetNode node, PoseStack poseStack,
+	public void renderPlanet(BufferBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node, PoseStack poseStack,
 			Color tintColor) {
 
 		poseStack.pushPose();
 		var rotationalSpeed = 200 * Math.PI / node.rotationalPeriod;
 		poseStack.mulPose(Vector3f.YP.rotationDegrees((float) (rotationalSpeed * this.celestialTime)));
 
-		var radiusM = 2 * Units.METERS_PER_REARTH * node.radiusRearth;
+		var radiusM = 2 * Units.m_PER_Rearth * node.radiusRearth;
 		// var radiusM = 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// final var metersPerUnit = 1 / unitsPerMeter;
 
@@ -199,10 +198,11 @@ public final class PlanetRenderingContext {
 		var baseTexture = getBaseLayer(node);
 		Minecraft.getInstance().getTextureManager().getTexture(baseTexture).setFilter(false, false);
 
-		var radiusUnits = radiusM / camera.metersPerUnit;
+		// var radiusUnits = radiusM / camera.metersPerUnit;
+		var radiusUnits = 1000 * 1000;
 		// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		renderPlanetLayer(builder, camera, baseTexture, poseStack, nodePosUnits, radiusUnits, tintColor);
-		if (node.type == PlanetNode.Type.EARTH_LIKE_WORLD) {
+		if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
 			renderPlanetLayer(builder, camera, FEATURE_EARTH_LIKE_LOCATION, poseStack, nodePosUnits, radiusUnits,
 					tintColor);
 		}

@@ -1,10 +1,7 @@
-package net.xavil.universal.common.universe.system;
+package net.xavil.util.math;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-
-import net.xavil.universal.common.universe.Quat;
-import net.xavil.universal.common.universe.Vec3;
 
 public record OrbitalPlane(Quat rotationFromReference) {
 
@@ -21,16 +18,6 @@ public record OrbitalPlane(Quat rotationFromReference) {
 
 		var q = x.hamiltonProduct(y).hamiltonProduct(z);
 		return new OrbitalPlane(q);
-
-		// // // https://www.orbiter-forum.com/threads/quaternions-rotations-and-orbital-elements.37264/
-		// final var a = inclinationRad / 2;
-		// final var b = (longitudeOfAscendingNodeRad + argumentOfPeriapsisRad) / 2;
-		// final var c = (longitudeOfAscendingNodeRad - argumentOfPeriapsisRad) / 2;
-		// final var w = Math.cos(a) * Math.cos(b);
-		// final var i = Math.sin(a) * Math.cos(c);
-		// final var j = Math.sin(a) * Math.sin(c);
-		// final var k = Math.cos(a) * Math.sin(b);
-		// return new OrbitalPlane(Quat.from(w, i, j, k));
 	}
 
 	public OrbitalPlane withReferencePlane(OrbitalPlane reference) {

@@ -3,6 +3,7 @@ package net.xavil.universal.client.screen;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.function.BiConsumer;
 
 import javax.annotation.Nullable;
 
@@ -17,7 +18,6 @@ import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Vector3f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -26,26 +26,28 @@ import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.universal.client.ClientDebugFeatures;
 import net.xavil.universal.client.PlanetRenderingContext;
-import net.xavil.universal.common.Ellipse;
-import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
-import net.xavil.universal.common.universe.system.BinaryNode;
-import net.xavil.universal.common.universe.system.OrbitalPlane;
-import net.xavil.universal.common.universe.system.PlanetNode;
-import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universal.networking.c2s.ServerboundTeleportToPlanetPacket;
+import net.xavil.universegen.system.BinaryCelestialNode;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.CelestialNodeChild;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.util.Units;
+import net.xavil.util.math.Color;
+import net.xavil.util.math.Ellipse;
+import net.xavil.util.math.OrbitalPlane;
+import net.xavil.util.math.Vec3;
 
 public class SystemMapScreen extends UniversalScreen {
 
 	private final Minecraft client = Minecraft.getInstance();
 	private final StarSystem system;
 
-	public static final double TM_PER_UNIT = Units.TM_PER_AU;
+	public static final double TM_PER_UNIT = Units.Tm_PER_au;
 
 	public static final Color BINARY_PATH_COLOR = new Color(0.1f, 0.4f, 0.5f, 0.5f);
 	public static final Color UNARY_PATH_COLOR = new Color(0.5f, 0.4f, 0.1f, 0.5f);
@@ -88,7 +90,7 @@ public class SystemMapScreen extends UniversalScreen {
 			return true;
 
 		final var partialTick = this.client.getFrameTime();
-		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.TM_PER_LY;
+		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
 
 		if (button == 2) {
 			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
@@ -127,11 +129,11 @@ public class SystemMapScreen extends UniversalScreen {
 		return false;
 	}
 
-	private StarSystemNode getClosestNode(OrbitCamera.Cached camera) {
-		StarSystemNode closest = null;
+	private CelestialNode getClosestNode(OrbitCamera.Cached camera) {
+		CelestialNode closest = null;
 		var focusPos = camera.focus.div(TM_PER_UNIT);
 
-		final var nodes = new ArrayList<StarSystemNode>();
+		final var nodes = new ArrayList<CelestialNode>();
 		this.system.rootNode.visit(nodes::add);
 
 		for (var node : nodes) {
@@ -139,7 +141,7 @@ public class SystemMapScreen extends UniversalScreen {
 				closest = node;
 				continue;
 			}
-			if (!(node instanceof BinaryNode)) {
+			if (!(node instanceof BinaryCelestialNode)) {
 				var currentDist = node.position.distanceTo(focusPos);
 				var closestDist = closest.position.distanceTo(focusPos);
 				if (currentDist < closestDist)
@@ -243,7 +245,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 		// TODO: consolidate with the logic in mouseDragged()?
 		final var partialTick = this.client.getFrameTime();
-		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.TM_PER_LY;
+		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
 
 		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
@@ -257,16 +259,16 @@ public class SystemMapScreen extends UniversalScreen {
 			this.poseStack = poseStack;
 		}
 
-		private static int computeMaxDepth(StarSystemNode node, int depth) {
+		private static int computeMaxDepth(CelestialNode node, int depth) {
 			var maxDepth = depth;
-			if (node instanceof BinaryNode binaryNode) {
+			if (node instanceof BinaryCelestialNode binaryNode) {
 				maxDepth = Math.max(maxDepth, computeMaxDepth(binaryNode.getA(), depth + 1));
 				maxDepth = Math.max(maxDepth, computeMaxDepth(binaryNode.getB(), depth + 1));
 			}
 			return maxDepth;
 		}
 
-		private void renderNodeMain(StarSystemNode node) {
+		private void renderNodeMain(CelestialNode node) {
 			var maxDepth = computeMaxDepth(node, 0);
 			renderNode(node, 0, 5 * maxDepth, 0);
 		}
@@ -277,8 +279,8 @@ public class SystemMapScreen extends UniversalScreen {
 			}
 		}
 
-		private SegmentInfo renderNode(StarSystemNode node, int depth, int xOff, int yOff) {
-			if (node instanceof BinaryNode binaryNode) {
+		private SegmentInfo renderNode(CelestialNode node, int depth, int xOff, int yOff) {
+			if (node instanceof BinaryCelestialNode binaryNode) {
 				var aInfo = renderNode(binaryNode.getA(), depth + 1, xOff, yOff);
 				var bInfo = renderNode(binaryNode.getB(), depth + 1, xOff, yOff + aInfo.height);
 
@@ -288,15 +290,15 @@ public class SystemMapScreen extends UniversalScreen {
 				var vertialX = 5 * depth;
 				fill(poseStack, vertialX, yOff + lineStartY, vertialX + 1, yOff + lineEndY + 1, 0x77ffffff);
 
-				var aEndX = binaryNode.getA() instanceof BinaryNode ? vertialX : xOff;
-				var bEndX = binaryNode.getB() instanceof BinaryNode ? vertialX : xOff;
+				var aEndX = binaryNode.getA() instanceof BinaryCelestialNode ? vertialX : xOff;
+				var bEndX = binaryNode.getB() instanceof BinaryCelestialNode ? vertialX : xOff;
 
 				fill(poseStack, vertialX + 1, yOff + lineStartY, aEndX + 5, yOff + lineStartY + 1, 0x77ffffff);
 				fill(poseStack, vertialX + 1, yOff + lineEndY, bEndX + 5, yOff + lineEndY + 1, 0x77ffffff);
 
 				return new SegmentInfo(aInfo.height + bInfo.height, lineStartY, lineEndY);
 			} else {
-				if (node instanceof StarNode starNode) {
+				if (node instanceof StellarCelestialNode starNode) {
 					var h = 0;
 					var str = "";
 					if (starNode.starClass() != null) {
@@ -380,17 +382,17 @@ public class SystemMapScreen extends UniversalScreen {
 	}
 
 	private void showBinaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
-			float partialTick, BinaryNode node) {
+			float partialTick, BinaryCelestialNode node) {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-		if (!(node.getA() instanceof BinaryNode)) {
+		if (!(node.getA() instanceof BinaryCelestialNode)) {
 			var ellipse = node.getEllipseA(node.referencePlane);
 			var isSelected = this.selectedId != node.getA().getId();
 			var color = isSelected ? BINARY_PATH_COLOR.withA(0.5) : new Color(0.2, 1.0, 0.2, 1.0);
 			addEllipse(builder, camera, ellipse, color, isSelected);
 		}
-		if (!(node.getB() instanceof BinaryNode)) {
+		if (!(node.getB() instanceof BinaryCelestialNode)) {
 			var ellipse = node.getEllipseB(node.referencePlane);
 			var isSelected = this.selectedId != node.getB().getId();
 			var color = isSelected ? BINARY_PATH_COLOR.withA(0.5) : new Color(0.2, 1.0, 0.2, 1.0);
@@ -408,12 +410,12 @@ public class SystemMapScreen extends UniversalScreen {
 	}
 
 	private void showUnaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
-			float partialTick, StarSystemNode.UnaryOrbit orbit) {
+			float partialTick, CelestialNodeChild<?> orbiter) {
 		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-		var ellipse = orbit.getEllipse(orbit.parentNode.referencePlane);
-		var isSelected = this.selectedId != orbit.node.getId();
+		var ellipse = orbiter.getEllipse(orbiter.parentNode.referencePlane);
+		var isSelected = this.selectedId != orbiter.node.getId();
 		var color = isSelected ? UNARY_PATH_COLOR.withA(0.5) : new Color(0.2, 1.0, 0.2, 1.0);
 		addEllipse(builder, camera, ellipse, color, isSelected);
 
@@ -427,12 +429,12 @@ public class SystemMapScreen extends UniversalScreen {
 		BufferUploader.end(builder);
 	}
 
-	private void renderNode(OrbitCamera.Cached camera, StarSystemNode node, PlanetRenderingContext ctx,
+	private void renderNode(OrbitCamera.Cached camera, CelestialNode node, PlanetRenderingContext ctx,
 			float partialTick) {
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
 
-		if (node instanceof PlanetNode planetNode) {
+		if (node instanceof PlanetaryCelestialNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
 			ctx.renderPlanet(builder, camera, planetNode, new PoseStack(), Color.WHITE);
@@ -440,7 +442,7 @@ public class SystemMapScreen extends UniversalScreen {
 			ctx.render(builder, camera, node, new PoseStack(), Color.WHITE);
 		}
 
-		if (node instanceof BinaryNode binaryNode && this.showGuides) {
+		if (node instanceof BinaryCelestialNode binaryNode && this.showGuides) {
 			showBinaryGuides(builder, camera, binaryNode.referencePlane, partialTick, binaryNode);
 		}
 
@@ -463,7 +465,7 @@ public class SystemMapScreen extends UniversalScreen {
 		// }
 		// });
 
-		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.TM_PER_AU, 10,
+		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.Tm_PER_au, 10,
 				40, partialTick);
 
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
@@ -474,7 +476,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 		var ctx = new PlanetRenderingContext(time);
 		system.rootNode.visit(node -> {
-			if (node instanceof StarNode starNode) {
+			if (node instanceof StellarCelestialNode starNode) {
 				var light = PlanetRenderingContext.PointLight.fromStar(starNode);
 				ctx.pointLights.add(light);
 			}
@@ -546,49 +548,62 @@ public class SystemMapScreen extends UniversalScreen {
 		// BufferUploader.end(builder);
 	}
 
+	private void addNodeInfo(CelestialNode node, BiConsumer<String, String> consumer) {
+
+		if (node instanceof BinaryCelestialNode)
+			return;
+
+		// consumer.accept("Mass", String.format("%.2f Yg", node.massYg));
+		consumer.accept("Obliquity", String.format("%.2f rad", node.obliquityAngle));
+		consumer.accept("Rotational Period", String.format("%.2f s", node.rotationalPeriod));
+
+		// TODO: inclination n stuff
+
+		if (node instanceof StellarCelestialNode starNode) {
+			consumer.accept("Mass", String.format("%.4e Yg (%.2f M☉)", node.massYg, node.massYg / Units.Yg_PER_Msol));
+			consumer.accept("Luminosity", String.format("%.6f L☉", starNode.luminosityLsol));
+			consumer.accept("Radius", String.format("%.2f R☉", starNode.radiusRsol));
+			consumer.accept("Temperature", String.format("%.0f K", starNode.temperatureK));
+			var starClass = starNode.starClass();
+			if (starClass != null)
+				consumer.accept("Spectral Class", starClass.name);
+			consumer.accept("Type", starNode.type.name());
+		} else if (node instanceof PlanetaryCelestialNode planetNode) {
+			if (planetNode.type == PlanetaryCelestialNode.Type.GAS_GIANT) {
+				consumer.accept("Mass",
+						String.format("%.2f Yg (%.2f M♃)", node.massYg, node.massYg / Units.Yg_PER_Mjupiter));
+			} else {
+				consumer.accept("Mass",
+						String.format("%.2f Yg (%.2f Mⴲ)", node.massYg, node.massYg / Units.Yg_PER_Mearth));
+			}
+			consumer.accept("Type", planetNode.type.name());
+			consumer.accept("Temperature", String.format("%.0f K", planetNode.temperatureK));
+			if (planetNode.type == PlanetaryCelestialNode.Type.GAS_GIANT) {
+				consumer.accept("Radius", String.format("%.2f R♃",
+						planetNode.radiusRearth * (Units.m_PER_Rearth / Units.m_PER_Rjupiter)));
+			} else {
+				consumer.accept("Radius", String.format("%.2f Rⴲ", planetNode.radiusRearth));
+			}
+		}
+
+	}
+
 	private void render2d(PoseStack poseStack, float partialTick) {
 
 		if (this.selectedId != -1) {
-			int h = 0;
 			var node = this.system.rootNode.lookup(this.selectedId);
 			poseStack.pushPose();
 			poseStack.translate(20, 20, 0);
-			this.client.font.draw(poseStack, String.format("§9§l§nNode %s§r", "" + node.getId()), 0, h, 0xff777777);
-			h += this.client.font.lineHeight + 1;
+			this.client.font.draw(poseStack, String.format("§9§l§nNode %s§r", "" + node.getId()), 0, 0, 0xff777777);
 			poseStack.translate(4, 0, 0);
 
-			if (node instanceof StarNode starNode) {
-				this.client.font.draw(poseStack,
-						String.format("§9Mass§r: %.4e Yg (%.2f M☉)", node.massYg, node.massYg / Units.YG_PER_MSOL), 0,
-						h, 0xff777777);
-				h += this.client.font.lineHeight;
-				this.client.font.draw(poseStack, String.format("§9Luminosity§r: %.6f L☉", starNode.luminosityLsol), 0,
-						h, 0xff777777);
-				h += this.client.font.lineHeight;
-				this.client.font.draw(poseStack, String.format("§9Radius§r: %.2f R☉", starNode.radiusRsol), 0, h,
-						0xff777777);
-				h += this.client.font.lineHeight;
-				this.client.font.draw(poseStack, String.format("§9Temperature§r: %.0f K", starNode.temperatureK), 0, h,
-						0xff777777);
-				h += this.client.font.lineHeight;
-				var starClass = starNode.starClass();
-				if (starClass != null) {
-					var s = "§9Spectral Class§r: " + starClass.name;
-					this.client.font.draw(poseStack, s, 0, h, 0xff777777);
-					h += this.client.font.lineHeight;
-				}
-				var s = "§9Type§r: " + starNode.type.name();
-				this.client.font.draw(poseStack, s, 0, h, 0xff777777);
-				h += this.client.font.lineHeight;
-			} else if (node instanceof PlanetNode planetNode) {
-				this.client.font.draw(poseStack, String.format("§9Mass§r: %.2f Yg", node.massYg), 0, h, 0xff777777);
-				h += this.client.font.lineHeight;
-				this.client.font.draw(poseStack, "§9Type§r: " + planetNode.type.name(), 0, h, 0xff777777);
-				h += this.client.font.lineHeight;
-			} else {
-				this.client.font.draw(poseStack, String.format("§9Mass§r: %.2f Yg", node.massYg), 0, h, 0xff777777);
-				h += this.client.font.lineHeight;
-			}
+			var obj = new Object() {
+				int currentHeight = client.font.lineHeight;
+			};
+			addNodeInfo(node, (property, value) -> {
+				this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0, obj.currentHeight, 0xff777777);
+				obj.currentHeight += this.client.font.lineHeight + 1;
+			});
 
 			// drawString(poseStack, this.client.font, "scale: " + scale, 0, 0, 0xffffffff);
 			poseStack.popPose();

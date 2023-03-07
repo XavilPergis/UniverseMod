@@ -4,14 +4,14 @@ import java.util.Random;
 
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
-import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.system.StarSystemNode;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.util.math.Vec3;
+import net.xavil.util.math.Vec3i;
 
 public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
@@ -20,12 +20,12 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	// public final SystemId systemId;
 
-	public final StarSystemNode startingSystem;
+	public final CelestialNode startingSystem;
 	public final int startingNodeId;
 	// private int startingSystemId = -1;
 
 	public StartingSystemGalaxyGenerationLayer(SectorId startingGalaxyId,
-			Vec3i startingSystemVolumePos, StarSystemNode startingSystem, int startingNodeId) {
+			Vec3i startingSystemVolumePos, CelestialNode startingSystem, int startingNodeId) {
 		super(0);
 		this.startingGalaxyId = startingGalaxyId;
 		this.startingSystemVolumePos = startingSystemVolumePos;
@@ -53,7 +53,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		init.name = "Sol";
 		init.systemAgeMya = 4600;
 		this.startingSystem.visit(node -> {
-			if (node instanceof StarNode starNode) {
+			if (node instanceof StellarCelestialNode starNode) {
 				init.addStar(starNode);
 			}
 		});

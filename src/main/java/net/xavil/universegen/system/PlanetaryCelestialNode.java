@@ -1,4 +1,4 @@
-package net.xavil.universal.common.universe.system;
+package net.xavil.universegen.system;
 
 import java.util.OptionalLong;
 import java.util.Random;
@@ -8,13 +8,12 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.BlockTags;
-import net.minecraft.util.Mth;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.xavil.universal.common.dimension.DimensionCreationProperties;
 
-public non-sealed class PlanetNode extends StarSystemNode {
+public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 
 	public enum Type {
 		GAS_GIANT(false, Double.NaN),
@@ -37,7 +36,7 @@ public non-sealed class PlanetNode extends StarSystemNode {
 	public double radiusRearth;
 	public double temperatureK;
 
-	public PlanetNode(Type type, double massYg, double radiusRearth, double temperatureK) {
+	public PlanetaryCelestialNode(Type type, double massYg, double radiusRearth, double temperatureK) {
 		super(massYg);
 		this.type = type;
 		this.radiusRearth = radiusRearth;

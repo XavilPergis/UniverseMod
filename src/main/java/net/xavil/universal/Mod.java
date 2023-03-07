@@ -21,8 +21,6 @@ import net.xavil.universal.common.block.ModBlocks;
 import net.xavil.universal.common.dimension.DimensionCreationProperties;
 import net.xavil.universal.common.dimension.DynamicDimensionManager;
 import net.xavil.universal.common.item.StarmapItem;
-import net.xavil.universal.common.universe.system.PlanetNode;
-import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.ModNetworking;
@@ -31,6 +29,8 @@ import net.xavil.universal.networking.c2s.ServerboundTeleportToPlanetPacket;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.universegen.system.CelestialNode;
 
 public class Mod implements ModInitializer {
 
@@ -91,7 +91,7 @@ public class Mod implements ModInitializer {
 				var yaw = sender.getRespawnAngle();
 				sender.teleportTo(server.overworld(), p.getX(), p.getY(), p.getZ(), yaw, 0);
 			} else {
-				if (systemNode instanceof PlanetNode planetNode) {
+				if (systemNode instanceof PlanetaryCelestialNode planetNode) {
 					var propertiesSupplier = planetNode.dimensionProperties(server);
 					if (propertiesSupplier != null) {
 						final var key = DynamicDimensionManager

@@ -1,9 +1,4 @@
-package net.xavil.universal.common;
-
-import net.xavil.universal.common.universe.Quat;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.system.OrbitalPlane;
-import net.xavil.universal.common.universe.system.OrbitalShape;
+package net.xavil.util.math;
 
 public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 
@@ -29,7 +24,6 @@ public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 			semiMinor = semiMajor;
 		return Math.sqrt(semiMajor * semiMajor - semiMinor * semiMinor);
 	}
-
 
 	public static double eccentricity(double semiMajor, double semiMinor) {
 		if (semiMinor > semiMajor)

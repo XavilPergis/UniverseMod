@@ -4,8 +4,8 @@ import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
-import net.xavil.universal.common.universe.Quat;
-import net.xavil.universal.common.universe.Vec3;
+import net.xavil.util.math.Quat;
+import net.xavil.util.math.Vec3;
 
 public class OrbitCamera {
 

@@ -1,4 +1,4 @@
-package net.xavil.universal.client.screen;
+package net.xavil.util.math;
 
 import net.minecraft.util.Mth;
 

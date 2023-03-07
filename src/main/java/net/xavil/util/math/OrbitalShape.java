@@ -1,9 +1,7 @@
-package net.xavil.universal.common.universe.system;
+package net.xavil.util.math;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
-
-import net.xavil.universal.common.Ellipse;
 
 // defines the shape of the orbital ellipse
 public record OrbitalShape(double eccentricity, double semiMajor) {
@@ -18,6 +16,14 @@ public record OrbitalShape(double eccentricity, double semiMajor) {
 
 	public double semiMinor() {
 		return this.semiMajor * Math.sqrt(1 - this.eccentricity * this.eccentricity);
+	}
+
+	public double periapsisDistance() {
+		return this.semiMajor * (1 - this.eccentricity);
+	}
+
+	public double apoapsisDistance() {
+		return this.semiMajor * (1 + this.eccentricity);
 	}
 
 	// distance from the center of the ellipse to one of its foci

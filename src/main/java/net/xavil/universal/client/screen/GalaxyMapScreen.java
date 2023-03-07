@@ -13,7 +13,6 @@ import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
@@ -25,17 +24,17 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.Units;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
-import net.xavil.universal.common.universe.system.StarNode;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Units;
+import net.xavil.util.math.Color;
+import net.xavil.util.math.Vec3;
 
 public class GalaxyMapScreen extends UniversalScreen {
 
@@ -95,7 +94,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			return true;
 
 		final var partialTick = this.client.getFrameTime();
-		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.TM_PER_LY;
+		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
 
 		if (button == 2) {
 			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
@@ -124,7 +123,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			return true;
 		} else if (scrollDelta < 0) {
 			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 10000));
+			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 1000000));
 			return true;
 		}
 
@@ -149,6 +148,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		} else if (keyCode == GLFW.GLFW_KEY_D) {
 			this.isRightPressed = true;
 			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_M) {
+			this.client.setScreen(new GalaxyDensityDebugScreen(this, this.galaxy));
 		}
 
 		return false;
@@ -249,20 +250,15 @@ public class GalaxyMapScreen extends UniversalScreen {
 		if (camera.scale < 300) {
 			var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 			var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
-			{
-				var camPos = camera.focus.div(TM_PER_UNIT);
-				RenderHelper.addLine(builder, camera, camPos, selectedPos, SELECTION_LINE_COLOR);
-	
-			}
-	
+			var camPos = camera.focus.div(TM_PER_UNIT);
+			RenderHelper.addLine(builder, camera, camPos, selectedPos, SELECTION_LINE_COLOR);
+
 			var nearest = getNearestSystem(camera.focus, 10000);
 			if (nearest != null) {
 				var volume = this.galaxy.getVolumeAt(nearest.sectorPos());
 				var nearestPos = volume.posById(nearest.sectorId()).div(TM_PER_UNIT);
-				var camPos = camera.focus.div(TM_PER_UNIT);
 				RenderHelper.addLine(builder, camera, camPos, nearestPos, new Color(1, 0, 1, 1));
 			}
-
 		}
 
 		builder.end();
@@ -337,11 +333,11 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// setup
 
-		final var maxVisibleScale = 300;
+		final var maxVisibleScale = 0;
 
-		if (camera.scale > maxVisibleScale) {
-			return;
-		}
+		// if (camera.scale > maxVisibleScale) {
+		// return;
+		// }
 
 		// final var scaleAlpha = 1 - Mth.clamp(camera.scale / maxVisibleScale, 0, 1);
 
@@ -388,7 +384,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			var pos = element.pos.div(TM_PER_UNIT);
 			if (pos.distanceTo(focusPos) > 10)
 				return;
-			RenderHelper.addLine(builder,
+			RenderHelper.addLine(builder, camera,
 					Vec3.from(pos.x, focusPos.y, pos.z),
 					Vec3.from(pos.x, pos.y, pos.z),
 					NEAREST_LINE_COLOR.withA(0.2));
@@ -420,7 +416,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// TODO: consolidate with the logic in mouseDragged()?
 		final var partialTick = this.client.getFrameTime();
-		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.TM_PER_LY;
+		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
 
 		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
@@ -437,6 +433,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		// so we have to get the partialTick manually.
 		final var partialTick = this.client.getFrameTime();
 		final var camera = this.camera.cached(partialTick);
+		var prevMatrices = camera.setupRenderMatrices();
 
 		// TODO: render distant galaxies or something as a backdrop so its not just
 		// pitch black. or maybe thats just how space is :p
@@ -462,13 +459,58 @@ public class GalaxyMapScreen extends UniversalScreen {
 			});
 		}
 
+		BufferBuilder builder = Tesselator.getInstance().getBuilder();
+
+		// if (this.galaxyPoints != null) {
+
+		// BufferBuilder builder = Tesselator.getInstance().getBuilder();
+
+		// // Stars
+
+		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		// builder.begin(VertexFormat.Mode.QUADS,
+		// DefaultVertexFormat.POSITION_COLOR_TEX);
+
+		// var displayStar = new StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(1), 1,
+		// 1, 5000);
+		// this.galaxyPoints.enumerateElements(elem -> {
+		// var center = elem.pos;
+
+		// // we should maybe consider doing the billboarding in a vertex shader,
+		// because
+		// // that way we can build all the geometry for a sector into a vertex buffer
+		// and
+		// // just emit a few draw calls, instead of having to build the buffer from
+		// // scratch each frame.
+
+		// RenderHelper.addBillboard(builder, camera, new PoseStack(), displayStar, 100,
+		// center);
+		// // RenderHelper.addBillboard(builder, camera, new PoseStack(), displayStar,
+		// center);
+		// });
+
+		// builder.end();
+
+		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION).setFilter(true,
+		// false);
+		// RenderSystem.setShaderTexture(0,
+		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
+		// GlStateManager.DestFactor.ONE);
+		// RenderSystem.depthMask(false);
+		// RenderSystem.disableDepthTest();
+		// RenderSystem.disableCull();
+		// RenderSystem.enableBlend();
+		// BufferUploader.end(builder);
+
+		// }
 
 		// selected system gizmo
 
-		// var selectedVolume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-		// var selectedPos = selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
-
-		var prevMatrices = camera.setupRenderMatrices();
+		// var selectedVolume =
+		// this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
+		// var selectedPos =
+		// selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
 
 		// BufferBuilder builder = Tesselator.getInstance().getBuilder();
 		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
@@ -550,19 +592,19 @@ public class GalaxyMapScreen extends UniversalScreen {
 		super.render(poseStack, mouseX, mouseY, tickDelta);
 	}
 
-	private String describeStar(StarNode starNode) {
+	private String describeStar(StellarCelestialNode starNode) {
 		String starKind = "";
 		var starClass = starNode.starClass();
 		if (starClass != null) {
 			starKind += "Class " + starClass.name + " ";
 		}
-		if (starNode.type == StarNode.Type.BLACK_HOLE) {
+		if (starNode.type == StellarCelestialNode.Type.BLACK_HOLE) {
 			starKind += "Black Hole ";
-		} else if (starNode.type == StarNode.Type.NEUTRON_STAR) {
+		} else if (starNode.type == StellarCelestialNode.Type.NEUTRON_STAR) {
 			starKind += "Neutron Star ";
-		} else if (starNode.type == StarNode.Type.WHITE_DWARF) {
+		} else if (starNode.type == StellarCelestialNode.Type.WHITE_DWARF) {
 			starKind += "White Dwarf ";
-		} else if (starNode.type == StarNode.Type.GIANT) {
+		} else if (starNode.type == StellarCelestialNode.Type.GIANT) {
 			starKind += "Giant ";
 		}
 

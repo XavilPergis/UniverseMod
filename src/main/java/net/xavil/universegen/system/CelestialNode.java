@@ -1,8 +1,7 @@
-package net.xavil.universal.common.universe.system;
+package net.xavil.universegen.system;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -13,38 +12,20 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.xavil.universal.Mod;
-import net.xavil.universal.common.Ellipse;
-import net.xavil.universal.common.universe.Vec3;
+import net.xavil.util.Assert;
+import net.xavil.util.math.Formulas;
+import net.xavil.util.math.OrbitalPlane;
+import net.xavil.util.math.OrbitalShape;
+import net.xavil.util.math.Vec3;
 
-public abstract sealed class StarSystemNode permits StarNode, BinaryNode, PlanetNode, OtherNode {
+public abstract sealed class CelestialNode permits
+		StellarCelestialNode, BinaryCelestialNode, PlanetaryCelestialNode, OtherCelestialNode {
 
 	public static final int UNASSINED_ID = -1;
 
-	public static class UnaryOrbit {
-		public final StarSystemNode parentNode;
-		public final StarSystemNode node;
-		public OrbitalShape orbitalShape;
-		public OrbitalPlane orbitalPlane;
-		public double offset;
-
-		public UnaryOrbit(StarSystemNode parentNode, StarSystemNode node, OrbitalShape orbitalShape,
-				OrbitalPlane orbitalPlane, double offset) {
-			this.parentNode = parentNode;
-			this.node = node;
-			this.orbitalShape = orbitalShape;
-			this.orbitalPlane = orbitalPlane;
-		}
-
-		public Ellipse getEllipse(OrbitalPlane referencePlane) {
-			var plane = this.orbitalPlane.withReferencePlane(referencePlane);
-			return Ellipse.fromOrbit(this.parentNode.position, plane, this.orbitalShape);
-		}
-
-	}
-
 	protected int id = UNASSINED_ID;
-	protected @Nullable BinaryNode parentBinaryNode = null;
-	protected final List<UnaryOrbit> childNodes = new ArrayList<>();
+	protected @Nullable BinaryCelestialNode parentBinaryNode = null;
+	protected final List<CelestialNodeChild<?>> childNodes = new ArrayList<>();
 
 	public Vec3 position = Vec3.ZERO;
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
@@ -54,7 +35,7 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	public double obliquityAngle; // rad
 	public double rotationalPeriod; // s
 
-	public StarSystemNode(double massYg) {
+	public CelestialNode(double massYg) {
 		this.massYg = massYg;
 	}
 
@@ -66,31 +47,16 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 	}
 
 	/**
-	 * This method may be called on any subtree.
-	 */
-	public final @Nullable StarSystemNode lookup(int id) {
-		if (id < 0) {
-			Mod.LOGGER.error("Attempted to get celestial node with invalid id of " + id);
-			return null;
-		}
-		return lookupSubtree(id);
-	}
-
-	public final int getId() {
-		return this.id;
-	}
-
-	/**
 	 * Assigns IDs to each celestial node such that each node's ID is greater than
 	 * is descendants, but less than its siblings and ancestors. This allows
-	 * {@link StarSystemNode#lookup(int)} to not search the entire tree for a node
+	 * {@link CelestialNode#lookup(int)} to not search the entire tree for a node
 	 * on each lookup.
 	 * 
 	 * @param startId The ID at which all descendant nodes should be greater than.
 	 * @return The maximum ID contained within `this`, including itself.
 	 */
-	private final int assignSubtreeIds(int startId) {
-		if (this instanceof BinaryNode binaryNode) {
+	protected final int assignSubtreeIds(int startId) {
+		if (this instanceof BinaryCelestialNode binaryNode) {
 			startId = binaryNode.getA().assignSubtreeIds(startId) + 1;
 			startId = binaryNode.getB().assignSubtreeIds(startId) + 1;
 		}
@@ -102,8 +68,23 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return startId;
 	}
 
-	private final StarSystemNode lookupSubtree(int id) {
-		assert this.id != UNASSINED_ID;
+	/**
+	 * This method may be called on any subtree.
+	 */
+	public final @Nullable CelestialNode lookup(int id) {
+		if (id < 0) {
+			Mod.LOGGER.error("Attempted to get celestial node with invalid id of " + id);
+			return null;
+		}
+		return lookupSubtree(id);
+	}
+
+	public final int getId() {
+		return this.id;
+	}
+
+	protected final CelestialNode lookupSubtree(int id) {
+		Assert.isNotEqual(this.id, UNASSINED_ID);
 
 		if (this.id == id)
 			return this;
@@ -114,7 +95,7 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		if (id > this.id)
 			return null;
 
-		if (this instanceof BinaryNode binaryNode) {
+		if (this instanceof BinaryCelestialNode binaryNode) {
 			var a = binaryNode.getA().lookupSubtree(id);
 			if (a != null)
 				return a;
@@ -132,23 +113,36 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return null;
 	}
 
-	public void visit(Consumer<StarSystemNode> consumer) {
+	/**
+	 * Visit each node in this tree in an arbitrary order, including the node that
+	 * method was called on.
+	 * 
+	 * @param consumer The consumer that accepts each node.
+	 */
+	public void visit(Consumer<CelestialNode> consumer) {
 		consumer.accept(this);
-		if (this instanceof BinaryNode binaryNode) {
+		if (this instanceof BinaryCelestialNode binaryNode) {
 			binaryNode.getA().visit(consumer);
 			binaryNode.getB().visit(consumer);
 		}
 		this.childNodes.forEach(child -> child.node.visit(consumer));
 	}
 
-	public int find(StarSystemNode node) {
+	public int find(CelestialNode node) {
 		return find(other -> other == node);
 	}
 
-	public int find(Predicate<StarSystemNode> predicate) {
+	/**
+	 * Find the node ID of the first node according to a depth-first search that
+	 * matches the provided predicate.
+	 * 
+	 * @param predicate The search predicate.
+	 * @return The node ID.
+	 */
+	public int find(Predicate<CelestialNode> predicate) {
 		if (predicate.test(this))
 			return this.id;
-		if (this instanceof BinaryNode binaryNode) {
+		if (this instanceof BinaryCelestialNode binaryNode) {
 			var a = binaryNode.getA().find(predicate);
 			if (a != -1)
 				return a;
@@ -164,60 +158,66 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		return -1;
 	}
 
-	public void setBinaryParent(BinaryNode parent) {
+	public void setBinaryParent(BinaryCelestialNode parent) {
 		this.parentBinaryNode = parent;
 	}
 
-	public BinaryNode getBinaryParent() {
+	public BinaryCelestialNode getBinaryParent() {
 		return this.parentBinaryNode;
 	}
 
-	public void insertChild(StarSystemNode child, double eccentricity, double periapsisDistance, double inclination,
-			double longitudeOfAscendingNode, double argumentOfPeriapsis, double offset) {
-		final var shape = new OrbitalShape(eccentricity, periapsisDistance);
-		final var plane = OrbitalPlane.fromOrbitalElements(inclination, longitudeOfAscendingNode, argumentOfPeriapsis);
-		insertChild(new UnaryOrbit(this, child, shape, plane, offset));
-	}
-
-	public void insertChild(UnaryOrbit child) {
-		this.childNodes.add(child);
-	}
-
-	public Iterable<UnaryOrbit> childOrbits() {
+	public Iterable<CelestialNodeChild<?>> childOrbits() {
 		return this.childNodes;
 	}
 
-	public static final double G = 6.67e-11;
-	public static final double G_YG = 6.67e3;
-
-	// mu is the "standard gravitational parameter", which is the mass of the larger
-	// object for unary orbits, and the sum of the masses for binary orbits.
-	public static double orbitalPeriod(OrbitalShape shape, double mu) {
-		final var a = shape.semiMajor() * 1e12; // Tm -> m
-		return 2 * Math.PI * Math.sqrt(a * a * a / (G * 1e21 * mu));
+	/**
+	 * An alias for {@link #insertChild(CelestialNodeChild)} that takes the child
+	 * node and its orbital elements directly, instead of an already-constructed
+	 * {@link CelestialNodeChild}.
+	 */
+	public void insertChild(CelestialNode child, double eccentricity, double periapsisDistance, double inclination,
+			double longitudeOfAscendingNode, double argumentOfPeriapsis, double offset) {
+		final var shape = new OrbitalShape(eccentricity, periapsisDistance);
+		final var plane = OrbitalPlane.fromOrbitalElements(inclination, longitudeOfAscendingNode, argumentOfPeriapsis);
+		insertChild(new CelestialNodeChild<>(this, child, shape, plane, offset));
 	}
 
+	/**
+	 * Inserts a child node into a unary orbit around this node.
+	 * 
+	 * @param child The child to insert.
+	 */
+	public void insertChild(CelestialNodeChild<?> child) {
+		this.childNodes.add(child);
+	}
+
+	/**
+	 * Calculates and updates the positions and related details for each subnode of
+	 * this tree, according to the passed time.
+	 * 
+	 * @param time The amount of elapsed time, in seconds. Note that this is the
+	 *             total elapsed time, and *not* the delta time.
+	 */
 	public void updatePositions(double time) {
 		updatePositions(OrbitalPlane.ZERO, time);
 	}
 
-	public void updatePositions(OrbitalPlane referencePlane, double time) {
+	protected void updatePositions(OrbitalPlane referencePlane, double time) {
 		this.referencePlane = referencePlane;
 
-		if (this instanceof BinaryNode binaryNode) {
-
-			// 1e9 is for Tm -> km
-			final var a = 1e9 * (binaryNode.orbitalShapeA.semiMajor() + binaryNode.orbitalShapeB.semiMajor());
-			var orbitalPeriod = 2 * Math.PI * Math.sqrt(a * a * a / (G * 1e21 * this.massYg));
+		if (this instanceof BinaryCelestialNode binaryNode) {
+			var combinedSemiMajor = binaryNode.orbitalShapeA.semiMajor() + binaryNode.orbitalShapeB.semiMajor();
+			var combinedMass = binaryNode.getA().massYg + binaryNode.getB().massYg;
+			var orbitalPeriod = Formulas.orbitalPeriod(combinedSemiMajor, combinedMass);
 
 			var ellipseA = binaryNode.getEllipseA(referencePlane);
 			var meanAnomalyA = (2 * Math.PI / orbitalPeriod) * time + binaryNode.offset;
-			var trueAnomalyA = calculateTrueAnomaly(meanAnomalyA, binaryNode.orbitalShapeA.eccentricity());
+			var trueAnomalyA = Formulas.calculateTrueAnomaly(meanAnomalyA, binaryNode.orbitalShapeA.eccentricity());
 			binaryNode.getA().position = ellipseA.pointFromTrueAnomaly(-trueAnomalyA);
 
 			var ellipseB = binaryNode.getEllipseB(referencePlane);
 			var meanAnomalyB = (2 * Math.PI / orbitalPeriod) * time + binaryNode.offset;
-			var trueAnomalyB = calculateTrueAnomaly(meanAnomalyB, binaryNode.orbitalShapeB.eccentricity());
+			var trueAnomalyB = Formulas.calculateTrueAnomaly(meanAnomalyB, binaryNode.orbitalShapeB.eccentricity());
 			binaryNode.getB().position = ellipseB.pointFromTrueAnomaly(trueAnomalyB);
 
 			var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
@@ -227,9 +227,9 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 
 		for (var childOrbit : this.childOrbits()) {
 			var ellipse = childOrbit.getEllipse(referencePlane);
-			var orbitalPeriod = orbitalPeriod(childOrbit.orbitalShape, this.massYg);
+			var orbitalPeriod = Formulas.orbitalPeriod(childOrbit.orbitalShape.semiMajor(), this.massYg);
 			var meanAnomaly = (2 * Math.PI / orbitalPeriod) * time + childOrbit.offset;
-			var trueAnomaly = calculateTrueAnomaly(meanAnomaly, childOrbit.orbitalShape.eccentricity());
+			var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, childOrbit.orbitalShape.eccentricity());
 			childOrbit.node.position = ellipse.pointFromTrueAnomaly(trueAnomaly);
 
 			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
@@ -237,20 +237,8 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 		}
 	}
 
-	// super stolen from
-	// https://github.com/RegrowthStudios/SoACode-Public/blob/c3ddd69355b534d5e70e2e6d0c489b4e93ab1ffe/SoA/OrbitComponentUpdater.cpp#L70
-	private static double calculateTrueAnomaly(double meanAnomaly, double e) {
-		final var iterationCount = 10;
-		var E = meanAnomaly;
-		for (var n = 0; n < iterationCount; ++n) {
-			double F = E - e * Math.sin(E) - meanAnomaly;
-			E -= F / (1 - e * Math.cos(E));
-		}
-		return Math.atan2(Math.sqrt(1 - e * e) * Math.sin(E), Math.cos(E) - e);
-	}
-
-	public static StarSystemNode readNbt(CompoundTag nbt) {
-		StarSystemNode node = null;
+	public static CelestialNode readNbt(CompoundTag nbt) {
+		CelestialNode node = null;
 
 		var id = nbt.getInt("id");
 		var massYg = nbt.getDouble("mass");
@@ -275,18 +263,18 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			var orbitalShapeB = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, nbt.get("orbital_shape_b"))
 					.getOrThrow(false, Mod.LOGGER::error);
 			var offset = nbt.getDouble("offset");
-			node = new BinaryNode(massYg, a, b, orbitalPlane, orbitalShapeA, orbitalShapeB, offset);
+			node = new BinaryCelestialNode(massYg, a, b, orbitalPlane, orbitalShapeA, orbitalShapeB, offset);
 		} else if (nodeType.equals("star")) {
-			var type = StarNode.Type.values()[nbt.getInt("type")];
+			var type = StellarCelestialNode.Type.values()[nbt.getInt("type")];
 			var luminosity = nbt.getDouble("luminosity");
 			var radius = nbt.getDouble("radius");
 			var temperature = nbt.getDouble("temperature");
-			node = new StarNode(type, massYg, luminosity, radius, temperature);
+			node = new StellarCelestialNode(type, massYg, luminosity, radius, temperature);
 		} else if (nodeType.equals("planet")) {
-			var type = PlanetNode.Type.values()[nbt.getInt("type")];
+			var type = PlanetaryCelestialNode.Type.values()[nbt.getInt("type")];
 			var radius = nbt.getDouble("radius");
 			var temperature = nbt.getDouble("temperature");
-			node = new PlanetNode(type, massYg, radius, temperature);
+			node = new PlanetaryCelestialNode(type, massYg, radius, temperature);
 		}
 
 		node.position = position;
@@ -306,14 +294,14 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 			var orbitalShape = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_shape"))
 					.getOrThrow(false, Mod.LOGGER::error);
 
-			var child = new UnaryOrbit(node, childNode, orbitalShape, orbitalPlane, offset);
+			var child = new CelestialNodeChild<>(node, childNode, orbitalShape, orbitalPlane, offset);
 			node.childNodes.add(child);
 		}
 
 		return node;
 	}
 
-	public static CompoundTag writeNbt(StarSystemNode node) {
+	public static CompoundTag writeNbt(CelestialNode node) {
 		var nbt = new CompoundTag();
 
 		nbt.putInt("id", node.id);
@@ -328,7 +316,7 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 				.resultOrPartial(Mod.LOGGER::error)
 				.ifPresent(n -> nbt.put("reference_plane", n));
 
-		if (node instanceof BinaryNode binaryNode) {
+		if (node instanceof BinaryCelestialNode binaryNode) {
 			nbt.putString("node_type", "binary");
 			nbt.put("a", writeNbt(binaryNode.getA()));
 			nbt.put("b", writeNbt(binaryNode.getB()));
@@ -342,13 +330,13 @@ public abstract sealed class StarSystemNode permits StarNode, BinaryNode, Planet
 					.resultOrPartial(Mod.LOGGER::error)
 					.ifPresent(n -> nbt.put("orbital_shape_b", n));
 			nbt.putDouble("offset", binaryNode.offset);
-		} else if (node instanceof StarNode starNode) {
+		} else if (node instanceof StellarCelestialNode starNode) {
 			nbt.putString("node_type", "star");
 			nbt.putInt("type", starNode.type.ordinal());
 			nbt.putDouble("luminosity", starNode.luminosityLsol);
 			nbt.putDouble("radius", starNode.radiusRsol);
 			nbt.putDouble("temperature", starNode.temperatureK);
-		} else if (node instanceof PlanetNode planetNode) {
+		} else if (node instanceof PlanetaryCelestialNode planetNode) {
 			nbt.putString("node_type", "planet");
 			nbt.putInt("type", planetNode.type.ordinal());
 			nbt.putDouble("radius", planetNode.radiusRearth);

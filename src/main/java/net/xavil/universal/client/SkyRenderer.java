@@ -1,8 +1,5 @@
 package net.xavil.universal.client;
 
-import java.util.HashMap;
-import java.util.Random;
-
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -14,8 +11,6 @@ import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
-import com.mojang.math.Quaternion;
-import com.mojang.math.Vector3f;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
@@ -23,24 +18,22 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.screen.CachedCamera;
-import net.xavil.universal.client.screen.Color;
 import net.xavil.universal.client.screen.RenderHelper;
-import net.xavil.universal.common.universe.Quat;
-import net.xavil.universal.common.universe.Vec3;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 import net.xavil.universal.common.universe.id.SystemNodeId;
-import net.xavil.universal.common.universe.system.OrbitalPlane;
-import net.xavil.universal.common.universe.system.StarNode;
-import net.xavil.universal.common.universe.system.StarSystemNode;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.math.Color;
+import net.xavil.util.math.Quat;
+import net.xavil.util.math.Vec3;
 
 public class SkyRenderer {
 
 	public static final SkyRenderer INSTANCE = new SkyRenderer();
-	private static final double DISTANT_STAR_DISTANCE = 200;
 
 	private final Minecraft client = Minecraft.getInstance();
 	public TextureTarget skyTarget = null;
@@ -56,7 +49,7 @@ public class SkyRenderer {
 	}
 
 	private void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 selfPos, Vec3 pos, double s,
-			StarSystemNode node) {
+			CelestialNode node) {
 
 		var offset = pos.sub(selfPos);
 		var forward = offset.normalize();
@@ -69,10 +62,10 @@ public class SkyRenderer {
 		var right = v1.cross(forward);
 		// var rotation = random.nextDouble(0, Mth.TWO_PI);
 		var rotation = 0;
-		right = transformByQuaternion(axisAngle(forward, rotation), right);
+		right = Quat.axisAngle(forward, rotation).transform(right);
 
 		var color = Color.WHITE;
-		if (node instanceof StarNode starNode) {
+		if (node instanceof StellarCelestialNode starNode) {
 			color = starNode.getColor();
 			// s *= Math.log(starNode.luminosityLsol);
 		}
@@ -86,9 +79,9 @@ public class SkyRenderer {
 		// return;
 
 		double alpha = 1;
-		double k = 1;
+		// double k = 1;
 
-		if (node instanceof StarNode starNode) {
+		if (node instanceof StellarCelestialNode starNode) {
 			// Mth.inverseLerp(starNode.luminosityLsol, 0, 30000)
 			var t = Math.pow(starNode.luminosityLsol, 0.5);
 			// var t = starNode.luminosityLsol;
@@ -131,7 +124,6 @@ public class SkyRenderer {
 
 	private void buildStars() {
 		Mod.LOGGER.info("rebuilding background stars");
-		var random = new Random(1035098490512L);
 		var builder = Tesselator.getInstance().getBuilder();
 
 		var currentId = LevelAccessor.getUniverseId(this.client.level);
@@ -169,6 +161,7 @@ public class SkyRenderer {
 		builder.end();
 		distantStarsBuffer.upload(builder);
 		shouldRebuildStarBuffer = false;
+		VertexBuffer.unbind();
 	}
 
 	private void drawStars(Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
@@ -228,11 +221,6 @@ public class SkyRenderer {
 		this.distantStarsBuffer.drawChunkLayer();
 	}
 
-	private Vec3 viewPos(PoseStack poseStack, Vec3 currentCelestialPos, Vec3 celestialPos) {
-		var rel = celestialPos.sub(currentCelestialPos);
-		return rel.transformBy(poseStack.last()).mul(1e12);
-	}
-
 	private void drawSystem(CachedCamera<?> camera, SystemNodeId currentNodeId, double time, float partialTick) {
 
 		camera.setupRenderMatrices();
@@ -244,7 +232,7 @@ public class SkyRenderer {
 		var builder = Tesselator.getInstance().getBuilder();
 		var ctx = new PlanetRenderingContext(time);
 		system.rootNode.visit(node -> {
-			if (node instanceof StarNode starNode) {
+			if (node instanceof StellarCelestialNode starNode) {
 				var light = PlanetRenderingContext.PointLight.fromStar(starNode);
 				ctx.pointLights.add(light);
 			}
@@ -262,7 +250,7 @@ public class SkyRenderer {
 			if (node.getId() == currentNodeId.nodeId())
 				return;
 
-			if (node instanceof StarNode starNode) {
+			if (node instanceof StellarCelestialNode starNode) {
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 				addBillboard(builder, new PoseStack(), currentNode.position, starNode.position, 1, starNode);
@@ -281,17 +269,7 @@ public class SkyRenderer {
 		});
 	}
 
-	private static Quaternion axisAngle(Vec3 axis, double angle) {
-		return new Vector3f((float) axis.x, (float) axis.y, (float) axis.z).rotation((float) angle);
-	}
-
-	private static Vec3 transformByQuaternion(Quaternion quat, Vec3 pos) {
-		var vec = new Vector3f((float) pos.x, (float) pos.y, (float) pos.z);
-		vec.transform(quat);
-		return Vec3.fromMinecraft(vec);
-	}
-
-	private Quat getPlanetTransform(StarSystemNode node, double time, double viewX, double viewZ) {
+	private Quat getPlanetTransform(CelestialNode node, double time, double viewX, double viewZ) {
 		var worldBorder = this.client.level.getWorldBorder();
 		var tx = Mth.inverseLerp(viewX, worldBorder.getMinX(), worldBorder.getMaxX());
 		var tz = Mth.inverseLerp(viewZ, worldBorder.getMinZ(), worldBorder.getMaxZ());
@@ -328,7 +306,7 @@ public class SkyRenderer {
 
 		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1e4f, 1e13f, partialTick);
 
-		// TODO: is this right? what about when spectating entities?
+		// TODO: is this right? what about when spectating entities? (or in front-view third-person lol)
 		// this whole thing feels kinda brittle tbh, since we reconstruct the projection
 		// matrix and view rotations from scratch ourselves. This means they can get out
 		// of sync with the real things, which other mods might modify!

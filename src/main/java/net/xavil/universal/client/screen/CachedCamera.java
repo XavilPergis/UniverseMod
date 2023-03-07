@@ -4,10 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Matrix3f;
 import com.mojang.math.Matrix4f;
 
-import net.minecraft.client.Camera;
-import net.minecraft.client.Minecraft;
-import net.xavil.universal.common.universe.Quat;
-import net.xavil.universal.common.universe.Vec3;
+import net.xavil.util.math.Quat;
+import net.xavil.util.math.Vec3;
 
 public class CachedCamera<T> {
 	public final T camera;
@@ -65,19 +63,5 @@ public class CachedCamera<T> {
 
 		return new CachedCamera<T>(camera, pos, up, right, quat, 1, projectionMatrix);
 	}
-
-	// public static CachedCamera<Camera> fromMinecraft(Camera camera, Vec3 pos, Matrix4f projectionMatrix) {
-	// 	var xRot = Quat.axisAngle(Vec3.XP, Math.toRadians(Minecraft.getInstance().player.getViewXRot(0)));
-	// 	var yRot = Quat.axisAngle(Vec3.YP, Math.toRadians(Minecraft.getInstance().player.getViewYRot(0)) + Math.PI);
-	// 	var quat = xRot.hamiltonProduct(yRot);
-
-	// 	return new CachedCamera<>(camera,
-	// 			pos != null ? pos : Vec3.fromMinecraft(camera.getPosition()),
-	// 			Vec3.fromMinecraft(camera.getUpVector()),
-	// 			Vec3.fromMinecraft(camera.getLeftVector()).neg(),
-	// 			quat, // Quat.fromMinecraft(camera.rotation()),
-	// 			1,
-	// 			projectionMatrix);
-	// }
 
 }

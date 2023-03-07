@@ -4,10 +4,10 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
+import net.xavil.util.math.Vec3i;
 
 public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 

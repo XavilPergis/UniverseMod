@@ -1,7 +1,7 @@
-package net.xavil.universal.common.universe.system;
+package net.xavil.universegen.system;
 
-public non-sealed class OtherNode extends StarSystemNode {
-	public OtherNode(double massYg) {
+public non-sealed class OtherCelestialNode extends CelestialNode {
+	public OtherCelestialNode(double massYg) {
 		super(massYg);
 	}
 

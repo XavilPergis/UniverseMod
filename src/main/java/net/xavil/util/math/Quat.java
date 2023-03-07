@@ -1,10 +1,11 @@
-package net.xavil.universal.common.universe;
+package net.xavil.util.math;
 
 import com.mojang.math.Quaternion;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.util.Mth;
+import net.xavil.util.FastHasher;
 
 public final class Quat {
 
@@ -108,12 +109,12 @@ public final class Quat {
 
 	@Override
 	public int hashCode() {
-		long hash = 0L;
-		hash ^= Mth.murmurHash3Mixer(Double.doubleToRawLongBits(this.w));
-		hash ^= Mth.murmurHash3Mixer(Double.doubleToRawLongBits(this.i));
-		hash ^= Mth.murmurHash3Mixer(Double.doubleToRawLongBits(this.j));
-		hash ^= Mth.murmurHash3Mixer(Double.doubleToRawLongBits(this.k));
-		return ((int) hash) ^ (int) (hash >> 32);
+		return FastHasher.create()
+				.appendDouble(this.w)
+				.appendDouble(this.i)
+				.appendDouble(this.j)
+				.appendDouble(this.k)
+				.currentHashInt();
 	}
 
 }

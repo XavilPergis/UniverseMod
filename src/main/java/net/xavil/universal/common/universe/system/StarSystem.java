@@ -5,13 +5,15 @@ import java.util.List;
 import java.util.stream.Stream;
 
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.CelestialNode;
 
 public class StarSystem {
 
 	public final Galaxy parentGalaxy;
-	public StarSystemNode rootNode;
+	public CelestialNode rootNode;
 
-	public StarSystem(Galaxy parentGalaxy, StarSystemNode rootNode) {
+	public StarSystem(Galaxy parentGalaxy, CelestialNode rootNode) {
 		this.parentGalaxy = parentGalaxy;
 		this.rootNode = rootNode;
 	}
@@ -21,10 +23,10 @@ public class StarSystem {
 		public double remainingHydrogenYg;
 		public String name;
 
-		private final List<StarNode> stars = new ArrayList<>();
-		private StarNode displayStar;
+		private final List<StellarCelestialNode> stars = new ArrayList<>();
+		private StellarCelestialNode displayStar;
 
-		public void addStar(StarNode star) {
+		public void addStar(StellarCelestialNode star) {
 			for (var i = 0; i < this.stars.size(); ++i) {
 				if (star.luminosityLsol < this.stars.get(i).luminosityLsol) {
 					// not the brightest star, don't update the display star.
@@ -36,11 +38,11 @@ public class StarSystem {
 			this.displayStar = star;
 		}
 
-		public Stream<StarNode> getStars() {
+		public Stream<StellarCelestialNode> getStars() {
 			return this.stars.stream();
 		}
 
-		public StarNode getDisplayStar() {
+		public StellarCelestialNode getDisplayStar() {
 			return this.displayStar;
 		}
 	}

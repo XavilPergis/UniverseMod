@@ -1,14 +1,14 @@
-package net.xavil.universal.common.universe.system;
+package net.xavil.universegen.system;
 
 import java.util.Random;
 
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
-import net.xavil.universal.client.screen.Color;
-import net.xavil.universal.common.universe.Units;
+import net.xavil.util.Units;
+import net.xavil.util.math.Color;
 
-public non-sealed class StarNode extends StarSystemNode {
+public non-sealed class StellarCelestialNode extends CelestialNode {
 
 	public static enum Type {
 		MAIN_SEQUENCE(true, 1, 1, 2, 2),
@@ -25,17 +25,17 @@ public non-sealed class StarNode extends StarSystemNode {
 		private Type(boolean hasSpectralClass,
 				double initialMass0, double finalMass0,
 				double initialMass1, double finalMass1) {
-			initialMass0 = Units.msol(initialMass0);
-			finalMass0 = Units.msol(finalMass0);
-			initialMass1 = Units.msol(initialMass1);
-			finalMass1 = Units.msol(finalMass1);
+			initialMass0 = Units.fromMsol(initialMass0);
+			finalMass0 = Units.fromMsol(finalMass0);
+			initialMass1 = Units.fromMsol(initialMass1);
+			finalMass1 = Units.fromMsol(finalMass1);
 			this.hasSpectralClass = hasSpectralClass;
 			this.curveSlope = (finalMass1 - finalMass0) / (initialMass1 - initialMass0);
 			this.curveYIntercept = finalMass0 - this.curveSlope * initialMass0;
 		}
 
 		public double curveMass(Random random, double initialMass) {
-			var variance = Units.msol(Mth.clamp(0.05 * random.nextGaussian(), -0.1, 0.1));
+			var variance = Units.fromMsol(Mth.clamp(0.05 * random.nextGaussian(), -0.1, 0.1));
 			return this.curveSlope * initialMass + this.curveYIntercept + variance;
 		}
 
@@ -78,12 +78,12 @@ public non-sealed class StarNode extends StarSystemNode {
 		}
 	}
 
-	public StarNode.Type type;
+	public StellarCelestialNode.Type type;
 	public double luminosityLsol;
 	public double radiusRsol;
 	public double temperatureK;
 
-	public StarNode(StarNode.Type type, double massYg, double luminosityLsol, double radiusRsol, double temperatureK) {
+	public StellarCelestialNode(StellarCelestialNode.Type type, double massYg, double luminosityLsol, double radiusRsol, double temperatureK) {
 		super(massYg);
 		this.type = type;
 		this.luminosityLsol = luminosityLsol;
@@ -92,12 +92,12 @@ public non-sealed class StarNode extends StarSystemNode {
 	}
 
 	public static double mainSequenceLifetimeFromMass(double massYg) {
-		final var massMsol = massYg / Units.YG_PER_MSOL;
+		final var massMsol = massYg / Units.Yg_PER_Msol;
 		return Units.SOL_LIFETIME_MYA * (massMsol / mainSequenceLuminosityFromMass(massYg));
 	}
 
 	public static double mainSequenceLuminosityFromMass(double massYg) {
-		final var massMsol = massYg / Units.YG_PER_MSOL;
+		final var massMsol = massYg / Units.Yg_PER_Msol;
 		double luminosityLsol = 0;
 		if (massMsol < 0.43) {
 			luminosityLsol = 0.23 * Math.pow(massMsol, 2.3);
@@ -112,38 +112,38 @@ public non-sealed class StarNode extends StarSystemNode {
 	}
 
 	public static double mainSequenceRadiusFromMass(double massYg) {
-		final var massMsol = massYg / Units.YG_PER_MSOL;
+		final var massMsol = massYg / Units.Yg_PER_Msol;
 		return Math.pow(massMsol, 0.8);
 	}
 
 	public static double temperature(double radiusRsol, double luminosityLsol) {
-		var r = Units.METERS_PER_RSOL * radiusRsol;
-		var l = Units.WATTS_PER_LSOL * luminosityLsol;
-		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT), 0.25);
+		var r = Units.m_PER_Rsol * radiusRsol;
+		var l = Units.W_PER_Lsol * luminosityLsol;
+		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT_W_PER_m2K4), 0.25);
 	}
 
-	public static StarNode fromMass(Random random, StarNode.Type type, double massYg) {
+	public static StellarCelestialNode fromMass(Random random, StellarCelestialNode.Type type, double massYg) {
 		var m = type.curveMass(random, massYg);
 		var l = type.curveLuminosity(random, mainSequenceLuminosityFromMass(massYg));
 		var r = type.curveRadius(random, mainSequenceRadiusFromMass(massYg));
-		return new StarNode(type, m, l, r, temperature(r, l));
+		return new StellarCelestialNode(type, m, l, r, temperature(r, l));
 	}
 
-	public final @Nullable StarNode.StarClass starClass() {
+	public final @Nullable StellarCelestialNode.StarClass starClass() {
 		// @formatter:off
 		if (!this.type.hasSpectralClass)    return null;
-		if (this.massYg < Units.msol(0.45)) return StarClass.M;
-		if (this.massYg < Units.msol(0.8))  return StarClass.K;
-		if (this.massYg < Units.msol(1.04)) return StarClass.G;
-		if (this.massYg < Units.msol(1.4))  return StarClass.F;
-		if (this.massYg < Units.msol(2.1))  return StarClass.A;
-		if (this.massYg < Units.msol(16))   return StarClass.B;
+		if (this.massYg < Units.fromMsol(0.45)) return StarClass.M;
+		if (this.massYg < Units.fromMsol(0.8))  return StarClass.K;
+		if (this.massYg < Units.fromMsol(1.04)) return StarClass.G;
+		if (this.massYg < Units.fromMsol(1.4))  return StarClass.F;
+		if (this.massYg < Units.fromMsol(2.1))  return StarClass.A;
+		if (this.massYg < Units.fromMsol(16))   return StarClass.B;
 		                                    return StarClass.O;
 		// @formatter:on
 	}
 
 	public final double apparentBrightness(double distanceTm) {
-		var powerW = Units.WATTS_PER_LSOL * luminosityLsol;
+		var powerW = Units.W_PER_Lsol * luminosityLsol;
 		return powerW / (4 * Math.PI * distanceTm * distanceTm);
 		// P / 4 * pi * r^2
 	}
@@ -154,9 +154,9 @@ public non-sealed class StarNode extends StarSystemNode {
 		// TODO: color based on temperature and not on star class!
 		if (starClass != null) {
 			return starClass.color;
-		} else if (this.type == StarNode.Type.WHITE_DWARF) {
+		} else if (this.type == StellarCelestialNode.Type.WHITE_DWARF) {
 			return Color.rgb(1, 1, 1);
-		} else if (this.type == StarNode.Type.NEUTRON_STAR) {
+		} else if (this.type == StellarCelestialNode.Type.NEUTRON_STAR) {
 			return Color.rgb(0.4, 0.4, 1);
 		}
 		return Color.rgb(0, 1, 0);

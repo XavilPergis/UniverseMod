@@ -1,11 +1,13 @@
-package net.xavil.universal.common.universe.system;
+package net.xavil.universegen.system;
 
-import net.xavil.universal.common.Ellipse;
+import net.xavil.util.math.Ellipse;
+import net.xavil.util.math.OrbitalPlane;
+import net.xavil.util.math.OrbitalShape;
 
 // The position of this node represents the barycenter of the binary system
-public final class BinaryNode extends StarSystemNode {
-	private StarSystemNode a;
-	private StarSystemNode b;
+public final class BinaryCelestialNode extends CelestialNode {
+	private CelestialNode a;
+	private CelestialNode b;
 
 	// binary orbits always share a common orbital plane
 	public OrbitalPlane orbitalPlane;
@@ -13,7 +15,7 @@ public final class BinaryNode extends StarSystemNode {
 	public OrbitalShape orbitalShapeB;
 	public double offset;
 
-	public BinaryNode(double massYg, StarSystemNode a, StarSystemNode b, OrbitalPlane orbitalPlane,
+	public BinaryCelestialNode(double massYg, CelestialNode a, CelestialNode b, OrbitalPlane orbitalPlane,
 			OrbitalShape orbitalShapeA, OrbitalShape orbitalShapeB, double offset) {
 		super(massYg);
 		this.a = a;
@@ -24,7 +26,7 @@ public final class BinaryNode extends StarSystemNode {
 		this.offset = offset;
 	}
 
-	public BinaryNode(StarSystemNode a, StarSystemNode b, OrbitalPlane orbitalPlane,
+	public BinaryCelestialNode(CelestialNode a, CelestialNode b, OrbitalPlane orbitalPlane,
 			double squishFactor, double maxOrbitalRadiusTm, double offset) {
 		super(a.massYg + b.massYg);
 
@@ -71,15 +73,15 @@ public final class BinaryNode extends StarSystemNode {
 		return builder.toString();
 	}
 
-	public void setA(StarSystemNode node) {
+	public void setA(CelestialNode node) {
 		this.a = node;
 	}
 
-	public void setB(StarSystemNode node) {
+	public void setB(CelestialNode node) {
 		this.b = node;
 	}
 
-	public void replace(StarSystemNode oldNode, StarSystemNode newNode) {
+	public void replace(CelestialNode oldNode, CelestialNode newNode) {
 		if (oldNode == this.a) {
 			this.a = newNode;
 		} else if (oldNode == this.b) {
@@ -89,11 +91,11 @@ public final class BinaryNode extends StarSystemNode {
 		}
 	}
 
-	public StarSystemNode getA() {
+	public CelestialNode getA() {
 		return this.a;
 	}
 
-	public StarSystemNode getB() {
+	public CelestialNode getB() {
 		return this.b;
 	}
 

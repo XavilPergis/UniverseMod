@@ -5,8 +5,6 @@ import java.util.Random;
 import net.minecraft.util.Mth;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.Vec3;
-import net.xavil.universal.common.universe.Vec3i;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.GalaxyType;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
@@ -15,7 +13,9 @@ import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.system.StarSystemNode;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.util.math.Vec3;
+import net.xavil.util.math.Vec3i;
 
 public abstract class Universe {
 
@@ -70,7 +70,7 @@ public abstract class Universe {
 		return system.getFull();
 	}
 
-	public StarSystemNode getSystemNode(SystemNodeId id) {
+	public CelestialNode getSystemNode(SystemNodeId id) {
 		var system = getSystem(id.system());
 		if (system == null)
 			return null;
@@ -149,7 +149,7 @@ public abstract class Universe {
 
 	public final Galaxy generateGalaxy(SectorId galaxyId, Galaxy.Info info) {
 		var random = new Random(getCommonUniverseSeed());
-		return new Galaxy(this, galaxyId, info, info.type.createDensityField(random));
+		return new Galaxy(this, galaxyId, info, info.type.createDensityFields(random));
 	}
 
 }

@@ -1,9 +1,9 @@
-package net.xavil.universal.common.universe;
+package net.xavil.util.math;
 
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import net.minecraft.util.Mth;
+import net.xavil.util.FastHasher;
 
 public final class Vec3i {
 
@@ -113,11 +113,11 @@ public final class Vec3i {
 
 	@Override
 	public int hashCode() {
-		long hash = 0L;
-		hash ^= Mth.murmurHash3Mixer((long) this.x);
-		hash ^= Mth.murmurHash3Mixer((long) this.y);
-		hash ^= Mth.murmurHash3Mixer((long) this.z);
-		return ((int) hash) ^ (int) (hash >> 32);
+		return FastHasher.create()
+			.appendInt(this.x)
+			.appendInt(this.y)
+			.appendInt(this.z)
+			.currentHashInt();
 	}
 
 }

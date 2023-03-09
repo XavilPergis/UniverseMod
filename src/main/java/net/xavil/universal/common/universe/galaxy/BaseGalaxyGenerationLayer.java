@@ -12,6 +12,7 @@ import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemGenerator;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Vec3;
 import net.xavil.util.math.Vec3i;
@@ -179,7 +180,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			targetType = StellarCelestialNode.Type.GIANT;
 		}
 
-		var node = StellarCelestialNode.fromMass(random, targetType, massYg);
+		var node = StellarCelestialNode.fromMass(Rng.wrap(random), targetType, massYg);
 		return node;
 	}
 

@@ -3,12 +3,14 @@ package net.xavil.universal.common.universe.system.gen;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.xavil.util.math.Interval;
+
 public class DustBands {
 
 	private record Band(Interval interval, boolean hasGas, boolean hasDust) {
 
 		public boolean canMergeWithNext(Band band) {
-			return this.interval.outer() == band.interval.inner()
+			return this.interval.higher() == band.interval.lower()
 					&& this.hasGas == band.hasGas
 					&& this.hasDust == band.hasDust;
 		}
@@ -22,38 +24,38 @@ public class DustBands {
 	}
 
 	public boolean hasDust(Interval interval) {
-		return bands.stream().anyMatch(band -> band.hasDust && band.interval.intersectsWith(interval));
+		return bands.stream().anyMatch(band -> band.hasDust && band.interval.intersects(interval));
 	}
 
 	public void removeMaterial(Interval interval, boolean removeGas) {
 		final var prevBands = new ArrayList<>(bands);
 		this.bands.clear();
 		for (var band : prevBands) {
-			if (!band.interval.intersectsWith(interval)) {
+			if (!band.interval.intersects(interval)) {
 				this.bands.add(band);
 			} else if (interval.contains(band.interval)) {
 				if (!removeGas)
 					this.bands.add(new Band(band.interval, true, false));
 			} else if (band.interval.contains(interval)) {
-				var innerInterval = new Interval(band.interval.inner(), interval.inner());
-				var outerInterval = new Interval(interval.outer(), band.interval.outer());
+				var innerInterval = new Interval(band.interval.lower(), interval.lower());
+				var outerInterval = new Interval(interval.higher(), band.interval.higher());
 				this.bands.add(new Band(innerInterval, band.hasGas, band.hasDust));
 				if (!removeGas)
 					this.bands.add(new Band(interval, true, false));
 				this.bands.add(new Band(outerInterval, band.hasGas, band.hasDust));
-			} else if (band.interval.contains(interval.inner())) {
-				var innerInterval = new Interval(band.interval.inner(), interval.inner());
+			} else if (band.interval.contains(interval.lower())) {
+				var innerInterval = new Interval(band.interval.lower(), interval.lower());
 				this.bands.add(new Band(innerInterval, band.hasGas, band.hasDust));
 				if (!removeGas) {
-					var midInterval = new Interval(interval.inner(), band.interval.outer());
+					var midInterval = new Interval(interval.lower(), band.interval.higher());
 					this.bands.add(new Band(midInterval, true, false));
 				}
-			} else if (band.interval.contains(interval.outer())) {
+			} else if (band.interval.contains(interval.higher())) {
 				if (!removeGas) {
-					var midInterval = new Interval(band.interval.inner(), interval.outer());
+					var midInterval = new Interval(band.interval.lower(), interval.higher());
 					this.bands.add(new Band(midInterval, true, false));
 				}
-				var outerInterval = new Interval(interval.outer(), band.interval.outer());
+				var outerInterval = new Interval(interval.higher(), band.interval.higher());
 				this.bands.add(new Band(outerInterval, band.hasGas, band.hasDust));
 			}
 		}
@@ -70,7 +72,7 @@ public class DustBands {
 				var nextBand = prevBands.get(i++);
 				if (!currentBand.canMergeWithNext(nextBand))
 					break;
-				var mergedInterval = new Interval(currentBand.interval.inner(), nextBand.interval.outer());
+				var mergedInterval = new Interval(currentBand.interval.lower(), nextBand.interval.higher());
 				currentBand = new Band(mergedInterval, currentBand.hasGas, currentBand.hasDust);
 			}
 			this.bands.add(currentBand);
@@ -84,11 +86,11 @@ public class DustBands {
 			var sweptInterval = planetesimal.sweptDustLimits(ctx);
 			// var intersectedWidth = sweptInterval.intersection(band.interval);
 
-			if (!band.hasDust || !sweptInterval.intersectsWith(band.interval))
+			if (!band.hasDust || !sweptInterval.intersects(band.interval))
 				continue;
 
-			double outerWidth = Math.max(0, sweptInterval.outer() - band.interval.outer());
-			double innerWidth = Math.max(0, band.interval.inner() - sweptInterval.inner());
+			double outerWidth = Math.max(0, sweptInterval.higher() - band.interval.higher());
+			double innerWidth = Math.max(0, band.interval.lower() - sweptInterval.lower());
 
 			double intersectedWidth = sweptInterval.size() - outerWidth - innerWidth;
 

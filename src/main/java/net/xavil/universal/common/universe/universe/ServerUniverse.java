@@ -10,9 +10,10 @@ import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
+import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.universegen.system.CelestialNode;
+import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Vec3i;
 
@@ -61,9 +62,9 @@ public final class ServerUniverse extends Universe {
 			CelestialNode startingNode) {
 	}
 
-	private StartingSystem startingSystem(Random random) {
+	private StartingSystem startingSystem(Rng rng) {
 		// NOTE: reference plane is the ecliptic plane
-		final var sol = StellarCelestialNode.fromMass(random, StellarCelestialNode.Type.MAIN_SEQUENCE, Units.fromMsol(1));
+		final var sol = StellarCelestialNode.fromMass(rng, StellarCelestialNode.Type.MAIN_SEQUENCE, Units.fromMsol(1));
 		sol.obliquityAngle = Math.toRadians(7.25);
 		sol.rotationalPeriod = 2.90307e-6;
 
@@ -160,9 +161,9 @@ public final class ServerUniverse extends Universe {
 	// }
 
 	public void prepare() {
-		var random = new Random(getUniqueUniverseSeed() + 4);
+		var rng = Rng.wrap(new Random(getUniqueUniverseSeed() + 4));
 
-		var startingSystem = startingSystem(random);
+		var startingSystem = startingSystem(rng);
 		startingSystem.rootNode.assignIds();
 
 		var info = new StarSystem.Info();
@@ -177,17 +178,17 @@ public final class ServerUniverse extends Universe {
 		var rootNode = startingSystem.rootNode;
 		var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);
 
-		var gx = (int) (1000 * random.nextGaussian());
-		var gy = (int) (1000 * random.nextGaussian());
-		var gz = (int) (1000 * random.nextGaussian());
+		var gx = (int) (1000 * rng.uniformDouble(-1, 1));
+		var gy = (int) (1000 * rng.uniformDouble(-1, 1));
+		var gz = (int) (1000 * rng.uniformDouble(-1, 1));
 		var galaxySectorPos = Vec3i.from(gx, gy, gz);
 		var galaxyVolume = getVolumeAt(galaxySectorPos, true);
 
 		var layerIds = galaxyVolume.elements.keySet().toIntArray();
-		var initialLayerId = layerIds[random.nextInt(0, layerIds.length)];
+		var initialLayerId = layerIds[rng.uniformInt(0, layerIds.length)];
 
 		var initialLayer = galaxyVolume.elements.get(initialLayerId);
-		var initialGalaxySectorId = random.nextInt(0, initialLayer.size());
+		var initialGalaxySectorId = rng.uniformInt(0, initialLayer.size());
 		var initialGalaxyId = new SectorId(galaxySectorPos, new Octree.Id(initialLayerId, initialGalaxySectorId));
 
 		// var initialG

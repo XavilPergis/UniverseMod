@@ -7,6 +7,7 @@ import java.util.List;
 import net.xavil.universal.Mod;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.Units;
+import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalShape;
 
 public class ProtoplanetaryDisc {
@@ -80,7 +81,7 @@ public class ProtoplanetaryDisc {
 
 				// no intersection with the next planetesimal, just let the outer loop carry on
 				// merging from its new position
-				if (!current.effectLimits().intersectsWith(next.effectLimits()))
+				if (!current.effectLimits().intersects(next.effectLimits()))
 					break;
 
 				i += 1;

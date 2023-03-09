@@ -8,6 +8,7 @@ import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.Units;
+import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalPlane;
 import net.xavil.util.math.OrbitalShape;
 
@@ -25,7 +26,7 @@ public class Planetesimal {
 	}
 
 	private Planetesimal(AccreteContext ctx, Interval bounds) {
-		var semiMajor = ctx.random.nextDouble(bounds.inner(), bounds.outer());
+		var semiMajor = ctx.random.nextDouble(bounds.lower(), bounds.higher());
 		var eccentricity = randomEccentricity(ctx);
 		this.orbitalShape = new OrbitalShape(eccentricity, semiMajor);
 		this.mass = ctx.params.initialPlanetesimalMass;
@@ -107,8 +108,8 @@ public class Planetesimal {
 
 	public Interval sweptDustLimits(AccreteContext ctx) {
 		var effectLimits = effectLimits();
-		var inner = effectLimits.inner() / (1 + ctx.params.cloudEccentricity);
-		var outer = effectLimits.outer() / (1 - ctx.params.cloudEccentricity);
+		var inner = effectLimits.lower() / (1 + ctx.params.cloudEccentricity);
+		var outer = effectLimits.higher() / (1 - ctx.params.cloudEccentricity);
 		return new Interval(Math.max(0, inner), outer);
 	}
 

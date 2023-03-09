@@ -12,4 +12,10 @@ public final class Assert {
 		}
 	}
 
+	public static void isTrue(boolean cond) {
+		if (!cond) {
+			throw new AssertionError("assertion failed");
+		}
+	}
+
 }

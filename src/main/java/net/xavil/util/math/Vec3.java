@@ -196,10 +196,14 @@ public final class Vec3 {
 	@Override
 	public int hashCode() {
 		return FastHasher.create()
-			.appendDouble(this.x)
-			.appendDouble(this.y)
-			.appendDouble(this.z)
-			.currentHashInt();
+				.appendDouble(this.x)
+				.appendDouble(this.y)
+				.appendDouble(this.z)
+				.currentHashInt();
+	}
+
+	public static double volume(Vec3 a, Vec3 b) {
+		return Math.abs(a.x - b.x) * Math.abs(a.y - b.y) * Math.abs(a.z - b.z);
 	}
 
 }

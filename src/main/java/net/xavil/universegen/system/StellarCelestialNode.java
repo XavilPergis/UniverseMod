@@ -5,6 +5,7 @@ import java.util.Random;
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
+import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 
@@ -34,26 +35,26 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 			this.curveYIntercept = finalMass0 - this.curveSlope * initialMass0;
 		}
 
-		public double curveMass(Random random, double initialMass) {
-			var variance = Units.fromMsol(Mth.clamp(0.05 * random.nextGaussian(), -0.1, 0.1));
+		public double curveMass(Rng rng, double initialMass) {
+			var variance = Mth.lerp(rng.uniformDouble(), 0.0, -0.05 * initialMass);
 			return this.curveSlope * initialMass + this.curveYIntercept + variance;
 		}
 
-		public double curveLuminosity(Random random, double initialLuminosity) {
+		public double curveLuminosity(Rng rng, double initialLuminosity) {
 			if (this == Type.BLACK_HOLE)
 				return 0;
 			return initialLuminosity;
 		}
 
-		public double curveRadius(Random random, double initialRadius) {
+		public double curveRadius(Rng rng, double initialRadius) {
 			if (this == Type.WHITE_DWARF)
-				return initialRadius * 1e-5 + random.nextDouble(-2.5e-6, 2.5e-6);
+				return initialRadius * 1e-5 + rng.uniformDouble(-2.5e-6, 2.5e-6);
 			if (this == Type.NEUTRON_STAR)
-				return initialRadius * 4e-6 + random.nextDouble(-4e-7, 4e-7);
+				return initialRadius * 4e-6 + rng.uniformDouble(-4e-7, 4e-7);
 			if (this == Type.BLACK_HOLE)
-				return initialRadius * 3.5e-6 + random.nextDouble(-2.5e-7, 2.5e-7);
+				return initialRadius * 3.5e-6 + rng.uniformDouble(-2.5e-7, 2.5e-7);
 			if (this == Type.GIANT)
-				return initialRadius * 100 + 0.1 * random.nextGaussian();
+				return initialRadius * 100 + rng.uniformDouble(-0.05, 0.05);
 
 			return initialRadius;
 		}
@@ -122,23 +123,69 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT_W_PER_m2K4), 0.25);
 	}
 
-	public static StellarCelestialNode fromMass(Random random, StellarCelestialNode.Type type, double massYg) {
-		var m = type.curveMass(random, massYg);
-		var l = type.curveLuminosity(random, mainSequenceLuminosityFromMass(massYg));
-		var r = type.curveRadius(random, mainSequenceRadiusFromMass(massYg));
+
+	// private static @Nullable StellarCelestialNode generateStarNode(Random random, double systemAgeMya, double massYg) {
+	// 	final var starLifetime = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
+
+	// 	// angular_momentum/angular_velocity = mass * radius^2
+
+	// 	// TODO: conservation of angular momentum when star changes mass or radius
+	// 	var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
+	// 	if (systemAgeMya > starLifetime) {
+	// 		if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
+	// 			targetType = StellarCelestialNode.Type.WHITE_DWARF;
+	// 		} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
+	// 			targetType = StellarCelestialNode.Type.NEUTRON_STAR;
+	// 		} else {
+	// 			targetType = StellarCelestialNode.Type.BLACK_HOLE;
+	// 		}
+	// 	} else if (systemAgeMya > starLifetime * 0.8) {
+	// 		targetType = StellarCelestialNode.Type.GIANT;
+	// 	}
+
+	// 	var node = StellarCelestialNode.fromMass(random, targetType, massYg);
+	// 	return node;
+	// }
+
+	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.fromMsol(10);
+	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = Units.fromMsol(25);
+
+	public static StellarCelestialNode fromMassAndAge(Rng rng, double massYg, double ageMyr) {
+		final var starLifetime = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
+
+		var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
+		if (ageMyr > starLifetime) {
+			if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
+				targetType = StellarCelestialNode.Type.WHITE_DWARF;
+			} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
+				targetType = StellarCelestialNode.Type.NEUTRON_STAR;
+			} else {
+				targetType = StellarCelestialNode.Type.BLACK_HOLE;
+			}
+		} else if (ageMyr > starLifetime * 0.8) {
+			targetType = StellarCelestialNode.Type.GIANT;
+		}
+
+		return StellarCelestialNode.fromMass(rng, targetType, massYg);
+	}
+
+	public static StellarCelestialNode fromMass(Rng rng, StellarCelestialNode.Type type, double massYg) {
+		var m = type.curveMass(rng, massYg);
+		var l = type.curveLuminosity(rng, mainSequenceLuminosityFromMass(massYg));
+		var r = type.curveRadius(rng, mainSequenceRadiusFromMass(massYg));
 		return new StellarCelestialNode(type, m, l, r, temperature(r, l));
 	}
 
 	public final @Nullable StellarCelestialNode.StarClass starClass() {
 		// @formatter:off
-		if (!this.type.hasSpectralClass)    return null;
+		if (!this.type.hasSpectralClass)        return null;
 		if (this.massYg < Units.fromMsol(0.45)) return StarClass.M;
 		if (this.massYg < Units.fromMsol(0.8))  return StarClass.K;
 		if (this.massYg < Units.fromMsol(1.04)) return StarClass.G;
 		if (this.massYg < Units.fromMsol(1.4))  return StarClass.F;
 		if (this.massYg < Units.fromMsol(2.1))  return StarClass.A;
 		if (this.massYg < Units.fromMsol(16))   return StarClass.B;
-		                                    return StarClass.O;
+		                                        return StarClass.O;
 		// @formatter:on
 	}
 

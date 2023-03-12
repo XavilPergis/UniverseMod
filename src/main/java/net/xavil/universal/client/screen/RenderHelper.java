@@ -56,13 +56,15 @@ public final class RenderHelper {
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node) {
-		double d = 1 * (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
+		double d = 1 * (1e12 / camera.metersPerUnit)
+				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
 		addBillboard(builder, camera, poseStack, node, d, node.position);
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node, Vec3 pos) {
-		double d = 1 * (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos);
+		double d = 1 * (1e12 / camera.metersPerUnit)
+				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos);
 		addBillboard(builder, camera, poseStack, node, d, pos);
 	}
 
@@ -108,7 +110,8 @@ public final class RenderHelper {
 				brightBillboardSizeFactor * d, 0, Color.WHITE);
 	}
 
-	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center, double scale, Color color) {
+	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
+			double scale, Color color) {
 		addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
 				camera.toCameraSpace(center), scale, 0, color);
 	}
@@ -300,6 +303,27 @@ public final class RenderHelper {
 	public static void addLine(VertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end, Color startColor,
 			Color endColor) {
 		addLine(builder, camera.toCameraSpace(start), camera.toCameraSpace(end), startColor, endColor);
+	}
+
+	public static void addQuad(VertexConsumer builder, CachedCamera<?> camera, Vec3 a, Vec3 b, Vec3 c, Vec3 d,
+			Color color) {
+		addQuad(builder, camera.toCameraSpace(a),
+				camera.toCameraSpace(b), camera.toCameraSpace(c), camera.toCameraSpace(d), color);
+	}
+
+	public static void addQuad(VertexConsumer builder, Vec3 a, Vec3 b, Vec3 c, Vec3 d, Color color) {
+		builder.vertex(a.x, a.y, a.z)
+				.color(color.r(), color.g(), color.b(), color.a())
+				.endVertex();
+		builder.vertex(b.x, b.y, b.z)
+				.color(color.r(), color.g(), color.b(), color.a())
+				.endVertex();
+		builder.vertex(c.x, c.y, c.z)
+				.color(color.r(), color.g(), color.b(), color.a())
+				.endVertex();
+		builder.vertex(d.x, d.y, d.z)
+				.color(color.r(), color.g(), color.b(), color.a())
+				.endVertex();
 	}
 
 	public static void addLine(VertexConsumer builder, Vec3 start, Vec3 end, Color startColor, Color endColor) {

@@ -151,7 +151,7 @@ public class SkyRenderer {
 			volume.enumerateInRadius(systemPos, Galaxy.TM_PER_SECTOR, element -> {
 				if (element.id == currentId.system().systemSector().sectorId())
 					return;
-				var displayStar = element.value.getInitial().getDisplayStar();
+				var displayStar = element.value.getInitial().primaryStar;
 				addBillboard(builder, new PoseStack(), selfPos, element.pos, 1, displayStar);
 			});
 			// volume.streamElements().forEach(element -> {
@@ -343,7 +343,7 @@ public class SkyRenderer {
 		this.skyTarget.clear(false);
 		this.skyTarget.bindWrite(false);
 
-		drawStars(RenderSystem.getModelViewMatrix(), proj);
+		// drawStars(RenderSystem.getModelViewMatrix(), proj);
 		drawSystem(celestialCamera, currentId, time, partialTick);
 
 		this.client.getMainRenderTarget().bindWrite(false);

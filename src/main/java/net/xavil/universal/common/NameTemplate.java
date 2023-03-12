@@ -9,6 +9,8 @@ import java.util.Random;
 
 import org.apache.commons.lang3.StringUtils;
 
+import net.xavil.util.Rng;
+
 public class NameTemplate {
 
 	public static final NameTemplate GALAXY_NAME = NameTemplate.compile("[(<M>d?d?d)(<NGC >dddddd?d?d)]");
@@ -189,9 +191,9 @@ public class NameTemplate {
 		return new NameTemplate(table, node);
 	}
 
-	public String generate(Random random) {
+	public String generate(Rng rng) {
 		var builder = new StringBuilder();
-		var ctx = new Node.EvalContext(random, this.table);
+		var ctx = new Node.EvalContext(rng, this.table);
 		this.node.evaluate(ctx, builder);
 		return builder.toString();
 	}
@@ -206,7 +208,7 @@ public class NameTemplate {
 
 	public static abstract sealed class Node {
 
-		public record EvalContext(Random random, PatternTable table) {
+		public record EvalContext(Rng rng, PatternTable table) {
 		}
 
 		public static final class Literal extends Node {
@@ -237,7 +239,7 @@ public class NameTemplate {
 			@Override
 			public void evaluate(EvalContext ctx, StringBuilder builder) {
 				var stems = ctx.table.templateMap.get(this.value);
-				builder.append(stems.get(ctx.random.nextInt(stems.size())));
+				builder.append(stems.get(ctx.rng.uniformInt(0, stems.size())));
 			}
 
 			public Node optimize() {
@@ -254,7 +256,7 @@ public class NameTemplate {
 
 			@Override
 			public void evaluate(EvalContext ctx, StringBuilder builder) {
-				if (ctx.random.nextBoolean())
+				if (ctx.rng.uniformDouble() <= 0.5)
 					this.childNode.evaluate(ctx, builder);
 			}
 
@@ -272,7 +274,7 @@ public class NameTemplate {
 			public void evaluate(EvalContext ctx, StringBuilder builder) {
 				if (this.childNodes.isEmpty())
 					return;
-				this.childNodes.get(ctx.random.nextInt(this.childNodes.size())).evaluate(ctx, builder);
+				this.childNodes.get(ctx.rng.uniformInt(0, this.childNodes.size())).evaluate(ctx, builder);
 			}
 
 			public Node optimize() {

@@ -38,14 +38,14 @@ public enum GalaxyType {
 			// (i think) central bulge is full of mostly quite old stars orbiting somewhat
 			// chaotically around the central black hole.
 			var galacticCore = DoubleField3.sphereCloud(galacticCoreSizeFactor * radius)
-					.scale(1, galacticCoreSquishFactor, 1).curvePoly(2).mul(50);
+					.scale(1, galacticCoreSquishFactor, 1).curvePoly(2).mul(20);
 
 			// galactic halo is a very large region of very low stellar density that extends
 			// quite far, in a sphere around the central black hole
 			var galacticHalo = DoubleField3.sphereMask(1.5 * radius).mul(0.01);
 
 			// relatively thin disc of uniform star density and stellar ages
-			var uniformDisc = DoubleField3.verticalDisc(radius, radius * discHeightFactor, 1, 1.5).mul(10);
+			var uniformDisc = DoubleField3.verticalDisc(radius, radius * discHeightFactor, 1, 0.8).mul(10);
 			uniformDisc = uniformDisc.curvePoly(1.5);
 
 			// "spokes" of higher star densities that are often (i think) home to active
@@ -65,8 +65,7 @@ public enum GalaxyType {
 			// var densityCombined = DoubleField3.cylinderMask(radius, radius).mul(500);
 			// var densityCombined = DoubleField3.uniform(1);
 
-			var densityCombined =
-			galacticCore.add(galacticHalo).add(uniformDisc).add(spokes);
+			var densityCombined = galacticCore.add(galacticHalo).add(uniformDisc).add(spokes);
 			var ageCombined = DoubleField3.uniform(0.5);
 
 			var volumeFactor = Units.ly_PER_Tm * Units.ly_PER_Tm * Units.ly_PER_Tm;

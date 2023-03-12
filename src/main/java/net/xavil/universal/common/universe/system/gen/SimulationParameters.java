@@ -14,6 +14,6 @@ public class SimulationParameters {
 	public final double A1_20 = 6.485e12;
 	public final double A2_20 = 4.0032e-8;
 	public final double BETA_20 = 5.71e12;
-	public final double JIMS_FUDGE = 1.004;
+	public final double SOLAR_MASS_IN_GRAMS = 1.989e33;
 
 }

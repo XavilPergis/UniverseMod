@@ -117,12 +117,12 @@ public class SystemMapScreen extends UniversalScreen {
 
 		if (scrollDelta > 0) {
 			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.0001));
+			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 1e-4));
 			// this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.5));
 			return true;
 		} else if (scrollDelta < 0) {
 			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 4000));
+			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 4e3));
 			return true;
 		}
 
@@ -507,16 +507,30 @@ public class SystemMapScreen extends UniversalScreen {
 		// RenderSystem.disableDepthTest();
 		// BufferUploader.end(builder);
 
-		// var closestPos = getClosestNode(camera).position;
-		// RenderSystem.enableBlend();
-		// RenderSystem.disableTexture();
-		// RenderSystem.defaultBlendFunc();
-		// RenderSystem.disableCull();
-		// RenderSystem.lineWidth(1);
-		// RenderSystem.depthMask(false);
+		var closestPos = getClosestNode(camera).position;
+		RenderSystem.enableBlend();
+		RenderSystem.disableTexture();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.lineWidth(1);
+		RenderSystem.depthMask(false);
 
-		// RenderHelper.renderLine(builder, camera.focus.div(TM_PER_UNIT), closestPos,
-		// 2, new Color(1, 1, 1, 1));
+
+		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
+		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+
+		RenderHelper.addLine(builder, camera, camera.focus.div(TM_PER_UNIT), closestPos, new Color(1, 1, 1, 1));
+
+		builder.end();
+
+		RenderSystem.enableBlend();
+		RenderSystem.disableTexture();
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
+		RenderSystem.lineWidth(1);
+		RenderSystem.depthMask(false);
+		BufferUploader.end(builder);
+
 
 		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		// builder.begin(VertexFormat.Mode.QUADS,

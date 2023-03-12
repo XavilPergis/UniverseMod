@@ -6,6 +6,7 @@ import java.util.List;
 
 import net.xavil.universal.Mod;
 import net.xavil.universegen.system.CelestialNode;
+import net.xavil.util.Assert;
 import net.xavil.util.Units;
 import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalShape;
@@ -16,7 +17,7 @@ public class ProtoplanetaryDisc {
 	public final DustBands dustBands;
 	public final Interval planetesimalBounds;
 
-	public ProtoplanetaryDisc(AccreteContext ctx) {
+	public ProtoplanetaryDisc(AccreteContext ctx, double protoMass) {
 		this.ctx = ctx;
 		this.planetesimalBounds = planetesimalBounds(ctx);
 		this.dustBands = initialDustBand(ctx);
@@ -25,50 +26,58 @@ public class ProtoplanetaryDisc {
 	public void collapseDisc(CelestialNode rootNode) {
 		// Distribute planetary masses
 
+		ctx.debugConsumer.accept(new AccreteDebugEvent.Initialize(new Interval(0, 200 * Math.cbrt(ctx.stellarMassMsol)),
+				planetesimalBounds));
+
 		var iterationsRemaining = 1000;
 		while (this.dustBands.hasDust(this.planetesimalBounds)) {
-			if (iterationsRemaining-- <= 0)
+			if (iterationsRemaining-- <= 0) {
+				Mod.LOGGER.warn("ran out of iterations while collapsing disc!");
 				break;
+			}
 
 			// TODO: maybe there's a more efficient way to choose the location of new
 			// planets than just picking at random and seeing if there happens to be dust
 			// left.
 			var planetesimal = Planetesimal.random(this.ctx, this.planetesimalBounds);
-			if (this.dustBands.hasDust(planetesimal.sweptDustLimits(this.ctx))) {
-				Mod.LOGGER.info("placing new planetesimal at {} au", planetesimal.orbitalShape.semiMajor());
-				planetesimal.accreteDust(this.ctx, this.dustBands);
-				this.dustBands.defragment();
+			if (this.dustBands.hasDust(planetesimal.sweptDustLimits())) {
+				ctx.debugConsumer.accept(new AccreteDebugEvent.AddPlanetesimal(ctx, planetesimal));
 
-				planetesimal.radius = kothariRadius(this.ctx, planetesimal);
+				planetesimal.accreteDust(dustBands);
 
 				// TODO: reject planetesimals smaller than a certain mass?
 				this.planetesimals.add(planetesimal);
-				this.planetesimals.sort(Comparator.comparingDouble(p -> p.orbitalShape.semiMajor()));
-
-				// This loop is here to slightly mitigate a potential corner case, wherein the
-				// merging of two bodies creates a new body whose effect radius overlaps with
-				// the previous body. Since we only process intersections forwards, we don't
-				// catch those cases and may need to retry coalescence to merge backwards. I
-				// suspect this case would be quite rare, so we're gonna limit the amount of
-				// retries to a small number and hope for the best!
-				var retryAttempts = 0;
-				while (retryAttempts < 10) {
-					if (!coalescePlanetesimals(ctx, this.planetesimals))
-						break;
-					retryAttempts += 1;
-				}
+				this.planetesimals.sort(Comparator.comparingDouble(p -> p.getOrbitalShape().semiMajor()));
 			}
+
+			// This loop is here to slightly mitigate a potential corner case, wherein the
+			// merging of two bodies creates a new body whose effect radius overlaps with
+			// the previous body. Since we only process intersections forwards, we don't
+			// catch those cases and may need to retry coalescence to merge backwards. I
+			// suspect this case would be quite rare, so we're gonna limit the amount of
+			// retries to a small number and hope for the best!
+			var retryAttempts = 0;
+			while (retryAttempts < 10) {
+				if (!coalescePlanetesimals(ctx, this.planetesimals))
+					break;
+				retryAttempts += 1;
+			}
+
+			this.dustBands.defragment();
 		}
 
 		for (var planet : this.planetesimals) {
 			planet.convertToPlanetNode(rootNode);
+			// var desc = planet.canSweepGas() ? "GAS GIANT" : "PLANET";
+			// Mod.LOGGER.info("[{}] ({}) mass={} radius={} ({} moons)", desc, planet.getId(), planet.getMass(), planet.getRadius(),
+			// 		Lists.newArrayList(planet.getMoons()).size());
 		}
 
 		// Post Accretion
 		// Process Planets
 	}
 
-	public static boolean coalescePlanetesimals(AccreteContext ctx, List<Planetesimal> planetesimals) {
+	public boolean coalescePlanetesimals(AccreteContext ctx, List<Planetesimal> planetesimals) {
 		final var prevPlanets = new ArrayList<>(planetesimals);
 		planetesimals.clear();
 
@@ -94,125 +103,80 @@ public class ProtoplanetaryDisc {
 		return didCoalesce;
 	}
 
-	public static Planetesimal handlePlanetesimalIntersection(AccreteContext ctx, Planetesimal a, Planetesimal b) {
-		if (b.mass > a.mass) {
+	public Planetesimal handlePlanetesimalIntersection(AccreteContext ctx, Planetesimal a, Planetesimal b) {
+		if (b.getMass() > a.getMass()) {
 			var tmp = a;
 			a = b;
 			b = tmp;
 		}
 
-		Mod.LOGGER.info("coalescing planetesimals at {} au and {} au", a.orbitalShape.semiMajor(),
-				b.orbitalShape.semiMajor());
-
-		if (a.moonOf != null) {
-			return handlePlanetesimalCollision(ctx, a, b);
+		if (a.getParentBody() != null) {
+			handlePlanetesimalCollision(ctx, a, b);
+			return a;
 		} else {
-			var rocheLimit = rocheLimit(a.mass, b.mass, b.radius);
-			if (Math.abs(a.orbitalShape.semiMajor() - b.orbitalShape.semiMajor()) <= 2 * rocheLimit) {
-				return handlePlanetesimalCollision(ctx, a, b);
+			var rocheLimit = rocheLimit(a.getMass(), b.getMass(), b.getRadius());
+			if (Math.abs(a.getOrbitalShape().semiMajor() - b.getOrbitalShape().semiMajor()) <= 2 * rocheLimit) {
+				handlePlanetesimalCollision(ctx, a, b);
+				return a;
 			} else {
-				return captureMoon(ctx, a, b);
+				captureMoon(ctx, a, b);
+				return a;
 			}
 		}
 	}
 
-	public static Planetesimal captureMoon(AccreteContext ctx, Planetesimal a, Planetesimal b) {
-		a.moons.add(b);
-		a.moons.addAll(b.moons);
-		for (var moon : a.moons)
-			moon.moonOf = a;
+	public Planetesimal captureMoon(AccreteContext ctx, Planetesimal a, Planetesimal b) {
+		b.getMoons().forEach(a::addMoon);
+		a.addMoon(b);
 
-		a.orbitalShape = calculateCombinedOrbitalShape(a, b);
+		a.setOrbitalShape(Planetesimal.calculateCombinedOrbitalShape(a, b));
 
-		var rocheLimit = rocheLimit(a.mass, b.mass, b.radius);
+		var rocheLimit = rocheLimit(a.getMass(), b.getMass(), b.getRadius());
 		var hillSphereRadius = a.hillSphereRadius(ctx.stellarMassMsol);
-		for (var moon : a.moons) {
-			var randomSemiMajor = ctx.random.nextDouble(0, hillSphereRadius);
+		for (var moon : a.getMoons()) {
+			var randomSemiMajor = ctx.rng.uniformDouble(0, hillSphereRadius);
 			var randomEccentricity = Planetesimal.randomEccentricity(ctx);
-			moon.orbitalShape = new OrbitalShape(randomEccentricity, randomSemiMajor);
+			moon.setOrbitalShape(new OrbitalShape(randomEccentricity, randomSemiMajor));
 
-			if (moon.orbitalShape.periapsisDistance() - moon.radius <= 2 * a.radius) {
-				a = handlePlanetesimalCollision(ctx, a, moon);
-			} else if (moon.orbitalShape.periapsisDistance() <= 2 * rocheLimit) {
+			if (moon.getOrbitalShape().periapsisDistance() - moon.getRadius() <= 2 * a.getRadius()) {
+				handlePlanetesimalCollision(ctx, a, moon);
+			} else if (moon.getOrbitalShape().periapsisDistance() <= 2 * rocheLimit) {
 				// turn moon into ring
 			}
 		}
 
-		coalescePlanetesimals(ctx, a.moons);
+		// FIXME
+		// coalescePlanetesimals(ctx, a.moons);
 		return a;
 	}
 
-	public static Planetesimal handlePlanetesimalCollision(AccreteContext ctx, Planetesimal a, Planetesimal b) {
+	public void handlePlanetesimalCollision(AccreteContext ctx, Planetesimal a, Planetesimal b) {
+		Assert.isTrue((a.getParentBody() == b.getParentBody()) || (a == b.getParentBody()));
+		Assert.isTrue(a.getMass() >= b.getMass());
+
+		ctx.debugConsumer.accept(new AccreteDebugEvent.PlanetesimalCollision(a, b));
+
 		// TODO: sometimes, a collision can create a moon or maybe binary system, like
 		// as in the earth/moon system.
-		a.mass += b.mass;
-		a.isGasGiant |= b.isGasGiant;
-		a.orbitalShape = calculateCombinedOrbitalShape(a, b);
-		a.radius = kothariRadius(ctx, a);
-		return a;
-	}
+		a.setMass(a.getMass() + b.getMass());
+		if (a != b.getParentBody()) {
+			var newShape = Planetesimal.calculateCombinedOrbitalShape(a, b);
+			a.setOrbitalShape(newShape);
+		}
 
-	public static OrbitalShape calculateCombinedOrbitalShape(Planetesimal a, Planetesimal b) {
-		var combinedMass = a.mass + b.mass;
-		var newSemiMajor = combinedMass / (a.mass / a.orbitalShape.semiMajor() + b.mass / b.orbitalShape.semiMajor());
-		var ta = a.mass * Math.sqrt(a.orbitalShape.semiMajor() * (1 - Math.pow(a.orbitalShape.eccentricity(), 2)));
-		var tb = b.mass * Math.sqrt(b.orbitalShape.semiMajor() * (1 - Math.pow(b.orbitalShape.eccentricity(), 2)));
-		var tCombined = ta + tb / (combinedMass * Math.sqrt(newSemiMajor));
-		var newEccentricity = Math.sqrt(Math.abs(1 - (tCombined * tCombined)));
-		return new OrbitalShape(newEccentricity, combinedMass);
+		a.accreteDust(dustBands);
 	}
 
 	public static double rocheLimit(double planetMass, double moonMass, double moonRadius) {
 		return moonRadius / Units.km_PER_au * Math.cbrt(2 * (planetMass / moonMass));
 	}
 
-	public static double kothariRadius(AccreteContext ctx, Planetesimal planetesimal) {
-		var distanceToStar = planetesimal.distanceToStar();
-		int zone = 0;
-		if (distanceToStar < 4 * Math.sqrt(ctx.stellarLuminosityLsol)) {
-			zone = 1;
-		} else if (distanceToStar < 15 * Math.sqrt(ctx.stellarLuminosityLsol)) {
-			zone = 2;
-		} else {
-			zone = 3;
-		}
-
-		double atomicWeight = 0;
-		double atomicNum = 0;
-		if (zone == 1 && planetesimal.isGasGiant) {
-			atomicWeight = 9.5;
-			atomicNum = 4.5;
-		} else if (zone == 1 && !planetesimal.isGasGiant) {
-			atomicWeight = 15.0;
-			atomicNum = 8.0;
-		} else if (zone == 2 && planetesimal.isGasGiant) {
-			atomicWeight = 2.47;
-			atomicNum = 2.0;
-		} else if (zone == 2 && !planetesimal.isGasGiant) {
-			atomicWeight = 10.0;
-			atomicNum = 5.0;
-		} else if (zone == 3 && planetesimal.isGasGiant) {
-			atomicWeight = 7.0;
-			atomicNum = 4.0;
-		} else if (zone == 3 && !planetesimal.isGasGiant) {
-			atomicWeight = 10.0;
-			atomicNum = 5.0;
-		}
-
-		final double BETA = 7;
-		final double A1 = 1;
-		final double A2 = 1;
-
-		// A - atomicWeight
-		// Z - atomicNum
-		double numerator = 2.0 * BETA * A1 * atomicNum * Math.cbrt(planetesimal.mass);
-		double denominator1 = A1 * A2 * atomicNum * atomicNum * Math.cbrt(atomicWeight);
-		double denominator2 = A2 * A2 * Math.pow(atomicWeight, 5.0 / 3.0)
-				* Math.pow(planetesimal.mass, 2.0 / 3.0);
-
-		double radiusCm = numerator / (denominator1 + denominator2);
-		// return radiusCm * (Units.CENTI / Units.KILO);
-		return radiusCm * Units.m_PER_Rsol / 1000;
+	public static int orbitalZone(double distanceToStar, double luminosity) {
+		if (distanceToStar < 4 * Math.sqrt(luminosity))
+			return 1;
+		if (distanceToStar < 15 * Math.sqrt(luminosity))
+			return 2;
+		return 3;
 	}
 
 	private static Interval planetesimalBounds(AccreteContext ctx) {
@@ -223,6 +187,6 @@ public class ProtoplanetaryDisc {
 
 	private static DustBands initialDustBand(AccreteContext ctx) {
 		var outer = 200 * Math.cbrt(ctx.stellarMassMsol);
-		return new DustBands(new Interval(0, outer));
+		return new DustBands(new Interval(0, outer), ctx.debugConsumer);
 	}
 }

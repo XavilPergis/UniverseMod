@@ -22,16 +22,21 @@ public interface Rng {
 		return uniformDouble(interval.lower(), interval.higher());
 	}
 
+	default boolean chance(double chance) {
+		return uniformDouble() <= chance;
+	}
+
 	static Rng wrap(Random random) {
 		return new Rng() {
 			@Override
 			public double uniformDouble(double minBound, double maxBound) {
-				return random.nextDouble();
+				if (minBound >= maxBound) maxBound = Math.nextUp(minBound);
+				return random.nextDouble(minBound, maxBound);
 			}
-
+			
 			@Override
 			public int uniformInt(int minBound, int maxBound) {
-				return random.nextInt();
+				return random.nextInt(minBound, maxBound);
 			}
 		};
 	}

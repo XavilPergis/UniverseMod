@@ -1,12 +1,9 @@
 package net.xavil.universal.common.universe.system;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.stream.Stream;
-
 import net.xavil.universal.common.universe.galaxy.Galaxy;
-import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Assert;
 
 public class StarSystem {
 
@@ -19,31 +16,32 @@ public class StarSystem {
 	}
 
 	public static class Info {
-		public double systemAgeMya;
-		public double remainingHydrogenYg;
+		public double systemAgeMyr;
+		public double remainingMass;
 		public String name;
+		public double primaryStarProtoDiscMass;
+		public StellarCelestialNode primaryStar;
 
-		private final List<StellarCelestialNode> stars = new ArrayList<>();
-		private StellarCelestialNode displayStar;
+		public Info(double systemAgeMya, double remainingMass, double primaryStarProtoDiscMass, String name, StellarCelestialNode primaryStar) {
+			this.systemAgeMyr = systemAgeMya;
+			this.remainingMass = remainingMass;
+			this.primaryStarProtoDiscMass = primaryStarProtoDiscMass;
+			this.name = name;
+			this.primaryStar = primaryStar;
+		}
 
-		public void addStar(StellarCelestialNode star) {
-			for (var i = 0; i < this.stars.size(); ++i) {
-				if (star.luminosityLsol < this.stars.get(i).luminosityLsol) {
-					// not the brightest star, don't update the display star.
-					this.stars.add(i, star);
-					return;
+		public static Info custom(double systemAge, String name, StarSystem system) {
+			StellarCelestialNode primaryStar = null;
+			for (var child : system.rootNode.selfAndChildren()) {
+				if (child instanceof StellarCelestialNode starNode) {
+					if (primaryStar == null)
+						primaryStar = starNode;
+					else if (starNode.luminosityLsol > primaryStar.luminosityLsol)
+						primaryStar = starNode;
 				}
 			}
-			this.stars.add(star);
-			this.displayStar = star;
-		}
-
-		public Stream<StellarCelestialNode> getStars() {
-			return this.stars.stream();
-		}
-
-		public StellarCelestialNode getDisplayStar() {
-			return this.displayStar;
+			Assert.isTrue(primaryStar != null);
+			return new Info(systemAge, 0, 0, name, primaryStar);
 		}
 	}
 

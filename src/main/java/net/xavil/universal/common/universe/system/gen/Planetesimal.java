@@ -4,9 +4,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.xavil.universal.Mod;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.CelestialNodeChild;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.util.Units;
 import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalPlane;
@@ -14,35 +14,26 @@ import net.xavil.util.math.OrbitalShape;
 
 public class Planetesimal {
 
-	public double mass;
-	public OrbitalShape orbitalShape;
-	public boolean isGasGiant = false;
-	public Planetesimal moonOf = null;
-	public final List<Planetesimal> moons = new ArrayList<>();
-	public boolean isDwarf = false;
-	public double radius;
+	public final AccreteContext ctx;
+	private int id;
+	private double mass;
+	private OrbitalShape orbitalShape;
+	private Planetesimal moonOf = null;
+	private final List<Planetesimal> moons = new ArrayList<>();
 
-	private Planetesimal() {
+	private Planetesimal(AccreteContext ctx) {
+		this.ctx = ctx;
+		this.id = ctx.nextPlanetesimalId++;
 	}
 
 	private Planetesimal(AccreteContext ctx, Interval bounds) {
-		var semiMajor = ctx.random.nextDouble(bounds.lower(), bounds.higher());
+		this.ctx = ctx;
+		this.id = ctx.nextPlanetesimalId++;
+		var semiMajor = ctx.rng.uniformDouble(bounds.lower(), bounds.higher());
 		var eccentricity = randomEccentricity(ctx);
 		this.orbitalShape = new OrbitalShape(eccentricity, semiMajor);
 		this.mass = ctx.params.initialPlanetesimalMass;
 	}
-
-	// /// Hill sphere radius for planet / moon system in AU.
-	// pub fn hill_sphere_au(
-	// planet_axis: &f64,
-	// planet_eccn: &f64,
-	// planet_mass: &f64,
-	// stellar_mass: &f64,
-	// ) -> f64 {
-	// let hill_sphere = planet_axis * (1.0 - planet_eccn) * (planet_mass / (3.0 *
-	// stellar_mass)).powf(1.0 / 3.0);
-	// float_to_precision(hill_sphere)
-	// }
 
 	public double hillSphereRadius(double parentMass) {
 		return this.orbitalShape.semiMajor() * (1 - this.orbitalShape.eccentricity())
@@ -53,25 +44,139 @@ public class Planetesimal {
 		return new Planetesimal(ctx, bounds);
 	}
 
-	public static Planetesimal defaulted() {
-		return new Planetesimal();
+	public static Planetesimal defaulted(AccreteContext ctx) {
+		return new Planetesimal(ctx);
+	}
+
+	private void emitUpdateEvent() {
+		this.ctx.debugConsumer.accept(new AccreteDebugEvent.UpdatePlanetesimal(this));
+	}
+
+	public int getId() {
+		return id;
+	}
+
+	public double getMass() {
+		return mass;
+	}
+
+	public Planetesimal getParentBody() {
+		return this.moonOf;
+	}
+
+	public void setMass(double newMass) {
+		this.mass = newMass;
+		emitUpdateEvent();
+	}
+
+	public OrbitalShape getOrbitalShape() {
+		return orbitalShape;
+	}
+
+	public void setOrbitalShape(OrbitalShape newOrbitalShape) {
+		this.orbitalShape = newOrbitalShape;
+		emitUpdateEvent();
+	}
+
+	public Iterable<Planetesimal> getMoons() {
+		return this.moons;
+	}
+
+	public void addMoon(Planetesimal newMoon) {
+		this.moons.add(newMoon);
+		newMoon.moonOf = this;
+		this.ctx.debugConsumer.accept(new AccreteDebugEvent.CaptureMoon(this, newMoon));
+	}
+
+	public static OrbitalShape calculateCombinedOrbitalShape(Planetesimal a, Planetesimal b) {
+		// Assert.isReferentiallyEqual(a.moonOf, b.moonOf);
+		var combinedMass = a.mass + b.mass;
+		var newSemiMajor = combinedMass / (a.mass / a.orbitalShape.semiMajor() + b.mass / b.orbitalShape.semiMajor());
+		var ta = a.mass * Math.sqrt(a.orbitalShape.semiMajor() * (1 - Math.pow(a.orbitalShape.eccentricity(), 2)));
+		var tb = b.mass * Math.sqrt(b.orbitalShape.semiMajor() * (1 - Math.pow(b.orbitalShape.eccentricity(), 2)));
+		var tCombined = (ta + tb) / (combinedMass * Math.sqrt(newSemiMajor));
+		var newEccentricity = Math.sqrt(Math.abs(1 - (tCombined * tCombined)));
+		return new OrbitalShape(newEccentricity, newSemiMajor);
+	}
+
+	public double getRadius() {
+		return calculateRadiusKothari(orbitalZone());
+	}
+
+	public int orbitalZone() {
+		var distanceToStar = distanceToStar();
+		if (distanceToStar < 4 * Math.sqrt(ctx.stellarLuminosityLsol))
+			return 1;
+		if (distanceToStar < 15 * Math.sqrt(ctx.stellarLuminosityLsol))
+			return 2;
+		return 3;
+	}
+
+	public double calculateRadiusKothari(int zone) {
+		boolean isGasGiant = canSweepGas();
+
+		double atomicWeight = 0;
+		double atomicNum = 0;
+		if (zone == 1) {
+			atomicWeight = isGasGiant ? 9.5 : 15.0;
+			atomicNum = isGasGiant ? 4.5 : 8.0;
+		} else if (zone == 2) {
+			atomicWeight = isGasGiant ? 2.47 : 10.0;
+			atomicNum = isGasGiant ? 2.0 : 5.0;
+		} else if (zone == 3) {
+			atomicWeight = isGasGiant ? 7.0 : 10.0;
+			atomicNum = isGasGiant ? 4.0 : 5.0;
+		}
+
+		var mass = this.mass;
+
+		var numeratorP1 = (2.0 * ctx.params.BETA_20) / ctx.params.A1_20;
+		var numeratorP2 = 1 / Math.pow(atomicWeight * atomicNum, 1.0 / 3.0);
+		var numerator = numeratorP1 * numeratorP2 * Math.pow(ctx.params.SOLAR_MASS_IN_GRAMS, 1.0 / 3.0);
+
+		var denominatorP1 = ctx.params.A2_20 / ctx.params.A1_20;
+		var denominatorP2 = Math.pow(atomicWeight, 4.0 / 3.0) / Math.pow(atomicNum, 2.0);
+		var denominator = 1.0 +
+				denominatorP1 *
+						denominatorP2 *
+						Math.pow(ctx.params.SOLAR_MASS_IN_GRAMS, 2.0 / 3.0) *
+						Math.pow(mass, 2.0 / 3.0);
+
+		var res = ((numerator / denominator) * Math.pow(mass, 1.0 / 3.0)) / (Units.KILO / Units.CENTI);
+
+		return res;
+
+		// A - atomicWeight
+		// Z - atomicNum
+		// double numerator = 2.0 * ctx.params.BETA_20 * ctx.params.A1_20 * atomicNum *
+		// Math.cbrt(planetesimal.mass);
+		// double denominator1 = ctx.params.A1_20 * ctx.params.A2_20 * atomicNum *
+		// atomicNum *
+		// Math.cbrt(atomicWeight);
+		// double denominator2 = ctx.params.A2_20 * ctx.params.A2_20 *
+		// Math.pow(atomicWeight, 5.0 / 3.0)
+		// * Math.pow(planetesimal.mass, 2.0 / 3.0);
+
+		// double radiusCm = numerator / (denominator1 + denominator2);
+		// return radiusCm * (Units.CENTI / Units.KILO);
+		// return radiusCm * Units.m_PER_Rsol / 1000;
 	}
 
 	public static double randomEccentricity(AccreteContext ctx) {
-		return 1 - Math.pow(1 - ctx.random.nextDouble(), ctx.params.eccentricityCoefficient);
+		return 1 - Math.pow(1 - ctx.rng.uniformDouble(), ctx.params.eccentricityCoefficient);
 	}
 
 	public static double reducedMass(double mass) {
 		return Math.pow(mass / (1 + mass), 0.25);
 	}
 
-	public static double criticalMass(AccreteContext ctx, OrbitalShape shape) {
-		var temperature = shape.periapsisDistance() * Math.sqrt(ctx.stellarLuminosityLsol);
-		return ctx.params.b * Math.pow(temperature, -0.75);
+	public double criticalMass() {
+		var temperature = this.orbitalShape.periapsisDistance() * Math.sqrt(this.ctx.stellarLuminosityLsol);
+		return this.ctx.params.b * Math.pow(temperature, -0.75);
 	}
 
-	public boolean canSweepGas(AccreteContext ctx) {
-		return this.mass > criticalMass(ctx, this.orbitalShape);
+	public boolean canSweepGas() {
+		return this.mass > criticalMass();
 	}
 
 	public double distanceToStar() {
@@ -87,8 +192,8 @@ public class Planetesimal {
 	}
 
 	public void convertToPlanetNode(CelestialNode parent) {
-		var type = this.isGasGiant ? PlanetaryCelestialNode.Type.GAS_GIANT : PlanetaryCelestialNode.Type.ROCKY_WORLD;
-		var radiusRearth = this.radius * (Units.MEGA / Units.KILO) / Units.Mm_PER_Rearth;
+		var type = canSweepGas() ? PlanetaryCelestialNode.Type.GAS_GIANT : PlanetaryCelestialNode.Type.ROCKY_WORLD;
+		var radiusRearth = this.getRadius() * Units.KILO / Units.m_PER_Rearth;
 		var node = new PlanetaryCelestialNode(type, this.mass * Units.Yg_PER_Msol, radiusRearth, 300);
 		var shape = new OrbitalShape(this.orbitalShape.eccentricity(), this.orbitalShape.semiMajor() * Units.Tm_PER_au);
 		var orbit = new CelestialNodeChild<>(parent, node, shape, OrbitalPlane.ZERO, 0);
@@ -106,14 +211,14 @@ public class Planetesimal {
 		return new Interval(inner, outer);
 	}
 
-	public Interval sweptDustLimits(AccreteContext ctx) {
+	public Interval sweptDustLimits() {
 		var effectLimits = effectLimits();
 		var inner = effectLimits.lower() / (1 + ctx.params.cloudEccentricity);
 		var outer = effectLimits.higher() / (1 - ctx.params.cloudEccentricity);
 		return new Interval(Math.max(0, inner), outer);
 	}
 
-	public void accreteDust(AccreteContext ctx, DustBands dustBands) {
+	public void accreteDust(DustBands dustBands) {
 		double prevMass = 0;
 
 		var iterationsRemaining = 100;
@@ -121,10 +226,10 @@ public class Planetesimal {
 			prevMass = this.mass;
 			if (iterationsRemaining-- <= 0)
 				break;
-			var swept = dustBands.sweep(ctx, this);
-			Mod.LOGGER.info("swept {} mass", swept);
-			this.mass += swept;
+			this.mass += dustBands.sweep(ctx, this);
+			emitUpdateEvent();
 		}
+
 	}
 
 }

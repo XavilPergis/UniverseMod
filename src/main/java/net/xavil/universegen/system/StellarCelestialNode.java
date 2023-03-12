@@ -1,7 +1,5 @@
 package net.xavil.universegen.system;
 
-import java.util.Random;
-
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
@@ -36,7 +34,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		}
 
 		public double curveMass(Rng rng, double initialMass) {
-			var variance = Mth.lerp(rng.uniformDouble(), 0.0, -0.05 * initialMass);
+			var variance = Mth.lerp(rng.uniformDouble(), 0.0, -0.1 * initialMass);
 			return this.curveSlope * initialMass + this.curveYIntercept + variance;
 		}
 
@@ -84,7 +82,9 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public double radiusRsol;
 	public double temperatureK;
 
-	public StellarCelestialNode(StellarCelestialNode.Type type, double massYg, double luminosityLsol, double radiusRsol, double temperatureK) {
+
+	public StellarCelestialNode(StellarCelestialNode.Type type, double massYg,
+			double luminosityLsol, double radiusRsol, double temperatureK) {
 		super(massYg);
 		this.type = type;
 		this.luminosityLsol = luminosityLsol;
@@ -123,28 +123,29 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT_W_PER_m2K4), 0.25);
 	}
 
+	// private static @Nullable StellarCelestialNode generateStarNode(Random random,
+	// double systemAgeMya, double massYg) {
+	// final var starLifetime =
+	// StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
 
-	// private static @Nullable StellarCelestialNode generateStarNode(Random random, double systemAgeMya, double massYg) {
-	// 	final var starLifetime = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
+	// // angular_momentum/angular_velocity = mass * radius^2
 
-	// 	// angular_momentum/angular_velocity = mass * radius^2
+	// // TODO: conservation of angular momentum when star changes mass or radius
+	// var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
+	// if (systemAgeMya > starLifetime) {
+	// if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
+	// targetType = StellarCelestialNode.Type.WHITE_DWARF;
+	// } else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
+	// targetType = StellarCelestialNode.Type.NEUTRON_STAR;
+	// } else {
+	// targetType = StellarCelestialNode.Type.BLACK_HOLE;
+	// }
+	// } else if (systemAgeMya > starLifetime * 0.8) {
+	// targetType = StellarCelestialNode.Type.GIANT;
+	// }
 
-	// 	// TODO: conservation of angular momentum when star changes mass or radius
-	// 	var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
-	// 	if (systemAgeMya > starLifetime) {
-	// 		if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
-	// 			targetType = StellarCelestialNode.Type.WHITE_DWARF;
-	// 		} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
-	// 			targetType = StellarCelestialNode.Type.NEUTRON_STAR;
-	// 		} else {
-	// 			targetType = StellarCelestialNode.Type.BLACK_HOLE;
-	// 		}
-	// 	} else if (systemAgeMya > starLifetime * 0.8) {
-	// 		targetType = StellarCelestialNode.Type.GIANT;
-	// 	}
-
-	// 	var node = StellarCelestialNode.fromMass(random, targetType, massYg);
-	// 	return node;
+	// var node = StellarCelestialNode.fromMass(random, targetType, massYg);
+	// return node;
 	// }
 
 	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.fromMsol(10);

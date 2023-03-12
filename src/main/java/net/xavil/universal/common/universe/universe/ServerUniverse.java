@@ -166,14 +166,14 @@ public final class ServerUniverse extends Universe {
 		var startingSystem = startingSystem(rng);
 		startingSystem.rootNode.assignIds();
 
-		var info = new StarSystem.Info();
-		info.systemAgeMya = startingSystem.systemAgeMya;
-		info.remainingHydrogenYg = 0;
-		info.name = startingSystem.name;	
-		startingSystem.rootNode.visit(node -> {
-			if (node instanceof StellarCelestialNode starNode)
-				info.addStar(starNode);
-		});
+		// var info = StarSystem.Info.custom(startingSystem.systemAgeMya, startingSystem.name, startingSystem);
+		// info.systemAgeMya = startingSystem.systemAgeMya;
+		// info.remainingHydrogenYg = 0;
+		// info.name = startingSystem.name;	
+		// startingSystem.rootNode.visit(node -> {
+		// 	if (node instanceof StellarCelestialNode starNode)
+		// 		info.addStar(starNode);
+		// });
 
 		var rootNode = startingSystem.rootNode;
 		var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);

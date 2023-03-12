@@ -195,11 +195,13 @@ public final class PlanetRenderingContext {
 
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
+		RenderSystem.enableDepthTest();
+		RenderSystem.depthMask(true);
 		var baseTexture = getBaseLayer(node);
 		Minecraft.getInstance().getTextureManager().getTexture(baseTexture).setFilter(false, false);
 
-		// var radiusUnits = radiusM / camera.metersPerUnit;
-		var radiusUnits = 1000 * 1000;
+		var radiusUnits = radiusM / camera.metersPerUnit;
+		// var radiusUnits = 1000 * 1000;
 		// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		renderPlanetLayer(builder, camera, baseTexture, poseStack, nodePosUnits, radiusUnits, tintColor);
 		if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {

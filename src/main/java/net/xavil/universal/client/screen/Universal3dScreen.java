@@ -25,6 +25,11 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		this.camera = camera;
 		this.scrollMin = scrollMin;
 		this.scrollMax = scrollMax;
+
+		this.camera.pitch.set(Math.PI / 8);
+		this.camera.yaw.set(Math.PI / 8);
+		this.camera.scale.set(4.0);
+		this.camera.scale.setTarget(8.0);
 	}
 
 	@Override

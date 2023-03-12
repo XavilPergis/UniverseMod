@@ -25,6 +25,7 @@ public abstract sealed class CelestialNode permits
 
 	protected int id = UNASSINED_ID;
 	protected @Nullable BinaryCelestialNode parentBinaryNode = null;
+	protected @Nullable CelestialNode parentUnaryNode = null;
 	protected final List<CelestialNodeChild<?>> childNodes = new ArrayList<>();
 
 	public Vec3 position = Vec3.ZERO;
@@ -128,6 +129,12 @@ public abstract sealed class CelestialNode permits
 		this.childNodes.forEach(child -> child.node.visit(consumer));
 	}
 
+	public List<CelestialNode> selfAndChildren() {
+		var nodes = new ArrayList<CelestialNode>();
+		visit(nodes::add);
+		return nodes;
+	}
+
 	public int find(CelestialNode node) {
 		return find(other -> other == node);
 	}
@@ -166,6 +173,10 @@ public abstract sealed class CelestialNode permits
 		return this.parentBinaryNode;
 	}
 
+	public CelestialNode getUnaryParent() {
+		return this.parentUnaryNode;
+	}
+
 	public Iterable<CelestialNodeChild<?>> childOrbits() {
 		return this.childNodes;
 	}
@@ -189,6 +200,7 @@ public abstract sealed class CelestialNode permits
 	 */
 	public void insertChild(CelestialNodeChild<?> child) {
 		this.childNodes.add(child);
+		child.node.parentUnaryNode = this;
 	}
 
 	/**
@@ -269,6 +281,9 @@ public abstract sealed class CelestialNode permits
 			var luminosity = nbt.getDouble("luminosity");
 			var radius = nbt.getDouble("radius");
 			var temperature = nbt.getDouble("temperature");
+			// NOTE: we only use protoplanetary disc information on the server, and we only
+			// serialize systems in the clientbound direction currently. Something to watch
+			// out for!
 			node = new StellarCelestialNode(type, massYg, luminosity, radius, temperature);
 		} else if (nodeType.equals("planet")) {
 			var type = PlanetaryCelestialNode.Type.values()[nbt.getInt("type")];

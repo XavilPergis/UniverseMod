@@ -2,8 +2,6 @@ package net.xavil.universal.common.universe.galaxy;
 
 import java.util.Random;
 
-import javax.annotation.Nullable;
-
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.NameTemplate;
@@ -100,88 +98,52 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	}
 
-	public final double MINIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 0.1;
-	public final double MAXIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 30.0;
+	public static final double MINIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 0.1;
+	public static final double MAXIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 30.0;
 
-	private double generateStarMass(Random random, double upperBoundYg) {
-		upperBoundYg = Math.min(MAXIMUM_STAR_MASS_YG, upperBoundYg);
-		var massFactor = Math.pow(random.nextDouble(), 60);
-		var massYg = Mth.lerp(massFactor, MINIMUM_STAR_MASS_YG, upperBoundYg);
+	private double generateAvailableMass(Rng rng) {
+		// maybe some sort of unbounded distribution would work best here. like maybe
+		// find a way to use an IMF
+		var t = Math.pow(rng.uniformDouble(), 8);
+		var massYg = Mth.lerp(t, Units.Yg_PER_Msol * 0.1, Units.Yg_PER_Msol * 200.0);
+		return massYg;
+	}
+
+	public static double generateStarMass(Rng rng, double availableMass) {
+		availableMass = Math.min(MAXIMUM_STAR_MASS_YG, availableMass);
+		var massFactor = Math.pow(rng.uniformDouble(), 8);
+		var massYg = Mth.lerp(massFactor, MINIMUM_STAR_MASS_YG, availableMass);
 		return massYg;
 	}
 
 	// Basic system info
 	private StarSystem.Info generateStarSystemInfo(Vec3i volumeCoords, Vec3 systemPos, long seed) {
-		var random = new Random(seed);
-		var info = new StarSystem.Info();
+		var rng = Rng.wrap(new Random(seed));
 
 		var minSystemAgeFactor = Math.min(1, this.densityFields.minAgeFactor.sampleDensity(systemPos));
-		var systemAgeFactor = Math.pow(random.nextDouble(), 2);
+		var systemAgeFactor = Math.pow(rng.uniformDouble(), 2);
+		var systemAgeMyr = this.parentGalaxy.info.ageMya * Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
 
-		info.systemAgeMya = this.parentGalaxy.info.ageMya * Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
-		// noise field for driving this too; once again because stars form in clusters
-		var remainingHydrogenYg = random.nextDouble(Units.Yg_PER_Msol * 0.1, Units.Yg_PER_Msol * 100);
+		var availableMass = generateAvailableMass(rng);
+		var starMass = generateStarMass(rng, availableMass);
+		var primaryStar = StellarCelestialNode.fromMassAndAge(rng, starMass, systemAgeMyr);
+		var remainingMass = availableMass - starMass;
 
-		// there's always at least one star per system
-		var initialStarMass = generateStarMass(random, remainingHydrogenYg);
-		info.addStar(generateStarNode(random, info.systemAgeMya, initialStarMass));
+		var name = NameTemplate.SECTOR_NAME.generate(rng);
 
-		// NOTE: generating the stars upfront in this simple way does not seem to be too
-		// costly to do, even directly on the render thread. It still might make sense
-		// to do everything a background thread, still.
-		for (var attempts = 0; attempts < 256; ++attempts) {
-			if (random.nextDouble() < 0.5)
-				break;
-
-			var mass = generateStarMass(random, remainingHydrogenYg);
-			if (remainingHydrogenYg >= mass && remainingHydrogenYg >= MINIMUM_STAR_MASS_YG) {
-				remainingHydrogenYg -= mass;
-				info.addStar(generateStarNode(random, info.systemAgeMya, mass));
-			}
-		}
-
-		info.remainingHydrogenYg = remainingHydrogenYg;
-		info.name = NameTemplate.SECTOR_NAME.generate(random);
-
-		return info;
+		return new StarSystem.Info(systemAgeMyr, remainingMass, starMass - primaryStar.massYg, name, primaryStar);
 	}
 
 	// Full system info
 	public StarSystem generateStarSystem(Vec3i volumeCoords, Vec3 volumeOffsetTm, StarSystem.Info info, int i,
 			long seed) {
-		var random = new Random(seed);
+		var rng = Rng.wrap(new Random(seed));
 
-		var systemGenerator = new StarSystemGenerator(random, this.parentGalaxy, info);
+		var systemGenerator = new StarSystemGenerator(rng, this.parentGalaxy, info);
 		var rootNode = systemGenerator.generate();
 		rootNode.assignIds();
 
 		return new StarSystem(this.parentGalaxy, rootNode);
-	}
-
-	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.fromMsol(10);
-	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = Units.fromMsol(25);
-
-	private static @Nullable StellarCelestialNode generateStarNode(Random random, double systemAgeMya, double massYg) {
-		final var starLifetime = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
-
-		// angular_momentum/angular_velocity = mass * radius^2
-
-		// TODO: conservation of angular momentum when star changes mass or radius
-		var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
-		if (systemAgeMya > starLifetime) {
-			if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
-				targetType = StellarCelestialNode.Type.WHITE_DWARF;
-			} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
-				targetType = StellarCelestialNode.Type.NEUTRON_STAR;
-			} else {
-				targetType = StellarCelestialNode.Type.BLACK_HOLE;
-			}
-		} else if (systemAgeMya > starLifetime * 0.8) {
-			targetType = StellarCelestialNode.Type.GIANT;
-		}
-
-		var node = StellarCelestialNode.fromMass(Rng.wrap(random), targetType, massYg);
-		return node;
 	}
 
 }

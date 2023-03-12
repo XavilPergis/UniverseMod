@@ -1,4 +1,4 @@
-package net.xavil.universal.client.screen;
+package net.xavil.universal.client.screen.debug;
 
 import java.util.Random;
 
@@ -17,6 +17,9 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Unit;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.screen.OrbitCamera;
+import net.xavil.universal.client.screen.RenderHelper;
+import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.util.Units;
@@ -28,15 +31,10 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 	private Octree<Unit> galaxyPoints = null;
 	private final Galaxy galaxy;
 
-	protected GalaxyDensityDebugScreen(Screen previousScreen, Galaxy galaxy) {
+	public GalaxyDensityDebugScreen(Screen previousScreen, Galaxy galaxy) {
 		super(new TranslatableComponent("narrator.screen.debug.galaxy_density"), previousScreen,
 				new OrbitCamera(1e12, 1), 1e-5, 1e12);
 		this.galaxy = galaxy;
-
-		this.camera.pitch.set(Math.PI / 8);
-		this.camera.yaw.set(Math.PI / 8);
-		this.camera.scale.set(4.0);
-		this.camera.scale.setTarget(8.0);
 	}
 
 	@Override

@@ -21,6 +21,8 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.screen.debug.GalaxyDensityDebugScreen;
+import net.xavil.universal.client.screen.debug.SystemGenerationDebugScreen;
 import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
@@ -32,6 +34,7 @@ import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
@@ -150,6 +153,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 			return true;
 		} else if (keyCode == GLFW.GLFW_KEY_M) {
 			this.client.setScreen(new GalaxyDensityDebugScreen(this, this.galaxy));
+		} else if (keyCode == GLFW.GLFW_KEY_N) {
+			this.client.setScreen(new SystemGenerationDebugScreen(this));
 		}
 
 		return false;
@@ -208,7 +213,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		if (c == 'q') {
 			var nameTemplate = NameTemplate.compile("^SL?(< >[<Major><Minor>])< >^*^*<->^*");
 			// var nameTemplate = NameTemplate.compile("[(<M>d?d?d)(<NGC >dddddd?d?d)]");
-			var name = nameTemplate.generate(new Random());
+			var name = nameTemplate.generate(Rng.wrap(new Random()));
 			Mod.LOGGER.info(name);
 			return true;
 		} else if (c == 'e') {
@@ -361,7 +366,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 			// just emit a few draw calls, instead of having to build the buffer from
 			// scratch each frame.
 
-			var displayStar = element.value.getInitial().getDisplayStar();
+			var displayStar = element.value.getInitial().primaryStar;
 			RenderHelper.addBillboard(builder, camera, new PoseStack(), displayStar, center);
 		});
 
@@ -581,11 +586,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		h += this.client.font.lineHeight;
 		h += 10;
 
-		var systemStars = system.getStars().toList();
-		for (var star : systemStars) {
-			this.client.font.draw(poseStack, describeStar(star), 10, h, 0xffffffff);
-			h += this.client.font.lineHeight;
-		}
+		this.client.font.draw(poseStack, describeStar(system.primaryStar), 10, h, 0xffffffff);
+		h += this.client.font.lineHeight;
 
 		// TODO: mouse picking
 

@@ -30,12 +30,15 @@ public interface Rng {
 		return new Rng() {
 			@Override
 			public double uniformDouble(double minBound, double maxBound) {
-				if (minBound >= maxBound) maxBound = Math.nextUp(minBound);
+				if (minBound >= maxBound)
+					maxBound = Math.nextUp(minBound);
 				return random.nextDouble(minBound, maxBound);
 			}
-			
+
 			@Override
 			public int uniformInt(int minBound, int maxBound) {
+				if (minBound == maxBound)
+					return minBound;
 				return random.nextInt(minBound, maxBound);
 			}
 		};

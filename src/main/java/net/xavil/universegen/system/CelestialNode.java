@@ -222,6 +222,13 @@ public abstract sealed class CelestialNode permits
 		child.node.parentUnaryNode = child;
 	}
 
+	// public void replace(int id, CelestialNode newNode) {
+	// 	var node = this.lookup(id);
+	// 	// node
+	// 	this.childNodes.add(child);
+	// 	child.node.parentUnaryNode = child;
+	// }
+
 	/**
 	 * Calculates and updates the positions and related details for each subnode of
 	 * this tree, according to the passed time.

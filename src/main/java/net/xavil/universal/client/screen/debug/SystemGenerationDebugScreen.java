@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Random;
 import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
+import java.util.function.Consumer;
 
 import org.lwjgl.glfw.GLFW;
 
@@ -19,6 +20,8 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
+import it.unimi.dsi.fastutil.ints.IntArrayList;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
@@ -99,7 +102,7 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 	}
 
 	private void fastForward() {
-		if (this.currentEvent >= this.events.size())
+		if (this.events.isEmpty() || this.currentEvent >= this.events.size())
 			return;
 
 		if (this.events.get(0) instanceof AccreteDebugEvent.Initialize event) {
@@ -354,28 +357,92 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 			renderDustBands(camera, this.currentDustBands, partialTick);
 	}
 
-	private void addPlanetesimalLines(BiConsumer<String, String> consumer) {
+	private void addPlanetesimalLines(Table table) {
 		if (this.planetesimalInfos == null)
 			return;
 
-		consumer.accept("star", String.format("%.2f M☉", this.node.massYg / Units.Yg_PER_Msol));
+		table.addRow("Star", consumer -> {
+			consumer.accept("N/A");
+			consumer.accept(String.format("%.2f", this.node.massYg / Units.Yg_PER_Msol));
+		});
 
 		var stream = this.planetesimalInfos.int2ObjectEntrySet().stream()
-				.sorted(Comparator.comparingInt(entry -> entry.getIntKey()));
+				.sorted(Comparator.comparing(entry -> entry.getValue().mass));
 		stream.forEach(entry -> {
 			final var id = entry.getIntKey();
-			final var infoWriter = new StringBuilder();
-
-			var info = entry.getValue();
-			infoWriter.append(String.format("%.2f au", info.distance));
-			infoWriter.append(" | ");
-			infoWriter.append(String.format("%.2f M☉, %.2f M♃, %.2f Mⴲ",
-					info.mass,
-					info.mass * Units.Yg_PER_Msol / Units.Yg_PER_Mjupiter,
-					info.mass * Units.Yg_PER_Msol / Units.Yg_PER_Mearth));
-
-			consumer.accept("" + id, infoWriter.toString());
+			table.addRow(String.format("Planet #%d", id), consumer -> {
+				var info = entry.getValue();
+				double massMsol = info.mass;
+				double massMjupiter = info.mass * Units.Yg_PER_Msol / Units.Yg_PER_Mjupiter;
+				double massMearth = info.mass * Units.Yg_PER_Msol / Units.Yg_PER_Mearth;
+				consumer.accept(String.format("%.4f", info.distance));
+				if (massMsol >= 0.0001) {
+					consumer.accept(String.format("%.4f", massMsol));
+				} else {
+					consumer.accept("-");
+				}
+				if (massMjupiter >= 0.0001 && massMjupiter < 100.0) {
+					consumer.accept(String.format("%.4f", massMjupiter));
+				} else {
+					consumer.accept("-");
+				}
+				if (massMearth >= 0.0001 && massMearth < 100.0) {
+					consumer.accept(String.format("%.4f", massMearth));
+				} else {
+					consumer.accept("-");
+				}
+				consumer.accept(String.format("%.0f", info.radius));
+			});
 		});
+
+
+		table.addRow("", "§2Distance §a§nau§r", "§2Mass §a§nM☉§r", "§2Mass §a§nM♃§r", "§2Mass §a§nMⴲ§r", "§2Radius §a§nkm§r");
+
+	}
+
+	static class Table {
+		public final List<List<String>> rows = new ArrayList<>();
+
+		public void addRow(String rowName, Consumer<Consumer<String>> columnConsumer) {
+			final var row = new ArrayList<String>();
+			row.add(String.format("§9%s§r", rowName));
+			columnConsumer.accept(row::add);
+			this.rows.add(row);
+		}
+
+		public void addRow(String... cells) {
+			this.rows.add(List.of(cells));
+		}
+
+		public void display(PoseStack poseStack, Font font, int initialHeight, int heightStep) {
+			var columnWidths = new IntArrayList();
+			for (var i = 0; i < this.rows.size(); ++i) {
+				final var row = this.rows.get(i);
+				for (var j = 0; j < row.size(); ++j) {
+					final var cell = row.get(j);
+					if (columnWidths.size() <= j) {
+						columnWidths.add(0);
+					}
+					var width = font.width(cell);
+					columnWidths.set(j, Math.max(columnWidths.getInt(j), width));
+				}
+			}
+
+			int yOffset = initialHeight;
+			for (var i = 0; i < this.rows.size(); ++i) {
+				final var row = this.rows.get(i);
+				int xOffset = 0;
+				for (var j = 0; j < row.size(); ++j) {
+					final var cell = row.get(j);
+					final var cellWidth = columnWidths.getInt(j);
+					var width = font.width(cell);
+					font.draw(poseStack, cell, xOffset + (cellWidth - width), yOffset, 0xff777777);
+					xOffset += cellWidth;
+					xOffset += 8;
+				}
+				yOffset += heightStep;
+			}
+		}
 	}
 
 	@Override
@@ -395,11 +462,17 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 				this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0, obj.currentHeight, 0xff777777);
 				obj.currentHeight += this.client.font.lineHeight + 1;
 			});
-			obj.currentHeight = this.height - (font.lineHeight + 1);
-			addPlanetesimalLines((property, value) -> {
-				this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0, obj.currentHeight, 0xff777777);
-				obj.currentHeight -= this.client.font.lineHeight + 1;
-			});
+
+			// obj.currentHeight = this.height - (font.lineHeight + 1);
+			// addPlanetesimalLines((property, value) -> {
+			// this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0,
+			// obj.currentHeight, 0xff777777);
+			// obj.currentHeight -= this.client.font.lineHeight + 1;
+			// });
+			var planetesimalTable = new Table();
+			addPlanetesimalLines(planetesimalTable);
+			planetesimalTable.display(poseStack, font, this.height - (font.lineHeight + 1),
+					-(this.client.font.lineHeight + 1));
 		}
 	}
 

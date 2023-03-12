@@ -27,10 +27,10 @@ public class Planetesimal {
 		this.id = ctx.nextPlanetesimalId++;
 	}
 
-	private Planetesimal(AccreteContext ctx, Interval bounds) {
+	private Planetesimal(AccreteContext ctx, double semiMajor, Interval bounds) {
 		this.ctx = ctx;
 		this.id = ctx.nextPlanetesimalId++;
-		var semiMajor = ctx.rng.uniformDouble(bounds.lower(), bounds.higher());
+		// var semiMajor = ctx.rng.uniformDouble(bounds.lower(), bounds.higher());
 		var eccentricity = randomEccentricity(ctx);
 		this.orbitalShape = new OrbitalShape(eccentricity, semiMajor);
 		this.mass = ctx.params.initialPlanetesimalMass;
@@ -41,8 +41,8 @@ public class Planetesimal {
 				* Math.cbrt(this.mass / (3 * parentMass));
 	}
 
-	public static Planetesimal random(AccreteContext ctx, Interval bounds) {
-		return new Planetesimal(ctx, bounds);
+	public static Planetesimal random(AccreteContext ctx, double semiMajor, Interval bounds) {
+		return new Planetesimal(ctx, semiMajor, bounds);
 	}
 
 	public static Planetesimal defaulted(AccreteContext ctx) {

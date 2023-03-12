@@ -47,10 +47,11 @@ public class ProtoplanetaryDisc {
 
 		// Distribute planetary masses
 
-		ctx.debugConsumer.accept(new AccreteDebugEvent.Initialize(new Interval(0, 200 * Math.cbrt(ctx.stellarMassMsol)),
-				planetesimalBounds));
+		ctx.debugConsumer
+				.accept(new AccreteDebugEvent.Initialize(new Interval(0, 2000 * Math.sqrt(ctx.stellarMassMsol)),
+						planetesimalBounds));
 
-		var iterationsRemaining = 1000;
+		var iterationsRemaining = 10000;
 		while (this.dustBands.hasDust(this.planetesimalBounds)) {
 			if (iterationsRemaining-- <= 0) {
 				Mod.LOGGER.warn("ran out of iterations while collapsing disc!");
@@ -60,10 +61,15 @@ public class ProtoplanetaryDisc {
 			// TODO: maybe there's a more efficient way to choose the location of new
 			// planets than just picking at random and seeing if there happens to be dust
 			// left.
-			var planetesimal = Planetesimal.random(this.ctx, this.planetesimalBounds);
+
+			// var dustySemiMajor = this.dustBands.pickDusty(this.ctx.rng, this.planetesimalBounds);
+			// if (Double.isNaN(dustySemiMajor))
+			// 	break;
+			var dustySemiMajor = this.ctx.rng.uniformDouble(this.planetesimalBounds);
+			var planetesimal = Planetesimal.random(this.ctx, dustySemiMajor, this.planetesimalBounds);
+
 			if (this.dustBands.hasDust(planetesimal.sweptDustLimits())) {
 				ctx.debugConsumer.accept(new AccreteDebugEvent.AddPlanetesimal(ctx, planetesimal));
-
 				planetesimal.accreteDust(dustBands);
 
 				// TODO: reject planetesimals smaller than a certain mass?
@@ -202,14 +208,15 @@ public class ProtoplanetaryDisc {
 	}
 
 	private static Interval planetesimalBounds(AccreteContext ctx) {
-		var inner = 0.3 * Math.cbrt(ctx.stellarMassMsol);
-		var outer = 50 * Math.cbrt(ctx.stellarMassMsol);
+		var inner = 0.1 * Math.sqrt(ctx.stellarMassMsol);
+		var outer = 500 * Math.sqrt(ctx.stellarMassMsol);
 		var idealInterval = new Interval(inner, outer);
 		return idealInterval.intersection(ctx.stableOrbitInterval);
 	}
 
 	private static DustBands initialDustBand(AccreteContext ctx) {
-		var outer = 200 * Math.cbrt(ctx.stellarMassMsol);
+		// var outer = 200 * Math.cbrt(ctx.stellarMassMsol);
+		var outer = 2000 * Math.sqrt(ctx.stellarMassMsol);
 		return new DustBands(new Interval(0, outer), ctx.debugConsumer);
 	}
 }

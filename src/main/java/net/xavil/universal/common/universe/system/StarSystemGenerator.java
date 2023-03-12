@@ -121,16 +121,6 @@ public class StarSystemGenerator {
 		CelestialNode current = this.info.primaryStar;
 		Assert.isTrue(current != null);
 
-		// if (current instanceof StellarCelestialNode starNode) {
-		// var params = new SimulationParameters();
-		// var ctx = new AccreteContext(params, rng, starNode.luminosityLsol,
-		// starNode.massYg / Units.Yg_PER_Msol,
-		// 1e20, AccreteDebugEvent.Consumer.DUMMY);
-		// var protoDisc = new ProtoplanetaryDisc(ctx, 1);
-
-		// protoDisc.collapseDisc(starNode);
-		// }
-
 		for (var i = 0; i < 32; ++i) {
 			if (this.rng.chance(0.4))
 				break;

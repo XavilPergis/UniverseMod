@@ -1,5 +1,8 @@
 package net.xavil.universal.client;
 
+import org.lwjgl.opengl.GL11;
+import org.lwjgl.opengl.GL13;
+
 import com.mojang.blaze3d.pipeline.TextureTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -356,6 +359,8 @@ public class SkyRenderer {
 		RenderSystem.enableCull();
 		RenderSystem.enableTexture();
 		RenderSystem.depthMask(true);
+
+		GL11.glEnable(GL13.GL_MULTISAMPLE);
 
 		poseStack.popPose();
 		matrixSnapshot.restore();

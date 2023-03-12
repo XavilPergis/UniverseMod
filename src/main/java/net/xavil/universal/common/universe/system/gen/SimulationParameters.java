@@ -2,7 +2,7 @@ package net.xavil.universal.common.universe.system.gen;
 
 public class SimulationParameters {
 
-	public double cloudEccentricity = 0.2;
+	public double cloudEccentricity = 0.1;
 	public double dustToGasRatio = 50; // "K"
 	public double b = 1e-5; // "B"
 	public double eccentricityCoefficient = 0.077;

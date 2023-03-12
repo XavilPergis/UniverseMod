@@ -16,6 +16,7 @@ uniform vec4 LightPos2;
 uniform vec4 LightColor2;
 uniform vec4 LightPos3;
 uniform vec4 LightColor3;
+uniform float MetersPerUnit;
 
 in vec2 texCoord0;
 in vec4 vertexPos;
@@ -50,7 +51,12 @@ vec3 contribution(vec4 color, vec4 pos) {
 	if (color.a >= 0) {
 		vec3 p0 = (ModelViewMat * vec4(pos.xyz, 1.0)).xyz;
 		vec3 d0 = normalize(p0 - vertexPos.xyz);
-		return color.rgb * color.a * saturate(dot(normal.xyz, d0));
+
+		float distanceMeters = distance(vertexPos.xyz, p0) * MetersPerUnit;
+		float d2 = 1.0 / pow(distanceMeters / 1e14, 2.0);
+		float light = color.a * d2;
+
+		return color.rgb * light * saturate(dot(normal.xyz, d0));
 	}
 	return vec3(0);
 }

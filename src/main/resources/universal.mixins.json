@@ -14,6 +14,7 @@
   ],
   "client": [
     "MinecraftClientMixin",
+    "WindowMixin",
     "GameRendererMixin",
     "LevelRendererMixin"
   ],

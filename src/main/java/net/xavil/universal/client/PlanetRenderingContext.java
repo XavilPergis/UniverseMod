@@ -147,6 +147,9 @@ public final class PlanetRenderingContext {
 
 		var planetShader = ModRendering.getShader(ModRendering.PLANET_SHADER);
 
+		var metersPerUnit = planetShader.safeGetUniform("MetersPerUnit");
+		metersPerUnit.set((float) camera.metersPerUnit);
+
 		for (var i = 0; i < maxLightCount; ++i) {
 			var lightColor = planetShader.safeGetUniform("LightColor" + i);
 			lightColor.set(new Vector4f(0, 0, 0, -1));
@@ -160,7 +163,7 @@ public final class PlanetRenderingContext {
 
 			float r = light.color.r(), g = light.color.g(), b = light.color.b();
 			float luminosity = (float) Math.max(light.luminosity, 0.4);
-			lightColor.set(new Vector4f(r, g, b, luminosity * 15));
+			lightColor.set(new Vector4f(r, g, b, luminosity * 0.002f));
 
 			var pos = camera.toCameraSpace(light.pos);
 			var shaderPos = new Vector4f((float) pos.x, (float) pos.y, (float) pos.z, 1);

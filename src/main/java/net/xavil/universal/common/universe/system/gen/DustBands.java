@@ -3,6 +3,7 @@ package net.xavil.universal.common.universe.system.gen;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.xavil.util.Rng;
 import net.xavil.util.math.Interval;
 
 public class DustBands {
@@ -27,6 +28,21 @@ public class DustBands {
 
 	public boolean hasDust(Interval interval) {
 		return bands.stream().anyMatch(band -> band.hasDust && band.interval.intersects(interval));
+	}
+
+	public double pickDusty(Rng rng, Interval limitInterval) {
+		var candidateBands = new ArrayList<Band>();
+		for (var band : this.bands) {
+			if (!band.interval.intersects(limitInterval))
+				continue;
+			if (band.hasDust)
+				candidateBands.add(band);
+		}
+		if (candidateBands.isEmpty())
+			return Double.NaN;
+		final var chosenBand = candidateBands.get(rng.uniformInt(0, candidateBands.size() - 1));
+		final var interval = limitInterval.intersection(chosenBand.interval);
+		return rng.uniformDouble(interval);
 	}
 
 	public void removeMaterial(Interval interval, boolean removeGas, boolean removeDust) {

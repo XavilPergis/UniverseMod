@@ -19,14 +19,16 @@ import net.xavil.util.Assert;
 import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Formulas;
+import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalPlane;
 
 public class StarSystemGenerator {
 
 	// how many times larger the radius of an orbit around a binary pair needs to be
 	// than the maximum radius of the existing binary pair.
-	public static final double BINARY_SYSTEM_SPACING_FACTOR = 4;
+	public static final double SPACING_FACTOR = 4;
 	public static final int PLANET_SEED_COUNT = 100;
+	public static final int MAX_GENERATION_DEPTH = 5;
 
 	protected final Rng rng;
 	protected final Galaxy galaxy;
@@ -50,20 +52,84 @@ public class StarSystemGenerator {
 				rng.uniformDouble(-Math.PI * 2, Math.PI * 2));
 	}
 
+	private Interval getStableOrbitInterval(CelestialNode node, OrbitalPlane referencePlane) {
+		double currentMin = 0.0, currentMax = Double.POSITIVE_INFINITY;
+		final var binaryParent = node.getBinaryParent();
+		if (binaryParent != null) {
+			var periapsisA = binaryParent.orbitalShapeA.periapsisDistance();
+			var periapsisB = binaryParent.orbitalShapeB.periapsisDistance();
+			var minPeriapsis = Math.min(periapsisA, periapsisB);
+			currentMax = Math.min(currentMax, minPeriapsis / SPACING_FACTOR);
+		}
+		final var unaryParent = node.getUnaryParent();
+		if (unaryParent != null) {
+			final var nodeShape = node.getOrbitInfo().orbitalShape;
+			// var nodeEffectLimits = Formulas.gravitationalEffectLimits(nodeShape,
+			// node.massYg);
+			double closestOuter = 0.0, closestInner = Double.POSITIVE_INFINITY;
+			for (var sibling : unaryParent.childOrbits()) {
+				if (sibling.node == node)
+					continue;
+				// FIXME: this does not take inclination/etc into account
+				// the paths that highly elliptical orbits draw when projected onto the plane of
+				// another orbit can cross a lot of other orbits that lay in the same plane,
+				// provided that the inclination of the first is low with respect to the plane
+				// of the others. since we dont take inclination into account, objects with
+				// inclined, highly elliptical orbits (like those of comets) can cause the
+				// stability interval to be very different than what it otherwise would be.
+
+				// TODO: very small objects can squat stable orbits, whereas we probably want to
+				// allow larger objects to displace the smaller objects instead.
+
+				// assumes that no orbits are overlapping
+				var siblingEffectLimits = Formulas.gravitationalEffectLimits(sibling.orbitalShape, sibling.node.massYg);
+				if (sibling.orbitalShape.apoapsisDistance() < nodeShape.periapsisDistance()) {
+					closestOuter = Math.max(closestOuter, siblingEffectLimits.higher());
+				}
+				if (sibling.orbitalShape.periapsisDistance() > nodeShape.apoapsisDistance()) {
+					closestInner = Math.min(closestInner, siblingEffectLimits.lower());
+				}
+			}
+
+			// these look backwards but are not
+			var innerDistance = nodeShape.periapsisDistance() - closestOuter;
+			var outerDistance = nodeShape.apoapsisDistance() - closestInner;
+			var minDistance = Math.min(innerDistance, outerDistance);
+			currentMax = Math.min(currentMax, minDistance / SPACING_FACTOR);
+		}
+
+		if (node instanceof BinaryCelestialNode binaryNode) {
+			var apoapsisA = binaryNode.orbitalShapeA.apoapsisDistance();
+			var apoapsisB = binaryNode.orbitalShapeB.apoapsisDistance();
+			var maxApoapsis = Math.max(apoapsisA, apoapsisB);
+			currentMin = Math.max(currentMin, maxApoapsis * SPACING_FACTOR);
+		}
+
+		double furthestChild = 0.0;
+		for (var child : node.childOrbits()) {
+			var childDistance = child.orbitalShape.apoapsisDistance();
+			furthestChild = Math.max(furthestChild, childDistance);
+		}
+		currentMin = Math.max(currentMin, furthestChild * SPACING_FACTOR);
+
+		return new Interval(currentMin, currentMax);
+	}
+
 	public CelestialNode generate() {
 		var remainingMass = this.info.remainingMass;
 
 		CelestialNode current = this.info.primaryStar;
 		Assert.isTrue(current != null);
 
-		if (current instanceof StellarCelestialNode starNode) {
-			var params = new SimulationParameters();
-			var ctx = new AccreteContext(params, rng, starNode.luminosityLsol, starNode.massYg / Units.Yg_PER_Msol,
-					1e20, AccreteDebugEvent.Consumer.DUMMY);
-			var protoDisc = new ProtoplanetaryDisc(ctx, 1);
+		// if (current instanceof StellarCelestialNode starNode) {
+		// var params = new SimulationParameters();
+		// var ctx = new AccreteContext(params, rng, starNode.luminosityLsol,
+		// starNode.massYg / Units.Yg_PER_Msol,
+		// 1e20, AccreteDebugEvent.Consumer.DUMMY);
+		// var protoDisc = new ProtoplanetaryDisc(ctx, 1);
 
-			protoDisc.collapseDisc(starNode);
-		}
+		// protoDisc.collapseDisc(starNode);
+		// }
 
 		for (var i = 0; i < 32; ++i) {
 			if (this.rng.chance(0.4))
@@ -73,21 +139,55 @@ public class StarSystemGenerator {
 			if (remainingMass < starMass)
 				break;
 			var starNode = StellarCelestialNode.fromMassAndAge(rng, starMass, this.info.systemAgeMyr);
-			var protoDiscMass = starMass - starNode.massYg;
+			// var protoDiscMass = starMass - starNode.massYg;
 			current = mergeStarNodes(current, starNode, rng.chance(0.3));
-
-			var params = new SimulationParameters();
-			var ctx = new AccreteContext(params, rng, starNode.luminosityLsol, starNode.massYg / Units.Yg_PER_Msol,
-					1e20, AccreteDebugEvent.Consumer.DUMMY);
-			var protoDisc = new ProtoplanetaryDisc(ctx, protoDiscMass);
-
-			protoDisc.collapseDisc(starNode);
 		}
+
+		final var params = new SimulationParameters();
+		generatePlanets(current, params);
 
 		current = convertBinaryOrbits(current);
 		// determineOrbitalPlanes(current);
 
 		return current;
+	}
+
+	private double getTotalLuminosity(CelestialNode node) {
+		double total = 0.0;
+		if (node instanceof BinaryCelestialNode binaryNode) {
+			total += getTotalLuminosity(binaryNode.getA());
+			total += getTotalLuminosity(binaryNode.getB());
+		}
+		for (var child : node.childOrbits()) {
+			total += getTotalLuminosity(child.node);
+		}
+		if (node instanceof StellarCelestialNode starNode) {
+			total += starNode.luminosityLsol;
+		}
+		return total;
+	}
+
+	private void generatePlanets(CelestialNode node, SimulationParameters params) {
+		generatePlanets(node, params, MAX_GENERATION_DEPTH);
+	}
+
+	private void generatePlanets(CelestialNode node, SimulationParameters params, int remainingDepth) {
+		if (remainingDepth < 0)
+			return;
+
+		var nodeLuminosity = getTotalLuminosity(node);
+		if (nodeLuminosity > 0) {
+			var stableInterval = getStableOrbitInterval(node, OrbitalPlane.ZERO);
+			var nodeMass = node.massYg / Units.Yg_PER_Msol;
+			var ctx = new AccreteContext(params, rng, nodeLuminosity, nodeMass, stableInterval);
+			
+			var protoDisc = new ProtoplanetaryDisc(ctx);
+			protoDisc.collapseDisc(node);
+
+			// TODO: promote brown dwarves and stars
+		}
+
+		node.visitDirectDescendants(child -> generatePlanets(child, params, remainingDepth - 1));
 	}
 
 	private static void replaceNode(CelestialNode existing, BinaryCelestialNode newNode) {
@@ -145,7 +245,7 @@ public class StarSystemGenerator {
 		if (node instanceof StellarCelestialNode starNode) {
 			return 10 * Units.m_PER_Rsol / 1e12 * starNode.radiusRsol;
 		} else if (node instanceof BinaryCelestialNode binaryNode) {
-			return BINARY_SYSTEM_SPACING_FACTOR * binaryNode.orbitalShapeB.semiMajor();
+			return SPACING_FACTOR * binaryNode.orbitalShapeB.semiMajor();
 		}
 		return 0;
 	}
@@ -161,7 +261,7 @@ public class StarSystemGenerator {
 		var closestDistance = binaryParent.orbitalShapeA.periapsisDistance()
 				+ binaryParent.orbitalShapeB.periapsisDistance();
 
-		return closestDistance / BINARY_SYSTEM_SPACING_FACTOR;
+		return closestDistance / SPACING_FACTOR;
 	}
 
 	private @Nullable CelestialNode mergeStarWithBinary(BinaryCelestialNode existing, StellarCelestialNode toInsert,

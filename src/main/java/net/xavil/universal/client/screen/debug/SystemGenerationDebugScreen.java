@@ -188,8 +188,9 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 			this.node = StellarCelestialNode.fromMassAndAge(rng, starMass, 4600);
 			var params = new SimulationParameters();
 			var ctx = new AccreteContext(params, rng, this.node.luminosityLsol,
-					this.node.massYg / Units.Yg_PER_Msol, 1e20, AccreteDebugEvent.Consumer.wrap(this.events::add));
-			var protoDisc = new ProtoplanetaryDisc(ctx, 1);
+					this.node.massYg / Units.Yg_PER_Msol, new Interval(0, 1e20),
+					AccreteDebugEvent.Consumer.wrap(this.events::add));
+			var protoDisc = new ProtoplanetaryDisc(ctx);
 
 			protoDisc.collapseDisc(this.node);
 		} catch (Throwable throwable) {
@@ -355,9 +356,9 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 
 	private void addPlanetesimalLines(BiConsumer<String, String> consumer) {
 		if (this.planetesimalInfos == null)
-		return;
-		
-		consumer.accept("star", String.format("%.2f M☉",this.node.massYg / Units.Yg_PER_Msol));
+			return;
+
+		consumer.accept("star", String.format("%.2f M☉", this.node.massYg / Units.Yg_PER_Msol));
 
 		var stream = this.planetesimalInfos.int2ObjectEntrySet().stream()
 				.sorted(Comparator.comparingInt(entry -> entry.getIntKey()));

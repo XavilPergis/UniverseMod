@@ -343,7 +343,7 @@ public class SkyRenderer {
 		this.skyTarget.clear(false);
 		this.skyTarget.bindWrite(false);
 
-		// drawStars(RenderSystem.getModelViewMatrix(), proj);
+		drawStars(RenderSystem.getModelViewMatrix(), proj);
 		drawSystem(celestialCamera, currentId, time, partialTick);
 
 		this.client.getMainRenderTarget().bindWrite(false);

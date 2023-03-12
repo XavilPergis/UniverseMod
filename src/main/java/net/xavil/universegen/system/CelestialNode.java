@@ -25,7 +25,7 @@ public abstract sealed class CelestialNode permits
 
 	protected int id = UNASSINED_ID;
 	protected @Nullable BinaryCelestialNode parentBinaryNode = null;
-	protected @Nullable CelestialNode parentUnaryNode = null;
+	protected @Nullable CelestialNodeChild<?> parentUnaryNode = null;
 	protected final List<CelestialNodeChild<?>> childNodes = new ArrayList<>();
 
 	public Vec3 position = Vec3.ZERO;
@@ -129,6 +129,20 @@ public abstract sealed class CelestialNode permits
 		this.childNodes.forEach(child -> child.node.visit(consumer));
 	}
 
+	/**
+	 * Visit each direct descendant, instead of recursively visiting like
+	 * {@link #visit(Consumer)} does.
+	 * 
+	 * @param consumer The consumer that accepts each node.
+	 */
+	public void visitDirectDescendants(Consumer<CelestialNode> consumer) {
+		if (this instanceof BinaryCelestialNode binaryNode) {
+			consumer.accept(binaryNode.getA());
+			consumer.accept(binaryNode.getB());
+		}
+		this.childNodes.forEach(child -> consumer.accept(child.node));
+	}
+
 	public List<CelestialNode> selfAndChildren() {
 		var nodes = new ArrayList<CelestialNode>();
 		visit(nodes::add);
@@ -174,6 +188,10 @@ public abstract sealed class CelestialNode permits
 	}
 
 	public CelestialNode getUnaryParent() {
+		return this.parentUnaryNode == null ? null : this.parentUnaryNode.parentNode;
+	}
+
+	public CelestialNodeChild<?> getOrbitInfo() {
 		return this.parentUnaryNode;
 	}
 
@@ -199,8 +217,9 @@ public abstract sealed class CelestialNode permits
 	 * @param child The child to insert.
 	 */
 	public void insertChild(CelestialNodeChild<?> child) {
+		Assert.isReferentiallyEqual(this, child.parentNode);
 		this.childNodes.add(child);
-		child.node.parentUnaryNode = this;
+		child.node.parentUnaryNode = child;
 	}
 
 	/**

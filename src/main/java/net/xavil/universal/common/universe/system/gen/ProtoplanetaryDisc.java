@@ -11,19 +11,40 @@ import net.xavil.util.Units;
 import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalShape;
 
+// TODO: this simulation is okay enough, but the algorithm is from the 80's and doesnt include more recent developments in astrophysics and whatnot.
+//
+// some results that i would like to be able to see:
+// - moonmoons
+// - binary orbits
+//
+// some things i think the algorithm lacks:
+// - disc dissipation from stellar winds is missing
+//     - this might be modelled by the dust density function in some way, but its invariant to time, soooooo...
+// - does not take local metallicity or available mass into account
+// - cannot generate asteroid belts
+// - assumes a single-star system layout
+// - does not track inclination of planetesimals' orbits
+// - can sometimes generate stars that are larger than the primary star
+//
+// some ideas for improvment:
+// - weight moon orbits closer to their barent object, so it looks bigger and prettier in the sky
+// - allow moon-moon captures under certain circumstances
 public class ProtoplanetaryDisc {
 	public final AccreteContext ctx;
 	public final List<Planetesimal> planetesimals = new ArrayList<>();
 	public final DustBands dustBands;
 	public final Interval planetesimalBounds;
 
-	public ProtoplanetaryDisc(AccreteContext ctx, double protoMass) {
+	public ProtoplanetaryDisc(AccreteContext ctx) {
 		this.ctx = ctx;
 		this.planetesimalBounds = planetesimalBounds(ctx);
 		this.dustBands = initialDustBand(ctx);
 	}
 
 	public void collapseDisc(CelestialNode rootNode) {
+		if (this.planetesimalBounds.equals(Interval.ZERO))
+			return;
+
 		// Distribute planetary masses
 
 		ctx.debugConsumer.accept(new AccreteDebugEvent.Initialize(new Interval(0, 200 * Math.cbrt(ctx.stellarMassMsol)),
@@ -69,8 +90,9 @@ public class ProtoplanetaryDisc {
 		for (var planet : this.planetesimals) {
 			planet.convertToPlanetNode(rootNode);
 			// var desc = planet.canSweepGas() ? "GAS GIANT" : "PLANET";
-			// Mod.LOGGER.info("[{}] ({}) mass={} radius={} ({} moons)", desc, planet.getId(), planet.getMass(), planet.getRadius(),
-			// 		Lists.newArrayList(planet.getMoons()).size());
+			// Mod.LOGGER.info("[{}] ({}) mass={} radius={} ({} moons)", desc,
+			// planet.getId(), planet.getMass(), planet.getRadius(),
+			// Lists.newArrayList(planet.getMoons()).size());
 		}
 
 		// Post Accretion
@@ -182,7 +204,8 @@ public class ProtoplanetaryDisc {
 	private static Interval planetesimalBounds(AccreteContext ctx) {
 		var inner = 0.3 * Math.cbrt(ctx.stellarMassMsol);
 		var outer = 50 * Math.cbrt(ctx.stellarMassMsol);
-		return new Interval(inner, outer);
+		var idealInterval = new Interval(inner, outer);
+		return idealInterval.intersection(ctx.stableOrbitInterval);
 	}
 
 	private static DustBands initialDustBand(AccreteContext ctx) {

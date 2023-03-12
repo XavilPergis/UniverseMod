@@ -1,4 +1,54 @@
+# Ideas
+
+- Chemical drives should have some good stuff going for them, so that they can always remain competitive with more advanced options like ion and EM drives
+- Warp drives completely outclass subluminal options, but have a minimum drive engagement, so that subluminal drives never become irrelevant
+	- subluminal warp drives cannot be used outside of supercruise
+- intergalactic warp drives outclass interstellar warp drives, but have a minimum jump distance that requires interstallar drives
+	- maybe like 1kly minimum jump distance
+	- maybe intergalactic drives interact with interstellar drives and and provide fuel cost discounts for longer-range jumps
+
+- interstellar infrastructure that drastically reduces fuel consumption, and allows subluminal ships to travel between star systems
+	- sorta like the hyperlanes in cowboy bebop
+	- good for automated logistics ships or something
+
+- normal space
+	- Pressurized Gas Nozzle
+	- is there any use for this?
+- intrastellar
+	- local (planet-moon systems)
+		- Chemical Drive
+	- global (entire star system)
+		- Ion Drive
+		- Electromagnetic Drive
+		- Warp Drive
+- interstellar
+	- Interstellar Warp Drive MkI
+		- 0.25-5 ly range
+	- Interstellar Warp Drive MkII
+		- 0.75-50 ly range
+	- Interstellar Warp Drive MkIII
+		- 1-1000 ly range
+- intergalactic
+	- Intergalactic Warp Drive
+		- 1k-10M ly range
+
+- Moons of starter planet
+	- no superluminal options
+	- basic chemical drives
+- Entire star system
+	- both subluminal and superluminal options
+	- ion drives (subluminal)
+		- entry-level ion drives are worse than top-level chemical drives
+	- EM drives (subluminal, needs advaned physics-breaking materials)
+	- low-power warp drives
+- Interstellar travel
+	- superluminal-only from here on out
+	- A few tiers with varying jump ranges from a few ly to a few thousand ly
+- Intergalactic travel
+	- Endgame, only one tier available
+
 # Short-ish term
+
 
 ## Rendering
 - Figure out how to properly size celestial body billboards/cubes/spheres/whatever

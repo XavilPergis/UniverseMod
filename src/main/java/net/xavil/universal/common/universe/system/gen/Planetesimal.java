@@ -3,6 +3,7 @@ package net.xavil.universal.common.universe.system.gen;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
@@ -195,8 +196,10 @@ public class Planetesimal {
 		var type = canSweepGas() ? PlanetaryCelestialNode.Type.GAS_GIANT : PlanetaryCelestialNode.Type.ROCKY_WORLD;
 		var radiusRearth = this.getRadius() * Units.KILO / Units.m_PER_Rearth;
 		var node = new PlanetaryCelestialNode(type, this.mass * Units.Yg_PER_Msol, radiusRearth, 300);
+		node.rotationalPeriod = Mth.lerp(this.ctx.rng.uniformDouble(), 0.2 * 86400, 4 * 86400);
 		var shape = new OrbitalShape(this.orbitalShape.eccentricity(), this.orbitalShape.semiMajor() * Units.Tm_PER_au);
-		var orbit = new CelestialNodeChild<>(parent, node, shape, OrbitalPlane.ZERO, 0);
+		var plane = OrbitalPlane.fromOrbitalElements(0, this.ctx.rng.uniformDouble(0, 2.0 * Math.PI), this.ctx.rng.uniformDouble(0, 2.0 * Math.PI));
+		var orbit = new CelestialNodeChild<>(parent, node, shape, plane, this.ctx.rng.uniformDouble(0, 2.0 * Math.PI));
 		parent.insertChild(orbit);
 
 		for (var moon : this.moons) {

@@ -27,6 +27,7 @@ public abstract sealed class CelestialNode permits
 	protected @Nullable BinaryCelestialNode parentBinaryNode = null;
 	protected @Nullable CelestialNodeChild<?> parentUnaryNode = null;
 	protected final List<CelestialNodeChild<?>> childNodes = new ArrayList<>();
+	protected final List<CelestialRing> rings = new ArrayList<>();
 
 	public Vec3 position = Vec3.ZERO;
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
@@ -197,6 +198,14 @@ public abstract sealed class CelestialNode permits
 
 	public Iterable<CelestialNodeChild<?>> childOrbits() {
 		return this.childNodes;
+	}
+
+	public void addRing(CelestialRing newRing) {
+		this.rings.add(newRing);
+	}
+
+	public Iterable<CelestialRing> rings() {
+		return this.rings;
 	}
 
 	/**

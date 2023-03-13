@@ -1,5 +1,6 @@
 package net.xavil.universal.common.universe.system.gen;
 
+import java.util.Set;
 import java.util.function.BiConsumer;
 
 import net.xavil.util.Units;
@@ -67,32 +68,32 @@ public abstract sealed class AccreteDebugEvent {
 		}
 	}
 
-	public static final class AddPlanetesimal extends AccreteDebugEvent {
+	public static final class PlanetesimalCreated extends AccreteDebugEvent {
 		public final int id;
 		public final double mass;
 		public final double radius;
 		public final double distance;
-		public final Interval sweepInterval;
+		public final Interval effectInterval;
 
-		public AddPlanetesimal(int id, double mass, double radius, double distance, Interval sweepInterval) {
+		public PlanetesimalCreated(int id, double mass, double radius, double distance, Interval effectInterval) {
 			this.id = id;
 			this.mass = mass;
 			this.radius = radius;
 			this.distance = distance;
-			this.sweepInterval = sweepInterval;
+			this.effectInterval = effectInterval;
 		}
 
-		public AddPlanetesimal(AccreteContext ctx, Planetesimal planetesimal) {
+		public PlanetesimalCreated(AccreteContext ctx, Planetesimal planetesimal) {
 			this.id = planetesimal.getId();
 			this.mass = planetesimal.getMass();
 			this.radius = planetesimal.getRadius();
 			this.distance = planetesimal.distanceToStar();
-			this.sweepInterval = planetesimal.effectLimits();
+			this.effectInterval = planetesimal.effectLimits();
 		}
 
 		@Override
 		public String kind() {
-			return "ADD";
+			return "CREATE";
 		}
 
 		@Override
@@ -104,31 +105,31 @@ public abstract sealed class AccreteDebugEvent {
 			consumer.accept("radius", String.format("%.2f km", radius));
 			consumer.accept("distance", String.format("%.2f au", distance));
 			consumer.accept("swept interval",
-					String.format("%.2f au to %.2f au", sweepInterval.lower(), sweepInterval.higher()));
+					String.format("%.2f au to %.2f au", effectInterval.lower(), effectInterval.higher()));
 		}
 	}
 
-	public static final class UpdatePlanetesimal extends AccreteDebugEvent {
+	public static final class PlanetesimalUpdated extends AccreteDebugEvent {
 		public final int id;
 		public final double mass;
 		public final double radius;
 		public final double distance;
-		public final Interval sweepInterval;
+		public final Interval effectInterval;
 
-		public UpdatePlanetesimal(int id, double mass, double radius, double distance, Interval sweepInterval) {
+		public PlanetesimalUpdated(int id, double mass, double radius, double distance, Interval effectInterval) {
 			this.id = id;
 			this.mass = mass;
 			this.radius = radius;
 			this.distance = distance;
-			this.sweepInterval = sweepInterval;
+			this.effectInterval = effectInterval;
 		}
 
-		public UpdatePlanetesimal(Planetesimal planetesimal) {
+		public PlanetesimalUpdated(Planetesimal planetesimal) {
 			this.id = planetesimal.getId();
 			this.mass = planetesimal.getMass();
 			this.radius = planetesimal.getRadius();
 			this.distance = planetesimal.distanceToStar();
-			this.sweepInterval = planetesimal.effectLimits();
+			this.effectInterval = planetesimal.effectLimits();
 		}
 
 		@Override
@@ -145,67 +146,70 @@ public abstract sealed class AccreteDebugEvent {
 			consumer.accept("radius", String.format("%.2f km", radius));
 			consumer.accept("distance", String.format("%.2f au", distance));
 			consumer.accept("swept interval",
-					String.format("%.2f au to %.2f au", sweepInterval.lower(), sweepInterval.higher()));
+					String.format("%.2f au to %.2f au", effectInterval.lower(), effectInterval.higher()));
 		}
 	}
 
-	public static final class CaptureMoon extends AccreteDebugEvent {
-		public final int parentId;
-		public final int moonId;
+	// public static final class PlanetesimalCollision extends AccreteDebugEvent {
+	// 	public final int parentId;
+	// 	public final int collidedId;
 
-		public CaptureMoon(int parentId, int moonId) {
-			this.parentId = parentId;
-			this.moonId = moonId;
+	// 	public PlanetesimalCollision(int parentId, int collidedId) {
+	// 		this.parentId = parentId;
+	// 		this.collidedId = collidedId;
+	// 	}
+
+	// 	public PlanetesimalCollision(Planetesimal parent, Planetesimal child) {
+	// 		this.parentId = parent.getId();
+	// 		this.collidedId = child.getId();
+	// 	}
+
+	// 	@Override
+	// 	public String kind() {
+	// 		return "COLLIDE";
+	// 	}
+
+	// 	@Override
+	// 	public void addInfoLines(BiConsumer<String, String> consumer) {
+	// 		consumer.accept("parent", "" + parentId);
+	// 		consumer.accept("collided", "" + collidedId);
+	// 	}
+	// }
+
+	public static final class RingAdded extends AccreteDebugEvent {
+		public final int id;
+		public final Planetesimal.Ring ring;
+
+		public RingAdded(int id, Planetesimal.Ring ring) {
+			this.id = id;
+			this.ring = ring;
 		}
 
-		public CaptureMoon(Planetesimal parent, Planetesimal child) {
-			this.parentId = parent.getId();
-			this.moonId = child.getId();
+		public RingAdded(Planetesimal parent, Planetesimal.Ring ring) {
+			this.id = parent.getId();
+			this.ring = ring;
 		}
 
 		@Override
 		public String kind() {
-			return "CAPTURE";
+			return "RING";
 		}
 
 		@Override
 		public void addInfoLines(BiConsumer<String, String> consumer) {
-			consumer.accept("parent", "" + parentId);
-			consumer.accept("moon", "" + moonId);
+			consumer.accept("moon", "" + id);
 		}
 	}
 
-	public static final class PlanetesimalCollision extends AccreteDebugEvent {
-		public final int parentId;
-		public final int collidedId;
-
-		public PlanetesimalCollision(int parentId, int collidedId) {
-			this.parentId = parentId;
-			this.collidedId = collidedId;
-		}
-
-		public PlanetesimalCollision(Planetesimal parent, Planetesimal child) {
-			this.parentId = parent.getId();
-			this.collidedId = child.getId();
-		}
-
-		@Override
-		public String kind() {
-			return "COLLIDE";
-		}
-
-		@Override
-		public void addInfoLines(BiConsumer<String, String> consumer) {
-			consumer.accept("parent", "" + parentId);
-			consumer.accept("collided", "" + collidedId);
-		}
-	}
-
-	public static final class RemovePlanetesimal extends AccreteDebugEvent {
+	public static final class PlanetesimalRemoved extends AccreteDebugEvent {
 		public final int id;
 
-		public RemovePlanetesimal(int id) {
+		public PlanetesimalRemoved(int id) {
 			this.id = id;
+		}
+
+		public PlanetesimalRemoved(Planetesimal planetesimal) {
+			this.id = planetesimal.getId();
 		}
 
 		@Override
@@ -240,6 +244,26 @@ public abstract sealed class AccreteDebugEvent {
 			consumer.accept("swept dust", "" + sweptDust);
 			consumer.accept("swept interval",
 					String.format("%.2f au to %.2f au", sweepInterval.lower(), sweepInterval.higher()));
+		}
+	}
+
+	public static final class UpdateOrbits extends AccreteDebugEvent {
+		public final int parentId;
+		public final Set<Integer> added, removed;
+
+		public UpdateOrbits(int parentId, Set<Integer> added, Set<Integer> removed) {
+			this.parentId = parentId;
+			this.added = added;
+			this.removed = removed;
+		}
+
+		@Override
+		public String kind() {
+			return "ORBITS";
+		}
+
+		@Override
+		public void addInfoLines(BiConsumer<String, String> consumer) {
 		}
 	}
 

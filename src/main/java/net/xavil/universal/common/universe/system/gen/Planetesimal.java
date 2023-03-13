@@ -2,12 +2,18 @@ package net.xavil.universal.common.universe.system.gen;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
+import java.util.function.BiConsumer;
+import java.util.stream.Collectors;
+
+import com.google.common.collect.Sets;
 
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.util.Assert;
 import net.xavil.util.Units;
 import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalPlane;
@@ -21,6 +27,10 @@ public class Planetesimal {
 	private OrbitalShape orbitalShape;
 	private Planetesimal moonOf = null;
 	private final List<Planetesimal> moons = new ArrayList<>();
+	private final List<Ring> rings = new ArrayList<>();
+
+	public record Ring(Interval interval, double mass, double eccentricity) {
+	}
 
 	private Planetesimal(AccreteContext ctx) {
 		this.ctx = ctx;
@@ -32,6 +42,7 @@ public class Planetesimal {
 		this.id = ctx.nextPlanetesimalId++;
 		// var semiMajor = ctx.rng.uniformDouble(bounds.lower(), bounds.higher());
 		var eccentricity = randomEccentricity(ctx);
+		Assert.isTrue(eccentricity >= 0 && eccentricity <= 1);
 		this.orbitalShape = new OrbitalShape(eccentricity, semiMajor);
 		this.mass = ctx.params.initialPlanetesimalMass;
 	}
@@ -50,7 +61,7 @@ public class Planetesimal {
 	}
 
 	private void emitUpdateEvent() {
-		this.ctx.debugConsumer.accept(new AccreteDebugEvent.UpdatePlanetesimal(this));
+		this.ctx.debugConsumer.accept(new AccreteDebugEvent.PlanetesimalUpdated(this));
 	}
 
 	public int getId() {
@@ -76,6 +87,7 @@ public class Planetesimal {
 
 	public void setOrbitalShape(OrbitalShape newOrbitalShape) {
 		this.orbitalShape = newOrbitalShape;
+		Assert.isTrue(newOrbitalShape.eccentricity() >= 0 && newOrbitalShape.eccentricity() <= 1);
 		emitUpdateEvent();
 	}
 
@@ -86,7 +98,42 @@ public class Planetesimal {
 	public void addMoon(Planetesimal newMoon) {
 		this.moons.add(newMoon);
 		newMoon.moonOf = this;
-		this.ctx.debugConsumer.accept(new AccreteDebugEvent.CaptureMoon(this, newMoon));
+		// this.ctx.debugConsumer.accept(new AccreteDebugEvent.OrbitalParentChanged(this, newMoon));
+	}
+
+	public void clearMoons() {
+		this.moons.clear();
+	}
+
+	public void transformMoons(BiConsumer<List<Planetesimal>, List<Planetesimal>> consumer) {
+		var prev = List.copyOf(this.moons);
+		this.moons.clear();
+		consumer.accept(prev, this.moons);
+
+		for (var moon : this.moons) {
+			moon.moonOf = this;
+		}
+
+		if (this.ctx.debugConsumer.shouldEmitEvents()) {
+			var prevSet = prev.stream().map(p -> p.id).collect(Collectors.toSet());
+			var curSet = this.moons.stream().map(p -> p.id).collect(Collectors.toSet());
+			var added = Sets.difference(curSet, prevSet);
+			var removed = Sets.difference(prevSet, curSet);
+			if (!added.isEmpty() || !removed.isEmpty()) {
+				this.ctx.debugConsumer.accept(new AccreteDebugEvent.UpdateOrbits(this.id, added, removed));
+			}
+		}
+	}
+
+	public Iterable<Ring> getRings() {
+		return this.rings;
+	}
+
+	public void addRing(Ring newRing) {
+		this.rings.add(newRing);
+		if (this.ctx.debugConsumer.shouldEmitEvents()) {
+			this.ctx.debugConsumer.accept(new AccreteDebugEvent.RingAdded(this, newRing));
+		}
 	}
 
 	public static OrbitalShape calculateCombinedOrbitalShape(Planetesimal a, Planetesimal b) {
@@ -97,6 +144,9 @@ public class Planetesimal {
 		var tb = b.mass * Math.sqrt(b.orbitalShape.semiMajor() * (1 - Math.pow(b.orbitalShape.eccentricity(), 2)));
 		var tCombined = (ta + tb) / (combinedMass * Math.sqrt(newSemiMajor));
 		var newEccentricity = Math.sqrt(Math.abs(1 - (tCombined * tCombined)));
+		newEccentricity = Mth.clamp(newEccentricity, 0, 0.8);
+		Assert.isTrue(!Double.isNaN(newEccentricity));
+		Assert.isTrue(newEccentricity >= 0 && newEccentricity <= 1);
 		return new OrbitalShape(newEccentricity, newSemiMajor);
 	}
 
@@ -198,7 +248,8 @@ public class Planetesimal {
 		var node = new PlanetaryCelestialNode(type, this.mass * Units.Yg_PER_Msol, radiusRearth, 300);
 		node.rotationalPeriod = Mth.lerp(this.ctx.rng.uniformDouble(), 0.2 * 86400, 4 * 86400);
 		var shape = new OrbitalShape(this.orbitalShape.eccentricity(), this.orbitalShape.semiMajor() * Units.Tm_PER_au);
-		var plane = OrbitalPlane.fromOrbitalElements(0, this.ctx.rng.uniformDouble(0, 2.0 * Math.PI), this.ctx.rng.uniformDouble(0, 2.0 * Math.PI));
+		var plane = OrbitalPlane.fromOrbitalElements(0, this.ctx.rng.uniformDouble(0, 2.0 * Math.PI),
+				this.ctx.rng.uniformDouble(0, 2.0 * Math.PI));
 		var orbit = new CelestialNodeChild<>(parent, node, shape, plane, this.ctx.rng.uniformDouble(0, 2.0 * Math.PI));
 		parent.insertChild(orbit);
 
@@ -233,6 +284,13 @@ public class Planetesimal {
 			emitUpdateEvent();
 		}
 
+	}
+
+	public Ring asRing() {
+		final var radiusAu = this.getRadius() / Units.km_PER_au;
+		final var ringInner = this.orbitalShape.semiMajor() - radiusAu;
+		final var ringOuter = this.orbitalShape.semiMajor() + radiusAu;
+		return new Ring(new Interval(ringInner, ringOuter), mass, this.orbitalShape.eccentricity());
 	}
 
 }

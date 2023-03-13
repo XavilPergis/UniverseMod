@@ -330,7 +330,7 @@ public class SystemMapScreen extends UniversalScreen {
 		var segmentLength = endpointL.distanceTo(endpointH);
 
 		var maxDistance = 10 * camera.scale;
-		var divisionFactor = 10;
+		var divisionFactor = 30;
 
 		// var midpointAngle = (endpointAngleL + endpointAngleL) / 2;
 		// var midpointIdeal = ellipse.pointFromTrueAnomaly(midpointAngle);
@@ -342,6 +342,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 		var isSegmentVisible = !fadeOut || midpointSegment.distanceTo(camera.pos) < segmentLength / 2 + maxDistance;
 		var insideDivisionRadius = camera.pos.distanceTo(midpointSegment) < divisionFactor * segmentLength;
+		// var insideDivisionRadius = camera.pos.distanceTo(midpointSegment) < divisionFactor * totalMidpointError;
 		if (maxDepth > 0 && isSegmentVisible && insideDivisionRadius) {
 			for (var i = 0; i < subdivisionSegments; ++i) {
 				var percentL = i / (double) subdivisionSegments;

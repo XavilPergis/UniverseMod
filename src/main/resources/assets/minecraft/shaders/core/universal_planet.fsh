@@ -54,7 +54,7 @@ vec3 contribution(vec4 color, vec4 pos) {
 
 		float distanceMeters = distance(vertexPos.xyz, p0) * MetersPerUnit;
 		float d2 = 1.0 / pow(distanceMeters / 1e14, 2.0);
-		float light = color.a * d2;
+		float light = min(10.0, color.a * d2);
 
 		return color.rgb * light * saturate(dot(normal.xyz, d0));
 	}

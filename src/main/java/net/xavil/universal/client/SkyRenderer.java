@@ -349,6 +349,7 @@ public class SkyRenderer {
 		drawStars(RenderSystem.getModelViewMatrix(), proj);
 		drawSystem(celestialCamera, currentId, time, partialTick);
 
+		// this.client.getMainRenderTarget().clear(false);
 		this.client.getMainRenderTarget().bindWrite(false);
 		RenderSystem.enableBlend();
 		// RenderSystem.depthMask(false);

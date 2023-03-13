@@ -178,7 +178,7 @@ public final class PlanetRenderingContext {
 			Color tintColor) {
 
 		poseStack.pushPose();
-		var rotationalSpeed = 200 * Math.PI / node.rotationalPeriod;
+		var rotationalSpeed = 20000 * Math.PI / node.rotationalPeriod;
 		poseStack.mulPose(Vector3f.YP.rotationDegrees((float) (rotationalSpeed * this.celestialTime)));
 
 		var radiusM = 2 * Units.m_PER_Rearth * node.radiusRearth;
@@ -431,8 +431,7 @@ public final class PlanetRenderingContext {
 	}
 
 	private static void normSphereVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose,
-			Vec3 center,
-			Color color, double radius, double x, double y, double z, float u, float v) {
+			Vec3 center, Color color, double radius, double x, double y, double z, float u, float v) {
 		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
 		var pos = Vec3.from(x, y, z);
 		var n = pos.normalize().transformBy(pose);

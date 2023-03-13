@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
-import java.util.function.BiConsumer;
 import java.util.function.BiPredicate;
 import java.util.function.Consumer;
 
@@ -21,6 +20,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import it.unimi.dsi.fastutil.ints.Int2ObjectMap;
 import it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap;
 import it.unimi.dsi.fastutil.ints.IntArrayList;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
@@ -33,6 +33,7 @@ import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.system.gen.AccreteContext;
 import net.xavil.universal.common.universe.system.gen.AccreteDebugEvent;
 import net.xavil.universal.common.universe.system.gen.DustBands;
+import net.xavil.universal.common.universe.system.gen.Planetesimal;
 import net.xavil.universal.common.universe.system.gen.ProtoplanetaryDisc;
 import net.xavil.universal.common.universe.system.gen.SimulationParameters;
 import net.xavil.universegen.system.StellarCelestialNode;
@@ -48,7 +49,33 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 	private final List<AccreteDebugEvent> events = new ArrayList<>();
 	private int currentEvent = -1;
 
-	record PlanetesimalInfo(double distance, double mass, double radius, Interval sweepLimit) {
+	static class PlanetesimalInfo {
+		public int parent = -2;
+		public double distance;
+		public double mass;
+		public double radius;
+		public Interval effectInterval;
+		public List<Planetesimal.Ring> rings = new ArrayList<>();
+
+		public static PlanetesimalInfo create(AccreteDebugEvent.PlanetesimalCreated event) {
+			return create(event.distance, event.mass, event.radius, event.effectInterval);
+		}
+
+		public void update(AccreteDebugEvent.PlanetesimalUpdated event) {
+			this.distance = event.distance;
+			this.mass = event.mass;
+			this.radius = event.radius;
+			this.effectInterval = event.effectInterval;
+		}
+
+		public static PlanetesimalInfo create(double distance, double mass, double radius, Interval effectInterval) {
+			final var info = new PlanetesimalInfo();
+			info.distance = distance;
+			info.mass = mass;
+			info.radius = radius;
+			info.effectInterval = effectInterval;
+			return info;
+		}
 	}
 
 	private DustBands currentDustBands;
@@ -112,23 +139,50 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 
 		for (var i = 1; i < this.currentEvent; ++i) {
 			var eventUntyped = this.events.get(i);
-			if (eventUntyped instanceof AccreteDebugEvent.AddPlanetesimal event) {
-				this.planetesimalInfos.put(event.id,
-						new PlanetesimalInfo(event.distance, event.mass, event.radius, event.sweepInterval));
-			} else if (eventUntyped instanceof AccreteDebugEvent.UpdatePlanetesimal event) {
-				if (this.planetesimalInfos.containsKey(event.id))
-					this.planetesimalInfos.put(event.id,
-							new PlanetesimalInfo(event.distance, event.mass, event.radius, event.sweepInterval));
-			} else if (eventUntyped instanceof AccreteDebugEvent.CaptureMoon event) {
-				this.planetesimalInfos.remove(event.moonId);
-			} else if (eventUntyped instanceof AccreteDebugEvent.PlanetesimalCollision event) {
-				this.planetesimalInfos.remove(event.collidedId);
-			} else if (eventUntyped instanceof AccreteDebugEvent.RemovePlanetesimal event) {
+			if (eventUntyped instanceof AccreteDebugEvent.PlanetesimalCreated event) {
+				this.planetesimalInfos.put(event.id, PlanetesimalInfo.create(event));
+			} else if (eventUntyped instanceof AccreteDebugEvent.PlanetesimalUpdated event) {
+				if (this.planetesimalInfos.containsKey(event.id)) {
+					var info = this.planetesimalInfos.get(event.id);
+					info.update(event);
+				}
+			} else if (eventUntyped instanceof AccreteDebugEvent.RingAdded event) {
+				if (this.planetesimalInfos.containsKey(event.id)) {
+					var info = this.planetesimalInfos.get(event.id);
+					info.rings.add(event.ring);
+				}
+			} else if (eventUntyped instanceof AccreteDebugEvent.PlanetesimalRemoved event) {
 				this.planetesimalInfos.remove(event.id);
 			} else if (eventUntyped instanceof AccreteDebugEvent.Sweep event) {
 				this.currentDustBands.removeMaterial(event.sweepInterval, event.sweptGas, event.sweptDust);
+			} else if (eventUntyped instanceof AccreteDebugEvent.UpdateOrbits event) {
+				for (var addedId : event.added) {
+					if (this.planetesimalInfos.containsKey(addedId.intValue())) {
+						var info = this.planetesimalInfos.get(addedId.intValue());
+						info.parent = event.parentId;
+					}	
+				}
+				for (var removedId : event.removed) {
+					if (this.planetesimalInfos.containsKey(removedId.intValue())) {
+						var info = this.planetesimalInfos.get(removedId.intValue());
+						if (event.parentId == info.parent)
+							info.parent = -2;
+					}	
+				}
 			}
 		}
+
+		var toRemove = new IntOpenHashSet();
+		for (var info : this.planetesimalInfos.int2ObjectEntrySet()) {
+			if (info.getValue().parent == -2) {
+				toRemove.add(info.getIntKey());
+			}
+		}
+		for (var id : toRemove) {
+			this.planetesimalInfos.remove(id.intValue());
+		}
+		// var toRemove = new IntHashSet();
+		// this.planetesimalInfos.removeIf(info -> info.parent == -2);
 	}
 
 	private void seek(boolean forwards, BiPredicate<Integer, AccreteDebugEvent> stopPredicate) {
@@ -160,7 +214,7 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 		if (control && shift) {
 			seek(forwards, (id, event) -> true);
 		} else if (control) {
-			seek(forwards, (id, event) -> event instanceof AccreteDebugEvent.AddPlanetesimal);
+			seek(forwards, (id, event) -> event instanceof AccreteDebugEvent.PlanetesimalCreated);
 		} else if (shift) {
 			seek(forwards, (id, event) -> !isEventVerbose(event));
 		} else {
@@ -172,22 +226,21 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 	}
 
 	private boolean isEventVerbose(AccreteDebugEvent event) {
-		return event instanceof AccreteDebugEvent.UpdatePlanetesimal;
+		return event instanceof AccreteDebugEvent.PlanetesimalUpdated;
 	}
 
 	private boolean isEventSignificant(AccreteDebugEvent event) {
 		return event instanceof AccreteDebugEvent.Initialize
-				|| event instanceof AccreteDebugEvent.AddPlanetesimal
-				|| event instanceof AccreteDebugEvent.CaptureMoon
-				|| event instanceof AccreteDebugEvent.PlanetesimalCollision
-				|| event instanceof AccreteDebugEvent.RemovePlanetesimal;
+				|| event instanceof AccreteDebugEvent.PlanetesimalCreated
+				|| event instanceof AccreteDebugEvent.UpdateOrbits
+				|| event instanceof AccreteDebugEvent.PlanetesimalRemoved;
 	}
 
 	private void generateSystem() {
 		this.events.clear();
 		try {
 			var rng = Rng.wrap(new Random());
-			var starMass = rng.uniformDouble(Units.fromMsol(0.1), Units.fromMsol(100));
+			var starMass = rng.uniformDouble(Units.fromMsol(0.8), Units.fromMsol(1));
 			this.node = StellarCelestialNode.fromMassAndAge(rng, starMass, 4600);
 			var params = new SimulationParameters();
 			var ctx = new AccreteContext(params, rng, this.node.luminosityLsol,
@@ -285,8 +338,10 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 		}
 
 		for (var entry : this.planetesimalInfos.int2ObjectEntrySet()) {
-			addCircle(camera, consumer, entry.getValue().distance, Color.WHITE);
-			addCircleInterval(camera, consumer, entry.getValue().sweepLimit, Color.GREEN, 0.1);
+			if (entry.getValue().parent == -1) {
+				addCircle(camera, consumer, entry.getValue().distance, Color.WHITE);
+				addCircleInterval(camera, consumer, entry.getValue().effectInterval, Color.GREEN, 0.1);
+			}
 		}
 
 		if (this.currentEvent != -1 && this.currentEvent < this.events.size()) {
@@ -296,25 +351,25 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 
 			var currentEvent = this.events.get(this.currentEvent);
 			if (currentEvent instanceof AccreteDebugEvent.Initialize event) {
-			} else if (currentEvent instanceof AccreteDebugEvent.AddPlanetesimal event) {
+			} else if (currentEvent instanceof AccreteDebugEvent.PlanetesimalCreated event) {
 				addCircle(camera, consumer, event.distance, Color.MAGENTA);
-				addCircleInterval(camera, consumer, event.sweepInterval, Color.MAGENTA, 0.2);
+				addCircleInterval(camera, consumer, event.effectInterval, Color.MAGENTA, 0.2);
 			} else if (currentEvent instanceof AccreteDebugEvent.Sweep event) {
 				addCircleInterval(camera, consumer, event.sweepInterval, Color.MAGENTA, 0.2);
-			} else if (currentEvent instanceof AccreteDebugEvent.CaptureMoon event) {
-				var parent = this.planetesimalInfos.get(event.parentId);
-				var moon = this.planetesimalInfos.get(event.moonId);
-				if (parent != null)
-					addCircle(camera, consumer, parent.distance, Color.MAGENTA);
-				if (moon != null)
-					addCircle(camera, consumer, moon.distance, Color.CYAN);
-			} else if (currentEvent instanceof AccreteDebugEvent.PlanetesimalCollision event) {
-				var parent = this.planetesimalInfos.get(event.parentId);
-				var collided = this.planetesimalInfos.get(event.collidedId);
-				if (parent != null)
-					addCircle(camera, consumer, parent.distance, Color.MAGENTA);
-				if (collided != null)
-					addCircle(camera, consumer, collided.distance, Color.CYAN);
+			// } else if (currentEvent instanceof AccreteDebugEvent.OrbitalParentChanged event) {
+			// 	var parent = this.planetesimalInfos.get(event.id);
+			// 	var moon = this.planetesimalInfos.get(event.moonId);
+			// 	if (parent != null)
+			// 		addCircle(camera, consumer, parent.distance, Color.MAGENTA);
+			// 	if (moon != null)
+			// 		addCircle(camera, consumer, moon.distance, Color.CYAN);
+			// } else if (currentEvent instanceof AccreteDebugEvent.PlanetesimalCollision event) {
+			// 	var parent = this.planetesimalInfos.get(event.id);
+			// 	var collided = this.planetesimalInfos.get(event.collidedId);
+			// 	if (parent != null)
+			// 		addCircle(camera, consumer, parent.distance, Color.MAGENTA);
+			// 	if (collided != null)
+			// 		addCircle(camera, consumer, collided.distance, Color.CYAN);
 			}
 		}
 
@@ -392,11 +447,12 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 					consumer.accept("-");
 				}
 				consumer.accept(String.format("%.0f", info.radius));
+				consumer.accept(String.format("%d", info.parent));
 			});
 		});
 
-
-		table.addRow("", "§2Distance §a§nau§r", "§2Mass §a§nM☉§r", "§2Mass §a§nM♃§r", "§2Mass §a§nMⴲ§r", "§2Radius §a§nkm§r");
+		table.addRow("", "§2Distance §a§nau§r", "§2Mass §a§nM☉§r", "§2Mass §a§nM♃§r", "§2Mass §a§nMⴲ§r",
+				"§2Radius §a§nkm§r");
 
 	}
 

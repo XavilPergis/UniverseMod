@@ -97,7 +97,7 @@ public class DustBands {
 		removeMaterial(interval, removeGas, true);
 	}
 
-	public void defragment() {
+	private void defragment() {
 		final var prevBands = new ArrayList<>(bands);
 		this.bands.clear();
 

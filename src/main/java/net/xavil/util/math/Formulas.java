@@ -11,9 +11,10 @@ public final class Formulas {
 	 *                  is the combined mass of each body.
 	 * @return (s) The orbital period.
 	 */
-	public static double orbitalPeriod(double semiMajor, double mu) {
+	public static double orbitalPeriod(double semiMajor, double mass) {
 		final var a = Units.TERA * semiMajor;
-		return 2 * Math.PI * Math.sqrt(a * a * a / (Units.GRAVITATIONAL_CONSTANT_m3_PER_kg_s2 * Units.YOTTA * mu));
+		final var mu = (Units.GRAVITATIONAL_CONSTANT_m3_PER_kg_s2 * (Units.YOTTA / Units.KILO) * mass);
+		return 2 * Math.PI * Math.sqrt(Math.pow(a, 3.0) / mu);
 	}
 
 	/**

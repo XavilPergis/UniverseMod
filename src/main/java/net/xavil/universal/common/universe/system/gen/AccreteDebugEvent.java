@@ -128,7 +128,7 @@ public abstract sealed class AccreteDebugEvent {
 			this.id = planetesimal.getId();
 			this.mass = planetesimal.getMass();
 			this.radius = planetesimal.getRadius();
-			this.distance = planetesimal.distanceToStar();
+			this.distance = planetesimal.getOrbitalShape().semiMajor();
 			this.effectInterval = planetesimal.effectLimits();
 		}
 
@@ -198,6 +198,9 @@ public abstract sealed class AccreteDebugEvent {
 		@Override
 		public void addInfoLines(BiConsumer<String, String> consumer) {
 			consumer.accept("moon", "" + id);
+			consumer.accept("ring start (au)", "" + ring.interval().lower());
+			consumer.accept("ring end (au)", "" + ring.interval().higher());
+			consumer.accept("ring eccentricity", "" + ring.eccentricity());
 		}
 	}
 

@@ -29,7 +29,9 @@ import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.Vec3;
@@ -63,51 +65,33 @@ public class SkyRenderer {
 		var df = forward.dot(Vec3.ZN);
 		var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
 		var right = v1.cross(forward);
-		// var rotation = random.nextDouble(0, Mth.TWO_PI);
 		var rotation = 0;
 		right = Quat.axisAngle(forward, rotation).transform(right);
 
 		var color = Color.WHITE;
 		if (node instanceof StellarCelestialNode starNode) {
 			color = starNode.getColor();
-			// s *= Math.log(starNode.luminosityLsol);
 		}
 
 		var distanceFromFocus = offset.length();
 		if (distanceFromFocus > 1.5 * Galaxy.TM_PER_SECTOR)
 			return;
-		// var alpha = 1 - Mth.clamp(distanceFromFocus / (1.5 * Galaxy.TM_PER_SECTOR),
-		// 0, 1);
-		// if (alpha <= 0.05)
-		// return;
 
-		double alpha = 1;
-		// double k = 1;
-
+		double alpha = 1.0;
 		if (node instanceof StellarCelestialNode starNode) {
-			// Mth.inverseLerp(starNode.luminosityLsol, 0, 30000)
-			var t = Math.pow(starNode.luminosityLsol, 0.5);
-			// var t = starNode.luminosityLsol;
+			double t = Math.pow(starNode.luminosityLsol, 0.75);
 
 			// how many Tm can a star with 1 Lsol of luminosity be seen from
-			final var referenceMaxVisibleDistance = 547229.011;
+			final double referenceMaxVisibleDistance = 547229.011;
 
-			var d = distanceFromFocus / referenceMaxVisibleDistance;
+			double d = distanceFromFocus / referenceMaxVisibleDistance;
 			alpha *= t / d;
-			// alpha /= 4;
-			// alpha *= (starNode.luminosityLsol * 20) / (distanceFromFocus /
-			// Galaxy.TM_PER_SECTOR);
-			alpha = Math.min(1, alpha);
-			// alpha = Math.max(0.1, alpha);
-
-			// k = Mth.lerp(alpha, 0.1, 1);
+			alpha = Math.min(1.0, alpha);
 		}
 
-		// difference of 1.0 in magnitude corresponds to a brightness ratio of 100 5
-		// {\displaystyle {\sqrt[{5}]{100}}}, or about 2.512. For example, a star of
-		// magnitude 2.0 is 2.512 times as bright as a star of magnitude 3.0, 6.31 times
-		// as bright as a star of magnitude 4.0, and 100 times as bright as one of
-		// magnitude 7.0.
+		alpha *= 1;
+		if (alpha < 1e-5)
+			return;
 
 		// because of imperfections in optics, light from a point-like source is spread
 		// out around the center point. because brighter stars emit so much more light,
@@ -115,13 +99,11 @@ public class SkyRenderer {
 		// appear larger. If you expose for brighter stars, you wont see dim stars, but
 		// the spread will be much less prominent and will look much smaller.
 
-		// VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 up,
-		// Vec3 right, Vec3 center, double scale, double zOffset, Color color
 		var up = forward.cross(right).neg();
 		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e9),
-				s * 1, 0, color.withA(alpha));
-		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e9),
-				s * 0.5 * 1, 0, Color.WHITE.withA(alpha));
+				s, 0, color.withA(alpha));
+		// RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e9),
+		// 		s * 0.5, 0, Color.WHITE.withA(alpha));
 
 	}
 
@@ -170,7 +152,7 @@ public class SkyRenderer {
 	private void drawStars(Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
 		// RenderSystem.disableCull();
 
-		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
 		RenderSystem.depthMask(false);
@@ -249,10 +231,6 @@ public class SkyRenderer {
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
 		system.rootNode.visit(node -> {
-
-			if (node.getId() == currentNodeId.nodeId())
-				return;
-
 			if (node instanceof StellarCelestialNode starNode) {
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -267,12 +245,12 @@ public class SkyRenderer {
 				RenderSystem.disableCull();
 				BufferUploader.end(builder);
 			} else {
-				ctx.render(builder, camera, node, new PoseStack(), Color.WHITE);
+				ctx.render(builder, camera, node, new PoseStack(), Color.WHITE, node.getId() == currentNodeId.nodeId());
 			}
 		});
 	}
 
-	private Quat getPlanetTransform(CelestialNode node, double time, double viewX, double viewZ) {
+	private Quat toCelestialWorldSpaceRotation(CelestialNode node, double time, double viewX, double viewZ) {
 		var worldBorder = this.client.level.getWorldBorder();
 		var tx = Mth.inverseLerp(viewX, worldBorder.getMinX(), worldBorder.getMaxX());
 		var tz = Mth.inverseLerp(viewZ, worldBorder.getMinZ(), worldBorder.getMaxZ());
@@ -290,6 +268,12 @@ public class SkyRenderer {
 		return a.hamiltonProduct(b).hamiltonProduct(c);
 	}
 
+	private Vec3 getPlanetSurfaceOffset(PlanetaryCelestialNode node, double time, double viewX, double viewZ) {
+		var planetViewRotation = toCelestialWorldSpaceRotation(node, time, viewX, viewZ);
+		var upCelestialWorld = planetViewRotation.transform(Vec3.YP);
+		return upCelestialWorld.mul(node.radiusRearth * (Units.m_PER_Rearth / Units.TERA));
+	}
+
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float partialTick, Camera camera,
 			boolean isSkyVisible) {
 
@@ -298,27 +282,37 @@ public class SkyRenderer {
 			return false;
 
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var currentNode = universe.getSystemNode(currentId);
-		if (currentNode == null)
+		var currentNodeUntyped = universe.getSystemNode(currentId);
+		if (currentNodeUntyped == null)
 			return false;
+
+		if (!(currentNodeUntyped instanceof PlanetaryCelestialNode))
+			return false;
+		var currentNode = (PlanetaryCelestialNode) currentNodeUntyped;
 
 		double time = universe.getCelestialTime(partialTick);
 
 		var currentSystem = universe.getSystem(currentId.system());
 		currentSystem.rootNode.updatePositions(time);
 
-		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1e4f, 1e13f, partialTick);
+		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 5e4f, 1e13f, partialTick);
 
-		// TODO: is this right? what about when spectating entities? (or in front-view third-person lol)
+		// TODO: is this right? what about when spectating entities? (or in front-view
+		// third-person lol)
 		// this whole thing feels kinda brittle tbh, since we reconstruct the projection
 		// matrix and view rotations from scratch ourselves. This means they can get out
 		// of sync with the real things, which other mods might modify!
 		var xRot = this.client.player.getViewXRot(partialTick);
 		var yRot = this.client.player.getViewYRot(partialTick);
 
-		var aaa = getPlanetTransform(currentNode, time, camera.getPosition().x, camera.getPosition().z);
+		var planetViewRotation = toCelestialWorldSpaceRotation(currentNode, time, camera.getPosition().x,
+				camera.getPosition().z);
+		var planetSurfaceOffset = getPlanetSurfaceOffset(currentNode, time, camera.getPosition().x,
+				camera.getPosition().z);
 
-		var celestialCamera = CachedCamera.create(camera, currentNode.position.mul(1e12), xRot, yRot, aaa, proj);
+		var celestialCamera = CachedCamera.create(camera, currentNode.position.mul(Units.TERA).add(planetSurfaceOffset),
+				xRot,
+				yRot, planetViewRotation, proj);
 		var matrixSnapshot = celestialCamera.setupRenderMatrices();
 		poseStack.pushPose();
 

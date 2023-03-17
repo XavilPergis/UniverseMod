@@ -21,6 +21,7 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.screen.debug.GalaxyDensityDebugScreen;
 import net.xavil.universal.client.screen.debug.SystemGenerationDebugScreen;
 import net.xavil.universal.common.NameTemplate;
@@ -350,7 +351,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// Stars
 
-		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
 		volume.enumerateElements(element -> {

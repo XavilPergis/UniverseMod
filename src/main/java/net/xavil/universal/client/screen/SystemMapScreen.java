@@ -117,7 +117,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 		if (scrollDelta > 0) {
 			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 1e-4));
+			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 1e-6));
 			// this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.5));
 			return true;
 		} else if (scrollDelta < 0) {
@@ -162,6 +162,8 @@ public class SystemMapScreen extends UniversalScreen {
 		if (keyCode == GLFW.GLFW_KEY_F) {
 			this.selectedId = getClosestNode(this.camera.cached(partialTick)).getId();
 			this.followingId = selectedId;
+		} else if (keyCode == GLFW.GLFW_KEY_R  && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
+			Minecraft.getInstance().reloadResourcePacks();
 		} else if (keyCode == GLFW.GLFW_KEY_R) {
 			this.followingId = selectedId;
 		} else if (keyCode == GLFW.GLFW_KEY_Q) {
@@ -181,6 +183,13 @@ public class SystemMapScreen extends UniversalScreen {
 				packet.planetId = new SystemNodeId(this.systemId, this.selectedId);
 				this.client.player.connection.send(packet);
 			}
+		} else if (keyCode == GLFW.GLFW_KEY_J && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
+			final var universe = MinecraftClientAccessor.getUniverse(this.client);
+			final var id = universe.getStartingSystemGenerator().getStartingSystemId();
+			// final var system = universe.getSystem(id.system());
+			var screen = new GalaxyMapScreen(client.screen, id.system());
+			// this.client.setScreen(new SystemMapScreen(previousScreen, id, system));
+			this.client.setScreen(screen);
 		} else if (keyCode == GLFW.GLFW_KEY_P && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
 			ClientDebugFeatures.SHOW_ORBIT_PATH_SUBDIVISIONS.toggle();
 		} else if (keyCode == GLFW.GLFW_KEY_L && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
@@ -438,9 +447,9 @@ public class SystemMapScreen extends UniversalScreen {
 		if (node instanceof PlanetaryCelestialNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			ctx.renderPlanet(builder, camera, planetNode, new PoseStack(), Color.WHITE);
+			ctx.renderPlanet(builder, camera, planetNode, new PoseStack(), Color.WHITE, false);
 		} else {
-			ctx.render(builder, camera, node, new PoseStack(), Color.WHITE);
+			ctx.render(builder, camera, node, new PoseStack(), Color.WHITE, false);
 		}
 
 		if (node instanceof BinaryCelestialNode binaryNode && this.showGuides) {

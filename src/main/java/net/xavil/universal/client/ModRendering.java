@@ -19,17 +19,19 @@ public final class ModRendering {
 			});
 
 	public static final String PLANET_SHADER = "universal_planet";
+	public static final String RING_SHADER = "universal_ring";
+	public static final String STAR_BILLBOARD_SHADER = "universal_star_billboard";
 
 	public static ShaderInstance getShader(String id) {
 		return GameRendererAccessor.getShader(Minecraft.getInstance().gameRenderer, id);
 	}
 
 	public interface ShaderSink {
-		void accept(String name, VertexFormat vertexFormat) throws IOException;
+		void accept(String name, VertexFormat vertexFormat);
 	}
 
 	public interface RegisterShadersCallback {
-		void register(ShaderSink sink) throws IOException;
+		void register(ShaderSink sink);
 	}
 
 }

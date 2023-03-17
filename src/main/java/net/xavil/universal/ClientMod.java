@@ -27,6 +27,8 @@ public class ClientMod implements ClientModInitializer {
 
 		ModRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
 			acceptor.accept(ModRendering.PLANET_SHADER, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+			acceptor.accept(ModRendering.RING_SHADER, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+			acceptor.accept(ModRendering.STAR_BILLBOARD_SHADER, DefaultVertexFormat.POSITION_COLOR_TEX);
 		});
 	}
 

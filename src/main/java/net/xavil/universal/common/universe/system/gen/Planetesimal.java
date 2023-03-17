@@ -12,6 +12,7 @@ import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
+import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.util.Assert;
 import net.xavil.util.Units;
@@ -98,7 +99,8 @@ public class Planetesimal {
 	public void addMoon(Planetesimal newMoon) {
 		this.moons.add(newMoon);
 		newMoon.moonOf = this;
-		// this.ctx.debugConsumer.accept(new AccreteDebugEvent.OrbitalParentChanged(this, newMoon));
+		// this.ctx.debugConsumer.accept(new
+		// AccreteDebugEvent.OrbitalParentChanged(this, newMoon));
 	}
 
 	public void clearMoons() {
@@ -247,6 +249,14 @@ public class Planetesimal {
 		var radiusRearth = this.getRadius() * Units.KILO / Units.m_PER_Rearth;
 		var node = new PlanetaryCelestialNode(type, this.mass * Units.Yg_PER_Msol, radiusRearth, 300);
 		node.rotationalPeriod = Mth.lerp(this.ctx.rng.uniformDouble(), 0.2 * 86400, 4 * 86400);
+
+		for (var ring : this.rings) {
+			Mod.LOGGER.info("RING!!!");
+			var intervalTm = new Interval(ring.interval.lower() * Units.Tm_PER_au,
+					ring.interval.higher() * Units.Tm_PER_au);
+			node.addRing(new CelestialRing(OrbitalPlane.ZERO, ring.eccentricity, intervalTm, ring.mass * Units.Yg_PER_Msol));
+		}
+
 		var shape = new OrbitalShape(this.orbitalShape.eccentricity(), this.orbitalShape.semiMajor() * Units.Tm_PER_au);
 		var plane = OrbitalPlane.fromOrbitalElements(0, this.ctx.rng.uniformDouble(0, 2.0 * Math.PI),
 				this.ctx.rng.uniformDouble(0, 2.0 * Math.PI));
@@ -272,19 +282,19 @@ public class Planetesimal {
 		return new Interval(Math.max(0, inner), outer);
 	}
 
-	public void accreteDust(DustBands dustBands) {
-		double prevMass = 0;
+	// public void accreteDust(DustBands dustBands) {
+	// double prevMass = 0;
 
-		var iterationsRemaining = 100;
-		while (this.mass - prevMass >= 0.0001 * this.mass) {
-			prevMass = this.mass;
-			if (iterationsRemaining-- <= 0)
-				break;
-			this.mass += dustBands.sweep(ctx, this);
-			emitUpdateEvent();
-		}
+	// var iterationsRemaining = 100;
+	// while (this.mass - prevMass >= 0.0001 * this.mass) {
+	// prevMass = this.mass;
+	// if (iterationsRemaining-- <= 0)
+	// break;
+	// this.mass += dustBands.sweep(ctx, this);
+	// emitUpdateEvent();
+	// }
 
-	}
+	// }
 
 	public Ring asRing() {
 		final var radiusAu = this.getRadius() / Units.km_PER_au;

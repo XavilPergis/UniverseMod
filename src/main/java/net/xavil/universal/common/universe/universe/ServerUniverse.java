@@ -11,10 +11,13 @@ import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Rng;
 import net.xavil.util.Units;
+import net.xavil.util.math.Interval;
+import net.xavil.util.math.OrbitalPlane;
 import net.xavil.util.math.Vec3i;
 
 public final class ServerUniverse extends Universe {
@@ -145,6 +148,40 @@ public final class ServerUniverse extends Universe {
 		jupiter.insertChild(europa,   0.0090, Units.fromAu(0.00448), Math.toRadians(1.791), 0, 0, 10);
 		jupiter.insertChild(gyanmede, 0.0013, Units.fromAu(0.00715), Math.toRadians(2.214), 0, 0, 11);
 		jupiter.insertChild(callisto, 0.0074, Units.fromAu(0.01258), Math.toRadians(2.017), 0, 0, 12);
+
+		final var mimas = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, Units.fromMearth(6.3e-6), 0.0311, 64);
+		mimas.obliquityAngle = Math.toRadians(0);
+		mimas.rotationalPeriod = 81425.2573;
+		final var enceladus = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_ICE_WORLD, Units.fromMearth(1.8e-5), 0.0395, 75);
+		enceladus.obliquityAngle = Math.toRadians(0);
+		enceladus.rotationalPeriod = 118386.835;
+		final var tethys = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ICE_WORLD, Units.fromMearth(1.03e-4), 0.0416, 86);
+		tethys.obliquityAngle = Math.toRadians(0);
+		tethys.rotationalPeriod = 163106.093;
+		final var dione = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_ICE_WORLD, Units.fromMearth(1.834e-4), 0.088, 87);
+		dione.obliquityAngle = Math.toRadians(0);
+		dione.rotationalPeriod = 236469.456;
+		final var rhea = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ICE_WORLD, Units.fromMearth(3.9e-4), 0.1197, 76);
+		rhea.obliquityAngle = Math.toRadians(0);
+		rhea.rotationalPeriod = 390373.517;
+		final var titan = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, Units.fromMearth(0.0225), 0.404, 97);
+		titan.obliquityAngle = Math.toRadians(0);
+		titan.rotationalPeriod = 1377648;
+		final var iapetus = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ICE_WORLD, Units.fromMearth(0.0225), 0.1151, 110);
+		iapetus.obliquityAngle = Math.toRadians(0);
+		iapetus.rotationalPeriod = 6853377.6;
+
+		// saturn axial tilt 0.46652651
+
+		saturn.insertChild(mimas,     0.0196, Units.fromAu(0.00124), Math.toRadians(1.574),   0.0  % (2.0 * Math.PI), 0, 13);
+		saturn.insertChild(enceladus, 0.0047, Units.fromAu(0.00159), Math.toRadians(0.009),   1.0  % (2.0 * Math.PI), 0, 14);
+		saturn.insertChild(tethys,    0.0001, Units.fromAu(0.00196), Math.toRadians(1.12),    5.0  % (2.0 * Math.PI), 0, 15);
+		saturn.insertChild(dione,     0.0022, Units.fromAu(0.00252), Math.toRadians(0.019),   7.0  % (2.0 * Math.PI), 0, 16);
+		saturn.insertChild(rhea,      0.0012, Units.fromAu(0.00352), Math.toRadians(0.345),   11.0 % (2.0 * Math.PI), 0, 17);
+		saturn.insertChild(titan,     0.0288, Units.fromAu(0.00816), Math.toRadians(0.34854), 13.0 % (2.0 * Math.PI), 0, 18);
+		saturn.insertChild(iapetus,   0.0276, Units.fromAu(0.02380), Math.toRadians(15.47),   17.0 % (2.0 * Math.PI), 0, 19);
+
+		saturn.addRing(new CelestialRing(OrbitalPlane.ZERO, 0, new Interval(Units.fromAu(0.00044719888), Units.fromAu(0.000937045423)), Units.fromMearth(0.40 * 6.3e-6)));
 		// @formatter:on
 
 		// var root = new BinaryNode(sol, testStar, OrbitalPlane.ZERO, 1, Units.au(100), 0);

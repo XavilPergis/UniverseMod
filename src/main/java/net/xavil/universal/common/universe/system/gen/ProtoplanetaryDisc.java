@@ -9,6 +9,7 @@ import java.util.stream.Collectors;
 
 import com.google.common.collect.Sets;
 
+import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.Assert;
@@ -65,11 +66,6 @@ public class ProtoplanetaryDisc {
 			// TODO: maybe there's a more efficient way to choose the location of new
 			// planets than just picking at random and seeing if there happens to be dust
 			// left.
-
-			// var dustySemiMajor = this.dustBands.pickDusty(this.ctx.rng,
-			// this.planetesimalBounds);
-			// if (Double.isNaN(dustySemiMajor))
-			// break;
 			var dustySemiMajor = this.ctx.rng.uniformDouble(this.planetesimalBounds);
 			var planetesimal = Planetesimal.random(this.ctx, dustySemiMajor, this.planetesimalBounds);
 
@@ -79,22 +75,21 @@ public class ProtoplanetaryDisc {
 					this.ctx.debugConsumer
 							.accept(new AccreteDebugEvent.UpdateOrbits(-1, Set.of(planetesimal.getId()), Set.of()));
 				}
-				planetesimal.accreteDust(dustBands);
 
 				// TODO: reject planetesimals smaller than a certain mass?
 				this.planetesimals.add(planetesimal);
 				this.planetesimals.sort(Comparator.comparingDouble(p -> p.getOrbitalShape().semiMajor()));
-
-				transformPlanetesimals((prev, next) -> coalescePlanetesimals(ctx, prev, next));
 			}
+
+			for (var other : this.planetesimals) {
+				var sweptMass = this.dustBands.sweep(ctx, other);
+				other.setMass(other.getMass() + sweptMass);
+			}
+			transformPlanetesimals((prev, next) -> coalescePlanetesimals(ctx, prev, next));
 		}
 
 		for (var planet : this.planetesimals) {
 			planet.convertToPlanetNode(rootNode);
-			// var desc = planet.canSweepGas() ? "GAS GIANT" : "PLANET";
-			// Mod.LOGGER.info("[{}] ({}) mass={} radius={} ({} moons)", desc,
-			// planet.getId(), planet.getMass(), planet.getRadius(),
-			// Lists.newArrayList(planet.getMoons()).size());
 		}
 
 		// Post Accretion
@@ -145,15 +140,11 @@ public class ProtoplanetaryDisc {
 			b = tmp;
 		}
 
-		if (a.getParentBody() != null) {
+		var rocheLimit = rocheLimit(a.getMass(), b.getMass(), b.getRadius());
+		if (Math.abs(a.getOrbitalShape().semiMajor() - b.getOrbitalShape().semiMajor()) <= 2 * rocheLimit) {
 			handlePlanetesimalCollision(ctx, a, b);
 		} else {
-			var rocheLimit = rocheLimit(a.getMass(), b.getMass(), b.getRadius());
-			if (Math.abs(a.getOrbitalShape().semiMajor() - b.getOrbitalShape().semiMajor()) <= 2 * rocheLimit) {
-				handlePlanetesimalCollision(ctx, a, b);
-			} else {
-				captureMoon(ctx, a, b);
-			}
+			captureMoon(ctx, a, b);
 		}
 	}
 
@@ -172,15 +163,20 @@ public class ProtoplanetaryDisc {
 
 		a.transformMoons((prevMoons, newMoons) -> {
 			for (var moon : prevMoons) {
-				var randomSemiMajor = ctx.rng.uniformDouble(0, hillSphereRadius);
+				var semiMajorT = Math.pow(ctx.rng.uniformDouble(), 2);
+				var randomSemiMajor = Mth.lerp(semiMajorT, 0, hillSphereRadius);
 				var randomEccentricity = Planetesimal.randomEccentricity(ctx);
 				moon.setOrbitalShape(new OrbitalShape(randomEccentricity, randomSemiMajor));
 
-				if (moon.getOrbitalShape().periapsisDistance() - moon.getRadius() <= 2 * a.getRadius()) {
+				if (moon.getOrbitalShape().periapsisDistance() - (moon.getRadius() / Units.km_PER_au) <= 2
+						* (a.getRadius() / Units.km_PER_au)) {
 					handlePlanetesimalCollision(ctx, a, moon);
-					newMoons.add(moon);
 				} else if (moon.getOrbitalShape().periapsisDistance() <= 2 * rocheLimit) {
-					a.addRing(moon.asRing());
+					final var ring = moon.asRing();
+					ctx.debugConsumer.accept(new AccreteDebugEvent.RingAdded(moon, ring));
+					a.addRing(ring);
+				} else {
+					newMoons.add(moon);
 				}
 			}
 		});
@@ -194,8 +190,6 @@ public class ProtoplanetaryDisc {
 		Assert.isTrue((a.getParentBody() == b.getParentBody()) || (a == b.getParentBody()));
 		Assert.isTrue(a.getMass() >= b.getMass());
 
-		// ctx.debugConsumer.accept(new AccreteDebugEvent.PlanetesimalCollision(a, b));
-
 		// TODO: sometimes, a collision can create a moon or maybe binary system, like
 		// as in the earth/moon system.
 		a.setMass(a.getMass() + b.getMass());
@@ -203,8 +197,6 @@ public class ProtoplanetaryDisc {
 			var newShape = Planetesimal.calculateCombinedOrbitalShape(a, b);
 			a.setOrbitalShape(newShape);
 		}
-
-		a.accreteDust(dustBands);
 	}
 
 	public static double rocheLimit(double planetMass, double moonMass, double moonRadius) {

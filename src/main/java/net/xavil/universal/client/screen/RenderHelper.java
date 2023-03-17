@@ -14,9 +14,10 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.ModRendering;
+import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
@@ -40,7 +41,8 @@ public final class RenderHelper {
 
 	public static void renderStarBillboard(BufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node) {
-		RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		addBillboard(builder, camera, poseStack, node);
 		builder.end();
@@ -105,9 +107,9 @@ public final class RenderHelper {
 		final double brightBillboardSizeFactor = 0.9;
 		RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
 				camera.toCameraSpace(pos), d, 0, color);
-		RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
-				camera.toCameraSpace(pos),
-				brightBillboardSizeFactor * d, 0, Color.WHITE);
+		// RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
+		// 		camera.toCameraSpace(pos),
+		// 		brightBillboardSizeFactor * d, 0, Color.WHITE);
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,

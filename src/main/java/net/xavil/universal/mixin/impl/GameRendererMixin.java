@@ -1,20 +1,16 @@
 package net.xavil.universal.mixin.impl;
 
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Map;
-import java.util.function.Consumer;
 
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.datafixers.util.Pair;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector3f;
 
@@ -34,9 +30,9 @@ import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 public abstract class GameRendererMixin implements ResourceManagerReloadListener, AutoCloseable, GameRendererAccessor {
 
 	private final Map<String, ShaderInstance> modShaders = new Object2ObjectOpenHashMap<>();
-	private ResourceManager lastResourceManager = null;
 
 	// @formatter:off
+	@Shadow @Final private Map<String, ShaderInstance> shaders;
 	@Shadow @Final private Camera mainCamera;
 	@Shadow @Final private Minecraft minecraft;
 	@Shadow private int tick;
@@ -54,35 +50,17 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	}
 
 	@Inject(method = "reloadShaders", at = @At("HEAD"))
-	private void reloadShadersPre(ResourceManager resourceManager, CallbackInfo info) {
-		this.lastResourceManager = resourceManager;
-	}
-
-	@Inject(method = "reloadShaders", at = @At("TAIL"))
-	private void reloadShadersPost(ResourceManager resourceManager, CallbackInfo info) {
-		this.lastResourceManager = null;
-	}
-
-	@Redirect(method = "reloadShaders", at = @At(value = "INVOKE", target = "Lcom/google/common/collect/Lists;newArrayListWithCapacity(I)Ljava/util/ArrayList;", remap = false))
-	private ArrayList<Pair<ShaderInstance, Consumer<ShaderInstance>>> loadModShaders(int capacity) {
-
-		final var shadersToApply = new ArrayList<Pair<ShaderInstance, Consumer<ShaderInstance>>>(capacity);
-
-		try {
-			ModRendering.LOAD_SHADERS_EVENT.invoker().register((name, vertexFormat) -> {
-				var shader = new ShaderInstance(this.lastResourceManager, name, vertexFormat);
-				shadersToApply.add(new Pair<>(shader, inst -> {
-					final var prevShader = modShaders.put(name, inst);
-					if (prevShader != null)
-						prevShader.close();
-				}));
-			});
-		} catch (IOException ex) {
-			shadersToApply.forEach(pair -> pair.getFirst().close());
-			throw new RuntimeException("could not reload shaders", ex);
-		}
-
-		return shadersToApply;
+	private void onReloadShaders(ResourceManager resourceManager, CallbackInfo info) {
+		ModRendering.LOAD_SHADERS_EVENT.invoker().register((name, vertexFormat) -> {
+			try {
+				var shader = new ShaderInstance(resourceManager, name, vertexFormat);
+				final var prevShader = modShaders.put(name, shader);
+				if (prevShader != null)
+					prevShader.close();
+			} catch (IOException ex) {
+				throw new RuntimeException(String.format("failed to reload shader %s", name), ex);
+			}
+		});
 	}
 
 	@Override

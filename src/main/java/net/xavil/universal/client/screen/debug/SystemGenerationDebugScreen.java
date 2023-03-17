@@ -232,7 +232,7 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 	private boolean isEventSignificant(AccreteDebugEvent event) {
 		return event instanceof AccreteDebugEvent.Initialize
 				|| event instanceof AccreteDebugEvent.PlanetesimalCreated
-				|| event instanceof AccreteDebugEvent.UpdateOrbits
+				|| event instanceof AccreteDebugEvent.RingAdded
 				|| event instanceof AccreteDebugEvent.PlanetesimalRemoved;
 	}
 
@@ -430,6 +430,12 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 				double massMsol = info.mass;
 				double massMjupiter = info.mass * Units.Yg_PER_Msol / Units.Yg_PER_Mjupiter;
 				double massMearth = info.mass * Units.Yg_PER_Msol / Units.Yg_PER_Mearth;
+
+				boolean intersectsParent = false;
+				final var parentInfo = this.planetesimalInfos.get(info.parent);
+				if (parentInfo != null && parentInfo.radius / Units.km_PER_au >= info.distance) {
+					intersectsParent = true;
+				}
 				consumer.accept(String.format("%.4f", info.distance));
 				if (massMsol >= 0.0001) {
 					consumer.accept(String.format("%.4f", massMsol));
@@ -447,7 +453,7 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 					consumer.accept("-");
 				}
 				consumer.accept(String.format("%.0f", info.radius));
-				consumer.accept(String.format("%d", info.parent));
+				consumer.accept(String.format("%d" + (intersectsParent ? " §l§c[INT]§r" : ""), info.parent));
 			});
 		});
 

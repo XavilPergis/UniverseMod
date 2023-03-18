@@ -6,6 +6,9 @@ import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.xavil.universal.client.ModRendering;
+import net.xavil.universal.client.PlanetRenderingContext;
+import net.xavil.universal.client.UniversalTextureManager;
+import net.xavil.universal.client.UniversalTextureManager.SpriteRegistrationContext;
 import net.xavil.universal.client.screen.GalaxyMapScreen;
 import net.xavil.universal.client.screen.SystemMapScreen;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
@@ -19,6 +22,22 @@ import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 
 public class ClientMod implements ClientModInitializer {
 
+	private void registerCelestialBody(SpriteRegistrationContext ctx, String name) {
+		final var prefix = "universal:textures/misc/celestialbodies/" + name;
+		ctx.registerSprite(prefix + "/base_color/nx.png");
+		ctx.registerSprite(prefix + "/base_color/px.png");
+		ctx.registerSprite(prefix + "/base_color/ny.png");
+		ctx.registerSprite(prefix + "/base_color/py.png");
+		ctx.registerSprite(prefix + "/base_color/nz.png");
+		ctx.registerSprite(prefix + "/base_color/pz.png");
+		ctx.registerSprite(prefix + "/normal/nx.png");
+		ctx.registerSprite(prefix + "/normal/px.png");
+		ctx.registerSprite(prefix + "/normal/ny.png");
+		ctx.registerSprite(prefix + "/normal/py.png");
+		ctx.registerSprite(prefix + "/normal/nz.png");
+		ctx.registerSprite(prefix + "/normal/pz.png");
+	}
+
 	@Override
 	public void onInitializeClient() {
 		final var client = Minecraft.getInstance();
@@ -29,6 +48,14 @@ public class ClientMod implements ClientModInitializer {
 			acceptor.accept(ModRendering.PLANET_SHADER, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 			acceptor.accept(ModRendering.RING_SHADER, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 			acceptor.accept(ModRendering.STAR_BILLBOARD_SHADER, DefaultVertexFormat.POSITION_COLOR_TEX);
+		});
+		ModRendering.LOAD_POST_PROCESS_SHADERS_EVENT.register(acceptor -> {
+			acceptor.accept(ModRendering.COMPOSITE_SKY_CHAIN);
+		});
+
+		UniversalTextureManager.REGISTER_ATLASES.register(ctx -> {
+			final var planetsAtlas = ctx.registerAtlas(PlanetRenderingContext.PLANET_ATLAS_LOCATION);
+			registerCelestialBody(planetsAtlas, "moon");
 		});
 	}
 

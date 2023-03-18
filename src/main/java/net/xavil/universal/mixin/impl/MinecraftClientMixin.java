@@ -15,8 +15,12 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.main.GameConfig;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
+import net.minecraft.server.packs.resources.ReloadableResourceManager;
+import net.xavil.universal.ClientMod;
+import net.xavil.universal.client.UniversalTextureManager;
 import net.xavil.universal.client.screen.UniversalScreen;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
@@ -33,6 +37,15 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 	private RenderTarget mainRenderTarget;
 	@Shadow
 	private Screen screen;
+	@Shadow
+	@Final
+	private ReloadableResourceManager resourceManager;
+
+	@Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Gui;<init>(Lnet/minecraft/client/Minecraft;)V"))
+	private void registerReloaders(GameConfig config, CallbackInfo info) {
+		UniversalTextureManager.INSTANCE.registerAtlases();
+		this.resourceManager.registerReloadListener(UniversalTextureManager.INSTANCE);
+	}
 
 	@Inject(method = "tick", at = @At("TAIL"))
 	private void onTick(CallbackInfo info) {

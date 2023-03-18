@@ -1,7 +1,5 @@
 package net.xavil.universal;
 
-import java.util.Random;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -12,13 +10,8 @@ import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.CreativeModeTab;
-import net.minecraft.world.level.dimension.DimensionType;
-import net.minecraft.world.level.dimension.LevelStem;
-import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.minecraft.world.level.material.Material;
-import net.xavil.universal.common.TestBlock;
 import net.xavil.universal.common.block.ModBlocks;
-import net.xavil.universal.common.dimension.DimensionCreationProperties;
 import net.xavil.universal.common.dimension.DynamicDimensionManager;
 import net.xavil.universal.common.item.StarmapItem;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
@@ -30,7 +23,6 @@ import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.universegen.system.CelestialNode;
 
 public class Mod implements ModInitializer {
 
@@ -64,8 +56,6 @@ public class Mod implements ModInitializer {
 					ServerboundTeleportToPlanetPacket::new);
 		});
 
-		Registry.register(Registry.BLOCK, namespaced("test_block"),
-				new TestBlock(FabricBlockSettings.of(Material.METAL)));
 		Registry.register(Registry.ITEM, namespaced("starmap"), STARMAP_ITEM);
 	}
 

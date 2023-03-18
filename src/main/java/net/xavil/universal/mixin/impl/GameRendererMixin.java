@@ -18,11 +18,14 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
+import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 
@@ -30,6 +33,7 @@ import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 public abstract class GameRendererMixin implements ResourceManagerReloadListener, AutoCloseable, GameRendererAccessor {
 
 	private final Map<String, ShaderInstance> modShaders = new Object2ObjectOpenHashMap<>();
+	private final Map<String, PostChain> modPostChains = new Object2ObjectOpenHashMap<>();
 
 	// @formatter:off
 	@Shadow @Final private Map<String, ShaderInstance> shaders;
@@ -49,6 +53,11 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	private void bobHurt(PoseStack matrixStack, float partialTicks) {
 	}
 
+	@Inject(method = "resize", at = @At("HEAD"))
+	private void onResize(int width, int height, CallbackInfo info) {
+		this.modPostChains.values().forEach(chain -> chain.resize(width, height));
+	}
+
 	@Inject(method = "reloadShaders", at = @At("HEAD"))
 	private void onReloadShaders(ResourceManager resourceManager, CallbackInfo info) {
 		ModRendering.LOAD_SHADERS_EVENT.invoker().register((name, vertexFormat) -> {
@@ -57,8 +66,24 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 				final var prevShader = modShaders.put(name, shader);
 				if (prevShader != null)
 					prevShader.close();
+				Mod.LOGGER.info("loaded modded shader '{}'", name);
 			} catch (IOException ex) {
-				throw new RuntimeException(String.format("failed to reload shader %s", name), ex);
+				Mod.LOGGER.error("failed to load shader '{}'", name);
+				ex.printStackTrace();
+			}
+		});
+
+		ModRendering.LOAD_POST_PROCESS_SHADERS_EVENT.invoker().register((location) -> {
+			try {
+				var chain = new PostChain(this.minecraft.getTextureManager(), resourceManager,
+						this.minecraft.getMainRenderTarget(), new ResourceLocation(location));
+				final var prevChain = this.modPostChains.put(location, chain);
+				if (prevChain != null)
+					prevChain.close();
+				Mod.LOGGER.info("loaded modded post-process chain '{}'", location);
+			} catch (IOException ex) {
+				Mod.LOGGER.error("failed to load post chain '{}'", location);
+				Mod.LOGGER.error("caused by: {}", ex);
 			}
 		});
 	}
@@ -66,6 +91,11 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	@Override
 	public ShaderInstance universal_getShader(String name) {
 		return this.modShaders.get(name);
+	}
+
+	@Override
+	public PostChain universal_getPostChain(String id) {
+		return this.modPostChains.get(id);
 	}
 
 	@Shadow

@@ -6,6 +6,10 @@ public class FastHasher implements Hasher {
 	private static final long C2 = 0x4cf5ad432745937fL;
 	private long currentHash;
 
+	public static long hashInt(int value) {
+		return new FastHasher(0).appendInt(value).currentHash();
+	}
+
 	private static long rol(long x, long r) {
 		return (x << r) | (x >>> (64 - r));
 	}

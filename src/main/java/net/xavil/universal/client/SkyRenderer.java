@@ -2,8 +2,9 @@ package net.xavil.universal.client;
 
 import org.lwjgl.opengl.GL11;
 import org.lwjgl.opengl.GL13;
+import org.lwjgl.opengl.GL32;
 
-import com.mojang.blaze3d.pipeline.TextureTarget;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -18,6 +19,7 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.PostChain;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.screen.CachedCamera;
@@ -41,16 +43,15 @@ public class SkyRenderer {
 	public static final SkyRenderer INSTANCE = new SkyRenderer();
 
 	private final Minecraft client = Minecraft.getInstance();
-	public TextureTarget skyTarget = null;
+	// public RenderTarget skyTarget = null;
+	// public PostChain compositeChain = null;
 
 	private VertexBuffer distantStarsBuffer = new VertexBuffer();
 	private boolean shouldRebuildStarBuffer = true;
 	private SystemNodeId previousId = null;
 
-	public void resize(int width, int height) {
-		if (this.skyTarget != null) {
-			this.skyTarget.resize(width, height, false);
-		}
+	public RenderTarget getSkyTarget() {
+		return ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).getTempTarget("sky");
 	}
 
 	private void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 selfPos, Vec3 pos, double s,
@@ -102,8 +103,9 @@ public class SkyRenderer {
 		var up = forward.cross(right).neg();
 		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e9),
 				s, 0, color.withA(alpha));
-		// RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e9),
-		// 		s * 0.5, 0, Color.WHITE.withA(alpha));
+		// RenderHelper.addBillboardCamspace(builder, poseStack, up, right,
+		// offset.mul(1e9),
+		// s * 0.5, 0, Color.WHITE.withA(alpha));
 
 	}
 
@@ -320,11 +322,6 @@ public class SkyRenderer {
 		RenderSystem.setShaderFogStart(Float.POSITIVE_INFINITY);
 		RenderSystem.setShaderFogEnd(Float.POSITIVE_INFINITY);
 
-		final int width = this.client.getWindow().getWidth(), height = this.client.getWindow().getHeight();
-		if (this.skyTarget == null) {
-			this.skyTarget = new TextureTarget(width, height, true, false);
-		}
-
 		if (this.client.options.keySaveHotbarActivator.consumeClick()) {
 			this.shouldRebuildStarBuffer = true;
 		}
@@ -336,29 +333,47 @@ public class SkyRenderer {
 		if (this.shouldRebuildStarBuffer)
 			buildStars();
 
-		this.skyTarget.setClearColor(0, 0, 0, 0);
-		this.skyTarget.clear(false);
-		this.skyTarget.bindWrite(false);
+		final var skyTarget = getSkyTarget();
+		skyTarget.setClearColor(0, 0, 0, 0);
+		skyTarget.clear(false);
+		skyTarget.bindWrite(false);
 
 		drawStars(RenderSystem.getModelViewMatrix(), proj);
 		drawSystem(celestialCamera, currentId, time, partialTick);
 
+		// this.client.getMainRenderTarget().setClearColor(0.2f, 0.2f, 0.2f, 1.0f);
+		// this.client.getMainRenderTarget().setClearColor(0f, 0f, 0f, 1.0f);
 		// this.client.getMainRenderTarget().clear(false);
+		// this.client.getMainRenderTarget().bindWrite(false);
+		// RenderSystem.enableBlend();
+		// // RenderSystem.depthMask(false);
+		// skyTarget.blitToScreen(width, height, false);
+		// RenderSystem.disableBlend();
+
+		// RenderSystem.enableCull();
+		// RenderSystem.enableTexture();
+		// RenderSystem.depthMask(true);
+
+		this.client.getMainRenderTarget().setClearColor(0f, 0f, 0f, 1.0f);
+		ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).process(partialTick);
 		this.client.getMainRenderTarget().bindWrite(false);
-		RenderSystem.enableBlend();
-		// RenderSystem.depthMask(false);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		this.skyTarget.blitToScreen(width, height, false);
-		RenderSystem.disableBlend();
+		// a bit scuffed...
+		GlStateManager._clearDepth(1.0);
+		GlStateManager._clear(GL32.GL_DEPTH_BUFFER_BIT, false);
+		// this.client.getMainRenderTarget().copyDepthFrom(skyTarget);
+		// this.client.getMainRenderTarget().clear(false);
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		// RenderSystem.disableBlend();
 
-		RenderSystem.enableCull();
-		RenderSystem.enableTexture();
-		RenderSystem.depthMask(true);
+		// RenderSystem.enableCull();
+		// RenderSystem.enableTexture();
+		// RenderSystem.depthMask(true);
 
-		GL11.glEnable(GL13.GL_MULTISAMPLE);
+		// GL11.glEnable(GL13.GL_MULTISAMPLE);
 
 		poseStack.popPose();
 		matrixSnapshot.restore();
+
 		return true;
 	}
 

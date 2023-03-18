@@ -27,12 +27,15 @@ import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.FastHasher;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.Vec3;
 
 public final class PlanetRenderingContext {
+
+	public static final ResourceLocation PLANET_ATLAS_LOCATION = Mod.namespaced("textures/atlas/planets");
 
 	public static final ResourceLocation BASE_ROCKY_LOCATION = Mod
 			.namespaced("textures/misc/celestialbodies/base_rocky.png");
@@ -134,7 +137,8 @@ public final class PlanetRenderingContext {
 		// renderPlanet(planetNode, poseStack, pos, scale, tintColor);
 	}
 
-	private void setupLighting(CachedCamera<?> camera, PoseStack poseStack, Vec3 sortOrigin, ShaderInstance shader) {
+	private void setupShaderCommon(CachedCamera<?> camera, PoseStack poseStack, Vec3 sortOrigin,
+			ShaderInstance shader) {
 
 		final int maxLightCount = 4;
 
@@ -148,6 +152,8 @@ public final class PlanetRenderingContext {
 
 		var metersPerUnit = shader.safeGetUniform("MetersPerUnit");
 		metersPerUnit.set((float) camera.metersPerUnit);
+		var time = shader.safeGetUniform("Time");
+		time.set((float) this.celestialTime);
 
 		for (var i = 0; i < maxLightCount; ++i) {
 			var lightColor = shader.safeGetUniform("LightColor" + i);
@@ -174,6 +180,13 @@ public final class PlanetRenderingContext {
 
 	}
 
+	private void setupPlanetShader(PlanetaryCelestialNode node, ShaderInstance shader) {
+		final var isGasGiant = shader.safeGetUniform("IsGasGiant");
+		isGasGiant.set(node.type == PlanetaryCelestialNode.Type.GAS_GIANT ? 1 : 0);
+		final var renderingSeed = shader.safeGetUniform("RenderingSeed");
+		renderingSeed.set((float) (FastHasher.hashInt(node.getId()) % 1000000L));
+	}
+
 	public void renderPlanet(BufferBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,
 			PoseStack poseStack, Color tintColor, boolean skip) {
 
@@ -191,11 +204,9 @@ public final class PlanetRenderingContext {
 
 		var nodePosUnits = node.position.mul(1e12 / camera.metersPerUnit);
 
-		setupLighting(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.PLANET_SHADER));
-		setupLighting(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.RING_SHADER));
-
-		// if (node.type == PlanetNode.Type.GAS_GIANT) {
-		// }
+		setupShaderCommon(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.PLANET_SHADER));
+		setupShaderCommon(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.RING_SHADER));
+		setupPlanetShader(node, ModRendering.getShader(ModRendering.PLANET_SHADER));
 
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
@@ -226,11 +237,15 @@ public final class PlanetRenderingContext {
 			poseStack.popPose();
 		}
 		// poseStack.pushPose();
-		// // poseStack.mulPose(Quat.axisAngle(Vec3.XP, 3.0 * this.celestialTime).toMinecraft());
-		// // poseStack.mulPose(Quat.axisAngle(Vec3.YP, 4.0 * this.celestialTime).toMinecraft());
-		// // poseStack.mulPose(Quat.axisAngle(Vec3.ZP, 5.0 * this.celestialTime).toMinecraft());
-		// addRing(builder, camera, poseStack, nodePosUnits, 2.0 * node.radiusRearth * (Units.m_PER_Rearth / Units.TERA),
-		// 		4.0 * node.radiusRearth * (Units.m_PER_Rearth / Units.TERA), tintColor);
+		// // poseStack.mulPose(Quat.axisAngle(Vec3.XP, 3.0 *
+		// this.celestialTime).toMinecraft());
+		// // poseStack.mulPose(Quat.axisAngle(Vec3.YP, 4.0 *
+		// this.celestialTime).toMinecraft());
+		// // poseStack.mulPose(Quat.axisAngle(Vec3.ZP, 5.0 *
+		// this.celestialTime).toMinecraft());
+		// addRing(builder, camera, poseStack, nodePosUnits, 2.0 * node.radiusRearth *
+		// (Units.m_PER_Rearth / Units.TERA),
+		// 4.0 * node.radiusRearth * (Units.m_PER_Rearth / Units.TERA), tintColor);
 		// poseStack.popPose();
 
 		builder.end();
@@ -280,7 +295,7 @@ public final class PlanetRenderingContext {
 			ringVertex(builder, camera, pose, center, tintColor, llx, 1, lly, (float) percentL, 0);
 			ringVertex(builder, camera, pose, center, tintColor, hlx, 1, hly, (float) percentL, 10);
 			ringVertex(builder, camera, pose, center, tintColor, hhx, 1, hhy, (float) percentH, 10);
-			
+
 			// counter-clockwise
 			ringVertex(builder, camera, pose, center, tintColor, hhx, -1, hhy, (float) percentH, 10);
 			ringVertex(builder, camera, pose, center, tintColor, hlx, -1, hly, (float) percentL, 10);
@@ -291,6 +306,10 @@ public final class PlanetRenderingContext {
 
 	private static void addNormSphere(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
 			double radius, Color tintColor) {
+
+		final var atlas = UniversalTextureManager.INSTANCE.getAtlas(PLANET_ATLAS_LOCATION);
+
+		// atlas.getSprite(BASE_GAS_GIANT_LOCATION);
 
 		poseStack.pushPose();
 		// poseStack.translate(center.x, center.y, center.z);

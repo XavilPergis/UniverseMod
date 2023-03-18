@@ -1,0 +1,21 @@
+{
+	"targets": [
+		{
+			"name": "sky",
+			"format": "rgba32f"
+		},
+		"swap"
+	],
+	"passes": [
+		{
+			"name": "composite_sky",
+			"intarget": "sky",
+			"outtarget": "swap"
+		},
+		{
+			"name": "blit",
+			"intarget": "swap",
+			"outtarget": "minecraft:main"
+		}
+	]
+}

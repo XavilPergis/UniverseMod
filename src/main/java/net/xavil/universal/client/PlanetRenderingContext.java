@@ -22,6 +22,7 @@ import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universegen.system.CelestialNode;
@@ -85,7 +86,7 @@ public final class PlanetRenderingContext {
 		return this.renderedStarCount;
 	}
 
-	public void render(BufferBuilder builder, CachedCamera<?> camera, CelestialNode node, PoseStack poseStack,
+	public void render(FlexibleBufferBuilder builder, CachedCamera<?> camera, CelestialNode node, PoseStack poseStack,
 			Color tintColor, boolean skip) {
 		if (node instanceof StellarCelestialNode starNode)
 			renderStar(builder, camera, starNode, poseStack, tintColor, skip);
@@ -93,7 +94,7 @@ public final class PlanetRenderingContext {
 			renderPlanet(builder, camera, planetNode, poseStack, tintColor, skip);
 	}
 
-	public void renderStar(BufferBuilder builder, CachedCamera<?> camera, StellarCelestialNode node,
+	public void renderStar(FlexibleBufferBuilder builder, CachedCamera<?> camera, StellarCelestialNode node,
 			PoseStack poseStack, Color tintColor, boolean skip) {
 		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		// builder.begin(VertexFormat.Mode.QUADS,
@@ -187,7 +188,7 @@ public final class PlanetRenderingContext {
 		renderingSeed.set((float) (FastHasher.hashInt(node.getId()) % 1000000L));
 	}
 
-	public void renderPlanet(BufferBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,
+	public void renderPlanet(FlexibleBufferBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,
 			PoseStack poseStack, Color tintColor, boolean skip) {
 
 		poseStack.pushPose();
@@ -228,12 +229,12 @@ public final class PlanetRenderingContext {
 		}
 
 		// RenderSystem.setShader(() -> GameRenderer.getPositionTexColorNormalShader());
-		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.RING_SHADER));
+		// RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.RING_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 		for (var ring : node.rings()) {
 			poseStack.pushPose();
 			poseStack.mulPose(ring.orbitalPlane.rotationFromReference().toMinecraft());
-			addRing(builder, camera, poseStack, nodePosUnits, ring.interval.lower(), ring.interval.higher(), tintColor);
+			addRing(builder.asVanilla(), camera, poseStack, nodePosUnits, ring.interval.lower(), ring.interval.higher(), tintColor);
 			poseStack.popPose();
 		}
 		// poseStack.pushPose();
@@ -251,25 +252,23 @@ public final class PlanetRenderingContext {
 		builder.end();
 		RenderSystem.setShaderTexture(0, BASE_ROCKY_LOCATION);
 		RenderSystem.enableCull();
+		builder.draw(ModRendering.getShader(ModRendering.RING_SHADER));
 		// RenderSystem.disableDepthTest();
-		BufferUploader.end(builder);
+		// BufferUploader.end(builder);
 
 		poseStack.popPose();
 
 		this.renderedPlanetCount += 1;
 	}
 
-	private static void renderPlanetLayer(BufferBuilder builder, CachedCamera<?> camera, ResourceLocation texture,
+	private static void renderPlanetLayer(FlexibleBufferBuilder builder, CachedCamera<?> camera, ResourceLocation texture,
 			PoseStack poseStack, Vec3 center, double radius, Color tintColor) {
-		// RenderSystem.setShader(() -> GameRenderer.getPositionTexColorNormalShader());
-		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.PLANET_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-		// addCube(builder, poseStack, center, radius, tintColor);
-		addNormSphere(builder, camera, poseStack, center, radius, tintColor);
+		addNormSphere(builder.asVanilla(), camera, poseStack, center, radius, tintColor);
 		builder.end();
 		RenderSystem.setShaderTexture(0, texture);
 		RenderSystem.disableCull();
-		BufferUploader.end(builder);
+		builder.draw(ModRendering.getShader(ModRendering.PLANET_SHADER));
 	}
 
 	private static void addRing(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
@@ -307,7 +306,7 @@ public final class PlanetRenderingContext {
 	private static void addNormSphere(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
 			double radius, Color tintColor) {
 
-		final var atlas = UniversalTextureManager.INSTANCE.getAtlas(PLANET_ATLAS_LOCATION);
+		// final var atlas = UniversalTextureManager.INSTANCE.getAtlas(PLANET_ATLAS_LOCATION);
 
 		// atlas.getSprite(BASE_GAS_GIANT_LOCATION);
 

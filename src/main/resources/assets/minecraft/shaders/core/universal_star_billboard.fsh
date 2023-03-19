@@ -17,7 +17,7 @@ out vec4 fragColor;
 
 void main() {
     vec4 s1 = texture(Sampler0, texCoord0) * vertexColor;
-    vec4 s2 = texture(Sampler0, (texCoord0 - 0.5) / 0.6 + 0.5);
+    vec4 s2 = texture(Sampler0, saturate((texCoord0 - 0.5) / 0.4 + 0.5));
 
 	vec4 hdrColor = vec4(0.0);
 	hdrColor = (1.0 * hdrColor) + (2.0 * s1.a * s1);

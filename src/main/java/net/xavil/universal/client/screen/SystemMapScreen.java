@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 
 import org.lwjgl.glfw.GLFW;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
@@ -25,17 +26,19 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.universal.client.ClientDebugFeatures;
+import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
+import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universal.networking.c2s.ServerboundTeleportToPlanetPacket;
 import net.xavil.universegen.system.BinaryCelestialNode;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.universegen.system.CelestialNodeChild;
-import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Ellipse;
@@ -443,13 +446,14 @@ public class SystemMapScreen extends UniversalScreen {
 			float partialTick) {
 
 		BufferBuilder builder = Tesselator.getInstance().getBuilder();
+		final var flexibleBuilder = BufferRenderer.immediateBuilder();
 
 		if (node instanceof PlanetaryCelestialNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			ctx.renderPlanet(builder, camera, planetNode, new PoseStack(), Color.WHITE, false);
+			ctx.renderPlanet(flexibleBuilder, camera, planetNode, new PoseStack(), Color.WHITE, false);
 		} else {
-			ctx.render(builder, camera, node, new PoseStack(), Color.WHITE, false);
+			ctx.render(flexibleBuilder, camera, node, new PoseStack(), Color.WHITE, false);
 		}
 
 		if (node instanceof BinaryCelestialNode binaryNode && this.showGuides) {
@@ -632,6 +636,8 @@ public class SystemMapScreen extends UniversalScreen {
 			// drawString(poseStack, this.client.font, "scale: " + scale, 0, 0, 0xffffffff);
 			poseStack.popPose();
 		}
+
+		// RenderHelper.renderStarBillboard(null, null, poseStack, null);
 
 		// poseStack.pushPose();
 		// new NodeRenderer(poseStack).renderNodeMain(system.rootNode);

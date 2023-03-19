@@ -22,6 +22,7 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -247,7 +248,8 @@ public class SkyRenderer {
 				RenderSystem.disableCull();
 				BufferUploader.end(builder);
 			} else {
-				ctx.render(builder, camera, node, new PoseStack(), Color.WHITE, node.getId() == currentNodeId.nodeId());
+				final var flexBuilder = BufferRenderer.immediateBuilder();
+				ctx.render(flexBuilder, camera, node, new PoseStack(), Color.WHITE, node.getId() == currentNodeId.nodeId());
 			}
 		});
 	}
@@ -367,7 +369,8 @@ public class SkyRenderer {
 
 		// RenderSystem.enableCull();
 		// RenderSystem.enableTexture();
-		// RenderSystem.depthMask(true);
+		RenderSystem.enableDepthTest();
+		RenderSystem.depthMask(true);
 
 		// GL11.glEnable(GL13.GL_MULTISAMPLE);
 

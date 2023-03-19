@@ -15,6 +15,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
+import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
@@ -39,12 +40,10 @@ public final class RenderHelper {
 
 	private static final Minecraft CLIENT = Minecraft.getInstance();
 
-	public static void renderStarBillboard(BufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
+	public static void renderStarBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node) {
-		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		addBillboard(builder, camera, poseStack, node);
+		addBillboard(builder.asVanilla(), camera, poseStack, node);
 		builder.end();
 		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
@@ -53,7 +52,7 @@ public final class RenderHelper {
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
-		BufferUploader.end(builder);
+		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 	}
 
 	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,

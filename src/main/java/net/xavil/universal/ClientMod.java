@@ -23,19 +23,19 @@ import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 public class ClientMod implements ClientModInitializer {
 
 	private void registerCelestialBody(SpriteRegistrationContext ctx, String name) {
-		final var prefix = "universal:textures/misc/celestialbodies/" + name;
-		ctx.registerSprite(prefix + "/base_color/nx.png");
-		ctx.registerSprite(prefix + "/base_color/px.png");
-		ctx.registerSprite(prefix + "/base_color/ny.png");
-		ctx.registerSprite(prefix + "/base_color/py.png");
-		ctx.registerSprite(prefix + "/base_color/nz.png");
-		ctx.registerSprite(prefix + "/base_color/pz.png");
-		ctx.registerSprite(prefix + "/normal/nx.png");
-		ctx.registerSprite(prefix + "/normal/px.png");
-		ctx.registerSprite(prefix + "/normal/ny.png");
-		ctx.registerSprite(prefix + "/normal/py.png");
-		ctx.registerSprite(prefix + "/normal/nz.png");
-		ctx.registerSprite(prefix + "/normal/pz.png");
+		final var prefix = "universal:misc/celestialbodies/" + name;
+		ctx.registerSprite(prefix + "/base_color/nx");
+		ctx.registerSprite(prefix + "/base_color/px");
+		ctx.registerSprite(prefix + "/base_color/ny");
+		ctx.registerSprite(prefix + "/base_color/py");
+		ctx.registerSprite(prefix + "/base_color/nz");
+		ctx.registerSprite(prefix + "/base_color/pz");
+		ctx.registerSprite(prefix + "/normal/nx");
+		ctx.registerSprite(prefix + "/normal/px");
+		ctx.registerSprite(prefix + "/normal/ny");
+		ctx.registerSprite(prefix + "/normal/py");
+		ctx.registerSprite(prefix + "/normal/nz");
+		ctx.registerSprite(prefix + "/normal/pz");
 	}
 
 	@Override

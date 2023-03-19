@@ -49,7 +49,7 @@ public final class BufferRenderer {
 		GlStateManager._glBufferData(GL32.GL_ARRAY_BUFFER, buffer, GL32.GL_DYNAMIC_DRAW);
 
 		int k = 0;
-		if (info.indexType() == null) {
+		if (info.sequentialIndex()) {
 			final var sequentialIndexBuffer = RenderSystem.getSequentialBuffer(info.mode(), info.indexCount());
 			GlStateManager._glBindBuffer(GL32.GL_ELEMENT_ARRAY_BUFFER, sequentialIndexBuffer.name());
 			k = sequentialIndexBuffer.type().asGLType;
@@ -72,20 +72,15 @@ public final class BufferRenderer {
 	private static VertexFormat lastFormat = null;
 
 	private static void setupForFormat(VertexFormat format) {
-		final var changedFormat = format != lastFormat;
-		if (changedFormat) {
-			if (lastFormat != null)
-				lastFormat.clearBufferState();
-			BufferUploader.reset();
-		}
+		BufferUploader.reset();
+		if (lastFormat != null)
+			lastFormat.clearBufferState();
 		final var vao = format.getOrCreateVertexArrayObject();
 		final var vbo = format.getOrCreateVertexBufferObject();
 		GlStateManager._glBindVertexArray(vao);
 		GlStateManager._glBindBuffer(GL32.GL_ARRAY_BUFFER, vbo);
-		if (changedFormat) {
-			format.setupBufferState();
-			lastFormat = format;
-		}
+		format.setupBufferState();
+		lastFormat = format;
 	}
 
 	public static void setupDefaultShaderUniforms(ShaderInstance shader) {

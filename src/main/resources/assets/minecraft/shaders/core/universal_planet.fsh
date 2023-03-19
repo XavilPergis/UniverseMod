@@ -99,8 +99,6 @@ vec3 gasGiantBaseColor(vec2 uv) {
 }
 
 void main() {
-	float gamma = 2.2;
-
 	vec4 baseColor = vec4(0);
 	if (IsGasGiant != 0) {
     	baseColor = vec4(gasGiantBaseColor(uvFromNormal(normal)), 1.0);
@@ -108,7 +106,6 @@ void main() {
     	baseColor = texture(Sampler0, texCoord0);
 	}
 	baseColor *= vertexColor;
-	// baseColor.rgb = pow(baseColor.rgb, vec3(gamma));
 
 	vec3 res = vec3(0);
 	res += contribution(LightColor0, LightPos0);
@@ -116,9 +113,7 @@ void main() {
 	res += contribution(LightColor2, LightPos2);
 	res += contribution(LightColor3, LightPos3);
 	vec3 finalColor = res * baseColor.rgb;
-	// vec3 finalColor = baseColor.rgb;
 
-    // finalColor = pow(finalColor, vec3(1.0 / gamma));
 	finalColor = acesTonemap(finalColor);
 
     fragColor = vec4(finalColor, 1);

@@ -8,6 +8,7 @@ import org.slf4j.Logger;
 
 import com.google.common.collect.Lists;
 import com.mojang.blaze3d.platform.MemoryTracker;
+import com.mojang.blaze3d.vertex.BufferVertexConsumer;
 import com.mojang.blaze3d.vertex.DefaultedVertexConsumer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -36,18 +37,19 @@ public final class FlexibleBufferBuilder {
 	private final List<FinishedBuffer> finishedBuffers = Lists.newArrayList();
 	private int poppedBufferCount = 0;
 
-	private static ElementConsumer writerForType(VertexFormatElement.Type ty, ByteBuffer buf, int bufferOffset) {
+	private static ElementConsumer writerForType(VertexFormatElement.Type ty, ByteBuffer buf, int elementOffset) {
+		// @formatter:off
 		return switch (ty) {
-			case BYTE -> (k, n) -> buf.put(k + bufferOffset, (byte) n);
-			case UBYTE -> (k, n) -> buf.put(k + bufferOffset, (byte) n);
-			case SHORT -> (k, n) -> buf.putShort(k + bufferOffset, (short) n);
-			case USHORT -> (k, n) -> buf.putShort(k + bufferOffset, (short) n);
-			case INT -> (k, n) -> buf.putInt(k + bufferOffset, (int) n);
-			case UINT -> (k, n) -> buf.putInt(k + bufferOffset, (int) n);
-			case FLOAT -> (k, n) -> buf.putFloat(k + bufferOffset, (float) n);
-			default -> (k, n) -> {
-			};
+			case BYTE   -> (off, n) -> buf.put     (off + elementOffset, (byte)  n);
+			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset, (byte)  n);
+			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, (short) n);
+			case USHORT -> (off, n) -> buf.putShort(off + elementOffset, (short) n);
+			case INT    -> (off, n) -> buf.putInt  (off + elementOffset, (int)   n);
+			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset, (int)   n);
+			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset, (float) n);
+			default     -> (k, n) -> {};
 		};
+		// @formatter:on
 	}
 
 	private static interface ElementConsumer {
@@ -58,29 +60,36 @@ public final class FlexibleBufferBuilder {
 		public final ElementConsumer consumer;
 		public final VertexFormatElement element;
 		public float c0, c1, c2, c3;
+		public final int c0o, c1o, c2o, c3o;
 
 		public ElementHolder(ElementConsumer consumer, VertexFormatElement element) {
 			this.consumer = consumer;
 			this.element = element;
+
+			final var elementSize = element.getType().getSize();
+			this.c0o = 0 * elementSize;
+			this.c1o = 1 * elementSize;
+			this.c2o = 2 * elementSize;
+			this.c3o = 3 * elementSize;
 		}
 
-		public void emit(int vertexByteOffset) {
+		public void emit(int vertexBase) {
+			// @formatter:off
 			switch (element.getCount()) {
+				case 4: this.consumer.emit(vertexBase + this.c3o, this.c3);
+				case 3: this.consumer.emit(vertexBase + this.c2o, this.c2);
+				case 2: this.consumer.emit(vertexBase + this.c1o, this.c1);
+				case 1: this.consumer.emit(vertexBase + this.c0o, this.c0);
 				default:
-				case 4:
-					this.consumer.emit(vertexByteOffset, this.c0);
-				case 3:
-					this.consumer.emit(vertexByteOffset + 1, this.c1);
-				case 2:
-					this.consumer.emit(vertexByteOffset + 2, this.c2);
-				case 1:
-					this.consumer.emit(vertexByteOffset + 3, this.c3);
 			}
+			// @formatter:on
 		}
 
 	}
 
 	private static class ElementDispatch {
+		public ElementHolder[] activeHolders;
+
 		public ElementHolder positionHolder;
 		public ElementHolder colorHolder;
 		public ElementHolder normalHolder;
@@ -88,40 +97,44 @@ public final class FlexibleBufferBuilder {
 		public ElementHolder uv1Holder;
 		public ElementHolder uv2Holder;
 
-		public final List<ElementHolder> activeHolders = new ArrayList<>();
-
-		public void setup(VertexFormat format, ByteBuffer buf) {
-			this.activeHolders.clear();
-			int bufferOffset = 0;
-			for (var element : format.getElements()) {
-				final var writer = writerForType(element.getType(), buf, bufferOffset);
-				final var holder = new ElementHolder(writer, element);
-				this.activeHolders.add(holder);
-				bufferOffset += element.getByteSize();
-				switch (element.getUsage()) {
-					case COLOR -> this.colorHolder = holder;
-					case NORMAL -> this.normalHolder = holder;
-					case UV -> {
-						switch (element.getIndex()) {
-							case 0 -> this.uv0Holder = holder;
-							case 1 -> this.uv1Holder = holder;
-							case 2 -> this.uv2Holder = holder;
-							default -> {
-							}
-						}
-					}
-					case POSITION -> {
-						this.positionHolder = holder;
-						this.positionHolder.c3 = 1f;
-					}
-					default -> {
+		private void addHolder(VertexFormatElement element, ElementHolder holder) {
+			// @formatter:off
+			switch (element.getUsage()) {
+				case POSITION -> this.positionHolder = holder;
+				case COLOR -> this.colorHolder = holder;
+				case NORMAL -> this.normalHolder = holder;
+				case UV -> {
+					switch (element.getIndex()) {
+						case 0 -> this.uv0Holder = holder;
+						case 1 -> this.uv1Holder = holder;
+						case 2 -> this.uv2Holder = holder;
+						default -> {}
 					}
 				}
+				default -> {}
 			}
+			// @formatter:on
 		}
 
-		public void emit(int vertexByteOffset) {
-			this.activeHolders.forEach(holder -> holder.emit(vertexByteOffset));
+		public void setup(VertexFormat format, ByteBuffer buf) {
+			final var holdersList = new ArrayList<ElementHolder>();
+			int elementOffset = 0;
+			for (final var element : format.getElements()) {
+				final var writer = writerForType(element.getType(), buf, elementOffset);
+				elementOffset += element.getByteSize();
+				if (element.getUsage() != VertexFormatElement.Usage.PADDING) {
+					final var holder = new ElementHolder(writer, element);
+					holdersList.add(holder);
+					addHolder(element, holder);
+				}
+			}
+			this.activeHolders = holdersList.toArray(ElementHolder[]::new);
+		}
+
+		public void emit(int vertexBase) {
+			for (final var holder : this.activeHolders) {
+				holder.emit(vertexBase);
+			}
 		}
 	}
 
@@ -132,6 +145,7 @@ public final class FlexibleBufferBuilder {
 	public void begin(VertexFormat.Mode mode, VertexFormat format) {
 		this.dispatch.setup(format, this.buffer);
 		this.currentVertexFormat = format;
+		this.currentMode = mode;
 		this.vertexStartByteOffset = Mth.roundToward(this.vertexByteOffset, 4);
 	}
 
@@ -159,7 +173,9 @@ public final class FlexibleBufferBuilder {
 
 	public void reset() {
 		this.vertexByteOffset = 0;
+		this.vertexStartByteOffset = 0;
 		this.poppedBufferCount = 0;
+		this.finishedBuffers.clear();
 	}
 
 	public Pair<FinishedBuffer, ByteBuffer> popFinished() {
@@ -168,7 +184,7 @@ public final class FlexibleBufferBuilder {
 		if (this.poppedBufferCount == this.finishedBuffers.size()) {
 			reset();
 		}
-		
+
 		final var bufferSlice = this.buffer.slice(finished.parentBufferOffset, finished.byteCount());
 		return Pair.of(finished, bufferSlice);
 	}
@@ -272,7 +288,7 @@ public final class FlexibleBufferBuilder {
 			return;
 		final var oldSize = this.buffer.capacity();
 		final var newSize = oldSize + roundUp(additionalBytes);
-		LOGGER.debug("Needed to grow FlexibleBufferBuilder buffer: Old size {} bytes, new size {} bytes.",
+		LOGGER.info("Needed to grow FlexibleBufferBuilder buffer: Old size {} bytes, new size {} bytes.",
 				oldSize, newSize);
 		this.buffer = MemoryTracker.resize(this.buffer, newSize);
 		this.buffer.rewind();
@@ -317,7 +333,10 @@ public final class FlexibleBufferBuilder {
 
 		@Override
 		public VertexConsumer normal(float x, float y, float z) {
-			FlexibleBufferBuilder.this.normal(x, y, z);
+			FlexibleBufferBuilder.this.normal(
+					BufferVertexConsumer.normalIntValue(x),
+					BufferVertexConsumer.normalIntValue(y),
+					BufferVertexConsumer.normalIntValue(z));
 			return this;
 		}
 

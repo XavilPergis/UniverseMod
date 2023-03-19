@@ -77,6 +77,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 			try {
 				var chain = new PostChain(this.minecraft.getTextureManager(), resourceManager,
 						this.minecraft.getMainRenderTarget(), new ResourceLocation(location));
+				chain.resize(this.minecraft.getWindow().getWidth(), this.minecraft.getWindow().getHeight());
 				final var prevChain = this.modPostChains.put(location, chain);
 				if (prevChain != null)
 					prevChain.close();

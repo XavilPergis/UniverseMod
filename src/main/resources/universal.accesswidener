@@ -1,5 +1,8 @@
 accessWidener	v1	named
+
+# Needed to add custom network packets that aren't routed through `CustomPayload` packets.
 accessible	class	net/minecraft/network/ConnectionProtocol$PacketSet
+
 accessible	field	com/mojang/math/Matrix4f	m00	F
 accessible	field	com/mojang/math/Matrix4f	m01	F
 accessible	field	com/mojang/math/Matrix4f	m02	F
@@ -16,3 +19,8 @@ accessible	field	com/mojang/math/Matrix4f	m30	F
 accessible	field	com/mojang/math/Matrix4f	m31	F
 accessible	field	com/mojang/math/Matrix4f	m32	F
 accessible	field	com/mojang/math/Matrix4f	m33	F
+
+# Needed for reimplementation of `_bindTexture` so we can use the `GL_TEXTURE_2D_MULTISAMPLE` target.
+accessible	class	com/mojang/blaze3d/platform/GlStateManager$TextureState
+accessible	field	com/mojang/blaze3d/platform/GlStateManager	activeTexture	I
+accessible	field	com/mojang/blaze3d/platform/GlStateManager	TEXTURES	[Lcom/mojang/blaze3d/platform/GlStateManager$TextureState;

@@ -124,6 +124,11 @@ public abstract class PostChainMixin {
 	private FlexibleRenderTarget.FormatPair parseFormatPair(String str) throws ChainedJsonException {
 		int colorFormat0 = GL31.GL_RGBA8;
 		var depthFormat = OptionalInt.of(GL31.GL_DEPTH_COMPONENT);
+		boolean multisample = false;
+		if (str.endsWith("-ms")) {
+			str = str.substring(0, str.length() - 3);
+			multisample = true;
+		}
 		if (str.contains("+")) {
 			var segments = str.split("\\+");
 			if (segments.length != 2)
@@ -135,7 +140,7 @@ public abstract class PostChainMixin {
 		}
 		colorFormat0 = parseFormat(str, OptionalInt.of(GL31.GL_RGBA8))
 				.orElseThrow(() -> new ChainedJsonException(String.format("a color format must be provided")));
-		return new FlexibleRenderTarget.FormatPair(colorFormat0, depthFormat);
+		return new FlexibleRenderTarget.FormatPair(multisample, colorFormat0, depthFormat);
 	}
 
 	@Inject(method = "parseTargetNode", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/PostChain;addTempTarget(Ljava/lang/String;II)V", ordinal = 1), cancellable = true)

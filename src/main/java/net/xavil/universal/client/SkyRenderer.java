@@ -1,7 +1,7 @@
 package net.xavil.universal.client;
 
-import org.lwjgl.opengl.GL11;
-import org.lwjgl.opengl.GL13;
+import java.util.OptionalInt;
+
 import org.lwjgl.opengl.GL32;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -19,10 +19,10 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.PostChain;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.flexible.BufferRenderer;
+import net.xavil.universal.client.flexible.FlexibleRenderTarget;
 import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -44,14 +44,30 @@ public class SkyRenderer {
 	public static final SkyRenderer INSTANCE = new SkyRenderer();
 
 	private final Minecraft client = Minecraft.getInstance();
-	// public RenderTarget skyTarget = null;
+	public FlexibleRenderTarget skyTargetMultisampled = null;
 	// public PostChain compositeChain = null;
 
 	private VertexBuffer distantStarsBuffer = new VertexBuffer();
 	private boolean shouldRebuildStarBuffer = true;
 	private SystemNodeId previousId = null;
 
-	public RenderTarget getSkyTarget() {
+	public void resize(int width, int height) {
+		if (this.skyTargetMultisampled != null) {
+			this.skyTargetMultisampled.resize(width, height, false);
+		}
+	}
+
+	public FlexibleRenderTarget getSkyTargetMultisampled() {
+		if (this.skyTargetMultisampled == null) {
+			final var window = this.client.getWindow();
+			final var format = new FlexibleRenderTarget.FormatPair(true, GL32.GL_RGBA32F,
+					OptionalInt.of(GL32.GL_DEPTH_COMPONENT32));
+			this.skyTargetMultisampled = new FlexibleRenderTarget(window.getWidth(), window.getHeight(), format);
+		}
+		return this.skyTargetMultisampled;
+	}
+
+	public RenderTarget getSkyResolveTarget() {
 		return ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).getTempTarget("sky");
 	}
 
@@ -61,7 +77,7 @@ public class SkyRenderer {
 		var offset = pos.sub(selfPos);
 		var forward = offset.normalize();
 
-		s = 1e9 * 2 * RenderHelper.getCelestialBodySize(selfPos, node, pos);
+		s = 1.5e9 * RenderHelper.getCelestialBodySize(selfPos, node, pos);
 
 		var du = forward.dot(Vec3.YP);
 		var df = forward.dot(Vec3.ZN);
@@ -79,21 +95,23 @@ public class SkyRenderer {
 		if (distanceFromFocus > 1.5 * Galaxy.TM_PER_SECTOR)
 			return;
 
-		double alpha = 1.0;
+		double alpha = 0.0;
 		if (node instanceof StellarCelestialNode starNode) {
-			double t = Math.pow(starNode.luminosityLsol, 0.75);
-
 			// how many Tm can a star with 1 Lsol of luminosity be seen from
-			final double referenceMaxVisibleDistance = 547229.011;
+			// final double referenceMaxVisibleDistance = 547229.011;
 
-			double d = distanceFromFocus / referenceMaxVisibleDistance;
-			alpha *= t / d;
+			final double lumW = starNode.luminosityLsol * Units.W_PER_Lsol;
+			final double distM = distanceFromFocus * Units.TERA;
+			final double intensity = lumW / (4.0 * Math.PI * distM * distM);
+
+			alpha += 1e10 * intensity;
 			alpha = Math.min(1.0, alpha);
 		}
 
-		alpha *= 1;
 		if (alpha < 1e-5)
 			return;
+
+		s = 0.5f;
 
 		// because of imperfections in optics, light from a point-like source is spread
 		// out around the center point. because brighter stars emit so much more light,
@@ -102,11 +120,8 @@ public class SkyRenderer {
 		// the spread will be much less prominent and will look much smaller.
 
 		var up = forward.cross(right).neg();
-		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, offset.mul(1e9),
+		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, forward.mul(100),
 				s, 0, color.withA(alpha));
-		// RenderHelper.addBillboardCamspace(builder, poseStack, up, right,
-		// offset.mul(1e9),
-		// s * 0.5, 0, Color.WHITE.withA(alpha));
 
 	}
 
@@ -249,7 +264,8 @@ public class SkyRenderer {
 				BufferUploader.end(builder);
 			} else {
 				final var flexBuilder = BufferRenderer.immediateBuilder();
-				ctx.render(flexBuilder, camera, node, new PoseStack(), Color.WHITE, node.getId() == currentNodeId.nodeId());
+				ctx.render(flexBuilder, camera, node, new PoseStack(), Color.WHITE,
+						node.getId() == currentNodeId.nodeId());
 			}
 		});
 	}
@@ -299,7 +315,8 @@ public class SkyRenderer {
 		var currentSystem = universe.getSystem(currentId.system());
 		currentSystem.rootNode.updatePositions(time);
 
-		var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 5e4f, 1e13f, partialTick);
+		var systemProj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 5e4f, 1e13f, partialTick);
+		var starSphereProj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1f, 1e5f, partialTick);
 
 		// TODO: is this right? what about when spectating entities? (or in front-view
 		// third-person lol)
@@ -315,12 +332,11 @@ public class SkyRenderer {
 				camera.getPosition().z);
 
 		var celestialCamera = CachedCamera.create(camera, currentNode.position.mul(Units.TERA).add(planetSurfaceOffset),
-				xRot,
-				yRot, planetViewRotation, proj);
+				xRot, yRot, planetViewRotation, systemProj);
 		var matrixSnapshot = celestialCamera.setupRenderMatrices();
 		poseStack.pushPose();
 
-		RenderSystem.setProjectionMatrix(proj);
+		RenderSystem.setProjectionMatrix(systemProj);
 		RenderSystem.setShaderFogStart(Float.POSITIVE_INFINITY);
 		RenderSystem.setShaderFogEnd(Float.POSITIVE_INFINITY);
 
@@ -335,26 +351,20 @@ public class SkyRenderer {
 		if (this.shouldRebuildStarBuffer)
 			buildStars();
 
-		final var skyTarget = getSkyTarget();
-		skyTarget.setClearColor(0, 0, 0, 0);
-		skyTarget.clear(false);
-		skyTarget.bindWrite(false);
+		getSkyResolveTarget().clear(false);
 
-		drawStars(RenderSystem.getModelViewMatrix(), proj);
+		GL32.glEnable(GL32.GL_MULTISAMPLE);
+		final var skyTargetMs = getSkyTargetMultisampled();
+		skyTargetMs.setClearColor(0, 0, 0, 0);
+		skyTargetMs.clear(false);
+		skyTargetMs.bindWrite(false);
+
+		drawStars(RenderSystem.getModelViewMatrix(), starSphereProj);
 		drawSystem(celestialCamera, currentId, time, partialTick);
 
-		// this.client.getMainRenderTarget().setClearColor(0.2f, 0.2f, 0.2f, 1.0f);
-		// this.client.getMainRenderTarget().setClearColor(0f, 0f, 0f, 1.0f);
-		// this.client.getMainRenderTarget().clear(false);
-		// this.client.getMainRenderTarget().bindWrite(false);
-		// RenderSystem.enableBlend();
-		// // RenderSystem.depthMask(false);
-		// skyTarget.blitToScreen(width, height, false);
-		// RenderSystem.disableBlend();
-
-		// RenderSystem.enableCull();
-		// RenderSystem.enableTexture();
-		// RenderSystem.depthMask(true);
+		// resolve nice and crispy multisampled framebuffer to a normal (but floating
+		// point backed) framebuffer
+		skyTargetMs.resolveTo(getSkyResolveTarget());
 
 		this.client.getMainRenderTarget().setClearColor(0f, 0f, 0f, 1.0f);
 		ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).process(partialTick);
@@ -362,17 +372,9 @@ public class SkyRenderer {
 		// a bit scuffed...
 		GlStateManager._clearDepth(1.0);
 		GlStateManager._clear(GL32.GL_DEPTH_BUFFER_BIT, false);
-		// this.client.getMainRenderTarget().copyDepthFrom(skyTarget);
-		// this.client.getMainRenderTarget().clear(false);
-		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		// RenderSystem.disableBlend();
-
-		// RenderSystem.enableCull();
-		// RenderSystem.enableTexture();
 		RenderSystem.enableDepthTest();
 		RenderSystem.depthMask(true);
-
-		// GL11.glEnable(GL13.GL_MULTISAMPLE);
+		RenderSystem.enableCull();
 
 		poseStack.popPose();
 		matrixSnapshot.restore();

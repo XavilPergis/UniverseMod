@@ -19,7 +19,6 @@ import net.minecraft.client.main.GameConfig;
 import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
-import net.xavil.universal.ClientMod;
 import net.xavil.universal.client.UniversalTextureManager;
 import net.xavil.universal.client.screen.UniversalScreen;
 import net.xavil.universal.common.universe.universe.ClientUniverse;

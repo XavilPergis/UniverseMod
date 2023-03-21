@@ -1,4 +1,4 @@
-package net.xavil.universal.mixin.impl;
+package net.xavil.universal.mixin.impl.render;
 
 import java.util.List;
 import java.util.Map;
@@ -11,16 +11,13 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.google.gson.JsonElement;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.server.ChainedJsonException;
 import net.minecraft.util.GsonHelper;
-import net.xavil.universal.client.SkyRenderer;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
 
 @Mixin(PostChain.class)

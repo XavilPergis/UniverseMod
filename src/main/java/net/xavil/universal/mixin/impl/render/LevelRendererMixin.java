@@ -1,4 +1,4 @@
-package net.xavil.universal.mixin.impl;
+package net.xavil.universal.mixin.impl.render;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;

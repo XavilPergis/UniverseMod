@@ -1,4 +1,4 @@
-package net.xavil.universal.mixin.impl;
+package net.xavil.universal.mixin.impl.render;
 
 import org.lwjgl.glfw.GLFW;
 import org.spongepowered.asm.mixin.Mixin;

@@ -8,10 +8,12 @@ import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.util.Mth;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.xavil.universal.common.dimension.DimensionCreationProperties;
+import net.xavil.util.Units;
 
 public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 
@@ -80,6 +82,13 @@ public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 			var levelStem = new LevelStem(dimensionType(server), generator);
 			return DimensionCreationProperties.basic(levelStem);
 		};
+	}
+
+	public double surfaceGravityEarthRelative() {
+		final var radiusRearth = this.radiusRearth;
+		final var massMearth = this.massYg / Units.Yg_PER_Mearth;
+		final var ratio = massMearth / (radiusRearth * radiusRearth);
+		return Mth.clamp(ratio, 0.1, 1.2);
 	}
 
 	// planet type (gas giant, icy world, rocky world, earth-like world, etc)

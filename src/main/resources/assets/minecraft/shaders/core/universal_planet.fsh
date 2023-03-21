@@ -42,7 +42,7 @@ vec3 contribution(vec4 color, vec4 pos) {
 		receivedIntensity *= max(0.0, dot(toStar, normal.xyz));
 		// float reflectedIntensity = receivedIntensity / (4 * PI * pow(fragDistanceMeters, 2.0));
 
-		return 0.1 * color.rgb * receivedIntensity;
+		return 50.0 * color.rgb * receivedIntensity;
 	}
 	return vec3(0);
 }

@@ -225,13 +225,17 @@ public class SkyRenderer {
 	}
 
 	private void drawSystem(CachedCamera<?> camera, SystemNodeId currentNodeId, double time, float partialTick) {
+		final var profiler = Minecraft.getInstance().getProfiler();
 
+		profiler.push("camera");
 		camera.setupRenderMatrices();
 
+		profiler.popPush("system_lookup");
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
 		var system = universe.getSystem(currentNodeId.system());
 		var currentNode = system.rootNode.lookup(currentNodeId.nodeId());
 
+		profiler.popPush("planet_context_setup");
 		var builder = Tesselator.getInstance().getBuilder();
 		var ctx = new PlanetRenderingContext(time);
 		system.rootNode.visit(node -> {
@@ -248,7 +252,10 @@ public class SkyRenderer {
 
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
+		profiler.popPush("visit");
 		system.rootNode.visit(node -> {
+			final var profiler2 = Minecraft.getInstance().getProfiler();
+			profiler2.push("id:" + node.getId());
 			if (node instanceof StellarCelestialNode starNode) {
 				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -267,7 +274,9 @@ public class SkyRenderer {
 				ctx.render(flexBuilder, camera, node, new PoseStack(), Color.WHITE,
 						node.getId() == currentNodeId.nodeId());
 			}
+			profiler2.pop();
 		});
+		profiler.pop();
 	}
 
 	private Quat toCelestialWorldSpaceRotation(CelestialNode node, double time, double viewX, double viewZ) {
@@ -297,6 +306,8 @@ public class SkyRenderer {
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float partialTick, Camera camera,
 			boolean isSkyVisible) {
 
+		final var profiler = Minecraft.getInstance().getProfiler();
+
 		var currentId = LevelAccessor.getUniverseId(this.client.level);
 		if (isSkyVisible || currentId == null)
 			return false;
@@ -310,11 +321,15 @@ public class SkyRenderer {
 			return false;
 		var currentNode = (PlanetaryCelestialNode) currentNodeUntyped;
 
+		// profiler.push("sky");
+
 		double time = universe.getCelestialTime(partialTick);
 
 		var currentSystem = universe.getSystem(currentId.system());
+		profiler.push("update_positions");
 		currentSystem.rootNode.updatePositions(time);
 
+		profiler.popPush("camera");
 		var systemProj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 5e4f, 1e13f, partialTick);
 		var starSphereProj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 1f, 1e5f, partialTick);
 
@@ -336,6 +351,7 @@ public class SkyRenderer {
 		var matrixSnapshot = celestialCamera.setupRenderMatrices();
 		poseStack.pushPose();
 
+		profiler.pop();
 		RenderSystem.setProjectionMatrix(systemProj);
 		RenderSystem.setShaderFogStart(Float.POSITIVE_INFINITY);
 		RenderSystem.setShaderFogEnd(Float.POSITIVE_INFINITY);
@@ -359,16 +375,22 @@ public class SkyRenderer {
 		skyTargetMs.clear(false);
 		skyTargetMs.bindWrite(false);
 
+		profiler.push("stars");
 		drawStars(RenderSystem.getModelViewMatrix(), starSphereProj);
+		profiler.popPush("system");
 		drawSystem(celestialCamera, currentId, time, partialTick);
+		profiler.pop();
 
 		// resolve nice and crispy multisampled framebuffer to a normal (but floating
 		// point backed) framebuffer
+		profiler.push("resolve");
 		skyTargetMs.resolveTo(getSkyResolveTarget());
 
+		profiler.popPush("composite");
 		this.client.getMainRenderTarget().setClearColor(0f, 0f, 0f, 1.0f);
 		ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).process(partialTick);
 		this.client.getMainRenderTarget().bindWrite(false);
+		profiler.pop();
 		// a bit scuffed...
 		GlStateManager._clearDepth(1.0);
 		GlStateManager._clear(GL32.GL_DEPTH_BUFFER_BIT, false);

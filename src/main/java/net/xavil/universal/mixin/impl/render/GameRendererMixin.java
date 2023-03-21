@@ -1,4 +1,4 @@
-package net.xavil.universal.mixin.impl;
+package net.xavil.universal.mixin.impl.render;
 
 import java.io.IOException;
 import java.util.Map;

@@ -7,12 +7,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.ModSavedData;
+import net.xavil.universal.mixin.accessor.EntityAccessor;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 
@@ -38,6 +39,13 @@ public abstract class ServerLevelMixin {
 				}
 			}
 		}
+	}
+
+	@Inject(method = "tickNonPassenger(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"))
+	private void setSystemNodeId(Entity entity, CallbackInfo info) {
+		final var self = (ServerLevel) (Object) this;
+		EntityAccessor.setSystemNodeId(entity, LevelAccessor.getUniverseId(self));
+		EntityAccessor.setUniverse(entity, MinecraftServerAccessor.getUniverse(this.server));
 	}
 
 }

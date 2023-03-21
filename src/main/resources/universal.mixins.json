@@ -1,25 +1,28 @@
 {
-  "required": true,
-  "minVersion": "0.8",
-  "package": "net.xavil.universal.mixin.impl",
-  "compatibilityLevel": "JAVA_17",
-  "mixins": [
-	"MinecraftServerMixin",
-	"LevelMixin",
-	"ServerLevelMixin",
-	"ServerPlayerMixin",
-	"ConnectionProtocolMixin",
-	"PlayerListMixin",
-	"gravity.LivingEntityMixin"
-  ],
-  "client": [
-    "MinecraftClientMixin",
-    "PostChainMixin",
-    "WindowMixin",
-    "GameRendererMixin",
-    "LevelRendererMixin"
-  ],
-  "injectors": {
-    "defaultRequire": 1
-  }
+	"required": true,
+	"minVersion": "0.8",
+	"package": "net.xavil.universal.mixin.impl",
+	"compatibilityLevel": "JAVA_17",
+	"mixins": [
+		"MinecraftServerMixin",
+		"LevelMixin",
+		"ServerLevelMixin",
+		"ClientLevelMixin",
+		"ServerPlayerMixin",
+		"ConnectionProtocolMixin",
+		"PlayerListMixin",
+		"EntityMixin",
+		"gravity.LivingEntityMixin"
+	],
+	"client": [
+		"MinecraftClientMixin",
+		"render.GameRendererMixin",
+		"render.LevelRendererMixin",
+		"render.PostChainMixin",
+		"render.RenderSystemMixin",
+		"render.WindowMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	}
 }

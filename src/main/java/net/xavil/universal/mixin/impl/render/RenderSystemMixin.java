@@ -1,4 +1,4 @@
-package net.xavil.universal.mixin.impl;
+package net.xavil.universal.mixin.impl.render;
 
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
@@ -12,8 +12,8 @@ import net.xavil.universal.client.flexible.BufferRenderer;
 @Mixin(RenderSystem.class)
 public abstract class RenderSystemMixin {
 	
-	@Inject(method = "flipFrame", at = @At(value = "INVOKE", target = "Lorg/lwjgl/glfw/GLFW;glfwSwapBuffers(J)V"), remap = false)
-	private void resetFlexibleBuilder(long i, CallbackInfo info) {
+	@Inject(method = "flipFrame(J)V", at = @At(value = "INVOKE", target = "Lorg/lwjgl/glfw/GLFW;glfwSwapBuffers(J)V"), remap = false)
+	private static void resetFlexibleBuilder(long i, CallbackInfo info) {
 		BufferRenderer.immediateBuilder().reset();
 	}
 

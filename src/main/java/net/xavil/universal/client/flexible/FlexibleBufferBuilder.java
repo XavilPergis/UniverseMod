@@ -19,6 +19,8 @@ import com.mojang.logging.LogUtils;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
 import net.xavil.util.Assert;
+import net.xavil.util.math.Color;
+import net.xavil.util.math.Vec3;
 
 public final class FlexibleBufferBuilder {
 
@@ -37,9 +39,29 @@ public final class FlexibleBufferBuilder {
 	private final List<FinishedBuffer> finishedBuffers = Lists.newArrayList();
 	private int poppedBufferCount = 0;
 
-	private static ElementConsumer writerForType(VertexFormatElement.Type ty, ByteBuffer buf, int elementOffset) {
+	private static final float BYTE_MAX = (float) Byte.MAX_VALUE;
+	private static final float SHORT_MAX = (float) Short.MAX_VALUE;
+	private static final float INT_MAX = (float) Integer.MAX_VALUE;
+
+	public static byte normalizedByte(float num) {
+		return (byte) ((short) (Mth.clamp(num, -1f, 1f) * BYTE_MAX) & 0xFF);
+	}
+
+	public static short normalizedShort(float num) {
+		return (short) ((int) (Mth.clamp(num, -1f, 1f) * SHORT_MAX) & 0xFFFF);
+	}
+
+	public static int normalizedInt(float num) {
+		return (int) (Mth.clamp(num, -1f, 1f) * INT_MAX);
+	}
+
+	private static ElementConsumer writerForType(VertexFormatElement elem, ByteBuffer buf, int elementOffset) {
+		final var normalized = switch (elem.getUsage()) {
+			case NORMAL, COLOR, UV -> true;
+			default -> false;
+		};
 		// @formatter:off
-		return switch (ty) {
+		if (!normalized) return switch (elem.getType()) {
 			case BYTE   -> (off, n) -> buf.put     (off + elementOffset, (byte)  n);
 			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset, (byte)  n);
 			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, (short) n);
@@ -47,6 +69,16 @@ public final class FlexibleBufferBuilder {
 			case INT    -> (off, n) -> buf.putInt  (off + elementOffset, (int)   n);
 			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset, (int)   n);
 			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset, (float) n);
+			default     -> (k, n) -> {};
+		};
+		return switch (elem.getType()) {
+			case BYTE   -> (off, n) -> buf.put     (off + elementOffset, normalizedByte(n));
+			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset, normalizedByte(n));
+			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, normalizedShort(n));
+			case USHORT -> (off, n) -> buf.putShort(off + elementOffset, normalizedShort(n));
+			case INT    -> (off, n) -> buf.putInt  (off + elementOffset, normalizedInt(n));
+			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset, normalizedInt(n));
+			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset, n);
 			default     -> (k, n) -> {};
 		};
 		// @formatter:on
@@ -120,7 +152,7 @@ public final class FlexibleBufferBuilder {
 			final var holdersList = new ArrayList<ElementHolder>();
 			int elementOffset = 0;
 			for (final var element : format.getElements()) {
-				final var writer = writerForType(element.getType(), buf, elementOffset);
+				final var writer = writerForType(element, buf, elementOffset);
 				elementOffset += element.getByteSize();
 				if (element.getUsage() != VertexFormatElement.Usage.PADDING) {
 					final var holder = new ElementHolder(writer, element);
@@ -224,6 +256,21 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	public FlexibleBufferBuilder vertex(Vec3 pos) {
+		dispatch.positionHolder.c0 = (float) pos.x;
+		dispatch.positionHolder.c1 = (float) pos.y;
+		dispatch.positionHolder.c2 = (float) pos.z;
+		return this;
+	}
+
+	public FlexibleBufferBuilder color(Color color) {
+		dispatch.colorHolder.c0 = color.r();
+		dispatch.colorHolder.c1 = color.g();
+		dispatch.colorHolder.c2 = color.b();
+		dispatch.colorHolder.c3 = color.a();
+		return this;
+	}
+
 	public FlexibleBufferBuilder color(float r, float g, float b, float a) {
 		dispatch.colorHolder.c0 = r;
 		dispatch.colorHolder.c1 = g;
@@ -261,6 +308,13 @@ public final class FlexibleBufferBuilder {
 		dispatch.normalHolder.c0 = x;
 		dispatch.normalHolder.c1 = y;
 		dispatch.normalHolder.c2 = z;
+		return this;
+	}
+
+	public FlexibleBufferBuilder normal(Vec3 norm) {
+		dispatch.normalHolder.c0 = (float) norm.x;
+		dispatch.normalHolder.c1 = (float) norm.y;
+		dispatch.normalHolder.c2 = (float) norm.z;
 		return this;
 	}
 
@@ -303,13 +357,13 @@ public final class FlexibleBufferBuilder {
 
 		@Override
 		public VertexConsumer color(int r, int g, int b, int a) {
-			FlexibleBufferBuilder.this.color(r, g, b, a);
+			FlexibleBufferBuilder.this.color(r / 255f, g / 255f, b / 255f, a / 255f);
 			return this;
 		}
 
 		@Override
 		public VertexConsumer color(float r, float g, float b, float a) {
-			FlexibleBufferBuilder.this.color(r * 255f, g * 255f, b * 255f, a * 255f);
+			FlexibleBufferBuilder.this.color(r, g, b, a);
 			return this;
 		}
 
@@ -333,10 +387,7 @@ public final class FlexibleBufferBuilder {
 
 		@Override
 		public VertexConsumer normal(float x, float y, float z) {
-			FlexibleBufferBuilder.this.normal(
-					BufferVertexConsumer.normalIntValue(x),
-					BufferVertexConsumer.normalIntValue(y),
-					BufferVertexConsumer.normalIntValue(z));
+			FlexibleBufferBuilder.this.normal(x, y, z);
 			return this;
 		}
 

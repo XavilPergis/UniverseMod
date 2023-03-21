@@ -4,6 +4,7 @@
 
 in vec3 Position;
 in vec2 UV0;
+// in vec2 UV1;
 in vec4 Color;
 in vec3 Normal;
 

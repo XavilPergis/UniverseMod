@@ -33,52 +33,142 @@ out vec4 fragColor;
 
 vec3 contribution(vec4 color, vec4 pos) {
 	if (color.a >= 0) {
-		vec3 p0 = (ModelViewMat * vec4(pos.xyz, 1.0)).xyz;
-		vec3 d0 = normalize(p0 - vertexPos.xyz);
+		vec3 starPos = (ModelViewMat * vec4(pos.xyz, 1.0)).xyz;
+		vec3 toStar = normalize(starPos - vertexPos.xyz);
+		float starDistanceMeters = distance(vertexPos.xyz, starPos) * MetersPerUnit;
+		float fragDistanceMeters = length(vertexPos.xyz) * MetersPerUnit;
 
-		float distanceMeters = distance(vertexPos.xyz, p0) * MetersPerUnit;
-		float d2 = 1.0 / pow(distanceMeters / 1e14, 2.0);
-		float light = min(18.0, color.a * d2);
+		float receivedIntensity = (color.a * 3.827e26) / (4 * PI * pow(starDistanceMeters, 2.0));
+		receivedIntensity *= max(0.0, dot(toStar, normal.xyz));
+		// float reflectedIntensity = receivedIntensity / (4 * PI * pow(fragDistanceMeters, 2.0));
 
-		return color.rgb * light * saturate(dot(normal.xyz, d0)) + 0.0025 * color.rgb;
+		return 0.1 * color.rgb * receivedIntensity;
 	}
 	return vec3(0);
 }
 
-float nfbm(vec2 v, int octaves, float baseAmplitude, float amplitudeFalloff, float baseFrequency, float frequencyFalloff) {
-	float maxValue = 0.0;
-	float currentValue = 0.0;
-	float currentFrequency = baseFrequency;
-	float currentAmplitude = baseAmplitude;
-	for (int i = 0; i < octaves; ++i) {
-		currentValue += currentAmplitude * noiseSimplex(currentFrequency * v);
-		maxValue += currentAmplitude;
-		currentFrequency *= frequencyFalloff;
-		currentAmplitude *= amplitudeFalloff;
-	}
-	return currentValue / maxValue;
+// =============== GAS GIANT SHADING ===============
+
+float fbm(in vec3 pos) {
+    float maxValue = 0.0;
+    float currentValue = 0.0;
+    
+    float currentAmplitude = 1.0;
+    float currentFrequency = 1.0;
+    for (int i = 0; i < 8; ++i) {
+        maxValue += currentAmplitude;
+        vec3 offset = 10.0 * vec3(rand(float(i)));
+        currentValue += currentAmplitude * noiseSimplex(currentFrequency * pos + offset);
+        currentAmplitude *= 0.7;
+        currentFrequency *= 1.7;
+    }
+    return currentValue / maxValue;
 }
 
-vec2 nfbm2(vec2 v, float seed, int octaves, float baseAmplitude, float amplitudeFalloff, float baseFrequency, float frequencyFalloff) {
-	return vec2(
-		nfbm(v + 1.2, octaves, baseAmplitude, amplitudeFalloff, baseFrequency, frequencyFalloff),
-		nfbm(v - 1.7, octaves, baseAmplitude, amplitudeFalloff, baseFrequency, frequencyFalloff)
-	);
+float field2(in vec3 pos) {
+    vec3 p = pos;
+    p += fbm(0.1 * p);
+    p += fbm(0.8 * p);
+    return 0.5 + 0.5 * fbm(p);
 }
 
-float sampleGasGiantBands(float t) {
-	float amplitude = 1.4;
-	float frequency = 5.0;
-	float foo = floor(amplitude * noiseSimplex(vec2(frequency * t, 0.0)));
-	return 0.5 + 0.5 * (foo / amplitude);
+struct BandInfo {
+    float pos;
+    float positiveEdge;
+    float negativeEdge;
+};
+
+float closestEdge(in BandInfo info) {
+    float pd = distance(info.positiveEdge, info.pos);
+    float nd = distance(info.negativeEdge, info.pos);
+    return pd < nd ? info.positiveEdge : info.negativeEdge;
 }
 
-float gasGiantWarped(vec2 p, float seed) {
-	vec2 q0 = nfbm2(      p,  seed, 5, 1.0, 0.5, 2.0, 1.4);
-    vec2 q1 = nfbm2(4.0 * q0, seed, 5, 1.0, 0.5, 0.9, 2.1);
-    vec2 q2 = nfbm2(0.5 * q1, seed, 5, 1.0, 0.5, 1.0, 1.4);
-	return 0.04 * q2.x;
+float centerOf(in BandInfo info) {
+    return (info.positiveEdge + info.negativeEdge) / 2.0;
 }
+
+float edgeDistance(in BandInfo info) {
+    float pd = distance(info.positiveEdge, info.pos);
+    float nd = distance(info.negativeEdge, info.pos);
+    return pd < nd ? pd : nd;
+}
+
+float centerDistance(in BandInfo info) {
+    float center = (info.positiveEdge + info.negativeEdge) / 2.0;
+    return distance(center, info.pos);
+}
+
+BandInfo bandField(in float t) {
+    float bc = 1.5;
+    
+    float p = bc * t;
+    float bp = fract(p);
+    float fp = floor(p);
+
+    float rc = fp + rand(fp);
+    float rm = fp - 1.0 + rand(fp - 1.0);
+    float rp = fp + 1.0 + rand(fp + 1.0);
+    
+    if (p < rc) return BandInfo(p, rc, rm);
+    else        return BandInfo(p, rp, rc);
+}
+
+float sigmoid(float x) {
+    return 1.0 / (1.0 + (exp(-(x - 0.5) * 14.0))); 
+}
+
+vec3 flowField(in vec3 pos, in float time, in float seed) {
+    BandInfo bi = bandField(pos.y + seed);
+    
+    vec3 p = pos;
+	p.xz /= 6.0;
+    float d = 2.0 * rand(bi.negativeEdge) - 1.0;
+    d = clamp(d, -0.2, 0.2);
+    p.x += d * edgeDistance(bi) * time;
+    
+    float closest = closestEdge(bi);
+    float center = centerOf(bi);
+   
+    float er = rand(seed + 10.0);
+    float eg = rand(seed + 11.0);
+    float eb = rand(seed + 12.0);
+    vec3 ec = 0.5 * vec3(er, eg, eb);
+    float cr = rand(seed + 13.0);
+    float cg = rand(seed + 14.0);
+    float cb = rand(seed + 15.0);
+    vec3 cc = 0.5 * vec3(cr, cg, cb);
+
+    float ar = rand(seed + 16.0);
+    float ag = rand(seed + 17.0);
+    float ab = rand(seed + 18.0);
+    vec3 ac = vec3(ar, ag, ab);
+
+    vec3 baseColor = mix(ec, cc, edgeDistance(bi) / distance(center, bi.negativeEdge));
+	vec3 col = mix(baseColor, vec3(0.0), pow(field2(p), 2.0));
+    
+    return col;
+}
+
+vec3 smoothedField(in vec3 pos, in float seed) {
+    float t = Time * 0.001;
+
+    vec3 a = flowField(pos, 1.0 + mod(t, 1.0), seed);
+    vec3 b = flowField(pos, mod(t, 1.0), seed);
+    return mix(a, b, mod(t, 1.0));
+}
+
+vec3 warped(in vec3 uv) {
+    vec3 p = uv;
+    p.y += 0.1 * fbm(1.8 * p);
+    return p;
+}
+
+vec3 field(in vec3 pos, in float seed) {
+    return smoothedField(warped(pos), seed);
+}
+
+// =============== === ===== ======= ===============
 
 vec2 uvFromNormal(vec4 norm) {
 	vec3 normCam = (inverse(ModelViewMat) * norm).xyz;
@@ -88,20 +178,16 @@ vec2 uvFromNormal(vec4 norm) {
 	return vec2(equator, pole);
 }
 
-vec3 gasGiantBaseColor(vec2 uv) {
-	float warp = gasGiantWarped(uv.yx + vec2(0.0001 * Time, 0.0), RenderingSeed);
-	float noiseVal = sampleGasGiantBands(uv.y + (1.0 - pow(abs(uv.y), 4.0)) * warp + RenderingSeed / 1000.0);
-
-	// return vec3(normCylCam.x, 0, normCylCam.y);
-	return vec3(noiseVal);
-	// return vec3(0.5 + 0.5 * normCylCam.x, 0, 0.5 + 0.5 * normCylCam.y);
-	// return vec3(0.5 + 0.5 * equator, 0, 0);
+vec3 gasGiantBaseColor(vec3 pos) {
+	return field(pos, RenderingSeed / 1000.0);
 }
 
 void main() {
 	vec4 baseColor = vec4(0);
 	if (IsGasGiant != 0) {
-    	baseColor = vec4(gasGiantBaseColor(uvFromNormal(normal)), 1.0);
+		vec3 norm = (inverse(ModelViewMat) * normalize(normal)).xyz;
+		// baseColor = vec4(gasGiantBaseColor(uvFromNormal(normalize(normal))), 1.0);
+		baseColor = vec4(gasGiantBaseColor(norm), 1.0);
 	} else {
     	baseColor = texture(Sampler0, texCoord0);
 	}
@@ -114,7 +200,7 @@ void main() {
 	res += contribution(LightColor3, LightPos3);
 	vec3 finalColor = res * baseColor.rgb;
 
-	finalColor = acesTonemap(finalColor);
+	// finalColor = acesTonemap(finalColor);
 
     fragColor = vec4(finalColor, 1);
 }

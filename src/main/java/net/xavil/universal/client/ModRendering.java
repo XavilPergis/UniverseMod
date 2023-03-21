@@ -35,14 +35,16 @@ public final class ModRendering {
 	// the one in `DefaultVertexFormat` has a component type of `short`, and we want `float`.
 	public static final VertexFormatElement ELEMENT_UV1 = new VertexFormatElement(1, VertexFormatElement.Type.FLOAT,
 			VertexFormatElement.Usage.UV, 2);
+	public static final VertexFormatElement ELEMENT_NORMAL = new VertexFormatElement(0, VertexFormatElement.Type.FLOAT,
+			VertexFormatElement.Usage.NORMAL, 3);
 
 	public static final VertexFormat PLANET_VERTEX_FORMAT = new VertexFormat(
 			ImmutableMap.<String, VertexFormatElement>builder()
 					.put("Position", DefaultVertexFormat.ELEMENT_POSITION)
-					.put("Color", DefaultVertexFormat.ELEMENT_COLOR)
 					.put("UV0", DefaultVertexFormat.ELEMENT_UV0) // base color map
-					.put("UV1", ELEMENT_UV1) // normal map
-					.put("Normal", DefaultVertexFormat.ELEMENT_NORMAL)
+					// .put("UV1", ELEMENT_UV1) // normal map
+					.put("Color", DefaultVertexFormat.ELEMENT_COLOR)
+					.put("Normal", ELEMENT_NORMAL)
 					.build());
 
 	public static ShaderInstance getShader(String id) {

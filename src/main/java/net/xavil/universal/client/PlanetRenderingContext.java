@@ -169,7 +169,7 @@ public final class PlanetRenderingContext {
 
 			float r = light.color.r(), g = light.color.g(), b = light.color.b();
 			float luminosity = (float) Math.max(light.luminosity, 0.4);
-			lightColor.set(new Vector4f(r, g, b, luminosity * 0.2f));
+			lightColor.set(new Vector4f(r, g, b, luminosity));
 			// lightColor.set(new Vector4f(r, g, b, luminosity * 0.2f));
 
 			var pos = camera.toCameraSpace(light.pos);
@@ -229,12 +229,14 @@ public final class PlanetRenderingContext {
 		}
 
 		// RenderSystem.setShader(() -> GameRenderer.getPositionTexColorNormalShader());
-		// RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.RING_SHADER));
+		// RenderSystem.setShader(() ->
+		// ModRendering.getShader(ModRendering.RING_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 		for (var ring : node.rings()) {
 			poseStack.pushPose();
 			poseStack.mulPose(ring.orbitalPlane.rotationFromReference().toMinecraft());
-			addRing(builder.asVanilla(), camera, poseStack, nodePosUnits, ring.interval.lower(), ring.interval.higher(), tintColor);
+			addRing(builder.asVanilla(), camera, poseStack, nodePosUnits, ring.interval.lower(), ring.interval.higher(),
+					tintColor);
 			poseStack.popPose();
 		}
 		// poseStack.pushPose();
@@ -261,10 +263,11 @@ public final class PlanetRenderingContext {
 		this.renderedPlanetCount += 1;
 	}
 
-	private static void renderPlanetLayer(FlexibleBufferBuilder builder, CachedCamera<?> camera, ResourceLocation texture,
+	private static void renderPlanetLayer(FlexibleBufferBuilder builder, CachedCamera<?> camera,
+			ResourceLocation texture,
 			PoseStack poseStack, Vec3 center, double radius, Color tintColor) {
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-		addNormSphere(builder.asVanilla(), camera, poseStack, center, radius, tintColor);
+		builder.begin(VertexFormat.Mode.QUADS, ModRendering.PLANET_VERTEX_FORMAT);
+		addNormSphere(builder, camera, poseStack, center, radius, tintColor);
 		builder.end();
 		RenderSystem.setShaderTexture(0, texture);
 		RenderSystem.disableCull();
@@ -303,10 +306,11 @@ public final class PlanetRenderingContext {
 		}
 	}
 
-	private static void addNormSphere(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
-			double radius, Color tintColor) {
+	private static void addNormSphere(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
+			Vec3 center, double radius, Color tintColor) {
 
-		// final var atlas = UniversalTextureManager.INSTANCE.getAtlas(PLANET_ATLAS_LOCATION);
+		// final var atlas =
+		// UniversalTextureManager.INSTANCE.getAtlas(PLANET_ATLAS_LOCATION);
 
 		// atlas.getSprite(BASE_GAS_GIANT_LOCATION);
 
@@ -518,18 +522,13 @@ public final class PlanetRenderingContext {
 				.endVertex();
 	}
 
-	private static void normSphereVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose,
+	private static void normSphereVertex(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack.Pose pose,
 			Vec3 center, Color color, double radius, double x, double y, double z, float u, float v) {
-		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
 		var pos = Vec3.from(x, y, z);
 		var n = pos.normalize().transformBy(pose);
 		// var p = camera.toCameraSpace(n.mul(radius));
 		var p = camera.toCameraSpace(n.mul(radius)).add(center);
-		builder.vertex((float) p.x, (float) p.y, (float) p.z)
-				.uv(u, v)
-				.color(r, g, b, a)
-				.normal((float) n.x, (float) n.y, (float) n.z)
-				.endVertex();
+		builder.vertex(p).uv0(u, v).color(color).normal(n).endVertex();
 	}
 
 	private static void cubeVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose, Color color,

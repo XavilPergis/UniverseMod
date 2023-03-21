@@ -200,8 +200,9 @@ public final class PlanetRenderingContext {
 		// final var metersPerUnit = 1 / unitsPerMeter;
 
 		var distanceFromCamera = camera.pos.mul(camera.metersPerUnit).distanceTo(node.position.mul(1e12));
-		// if (distanceFromCamera > 10000 * radiusM)
-		// 	return;
+		var distanceRatio = radiusM / distanceFromCamera;
+		if (distanceRatio < 0.0001)
+			return;
 
 		var nodePosUnits = node.position.mul(1e12 / camera.metersPerUnit);
 

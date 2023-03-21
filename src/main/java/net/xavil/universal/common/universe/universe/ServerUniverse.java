@@ -113,16 +113,20 @@ public final class ServerUniverse extends Universe {
 		final var neptune = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, Units.fromMearth(17.147), 3.8603, 72);
 		neptune.obliquityAngle = Math.toRadians(28.32);
 		neptune.rotationalPeriod = 2 * Math.PI / 1.08338253e-4;
+		final var pluto = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ICE_WORLD, Units.fromMearth(0.00218), 0.1868, 44);
+		pluto.obliquityAngle = Math.toRadians(28.32);
+		pluto.rotationalPeriod = 2 * Math.PI / 1.08338253e-4;
 
-		sol.insertChild(mercury, 0.205630,  Units.fromAu(0.387098), Math.toRadians(7.005),   Math.toRadians(48.331),    Math.toRadians(29.124),    0);
-		// sol.insertChild(mercury, 0.9,       Units.au(3.1),      Math.toRadians(86),      Math.toRadians(48.331),    Math.toRadians(29.124),    0);
-		sol.insertChild(venus,   0.006772,  Units.fromAu(0.723332), Math.toRadians(3.39458), Math.toRadians(76.680),    Math.toRadians(54.884),    0);
-		sol.insertChild(earth,   0.0167086, Units.fromAu(1),        Math.toRadians(0.00005), Math.toRadians(-11.26064), Math.toRadians(114.20783), 0);
-		sol.insertChild(mars,    0.0934,    Units.fromAu(1.523680), Math.toRadians(1.850),   Math.toRadians(49.57854),  Math.toRadians(286.5),     0);
-		sol.insertChild(jupiter, 0.0489,    Units.fromAu(5.2038),   Math.toRadians(1.303),   Math.toRadians(100.464),   Math.toRadians(273.867),   0);
-		sol.insertChild(saturn,  0.0565,    Units.fromAu(9.5826),   Math.toRadians(2.485),   Math.toRadians(113.665),   Math.toRadians(339.392),   0);
-		sol.insertChild(uranus,  0.04717,   Units.fromAu(19.19126), Math.toRadians(0.773),   Math.toRadians(74.006),    Math.toRadians(96.998857), 0);
-		sol.insertChild(neptune, 0.008678,  Units.fromAu(30.07),    Math.toRadians(1.770),   Math.toRadians(131.783),   Math.toRadians(273.187),   0);
+		sol.insertChild(mercury, 0.205630,  Units.fromAu(0.387098), Math.toRadians(7.005),   Math.toRadians(48.331),    Math.toRadians(29.124),    1);
+		// sol.insertChild(mercury, 0.9,       Units.au(3.1),      Math.toRadians(86),      Math.toRadians(48.331),    Math.toRadians(29.124),    1);
+		sol.insertChild(venus,   0.006772,  Units.fromAu(0.723332), Math.toRadians(3.39458), Math.toRadians(76.680),    Math.toRadians(54.884),    2);
+		sol.insertChild(earth,   0.0167086, Units.fromAu(1),        Math.toRadians(0.00005), Math.toRadians(-11.26064), Math.toRadians(114.20783), 3);
+		sol.insertChild(mars,    0.0934,    Units.fromAu(1.523680), Math.toRadians(1.850),   Math.toRadians(49.57854),  Math.toRadians(286.5),     4);
+		sol.insertChild(jupiter, 0.0489,    Units.fromAu(5.2038),   Math.toRadians(1.303),   Math.toRadians(100.464),   Math.toRadians(273.867),   5);
+		sol.insertChild(saturn,  0.0565,    Units.fromAu(9.5826),   Math.toRadians(2.485),   Math.toRadians(113.665),   Math.toRadians(339.392),   6);
+		sol.insertChild(uranus,  0.04717,   Units.fromAu(19.19126), Math.toRadians(0.773),   Math.toRadians(74.006),    Math.toRadians(96.998857), 7);
+		sol.insertChild(neptune, 0.008678,  Units.fromAu(30.07),    Math.toRadians(1.770),   Math.toRadians(131.783),   Math.toRadians(273.187),   8);
+		sol.insertChild(pluto,   0.2488,    Units.fromAu(29.658),    Math.toRadians(17.16),   Math.toRadians(110.299),   Math.toRadians(113.834),   9);
 		// s1.insertChild(a, 0.5,   Units.au(1), Math.toRadians(0),   Math.toRadians(0), Math.toRadians(0), 0);
 		// a.insertChild(b, 0,   Units.au(0.01), Math.toRadians(45),   Math.toRadians(0), Math.toRadians(0), 0);
 

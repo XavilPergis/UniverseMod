@@ -42,7 +42,7 @@ vec3 contribution(vec4 color, vec4 pos) {
 		receivedIntensity *= max(0.0, dot(toStar, normal.xyz));
 		// float reflectedIntensity = receivedIntensity / (4 * PI * pow(fragDistanceMeters, 2.0));
 
-		return 50.0 * color.rgb * receivedIntensity;
+		return 0.1 * color.rgb * receivedIntensity;
 	}
 	return vec3(0);
 }
@@ -151,7 +151,7 @@ vec3 flowField(in vec3 pos, in float time, in float seed) {
 }
 
 vec3 smoothedField(in vec3 pos, in float seed) {
-    float t = Time * 0.001;
+    float t = Time * 0.2;
 
     vec3 a = flowField(pos, 1.0 + mod(t, 1.0), seed);
     vec3 b = flowField(pos, mod(t, 1.0), seed);

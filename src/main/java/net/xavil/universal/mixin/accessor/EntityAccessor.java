@@ -1,8 +1,11 @@
 package net.xavil.universal.mixin.accessor;
 
+import java.util.OptionalDouble;
+
 import net.minecraft.world.entity.Entity;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.universe.Universe;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
 
 public interface EntityAccessor {
 	
@@ -25,6 +28,18 @@ public interface EntityAccessor {
 
 	static void setSystemNodeId(Entity entity, SystemNodeId id) {
 		((EntityAccessor) entity).universal_setSystemNodeId(id);
+	}
+
+	static OptionalDouble getEntityGravity(Entity entity) {
+		final var nodeId = EntityAccessor.getSystemNodeId(entity);
+		final var universe = EntityAccessor.getUniverse(entity);
+		if (universe != null && nodeId != null) {
+			final var node = universe.getSystemNode(nodeId);
+			if (node instanceof PlanetaryCelestialNode planetNode) {
+				return OptionalDouble.of(planetNode.surfaceGravityEarthRelative());
+			}
+		}
+		return OptionalDouble.empty();
 	}
 
 }

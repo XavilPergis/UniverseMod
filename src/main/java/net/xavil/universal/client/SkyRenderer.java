@@ -376,7 +376,7 @@ public class SkyRenderer {
 		skyTargetMs.bindWrite(false);
 
 		profiler.push("stars");
-		drawStars(RenderSystem.getModelViewMatrix(), starSphereProj);
+		// drawStars(RenderSystem.getModelViewMatrix(), starSphereProj);
 		profiler.popPush("system");
 		drawSystem(celestialCamera, currentId, time, partialTick);
 		profiler.pop();

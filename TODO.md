@@ -70,18 +70,18 @@
 - [ ] Gravity
 	- Basic movement adjustment
 		- [ ] SmoothSwimmingMoveControl
-		- [ ] FallingBlockEntity
-		- [ ] ItemEntity
-		- [ ] PrimedTnt
-		- [ ] AbstractArrow
+		- [x] FallingBlockEntity
+		- [x] ItemEntity
+		- [x] PrimedTnt
+		- [?] AbstractArrow
 		- [ ] FishingHook
 		- [ ] LlamaSpit
-		- [ ] ShulkerBullet
-		- [ ] ThrowableProjectile
+		- [ ] ShulkerBullet (what?)
+		- [x] ThrowableProjectile
 		- [ ] AbstractMinecart
 		- [ ] Boat ???
-		- [ ] ExperienceOrb
-		- [ ] LivingEntity
+		- [x] ExperienceOrb
+		- [x] LivingEntity
 	- Disable elytra flight in planets with no or thin atmospheres
 
 # Longterm

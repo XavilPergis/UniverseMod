@@ -25,29 +25,15 @@ public abstract class LivingEntityMixin {
 	@ModifyConstant(method = "travel(Lnet/minecraft/world/phys/Vec3;)V", constant = @Constant(doubleValue = 0.08))
 	private double modifyGravity(double value) {
 		final var self = (LivingEntity) (Object) this;
-		final var nodeId = EntityAccessor.getSystemNodeId(self);
-		final var universe = EntityAccessor.getUniverse(self);
-		if (universe != null && nodeId != null) {
-			final var node = universe.getSystemNode(nodeId);
-			if (node instanceof PlanetaryCelestialNode planetNode) {
-				return planetNode.surfaceGravityEarthRelative() * value;
-			}
-		}
-		return value;
+		final var gravity = EntityAccessor.getEntityGravity(self);
+		return value * gravity.orElse(1.0);
 	}
 
 	@Redirect(method = "handleRelativeFrictionAndCalculateMovement(Lnet/minecraft/world/phys/Vec3;F)Lnet/minecraft/world/phys/Vec3;", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/LivingEntity;getFrictionInfluencedSpeed(F)F"))
 	private float speedFromLowGravity(LivingEntity self, float friction) {
 		final var n = getFrictionInfluencedSpeed(friction);
-		final var nodeId = EntityAccessor.getSystemNodeId(self);
-		final var universe = EntityAccessor.getUniverse(self);
-		if (universe != null && nodeId != null) {
-			final var node = universe.getSystemNode(nodeId);
-			if (node instanceof PlanetaryCelestialNode planetNode) {
-				return n / Mth.clamp((float) planetNode.surfaceGravityEarthRelative(), 0.67f, 1.2f);
-			}
-		}
-		return n;
+		final var gravity = EntityAccessor.getEntityGravity(self);
+		return n / Mth.clamp((float) gravity.orElse(1.0), 0.67f, 1.2f);
 	}
 
 	@ModifyVariable(method = "causeFallDamage(FFLnet/minecraft/world/damagesource/DamageSource;)Z", at = @At("HEAD"), ordinal = 0, argsOnly = true)

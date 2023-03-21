@@ -12,7 +12,13 @@
 		"ConnectionProtocolMixin",
 		"PlayerListMixin",
 		"EntityMixin",
-		"gravity.LivingEntityMixin"
+		"gravity.LivingEntityMixin",
+		"gravity.FallingBlockEntityMixin",
+		"gravity.PrimedTntMixin",
+		"gravity.AbstractArrowMixin",
+		"gravity.ThrowableProjectileMixin",
+		"gravity.ExperienceOrbMixin",
+		"gravity.ItemEntityMixin"
 	],
 	"client": [
 		"MinecraftClientMixin",

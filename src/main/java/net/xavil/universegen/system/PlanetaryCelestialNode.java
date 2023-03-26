@@ -88,7 +88,7 @@ public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 		final var radiusRearth = this.radiusRearth;
 		final var massMearth = this.massYg / Units.Yg_PER_Mearth;
 		final var ratio = massMearth / (radiusRearth * radiusRearth);
-		return Mth.clamp(ratio, 0.1, 1.2);
+		return Mth.clamp(ratio, 0.2, 1.2);
 	}
 
 	// planet type (gas giant, icy world, rocky world, earth-like world, etc)

@@ -7,7 +7,6 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.galaxy.BaseGalaxyGenerationLayer;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.system.gen.AccreteContext;
-import net.xavil.universal.common.universe.system.gen.AccreteDebugEvent;
 import net.xavil.universal.common.universe.system.gen.ProtoplanetaryDisc;
 import net.xavil.universal.common.universe.system.gen.SimulationParameters;
 import net.xavil.universegen.system.BinaryCelestialNode;
@@ -26,7 +25,7 @@ public class StarSystemGenerator {
 
 	// how many times larger the radius of an orbit around a binary pair needs to be
 	// than the maximum radius of the existing binary pair.
-	public static final double SPACING_FACTOR = 4;
+	public static final double SPACING_FACTOR = 2;
 	public static final int PLANET_SEED_COUNT = 100;
 	public static final int MAX_GENERATION_DEPTH = 5;
 
@@ -42,7 +41,7 @@ public class StarSystemGenerator {
 		this.galaxy = galaxy;
 		this.info = info;
 
-		this.maximumSystemRadius = rng.uniformDouble(100, 10000);
+		this.maximumSystemRadius = rng.uniformDouble(100, 1000);
 	}
 
 	public static OrbitalPlane randomOrbitalPlane(Rng rng) {
@@ -130,7 +129,7 @@ public class StarSystemGenerator {
 				break;
 			var starNode = StellarCelestialNode.fromMassAndAge(rng, starMass, this.info.systemAgeMyr);
 			// var protoDiscMass = starMass - starNode.massYg;
-			current = mergeStarNodes(current, starNode, rng.chance(0.3));
+			current = mergeStarNodes(current, starNode, rng.chance(0.9));
 		}
 
 		final var params = new SimulationParameters();
@@ -172,7 +171,12 @@ public class StarSystemGenerator {
 			var ctx = new AccreteContext(params, rng, nodeLuminosity, nodeMass, stableInterval);
 			
 			var protoDisc = new ProtoplanetaryDisc(ctx);
-			protoDisc.collapseDisc(node);
+			try {
+				protoDisc.collapseDisc(node);
+			} catch (Throwable t) {
+				t.printStackTrace();
+				Mod.LOGGER.error("Failed to generate system!");
+			}
 
 			// TODO: promote brown dwarves and stars
 		}
@@ -216,14 +220,13 @@ public class StarSystemGenerator {
 		double distance = 0;
 		if (closeOrbit) {
 			var t = Math.pow(rng.uniformDouble(), 3);
-			distance = Mth.lerp(t, minDistance, Math.min(maxDistance, minDistance * 5));
+			var limit = Units.fromAu(10);
+			distance = Mth.lerp(t, minDistance, Math.min(maxDistance, limit));
 		} else {
 			distance = rng.uniformDouble(minDistance, maxDistance);
 		}
-		// var radius = rng.uniformDouble(minDistance, maxDistance);
 		Mod.LOGGER.info("Success [distance={}]", distance);
 
-		// var squishFactor = Mth.lerp(1 - Math.pow(random.uniformDouble(), 7), 0.2, 1);
 		var squishFactor = 1;
 		var newNode = new BinaryCelestialNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, distance,
 				rng.uniformDouble(0, 2 * Math.PI));
@@ -261,7 +264,7 @@ public class StarSystemGenerator {
 		boolean triedPType = false, triedSTypeA = false, triedSTypeB = false;
 		while (!triedPType || !triedSTypeA || !triedSTypeB) {
 
-			if ((!triedPType && triedSTypeA && triedSTypeB) || (!closeOrbit && !triedPType && rng.chance(0.3))) {
+			if ((!triedPType && triedSTypeA && triedSTypeB) || (!triedPType && rng.chance(0.3))) {
 				triedPType = true;
 				// try to merge into a P-type orbit (put star into node with the binary node we
 				// were given)

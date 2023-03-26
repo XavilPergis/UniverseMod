@@ -78,6 +78,7 @@ public class Planetesimal {
 	}
 
 	public void setMass(double newMass) {
+		Assert.isTrue(newMass >= 0.0);
 		this.mass = newMass;
 		emitUpdateEvent();
 	}
@@ -233,6 +234,8 @@ public class Planetesimal {
 	}
 
 	public double distanceToStar() {
+		Assert.isReferentiallyNotEqual(this.moonOf, this);
+
 		var cur = this;
 		for (var i = 0; i < 10; ++i) {
 			if (cur.moonOf == null)
@@ -251,7 +254,7 @@ public class Planetesimal {
 		node.rotationalPeriod = Mth.lerp(this.ctx.rng.uniformDouble(), 0.2 * 86400, 4 * 86400);
 
 		for (var ring : this.rings) {
-			Mod.LOGGER.info("RING!!!");
+			// Mod.LOGGER.info("RING!!!");
 			var intervalTm = new Interval(ring.interval.lower() * Units.Tm_PER_au,
 					ring.interval.higher() * Units.Tm_PER_au);
 			node.addRing(new CelestialRing(OrbitalPlane.ZERO, ring.eccentricity, intervalTm, ring.mass * Units.Yg_PER_Msol));

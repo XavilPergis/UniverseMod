@@ -6,7 +6,7 @@ public class SimulationParameters {
 	public double dustToGasRatio = 50; // "K"
 	public double b = 1e-5; // "B"
 	public double eccentricityCoefficient = 0.077;
-	public double initialPlanetesimalMass = 1e-15;
+	public double initialPlanetesimalMass = 1e-16;
 	public double dustDensityCoefficient = 1.5e-3;
 	public double dustDensityAlpha = 5;
 	public double dustDensityN = 3;

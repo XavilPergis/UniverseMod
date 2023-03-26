@@ -240,7 +240,7 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 		this.events.clear();
 		try {
 			var rng = Rng.wrap(new Random());
-			var starMass = rng.uniformDouble(Units.fromMsol(0.8), Units.fromMsol(1));
+			var starMass = rng.uniformDouble(Units.fromMsol(0.08), Units.fromMsol(2));
 			this.node = StellarCelestialNode.fromMassAndAge(rng, starMass, 4600);
 			var params = new SimulationParameters();
 			var ctx = new AccreteContext(params, rng, this.node.luminosityLsol,
@@ -425,6 +425,7 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 				.sorted(Comparator.comparing(entry -> entry.getValue().mass));
 		stream.forEach(entry -> {
 			final var id = entry.getIntKey();
+			if (entry.getValue().parent != -1) return;
 			table.addRow(String.format("Planet #%d", id), consumer -> {
 				var info = entry.getValue();
 				double massMsol = info.mass;

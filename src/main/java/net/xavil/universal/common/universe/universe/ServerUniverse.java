@@ -7,7 +7,6 @@ import net.minecraft.util.Mth;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.universal.common.universe.id.SectorId;
-import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universegen.system.CelestialNode;
@@ -69,7 +68,7 @@ public final class ServerUniverse extends Universe {
 		// NOTE: reference plane is the ecliptic plane
 		final var sol = StellarCelestialNode.fromMass(rng, StellarCelestialNode.Type.MAIN_SEQUENCE, Units.fromMsol(1));
 		sol.obliquityAngle = Math.toRadians(7.25);
-		sol.rotationalPeriod = 2.90307e-6;
+		sol.rotationalPeriod = 2 * Math.PI / 2.90307e-6;
 
 		// final var s1 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(0.5));
 		// final var s2 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(1));

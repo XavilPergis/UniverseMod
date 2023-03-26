@@ -47,6 +47,11 @@
 - Intergalactic travel
 	- Endgame, only one tier available
 
+## Improvements
+- System Gen:
+	- heavily bias orbits of stars in myltiple-star systems to be small, so that there's an interesting mix of orbits around each star and circumbinary orbits.
+	- only generate one "layer" deep at a time. ie, generate planets around a star, then find out what planets can form moons, and generate those
+
 # Short-ish term
 
 

@@ -9,15 +9,10 @@ import javax.annotation.Nullable;
 
 import org.lwjgl.glfw.GLFW;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
@@ -26,9 +21,11 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.universal.client.ClientDebugFeatures;
-import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
 import net.xavil.universal.client.flexible.BufferRenderer;
+import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
+import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
+import net.xavil.universal.client.screen.OrbitCamera.Cached;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarSystem;
@@ -45,7 +42,7 @@ import net.xavil.util.math.Ellipse;
 import net.xavil.util.math.OrbitalPlane;
 import net.xavil.util.math.Vec3;
 
-public class SystemMapScreen extends UniversalScreen {
+public class SystemMapScreen extends Universal3dScreen {
 
 	private final Minecraft client = Minecraft.getInstance();
 	private final StarSystem system;
@@ -55,8 +52,6 @@ public class SystemMapScreen extends UniversalScreen {
 	public static final Color BINARY_PATH_COLOR = new Color(0.1f, 0.4f, 0.5f, 0.5f);
 	public static final Color UNARY_PATH_COLOR = new Color(0.5f, 0.4f, 0.1f, 0.5f);
 
-	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
-	private OrbitCamera camera = new OrbitCamera(1e12, TM_PER_UNIT);
 	private int followingId = -1;
 	private int selectedId = -1;
 	private boolean showGuides = true;
@@ -69,67 +64,18 @@ public class SystemMapScreen extends UniversalScreen {
 	private final Map<Integer, ClientNodeInfo> clientInfo = new HashMap<>();
 
 	public SystemMapScreen(@Nullable Screen previousScreen, SystemId systemId, StarSystem system) {
-		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
+		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen,
+				new OrbitCamera(1e12, TM_PER_UNIT), 1e-6, 4e3);
 		this.systemId = systemId;
 		this.system = system;
 
 		// TODO: find a better default that plonking the user directly into the middle
 		// of nowhere when loading binary systems.
-
-		this.camera.pitch.set(Math.PI / 8);
-		this.camera.yaw.set(Math.PI / 8);
-		this.camera.scale.set(4.0);
-		this.camera.scale.setTarget(8.0);
 	}
 
 	public SystemMapScreen(@Nullable Screen previousScreen, SystemNodeId id, StarSystem system) {
 		this(previousScreen, id.system(), system);
 		this.selectedId = this.followingId = id.nodeId();
-	}
-
-	@Override
-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
-		if (super.mouseDragged(mouseX, mouseY, button, dx, dy))
-			return true;
-
-		final var partialTick = this.client.getFrameTime();
-		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
-
-		if (button == 2) {
-			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
-			var offset = Vec3.from(dx, 0, realDy).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
-			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
-			followingId = -1;
-		} else if (button == 1) {
-			this.camera.focus.setTarget(this.camera.focus.getTarget().add(0, dragScale * dy, 0));
-			followingId = -1;
-		} else if (button == 0) {
-			this.camera.yaw.setTarget(this.camera.yaw.getTarget() + dx * 0.005);
-			var desiredPitch = this.camera.pitch.getTarget() + dy * 0.005;
-			var actualPitch = Mth.clamp(desiredPitch, -Math.PI / 2, Math.PI / 2);
-			this.camera.pitch.setTarget(actualPitch);
-		}
-
-		return true;
-	}
-
-	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double scrollDelta) {
-		if (super.mouseScrolled(mouseX, mouseY, scrollDelta))
-			return true;
-
-		if (scrollDelta > 0) {
-			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 1e-6));
-			// this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.5));
-			return true;
-		} else if (scrollDelta < 0) {
-			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 4e3));
-			return true;
-		}
-
-		return false;
 	}
 
 	private CelestialNode getClosestNode(OrbitCamera.Cached camera) {
@@ -165,8 +111,6 @@ public class SystemMapScreen extends UniversalScreen {
 		if (keyCode == GLFW.GLFW_KEY_F) {
 			this.selectedId = getClosestNode(this.camera.cached(partialTick)).getId();
 			this.followingId = selectedId;
-		} else if (keyCode == GLFW.GLFW_KEY_R  && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
-			Minecraft.getInstance().reloadResourcePacks();
 		} else if (keyCode == GLFW.GLFW_KEY_R) {
 			this.followingId = selectedId;
 		} else if (keyCode == GLFW.GLFW_KEY_Q) {
@@ -199,68 +143,7 @@ public class SystemMapScreen extends UniversalScreen {
 			ClientDebugFeatures.SHOW_ALL_ORBIT_PATH_LEVELS.toggle();
 		}
 
-		// TODO: key mappings
-		if (keyCode == GLFW.GLFW_KEY_W) {
-			this.isForwardPressed = true;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_S) {
-			this.isBackwardPressed = true;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_A) {
-			this.isLeftPressed = true;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_D) {
-			this.isRightPressed = true;
-			return true;
-		}
-
 		return false;
-	}
-
-	@Override
-	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-		if (super.keyReleased(keyCode, scanCode, modifiers))
-			return true;
-
-		// TODO: key mappings
-		if (keyCode == GLFW.GLFW_KEY_W) {
-			this.isForwardPressed = false;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_S) {
-			this.isBackwardPressed = false;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_A) {
-			this.isLeftPressed = false;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_D) {
-			this.isRightPressed = false;
-			return true;
-		}
-
-		return false;
-	}
-
-	@Override
-	public void tick() {
-		super.tick();
-		this.camera.tick();
-
-		double forward = 0, right = 0;
-		double speed = 25;
-		forward += this.isForwardPressed ? speed : 0;
-		forward += this.isBackwardPressed ? -speed : 0;
-		right += this.isLeftPressed ? speed : 0;
-		right += this.isRightPressed ? -speed : 0;
-
-		if (forward != 0 || right != 0)
-			followingId = -1;
-
-		// TODO: consolidate with the logic in mouseDragged()?
-		final var partialTick = this.client.getFrameTime();
-		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
-
-		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
-		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 	}
 
 	static class NodeRenderer {
@@ -330,7 +213,7 @@ public class SystemMapScreen extends UniversalScreen {
 	private static final Color[] ORBIT_PATH_DEBUG_COLORS = { Color.RED, Color.GREEN, Color.BLUE, Color.CYAN,
 			Color.MAGENTA, Color.YELLOW, };
 
-	private static void addEllipseArc(VertexConsumer builder, OrbitCamera.Cached camera, Ellipse ellipse, Color color,
+	private static void addEllipseArc(FlexibleVertexConsumer builder, OrbitCamera.Cached camera, Ellipse ellipse, Color color,
 			double endpointAngleL, double endpointAngleH, int maxDepth, boolean fadeOut) {
 
 		var subdivisionSegments = 2;
@@ -354,7 +237,8 @@ public class SystemMapScreen extends UniversalScreen {
 
 		var isSegmentVisible = !fadeOut || midpointSegment.distanceTo(camera.pos) < segmentLength / 2 + maxDistance;
 		var insideDivisionRadius = camera.pos.distanceTo(midpointSegment) < divisionFactor * segmentLength;
-		// var insideDivisionRadius = camera.pos.distanceTo(midpointSegment) < divisionFactor * totalMidpointError;
+		// var insideDivisionRadius = camera.pos.distanceTo(midpointSegment) <
+		// divisionFactor * totalMidpointError;
 		if (maxDepth > 0 && isSegmentVisible && insideDivisionRadius) {
 			for (var i = 0; i < subdivisionSegments; ++i) {
 				var percentL = i / (double) subdivisionSegments;
@@ -383,7 +267,7 @@ public class SystemMapScreen extends UniversalScreen {
 
 	}
 
-	private static void addEllipse(VertexConsumer builder, OrbitCamera.Cached camera, Ellipse ellipse, Color color,
+	private static void addEllipse(FlexibleVertexConsumer builder, OrbitCamera.Cached camera, Ellipse ellipse, Color color,
 			boolean fadeOut) {
 		var basePathSegments = 32;
 		var maxDepth = 20;
@@ -394,9 +278,8 @@ public class SystemMapScreen extends UniversalScreen {
 		}
 	}
 
-	private void showBinaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
+	private void showBinaryGuides(FlexibleBufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
 			float partialTick, BinaryCelestialNode node) {
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		if (!(node.getA() instanceof BinaryCelestialNode)) {
@@ -419,12 +302,11 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
 		RenderSystem.depthMask(true);
-		BufferUploader.end(builder);
+		builder.draw(GameRenderer.getRendertypeLinesShader());
 	}
 
-	private void showUnaryGuides(BufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
+	private void showUnaryGuides(FlexibleBufferBuilder builder, OrbitCamera.Cached camera, OrbitalPlane referencePlane,
 			float partialTick, CelestialNodeChild<?> orbiter) {
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		var ellipse = orbiter.getEllipse(orbiter.parentNode.referencePlane);
@@ -439,21 +321,20 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
 		RenderSystem.depthMask(true);
-		BufferUploader.end(builder);
+		builder.draw(GameRenderer.getRendertypeLinesShader());
 	}
 
 	private void renderNode(OrbitCamera.Cached camera, CelestialNode node, PlanetRenderingContext ctx,
 			float partialTick) {
 
-		BufferBuilder builder = Tesselator.getInstance().getBuilder();
-		final var flexibleBuilder = BufferRenderer.immediateBuilder();
+		final var builder = BufferRenderer.immediateBuilder();
 
 		if (node instanceof PlanetaryCelestialNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			ctx.renderPlanet(flexibleBuilder, camera, planetNode, new PoseStack(), Color.WHITE, false);
+			ctx.renderPlanet(builder, camera, planetNode, new PoseStack(), Color.WHITE, false);
 		} else {
-			ctx.render(flexibleBuilder, camera, node, new PoseStack(), Color.WHITE, false);
+			ctx.render(builder, camera, node, new PoseStack(), Color.WHITE, false);
 		}
 
 		if (node instanceof BinaryCelestialNode binaryNode && this.showGuides) {
@@ -468,8 +349,9 @@ public class SystemMapScreen extends UniversalScreen {
 
 	}
 
-	private void render3d(OrbitCamera.Cached camera, float partialTick) {
-		final var builder = Tesselator.getInstance().getBuilder();
+	@Override
+	public void render3d(OrbitCamera.Cached camera, float partialTick) {
+		final var builder = BufferRenderer.immediateBuilder();
 
 		// system.rootNode.visit(node -> {
 		// if (!this.clientInfo.containsKey(node.getId())) {
@@ -529,8 +411,6 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.lineWidth(1);
 		RenderSystem.depthMask(false);
 
-
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		RenderHelper.addLine(builder, camera, camera.focus.div(TM_PER_UNIT), closestPos, new Color(1, 1, 1, 1));
@@ -543,8 +423,7 @@ public class SystemMapScreen extends UniversalScreen {
 		RenderSystem.disableCull();
 		RenderSystem.lineWidth(1);
 		RenderSystem.depthMask(false);
-		BufferUploader.end(builder);
-
+		builder.draw(GameRenderer.getRendertypeLinesShader());
 
 		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		// builder.begin(VertexFormat.Mode.QUADS,
@@ -616,7 +495,8 @@ public class SystemMapScreen extends UniversalScreen {
 
 	}
 
-	private void render2d(PoseStack poseStack, float partialTick) {
+	@Override
+	public void render2d(PoseStack poseStack, float partialTick) {
 
 		if (this.selectedId != -1) {
 			var node = this.system.rootNode.lookup(this.selectedId);
@@ -642,12 +522,32 @@ public class SystemMapScreen extends UniversalScreen {
 		// poseStack.pushPose();
 		// new NodeRenderer(poseStack).renderNodeMain(system.rootNode);
 		// poseStack.popPose();
-
 	}
 
 	@Override
-	public boolean shouldRenderWorld() {
-		return false;
+	public void onMoved(Vec3 displacement) {
+		super.onMoved(displacement);
+		this.followingId = -1;
+	}
+
+	@Override
+	public Cached setupCamera(float partialTick) {
+		
+		if (this.system != null) {
+			final var universe = MinecraftClientAccessor.getUniverse(this.client);	
+			// FIXME: `Minecraft` has a `pausePartialTick` field that we should use instead
+			// of 0 here.
+			double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
+			this.system.rootNode.updatePositions(time);
+	
+			if (this.followingId != -1) {
+				final var node = this.system.rootNode.lookup(this.followingId);
+				if (node != null) {
+					this.camera.focus.set(node.position.mul(TM_PER_UNIT));
+				}
+			}
+		}
+		return this.camera.cached(partialTick);
 	}
 
 	@Override
@@ -657,41 +557,6 @@ public class SystemMapScreen extends UniversalScreen {
 			if (info.vertexBuffer != null)
 				info.vertexBuffer.close();
 		});
-	}
-
-	@Override
-	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
-		RenderSystem.depthMask(false);
-		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
-		RenderSystem.depthMask(true);
-
-		final var partialTick = this.client.getFrameTime();
-
-		if (system == null)
-			return;
-
-		final var universe = MinecraftClientAccessor.getUniverse(this.client);
-
-		// FIXME: `Minecraft` has a `pausePartialTick` field that we should use instead
-		// of 0 here.
-		double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
-
-		system.rootNode.updatePositions(time);
-
-		if (followingId != -1) {
-			var nodePos = this.system.rootNode.lookup(this.followingId).position;
-			if (nodePos != null) {
-				this.camera.focus.set(nodePos.mul(TM_PER_UNIT));
-			}
-		}
-
-		final var camera = this.camera.cached(partialTick);
-
-		final var prevMatrices = camera.setupRenderMatrices();
-		render3d(camera, partialTick);
-		prevMatrices.restore();
-		render2d(poseStack, partialTick);
-		super.render(poseStack, mouseX, mouseY, tickDelta);
 	}
 
 }

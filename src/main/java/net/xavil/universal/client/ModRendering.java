@@ -29,6 +29,7 @@ public final class ModRendering {
 	public static final String PLANET_SHADER = "universal_planet";
 	public static final String RING_SHADER = "universal_ring";
 	public static final String STAR_BILLBOARD_SHADER = "universal_star_billboard";
+	public static final String GALAXY_PARTICLE_SHADER = "universal_galaxy_particle";
 
 	public static final String COMPOSITE_SKY_CHAIN = "shaders/post/universal_composite_sky.json";
 

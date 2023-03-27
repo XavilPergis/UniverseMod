@@ -26,6 +26,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
+import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.screen.OrbitCamera;
 import net.xavil.universal.client.screen.OrbitCamera.Cached;
 import net.xavil.universal.client.screen.RenderHelper;
@@ -373,38 +374,36 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 			}
 		}
 
-		final var builder = Tesselator.getInstance().getBuilder();
+		final var builder = BufferRenderer.immediateBuilder();
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 		for (var quad : quads) {
 			RenderHelper.addQuad(builder, camera, quad.innerEnd, quad.innerStart, quad.outerStart, quad.outerEnd,
 					quad.color);
 		}
 		builder.end();
-		RenderSystem.setShader(GameRenderer::getPositionColorShader);
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
-		BufferUploader.end(builder);
+		builder.draw(GameRenderer.getPositionColorShader());
 
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 		for (var line : lines) {
 			RenderHelper.addLine(builder, camera, line.start, line.end, line.color);
 		}
 		builder.end();
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
-		BufferUploader.end(builder);
+		builder.draw(GameRenderer.getRendertypeLinesShader());
 	}
 
 	@Override
 	public void render3d(Cached camera, float partialTick) {
-		final var builder = Tesselator.getInstance().getBuilder();
+		final var builder = BufferRenderer.immediateBuilder();
 
 		RenderHelper.renderGrid(builder, camera, 1, 1, 10, 40, partialTick);
 

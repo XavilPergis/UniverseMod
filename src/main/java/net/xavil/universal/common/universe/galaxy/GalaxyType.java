@@ -23,12 +23,13 @@ public enum GalaxyType {
 		public DensityFields createDensityFields(Random random) {
 			// final var radius = random.nextDouble(Units.ly(3000), Units.ly(300000));
 			final var radius = Units.fromLy(3000);
-			final var galacticCoreSizeFactor = random.nextDouble(0.5, 0.7);
-			final var galacticCoreSquishFactor = random.nextDouble(3, 5);
-			final var discHeightFactor = random.nextDouble(0.003, 0.03);
-			final var spokeCount = random.nextInt(1, 4);
-			final var spokeCurve = random.nextDouble(1.5, 6);
-			final var spiralFactor = random.nextDouble(0.33, 2);
+			final var galacticCoreSizeFactor = random.nextDouble(0.3, 0.5);
+			final var galacticCoreSquishFactor = random.nextDouble(2, 5);
+			final var discHeightFactor = random.nextDouble(0.05, 0.2);
+			final var spokeCount = random.nextInt(1, 2);
+			final var spokeCurve = random.nextDouble(2, 4);
+			var spiralFactor = random.nextDouble(1, 5);
+			if (random.nextBoolean()) spiralFactor *= -1.0;
 			// final var ellipticalFactor = random.nextDouble(0.2, 0.8);
 
 
@@ -38,26 +39,27 @@ public enum GalaxyType {
 			// (i think) central bulge is full of mostly quite old stars orbiting somewhat
 			// chaotically around the central black hole.
 			var galacticCore = DoubleField3.sphereCloud(galacticCoreSizeFactor * radius)
-					.scale(1, galacticCoreSquishFactor, 1).curvePoly(2).mul(20);
+					.scale(1, galacticCoreSquishFactor, 1).curvePoly(2).mul(3);
 
 			// galactic halo is a very large region of very low stellar density that extends
 			// quite far, in a sphere around the central black hole
-			var galacticHalo = DoubleField3.sphereMask(1.5 * radius).mul(0.01);
+			var galacticHalo = DoubleField3.sphereMask(1.5 * radius).scale(1, galacticCoreSquishFactor, 1).mul(0.001);
 
 			// relatively thin disc of uniform star density and stellar ages
-			var uniformDisc = DoubleField3.verticalDisc(radius, radius * discHeightFactor, 1, 0.8).mul(10);
-			uniformDisc = uniformDisc.curvePoly(1.5);
+			// var uniformDisc = DoubleField3.verticalDisc(radius, radius * discHeightFactor, 1).mul(15);
+			var uniformDisc = DoubleField3.verticalDisc(radius, radius * discHeightFactor, 3).mul(1.5);
+			// uniformDisc = uniformDisc.curvePoly(0.5);
 
 			// "spokes" of higher star densities that are often (i think) home to active
 			// star formation, meaning you have bands of new star systems all throughout the
 			// spokes.
-			var spokesDisc = DoubleField3.verticalDisc(radius, 1.5 * radius * discHeightFactor, 1.8, 2);
+			var spokesDisc = DoubleField3.verticalDisc(radius, 1.5 * radius * discHeightFactor, 1.8);
 			var spokes = DoubleField3.spokes(spokeCount, spokeCurve)
-					.mul(20)
+					.mul(2.0)
 					.spiralAboutY(spiralFactor * 1e-8 / radius)
 					.mul(spokesDisc);
 
-			// var densityCombined = galacticCore;
+			// var densityCombined = uniformDisc;
 			// var densityCombined = DoubleField3.spokes(3, 10).mul(20).spiralAboutY(1e-8 /
 			// radius);
 			// var densityCombined = DoubleField3.verticalDisc(radius, radius, 1,

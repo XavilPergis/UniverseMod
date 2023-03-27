@@ -88,12 +88,15 @@ public interface DoubleField3 {
 	// larger values for falloff mean a less prominent falloff. a falloff of 1 means
 	// that the falloff starts at the origin.
 	static DoubleField3 verticalDisc(double radius, double height,
-			double falloffRadius, double falloffHeight) {
+			double falloffRadius) {
 		final var rFalloff = radius / falloffRadius;
-		final var hFalloff = height / falloffHeight;
+
+		final double densityAtFalloffH = 0.01;
+		final double k = height / Math.log(1.0 / densityAtFalloffH);
+
 		return pos -> {
 			final var projectedLen = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
-			var hf = Mth.clamp((height - Math.abs(pos.y)) / hFalloff, 0, 1);
+			var hf = Math.exp(-Math.abs(pos.y) / k);
 			var rf = Mth.clamp((radius - projectedLen) / rFalloff, 0, 1);
 			return rf * hf;
 		};

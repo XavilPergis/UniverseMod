@@ -252,6 +252,7 @@ public class Planetesimal {
 		var radiusRearth = this.getRadius() * Units.KILO / Units.m_PER_Rearth;
 		var node = new PlanetaryCelestialNode(type, this.mass * Units.Yg_PER_Msol, radiusRearth, 300);
 		node.rotationalPeriod = Mth.lerp(this.ctx.rng.uniformDouble(), 0.2 * 86400, 4 * 86400);
+		node.obliquityAngle = this.ctx.rng.uniformDouble(-2.0 * Math.PI, 2.0 * Math.PI);
 
 		for (var ring : this.rings) {
 			// Mod.LOGGER.info("RING!!!");

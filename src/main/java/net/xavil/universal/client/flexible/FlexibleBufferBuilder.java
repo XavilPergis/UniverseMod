@@ -8,9 +8,6 @@ import org.slf4j.Logger;
 
 import com.google.common.collect.Lists;
 import com.mojang.blaze3d.platform.MemoryTracker;
-import com.mojang.blaze3d.vertex.BufferVertexConsumer;
-import com.mojang.blaze3d.vertex.DefaultedVertexConsumer;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
 import com.mojang.datafixers.util.Pair;
@@ -18,11 +15,12 @@ import com.mojang.logging.LogUtils;
 
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
+import net.xavil.universal.Mod;
 import net.xavil.util.Assert;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
 
-public final class FlexibleBufferBuilder {
+public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 
 	private static final int GROWTH_SIZE = 0x200000;
 	private static final Logger LOGGER = LogUtils.getLogger();
@@ -242,6 +240,7 @@ public final class FlexibleBufferBuilder {
 		}
 	}
 
+	@Override
 	public FlexibleBufferBuilder vertex(double x, double y, double z) {
 		dispatch.positionHolder.c0 = (float) x;
 		dispatch.positionHolder.c1 = (float) y;
@@ -249,6 +248,7 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder vertex(float x, float y, float z) {
 		dispatch.positionHolder.c0 = x;
 		dispatch.positionHolder.c1 = y;
@@ -256,6 +256,7 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder vertex(Vec3 pos) {
 		dispatch.positionHolder.c0 = (float) pos.x;
 		dispatch.positionHolder.c1 = (float) pos.y;
@@ -263,6 +264,7 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder color(Color color) {
 		dispatch.colorHolder.c0 = color.r();
 		dispatch.colorHolder.c1 = color.g();
@@ -271,6 +273,7 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder color(float r, float g, float b, float a) {
 		dispatch.colorHolder.c0 = r;
 		dispatch.colorHolder.c1 = g;
@@ -279,24 +282,28 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder uv0(float u, float v) {
 		dispatch.uv0Holder.c0 = u;
 		dispatch.uv0Holder.c1 = v;
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder uv1(float u, float v) {
 		dispatch.uv1Holder.c0 = u;
 		dispatch.uv1Holder.c1 = v;
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder uv2(float u, float v) {
 		dispatch.uv2Holder.c0 = u;
 		dispatch.uv2Holder.c1 = v;
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder normal(double x, double y, double z) {
 		dispatch.normalHolder.c0 = (float) x;
 		dispatch.normalHolder.c1 = (float) y;
@@ -304,6 +311,7 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder normal(float x, float y, float z) {
 		dispatch.normalHolder.c0 = x;
 		dispatch.normalHolder.c1 = y;
@@ -311,6 +319,7 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	@Override
 	public FlexibleBufferBuilder normal(Vec3 norm) {
 		dispatch.normalHolder.c0 = (float) norm.x;
 		dispatch.normalHolder.c1 = (float) norm.y;
@@ -318,11 +327,26 @@ public final class FlexibleBufferBuilder {
 		return this;
 	}
 
+	@Override
 	public void endVertex() {
-		ensureBufferCapacity(this.currentVertexFormat.getVertexSize());
-		this.dispatch.emit(this.vertexByteOffset);
-		this.vertexByteOffset += this.currentVertexFormat.getVertexSize();
-		this.vertexCount += 1;
+		try {
+			ensureBufferCapacity(this.currentVertexFormat.getVertexSize());
+			this.dispatch.emit(this.vertexByteOffset);
+			this.vertexByteOffset += this.currentVertexFormat.getVertexSize();
+			this.vertexCount += 1;
+			
+			// duplicate the vertex if we're drawing lines
+			if (this.currentMode == VertexFormat.Mode.LINES || this.currentMode == VertexFormat.Mode.LINE_STRIP) {
+				ensureBufferCapacity(this.currentVertexFormat.getVertexSize());
+				this.dispatch.emit(this.vertexByteOffset);
+				this.vertexByteOffset += this.currentVertexFormat.getVertexSize();
+				this.vertexCount += 1;
+			}
+		} catch (Throwable t) {
+			Mod.LOGGER.error("Buffer Builder Error");
+			Mod.LOGGER.error("Current Capacity: {}", this.buffer.capacity());
+			throw t;
+		}
 	}
 
 	private static int roundUp(int bytesToGrow) {
@@ -346,59 +370,6 @@ public final class FlexibleBufferBuilder {
 				oldSize, newSize);
 		this.buffer = MemoryTracker.resize(this.buffer, newSize);
 		this.buffer.rewind();
-	}
-
-	public class VanillaConsumer extends DefaultedVertexConsumer {
-		@Override
-		public VertexConsumer vertex(double x, double y, double z) {
-			FlexibleBufferBuilder.this.vertex(x, y, z);
-			return this;
-		}
-
-		@Override
-		public VertexConsumer color(int r, int g, int b, int a) {
-			FlexibleBufferBuilder.this.color(r / 255f, g / 255f, b / 255f, a / 255f);
-			return this;
-		}
-
-		@Override
-		public VertexConsumer color(float r, float g, float b, float a) {
-			FlexibleBufferBuilder.this.color(r, g, b, a);
-			return this;
-		}
-
-		@Override
-		public VertexConsumer uv(float u, float v) {
-			FlexibleBufferBuilder.this.uv0(u, v);
-			return this;
-		}
-
-		@Override
-		public VertexConsumer overlayCoords(int u, int v) {
-			FlexibleBufferBuilder.this.uv1(u, v);
-			return this;
-		}
-
-		@Override
-		public VertexConsumer uv2(int u, int v) {
-			FlexibleBufferBuilder.this.uv2(u, v);
-			return this;
-		}
-
-		@Override
-		public VertexConsumer normal(float x, float y, float z) {
-			FlexibleBufferBuilder.this.normal(x, y, z);
-			return this;
-		}
-
-		@Override
-		public void endVertex() {
-			FlexibleBufferBuilder.this.endVertex();
-		}
-	}
-
-	public VertexConsumer asVanilla() {
-		return new VanillaConsumer();
 	}
 
 }

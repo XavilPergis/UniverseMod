@@ -74,7 +74,7 @@ public class OrbitCamera {
 	public final MotionSmoother<Vec3> focus = MotionSmoother.smoothVectors(0.6);
 	public final MotionSmoother<Double> yaw = MotionSmoother.smoothDoubles(0.6);
 	public final MotionSmoother<Double> pitch = MotionSmoother.smoothDoubles(0.6);
-	public final MotionSmoother<Double> scale = MotionSmoother.smoothDoubles(0.2);
+	public final MotionSmoother<Double> scale = MotionSmoother.smoothDoubles(0.4);
 
 	// projection properties
 	public double fovDeg = 90;

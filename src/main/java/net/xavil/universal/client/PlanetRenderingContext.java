@@ -6,8 +6,6 @@ import java.util.List;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
@@ -16,7 +14,6 @@ import com.mojang.math.Vector3f;
 import com.mojang.math.Vector4f;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
@@ -31,7 +28,6 @@ import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.FastHasher;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
-import net.xavil.util.math.Quat;
 import net.xavil.util.math.Vec3;
 
 public final class PlanetRenderingContext {

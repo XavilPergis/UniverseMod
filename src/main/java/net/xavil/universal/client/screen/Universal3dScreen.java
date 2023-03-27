@@ -5,10 +5,10 @@ import org.lwjgl.glfw.GLFW;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
-import net.xavil.util.Units;
 import net.xavil.util.math.Vec3;
 
 public abstract class Universal3dScreen extends UniversalScreen {
@@ -28,8 +28,8 @@ public abstract class Universal3dScreen extends UniversalScreen {
 
 		this.camera.pitch.set(Math.PI / 8);
 		this.camera.yaw.set(Math.PI / 8);
-		this.camera.scale.set(4.0);
-		this.camera.scale.setTarget(8.0);
+		this.camera.scale.set((scrollMin + scrollMax) / 2.0);
+		this.camera.scale.setTarget((scrollMin + scrollMax) / 2.0);
 	}
 
 	@Override
@@ -38,7 +38,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 			return true;
 
 		final var partialTick = this.client.getFrameTime();
-		final var dragScale = (camera.metersPerUnit / 1e12) * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
+		final var dragScale = this.camera.scale.get(partialTick) * this.camera.renderScaleFactor * 0.0035;
 
 		if (button == 2) {
 			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
@@ -78,6 +78,11 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		if (super.keyPressed(keyCode, scanCode, modifiers))
 			return true;
+
+		if (keyCode == GLFW.GLFW_KEY_R && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
+			Minecraft.getInstance().reloadResourcePacks();
+			return true;
+		}
 
 		// TODO: key mappings
 		if (keyCode == GLFW.GLFW_KEY_W) {
@@ -134,10 +139,14 @@ public abstract class Universal3dScreen extends UniversalScreen {
 
 		// TODO: consolidate with the logic in mouseDragged()?
 		final var partialTick = this.client.getFrameTime();
-		final var dragScale = (camera.metersPerUnit / 1e12) * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
+		final var dragScale = this.camera.scale.get(partialTick) * this.camera.renderScaleFactor * 0.0035;
 
 		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
+
+		if (forward != 0 || right != 0) {
+			onMoved(offset);
+		}
 	}
 
 	@Override
@@ -152,6 +161,8 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	}
 
 	public abstract OrbitCamera.Cached setupCamera(float partialTick);
+
+	public void onMoved(Vec3 displacement) {}
 
 	public void render3d(OrbitCamera.Cached camera, float partialTick) {
 	}

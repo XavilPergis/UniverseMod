@@ -9,7 +9,6 @@ import org.lwjgl.glfw.GLFW;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
@@ -21,7 +20,9 @@ import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.GalaxyRenderingContext;
 import net.xavil.universal.client.ModRendering;
+import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.screen.debug.GalaxyDensityDebugScreen;
 import net.xavil.universal.client.screen.debug.SystemGenerationDebugScreen;
 import net.xavil.universal.common.NameTemplate;
@@ -53,6 +54,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 	private ClientUniverse universe;
 	private Galaxy galaxy;
+	private GalaxyRenderingContext galaxyRenderingContext;
 
 	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
 
@@ -81,6 +83,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		var volumePos = systemToFocus.systemSector().sectorPos();
 		var volume = this.galaxy.getVolumeAt(volumePos);
 		this.camera.focus.set(volume.posById(this.currentSystemId.sectorId()));
+
+		this.galaxyRenderingContext = new GalaxyRenderingContext(this.galaxy);
 	}
 
 	@Override
@@ -244,13 +248,12 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// setup
 
-		BufferBuilder builder = Tesselator.getInstance().getBuilder();
+		final var builder = BufferRenderer.immediateBuilder();
 
 		// Grid
 
 		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, 1, 10, 40, partialTick);
 
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		if (camera.scale < 300) {
@@ -275,7 +278,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.disableCull();
 		RenderSystem.lineWidth(1);
 		RenderSystem.depthMask(false);
-		BufferUploader.end(builder);
+		builder.draw(GameRenderer.getRendertypeLinesShader());
 		RenderSystem.depthMask(true);
 		RenderSystem.enableCull();
 		RenderSystem.enableTexture();
@@ -347,15 +350,14 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// final var scaleAlpha = 1 - Mth.clamp(camera.scale / maxVisibleScale, 0, 1);
 
-		BufferBuilder builder = Tesselator.getInstance().getBuilder();
+		final var builder = BufferRenderer.immediateBuilder();
 
 		// Stars
 
-		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
 		volume.enumerateElements(element -> {
-			var distanceFromFocus = camera.focus.distanceTo(element.pos);
+			var distanceFromFocus = camera.pos.mul(TM_PER_UNIT).distanceTo(element.pos);
 			var alphaFactorFocus = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
 			if (alphaFactorFocus <= 0.05)
 				return;
@@ -380,9 +382,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
-		BufferUploader.end(builder);
+		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		var focusPos = camera.focus.div(TM_PER_UNIT);
@@ -403,7 +404,7 @@ public class GalaxyMapScreen extends UniversalScreen {
 		RenderSystem.disableCull();
 		RenderSystem.lineWidth(1.5f);
 		RenderSystem.depthMask(false);
-		BufferUploader.end(builder);
+		builder.draw(GameRenderer.getRendertypeLinesShader());
 
 		prevMatrices.restore();
 	}
@@ -456,108 +457,35 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		renderGrid(camera, partialTick);
 
+		final var builder = BufferRenderer.immediateBuilder();
+
+		this.galaxyRenderingContext.build();
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+
+		this.galaxyRenderingContext.enumerate((pos, size) -> {
+			RenderHelper.addBillboard(builder, camera, new PoseStack(), pos.div(TM_PER_UNIT), size / TM_PER_UNIT, Color.WHITE.withA(0.2));
+		});
+
+		builder.end();
+
+		this.client.getTextureManager().getTexture(Mod.namespaced("textures/misc/galaxyglow.png")).setFilter(true,
+				false);
+		RenderSystem.setShaderTexture(0, Mod.namespaced("textures/misc/galaxyglow.png"));
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		RenderSystem.depthMask(false);
+		RenderSystem.enableDepthTest();
+		RenderSystem.disableCull();
+		RenderSystem.enableBlend();
+		builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
+
 		if (camera.scale < 300) {
-			TicketedVolume.enumerateSectors(camera.focus, STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
+			TicketedVolume.enumerateSectors(camera.pos.mul(TM_PER_UNIT), STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
 				// TODO: figure out how to evict old volumes that we're not using. Maybe use
 				// something like vanilla's chunk ticketing system?
 				var volume = this.galaxy.getVolumeAt(sectorPos);
 				renderStars(camera, volume, partialTick);
 			});
 		}
-
-		BufferBuilder builder = Tesselator.getInstance().getBuilder();
-
-		// if (this.galaxyPoints != null) {
-
-		// BufferBuilder builder = Tesselator.getInstance().getBuilder();
-
-		// // Stars
-
-		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS,
-		// DefaultVertexFormat.POSITION_COLOR_TEX);
-
-		// var displayStar = new StarNode(StarNode.Type.MAIN_SEQUENCE, Units.msol(1), 1,
-		// 1, 5000);
-		// this.galaxyPoints.enumerateElements(elem -> {
-		// var center = elem.pos;
-
-		// // we should maybe consider doing the billboarding in a vertex shader,
-		// because
-		// // that way we can build all the geometry for a sector into a vertex buffer
-		// and
-		// // just emit a few draw calls, instead of having to build the buffer from
-		// // scratch each frame.
-
-		// RenderHelper.addBillboard(builder, camera, new PoseStack(), displayStar, 100,
-		// center);
-		// // RenderHelper.addBillboard(builder, camera, new PoseStack(), displayStar,
-		// center);
-		// });
-
-		// builder.end();
-
-		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION).setFilter(true,
-		// false);
-		// RenderSystem.setShaderTexture(0,
-		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
-		// GlStateManager.DestFactor.ONE);
-		// RenderSystem.depthMask(false);
-		// RenderSystem.disableDepthTest();
-		// RenderSystem.disableCull();
-		// RenderSystem.enableBlend();
-		// BufferUploader.end(builder);
-
-		// }
-
-		// selected system gizmo
-
-		// var selectedVolume =
-		// this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-		// var selectedPos =
-		// selectedVolume.posById(this.currentSystemId.sectorId()).div(TM_PER_UNIT);
-
-		// BufferBuilder builder = Tesselator.getInstance().getBuilder();
-		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS,
-		// DefaultVertexFormat.POSITION_COLOR_TEX);
-		// // RenderHelper.addBillboard(builder, this.camera, selectedPos, 0.5, 0,
-		// // partialTick, new Color(1, 1, 1, 0.2f));
-		// RenderHelper.addBillboard(builder, camera, new PoseStack(), selectedPos, 0.5,
-		// 0, new Color(1, 1, 1, 0.2f));
-
-		// builder.end();
-
-		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION).setFilter(true,
-		// false);
-		// RenderSystem.setShaderTexture(0,
-		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-		// RenderSystem.enableBlend();
-		// RenderSystem.defaultBlendFunc();
-		// RenderSystem.disableCull();
-		// RenderSystem.disableDepthTest();
-		// BufferUploader.end(builder);
-
-		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS,
-		// DefaultVertexFormat.POSITION_COLOR_TEX);
-		// var k = this.camera.scale.get(partialTick);
-		// RenderHelper.addBillboard(builder, new PoseStack(),
-		// camera.focus.div(TM_PER_UNIT),
-		// Vec3.from(0.02 * k, 0, 0),
-		// Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
-		// builder.end();
-
-		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-		// .setFilter(true, false);
-		// RenderSystem.setShaderTexture(0,
-		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-		// RenderSystem.enableBlend();
-		// RenderSystem.defaultBlendFunc();
-		// RenderSystem.disableCull();
-		// RenderSystem.disableDepthTest();
-		// BufferUploader.end(builder);
 
 		prevMatrices.restore();
 

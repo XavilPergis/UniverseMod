@@ -1,18 +1,17 @@
 package net.xavil.universal.client;
 
 import java.util.OptionalInt;
+import java.util.Random;
 
 import org.lwjgl.opengl.GL32;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexBuffer;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 
@@ -23,6 +22,7 @@ import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
+import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -34,6 +34,7 @@ import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Quat;
@@ -48,7 +49,9 @@ public class SkyRenderer {
 	// public PostChain compositeChain = null;
 
 	private VertexBuffer distantStarsBuffer = new VertexBuffer();
+	private VertexBuffer galaxyParticlesBuffer = new VertexBuffer();
 	private boolean shouldRebuildStarBuffer = true;
+	private boolean shouldRebuildGalaxyBuffer = true;
 	private SystemNodeId previousId = null;
 
 	public void resize(int width, int height) {
@@ -71,7 +74,23 @@ public class SkyRenderer {
 		return ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).getTempTarget("sky");
 	}
 
-	private void addBillboard(VertexConsumer builder, PoseStack poseStack, Vec3 selfPos, Vec3 pos, double s,
+	private void addBackgroundBillboard(FlexibleVertexConsumer builder, Rng rng, Vec3 selfPos, Vec3 pos) {
+		var offset = pos.sub(selfPos);
+		var forward = offset.normalize();
+
+		var du = forward.dot(Vec3.YP);
+		var df = forward.dot(Vec3.ZN);
+		var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
+		var right = v1.cross(forward);
+		var rotation = rng.uniformDouble(0, 2.0 * Math.PI);
+		right = Quat.axisAngle(forward, rotation).transform(right);
+		var up = forward.cross(right).neg();
+		RenderHelper.addBillboardCamspace(builder, up, right, forward.mul(100), 1.0, 0, Color.WHITE.withA(0.1));
+		// RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s,
+		// Color.WHITE.withA(0.2));
+	}
+
+	private void addBillboard(FlexibleVertexConsumer builder, PoseStack poseStack, Vec3 selfPos, Vec3 pos, double s,
 			CelestialNode node) {
 
 		var offset = pos.sub(selfPos);
@@ -125,6 +144,61 @@ public class SkyRenderer {
 
 	}
 
+	private void buildGalaxy() {
+		final var currentId = LevelAccessor.getUniverseId(this.client.level);
+		if (currentId == null)
+			return;
+
+		Mod.LOGGER.info("rebuilding background galaxy");
+
+		final var currentSystemId = currentId.system();
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		final var galaxyVolume = universe.getVolumeAt(currentSystemId.galaxySector().sectorPos());
+		final var galaxy = galaxyVolume
+				.getById(currentSystemId.galaxySector().sectorId())
+				.getFull();
+		final var systemVolume = galaxy.getVolumeAt(currentSystemId.systemSector().sectorPos());
+		final var systemPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
+		if (systemPos == null) {
+			Mod.LOGGER.error("could not build galaxy because the system pos was null.");
+			return;
+		}
+		final var selfPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
+
+		final var ctx = new GalaxyRenderingContext(galaxy);
+		ctx.build();
+
+		final var builder = Tesselator.getInstance().getBuilder();
+		final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+
+		final var rng = Rng.wrap(new Random());
+		ctx.enumerate((pos, size) -> {
+			var offset = pos.sub(selfPos);
+			var forward = offset.normalize();
+
+			final var s = 3e1 * size / offset.length(); // size / 3e5f
+
+			var du = forward.dot(Vec3.YP);
+			var df = forward.dot(Vec3.ZN);
+			var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
+			var right = v1.cross(forward);
+			var rotation = rng.uniformDouble(0, 2.0 * Math.PI);
+			right = Quat.axisAngle(forward, rotation).transform(right);
+			var up = forward.cross(right).neg();
+
+			RenderHelper.addBillboardCamspace(wrappedBuilder, up, right, forward.mul(100), s, 0,
+					Color.WHITE.withA(0.15));
+			// RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s,
+			// Color.WHITE.withA(0.2));
+		});
+
+		builder.end();
+		this.galaxyParticlesBuffer.upload(builder);
+		this.shouldRebuildGalaxyBuffer = false;
+		VertexBuffer.unbind();
+	}
+
 	private void buildStars() {
 		Mod.LOGGER.info("rebuilding background stars");
 		var builder = Tesselator.getInstance().getBuilder();
@@ -148,6 +222,8 @@ public class SkyRenderer {
 
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
+		final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
+
 		var selfPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
 		TicketedVolume.enumerateSectors(systemPos, Galaxy.TM_PER_SECTOR, Galaxy.TM_PER_SECTOR, sectorPos -> {
 			var volume = galaxy.getVolumeAt(sectorPos);
@@ -155,7 +231,7 @@ public class SkyRenderer {
 				if (element.id == currentId.system().systemSector().sectorId())
 					return;
 				var displayStar = element.value.getInitial().primaryStar;
-				addBillboard(builder, new PoseStack(), selfPos, element.pos, 1, displayStar);
+				addBillboard(wrappedBuilder, new PoseStack(), selfPos, element.pos, 1, displayStar);
 			});
 			// volume.streamElements().forEach(element -> {
 			// });
@@ -171,57 +247,33 @@ public class SkyRenderer {
 		// RenderSystem.disableCull();
 
 		RenderSystem.setShader(() -> ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
+		final var shader = RenderSystem.getShader();
+		BufferRenderer.setupDefaultShaderUniforms(shader, modelViewMatrix, projectionMatrix);
+		shader.apply();
+
 		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
 		RenderSystem.depthMask(false);
 		RenderSystem.disableDepthTest();
-
-		var shader = RenderSystem.getShader();
-		for (int j = 0; j < 8; ++j) {
-			int m = RenderSystem.getShaderTexture(j);
-			shader.setSampler("Sampler" + j, m);
-		}
-		if (shader.MODEL_VIEW_MATRIX != null) {
-			shader.MODEL_VIEW_MATRIX.set(modelViewMatrix);
-		}
-		if (shader.PROJECTION_MATRIX != null) {
-			shader.PROJECTION_MATRIX.set(projectionMatrix);
-		}
-		if (shader.INVERSE_VIEW_ROTATION_MATRIX != null) {
-			shader.INVERSE_VIEW_ROTATION_MATRIX.set(RenderSystem.getInverseViewRotationMatrix());
-		}
-		if (shader.COLOR_MODULATOR != null) {
-			shader.COLOR_MODULATOR.set(RenderSystem.getShaderColor());
-		}
-		if (shader.FOG_START != null) {
-			shader.FOG_START.set(RenderSystem.getShaderFogStart());
-		}
-		if (shader.FOG_END != null) {
-			shader.FOG_END.set(RenderSystem.getShaderFogEnd());
-		}
-		if (shader.FOG_COLOR != null) {
-			shader.FOG_COLOR.set(RenderSystem.getShaderFogColor());
-		}
-		if (shader.FOG_SHAPE != null) {
-			shader.FOG_SHAPE.set(RenderSystem.getShaderFogShape().getIndex());
-		}
-		if (shader.TEXTURE_MATRIX != null) {
-			shader.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
-		}
-		if (shader.GAME_TIME != null) {
-			shader.GAME_TIME.set(RenderSystem.getShaderGameTime());
-		}
-		if (shader.SCREEN_SIZE != null) {
-			var window = Minecraft.getInstance().getWindow();
-			shader.SCREEN_SIZE.set((float) window.getWidth(), (float) window.getHeight());
-		}
-		RenderSystem.setupShaderLights(shader);
-		shader.apply();
-
 		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
 		this.distantStarsBuffer.drawChunkLayer();
+	}
+
+	private void drawGalaxy(Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
+		final var shader = ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER);
+		
+		this.client.getTextureManager().getTexture(Mod.namespaced("textures/misc/galaxyglow.png")).setFilter(true, false);
+		RenderSystem.setShaderTexture(0, Mod.namespaced("textures/misc/galaxyglow.png"));
+		RenderSystem.depthMask(false);
+		RenderSystem.disableDepthTest();
+		BufferRenderer.setupDefaultShaderUniforms(shader, modelViewMatrix, projectionMatrix);
+		shader.apply();
+		RenderSystem.enableBlend();
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+
+		this.galaxyParticlesBuffer.drawChunkLayer();
 	}
 
 	private void drawSystem(CachedCamera<?> camera, SystemNodeId currentNodeId, double time, float partialTick) {
@@ -236,7 +288,7 @@ public class SkyRenderer {
 		var currentNode = system.rootNode.lookup(currentNodeId.nodeId());
 
 		profiler.popPush("planet_context_setup");
-		var builder = Tesselator.getInstance().getBuilder();
+		var builder = BufferRenderer.immediateBuilder();
 		var ctx = new PlanetRenderingContext(time);
 		system.rootNode.visit(node -> {
 			if (node instanceof StellarCelestialNode starNode) {
@@ -257,7 +309,6 @@ public class SkyRenderer {
 			final var profiler2 = Minecraft.getInstance().getProfiler();
 			profiler2.push("id:" + node.getId());
 			if (node instanceof StellarCelestialNode starNode) {
-				RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 				addBillboard(builder, new PoseStack(), currentNode.position, starNode.position, 1, starNode);
 				builder.end();
@@ -268,7 +319,7 @@ public class SkyRenderer {
 				RenderSystem.depthMask(false);
 				RenderSystem.enableDepthTest();
 				RenderSystem.disableCull();
-				BufferUploader.end(builder);
+				builder.draw(GameRenderer.getPositionColorTexShader());
 			} else {
 				final var flexBuilder = BufferRenderer.immediateBuilder();
 				ctx.render(flexBuilder, camera, node, new PoseStack(), Color.WHITE,
@@ -358,14 +409,18 @@ public class SkyRenderer {
 
 		if (this.client.options.keySaveHotbarActivator.consumeClick()) {
 			this.shouldRebuildStarBuffer = true;
+			this.shouldRebuildGalaxyBuffer = true;
 		}
 		if (this.previousId == null || !this.previousId.equals(currentId)) {
 			this.shouldRebuildStarBuffer = true;
+			this.shouldRebuildGalaxyBuffer = true;
 			this.previousId = currentId;
 		}
 
 		if (this.shouldRebuildStarBuffer)
 			buildStars();
+		if (this.shouldRebuildGalaxyBuffer)
+			buildGalaxy();
 
 		getSkyResolveTarget().clear(false);
 
@@ -375,7 +430,9 @@ public class SkyRenderer {
 		skyTargetMs.clear(false);
 		skyTargetMs.bindWrite(false);
 
-		profiler.push("stars");
+		profiler.push("galaxy");
+		drawGalaxy(RenderSystem.getModelViewMatrix(), starSphereProj);
+		profiler.popPush("stars");
 		drawStars(RenderSystem.getModelViewMatrix(), starSphereProj);
 		profiler.popPush("system");
 		drawSystem(celestialCamera, currentId, time, partialTick);

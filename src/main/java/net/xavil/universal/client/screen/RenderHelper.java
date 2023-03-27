@@ -2,11 +2,8 @@ package net.xavil.universal.client.screen;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
-import com.mojang.blaze3d.vertex.BufferUploader;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
@@ -16,6 +13,7 @@ import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
+import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
@@ -43,7 +41,7 @@ public final class RenderHelper {
 	public static void renderStarBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node) {
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		addBillboard(builder.asVanilla(), camera, poseStack, node);
+		addBillboard(builder, camera, poseStack, node);
 		builder.end();
 		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
@@ -55,14 +53,14 @@ public final class RenderHelper {
 		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 	}
 
-	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node) {
 		double d = 1 * (1e12 / camera.metersPerUnit)
 				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
 		addBillboard(builder, camera, poseStack, node, d, node.position);
 	}
 
-	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node, Vec3 pos) {
 		double d = 1 * (1e12 / camera.metersPerUnit)
 				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos);
@@ -95,7 +93,7 @@ public final class RenderHelper {
 		return billboardFactor * distanceFromCameraTm * (angularRadius / 2);
 	}
 
-	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node, double d, Vec3 pos) {
 
 		var color = Color.WHITE;
@@ -103,42 +101,55 @@ public final class RenderHelper {
 			color = starNode.getColor();
 		}
 
-		final double brightBillboardSizeFactor = 0.9;
 		RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
 				camera.toCameraSpace(pos), d, 0, color);
-		// RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
-		// 		camera.toCameraSpace(pos),
-		// 		brightBillboardSizeFactor * d, 0, Color.WHITE);
 	}
 
-	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+			Vec3 center,
 			double scale, Color color) {
 		addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
 				camera.toCameraSpace(center), scale, 0, color);
 	}
 
-	public static void addBillboard(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 up,
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+			Vec3 up,
 			Vec3 right, Vec3 center, double scale, double zOffset, Color color) {
 		addBillboardCamspace(builder, poseStack, camera.toCameraSpace(up), camera.toCameraSpace(right),
 				camera.toCameraSpace(center), scale, zOffset, color);
 	}
 
-	public static void addBillboardCamspace(VertexConsumer builder, PoseStack poseStack, Vec3 up,
+	public static void addBillboardCamspace(FlexibleVertexConsumer builder, PoseStack poseStack, Vec3 up,
 			Vec3 right, Vec3 center, double scale, double zOffset, Color color) {
 		var backwards = up.cross(right).mul(zOffset);
 		var bu = up.mul(scale);
 		var br = right.mul(scale);
 
 		var p = poseStack.last().pose();
+		var qll = center.sub(bu).sub(br).add(backwards).transformBy(p);
+		var qlh = center.sub(bu).add(br).add(backwards).transformBy(p);
+		var qhl = center.add(bu).sub(br).add(backwards).transformBy(p);
+		var qhh = center.add(bu).add(br).add(backwards).transformBy(p);
+		builder.vertex(qhl).color(color).uv0(1, 0).endVertex();
+		builder.vertex(qll).color(color).uv0(0, 0).endVertex();
+		builder.vertex(qlh).color(color).uv0(0, 1).endVertex();
+		builder.vertex(qhh).color(color).uv0(1, 1).endVertex();
+	}
+
+	public static void addBillboardCamspace(FlexibleVertexConsumer builder, Vec3 up, Vec3 right, Vec3 center,
+			double scale, double zOffset, Color color) {
+		var backwards = up.cross(right).mul(zOffset);
+		var bu = up.mul(scale);
+		var br = right.mul(scale);
+
 		var qll = center.sub(bu).sub(br).add(backwards);
 		var qlh = center.sub(bu).add(br).add(backwards);
 		var qhl = center.add(bu).sub(br).add(backwards);
 		var qhh = center.add(bu).add(br).add(backwards);
-		float r = color.r(), g = color.g(), b = color.b(), a = color.a();
-		builder.vertex(p, (float) qhl.x, (float) qhl.y, (float) qhl.z).color(r, g, b, a).uv(1, 0).endVertex();
-		builder.vertex(p, (float) qll.x, (float) qll.y, (float) qll.z).color(r, g, b, a).uv(0, 0).endVertex();
-		builder.vertex(p, (float) qlh.x, (float) qlh.y, (float) qlh.z).color(r, g, b, a).uv(0, 1).endVertex();
-		builder.vertex(p, (float) qhh.x, (float) qhh.y, (float) qhh.z).color(r, g, b, a).uv(1, 1).endVertex();
+		builder.vertex(qhl).color(color).uv0(1, 0).endVertex();
+		builder.vertex(qll).color(color).uv0(0, 0).endVertex();
+		builder.vertex(qlh).color(color).uv0(0, 1).endVertex();
+		builder.vertex(qhh).color(color).uv0(1, 1).endVertex();
 	}
 
 	// public static void addBillboard(VertexConsumer builder, CachedCamera<?>
@@ -172,16 +183,17 @@ public final class RenderHelper {
 		return scale;
 	}
 
-	public static void renderGrid(BufferBuilder builder, OrbitCamera.Cached camera, double tmPerUnit, double gridUnits,
+	public static void renderGrid(FlexibleBufferBuilder builder, OrbitCamera.Cached camera, double tmPerUnit,
+			double gridUnits,
 			int scaleFactor, int gridLineCount, float partialTick) {
 		var focusPos = camera.focus.div(tmPerUnit);
 		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
 		renderGrid(builder, camera, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
 	}
 
-	public static void renderGrid(BufferBuilder builder, CachedCamera<?> camera, Vec3 focusPos, double gridDiameter,
+	public static void renderGrid(FlexibleBufferBuilder builder, CachedCamera<?> camera, Vec3 focusPos,
+			double gridDiameter,
 			int subcellsPerCell, int gridLineCount) {
-		RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 		addGrid(builder, camera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
 		builder.end();
@@ -191,10 +203,10 @@ public final class RenderHelper {
 		RenderSystem.disableCull();
 		RenderSystem.lineWidth(1);
 		RenderSystem.depthMask(false);
-		BufferUploader.end(builder);
+		builder.draw(GameRenderer.getRendertypeLinesShader());
 	}
 
-	public static void addGrid(VertexConsumer builder, CachedCamera<?> camera, Vec3 focusPos,
+	public static void addGrid(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 focusPos,
 			double gridDiameter, int subcellsPerCell, int gridLineCount) {
 
 		var gridCellResolution = gridDiameter / gridLineCount;
@@ -293,41 +305,35 @@ public final class RenderHelper {
 	// BufferUploader.end(builder);
 	// }
 
-	public static void addLine(VertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end, Color color) {
+	public static void addLine(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end,
+			Color color) {
 		addLine(builder, camera, start, end, color, color);
 	}
 
-	public static void addLine(VertexConsumer builder, Vec3 start, Vec3 end, Color color) {
+	public static void addLine(FlexibleVertexConsumer builder, Vec3 start, Vec3 end, Color color) {
 		addLine(builder, start, end, color, color);
 	}
 
-	public static void addLine(VertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end, Color startColor,
+	public static void addLine(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end,
+			Color startColor,
 			Color endColor) {
 		addLine(builder, camera.toCameraSpace(start), camera.toCameraSpace(end), startColor, endColor);
 	}
 
-	public static void addQuad(VertexConsumer builder, CachedCamera<?> camera, Vec3 a, Vec3 b, Vec3 c, Vec3 d,
+	public static void addQuad(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 a, Vec3 b, Vec3 c, Vec3 d,
 			Color color) {
 		addQuad(builder, camera.toCameraSpace(a),
 				camera.toCameraSpace(b), camera.toCameraSpace(c), camera.toCameraSpace(d), color);
 	}
 
-	public static void addQuad(VertexConsumer builder, Vec3 a, Vec3 b, Vec3 c, Vec3 d, Color color) {
-		builder.vertex(a.x, a.y, a.z)
-				.color(color.r(), color.g(), color.b(), color.a())
-				.endVertex();
-		builder.vertex(b.x, b.y, b.z)
-				.color(color.r(), color.g(), color.b(), color.a())
-				.endVertex();
-		builder.vertex(c.x, c.y, c.z)
-				.color(color.r(), color.g(), color.b(), color.a())
-				.endVertex();
-		builder.vertex(d.x, d.y, d.z)
-				.color(color.r(), color.g(), color.b(), color.a())
-				.endVertex();
+	public static void addQuad(FlexibleVertexConsumer builder, Vec3 a, Vec3 b, Vec3 c, Vec3 d, Color color) {
+		builder.vertex(a).color(color).endVertex();
+		builder.vertex(b).color(color).endVertex();
+		builder.vertex(c).color(color).endVertex();
+		builder.vertex(d).color(color).endVertex();
 	}
 
-	public static void addLine(VertexConsumer builder, Vec3 start, Vec3 end, Color startColor, Color endColor) {
+	public static void addLine(FlexibleVertexConsumer builder, Vec3 start, Vec3 end, Color startColor, Color endColor) {
 		var normal = end.sub(start).normalize();
 		builder.vertex(start.x, start.y, start.z)
 				.color(startColor.r(), startColor.g(), startColor.b(), startColor.a())
@@ -339,7 +345,8 @@ public final class RenderHelper {
 				.endVertex();
 	}
 
-	// public static void addAxisAlignedBox(VertexConsumer builder, Vec3 p0, Vec3
+	// public static void addAxisAlignedBox(FlexibleVertexConsumer builder, Vec3 p0,
+	// Vec3
 	// p1, Color color) {
 	// double lx = p0.x < p1.x ? p0.x : p1.x;
 	// double ly = p0.y < p1.y ? p0.y : p1.y;

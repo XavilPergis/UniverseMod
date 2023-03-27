@@ -1,6 +1,5 @@
 package net.xavil.universal.common.universe.galaxy;
 
-import java.util.Comparator;
 import java.util.Random;
 
 import net.xavil.universal.common.universe.Lazy;
@@ -9,7 +8,6 @@ import net.xavil.universal.common.universe.id.SectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.math.Vec3;
 import net.xavil.util.math.Vec3i;

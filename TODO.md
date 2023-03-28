@@ -56,11 +56,9 @@
 
 
 ## Rendering
-- Figure out how to properly size celestial body billboards/cubes/spheres/whatever
-	- FOV needs to be taken into account
-- When using the spyglass, info about the targeted celestial body should be displayed
-- Custom Planetary body shader that does shadows n stuff
-- [ ] Render the galaxy somehow
+- [ ] When using the spyglass, info about the targeted celestial body should be displayed
+- [x] Custom Planetary body shader that does shadows n stuff
+- [x] Render the galaxy somehow
 
 ## Other
 - [ ] Day/night cycle based on star system configuration
@@ -87,6 +85,7 @@
 		- [ ] Boat ???
 		- [x] ExperienceOrb
 		- [x] LivingEntity
+	- Mob jump height
 	- Disable elytra flight in planets with no or thin atmospheres
 
 # Longterm
@@ -112,4 +111,3 @@
 # Done
 - Implemented my own math types and converted all my code to use them
 - Fixed child planes nor working right
-- Bugfixes

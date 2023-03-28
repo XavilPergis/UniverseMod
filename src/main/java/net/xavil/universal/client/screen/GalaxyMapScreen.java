@@ -1,17 +1,13 @@
 package net.xavil.universal.client.screen;
 
-import java.util.Random;
-
 import javax.annotation.Nullable;
 
 import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
@@ -23,9 +19,9 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.client.GalaxyRenderingContext;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.flexible.BufferRenderer;
+import net.xavil.universal.client.screen.OrbitCamera.Cached;
 import net.xavil.universal.client.screen.debug.GalaxyDensityDebugScreen;
 import net.xavil.universal.client.screen.debug.SystemGenerationDebugScreen;
-import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -36,14 +32,12 @@ import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Rng;
-import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
 
-public class GalaxyMapScreen extends UniversalScreen {
+public class GalaxyMapScreen extends Universal3dScreen {
 
-	public static final double STAR_RENDER_RADIUS = 0.5 * Galaxy.TM_PER_SECTOR;
+	public static final double STAR_RENDER_RADIUS = 1.5 * Galaxy.TM_PER_SECTOR;
 	public static final double TM_PER_UNIT = 1000;
 	public static final double UNITS_PER_SECTOR = Galaxy.TM_PER_SECTOR / 1000;
 
@@ -56,22 +50,14 @@ public class GalaxyMapScreen extends UniversalScreen {
 	private Galaxy galaxy;
 	private GalaxyRenderingContext galaxyRenderingContext;
 
-	private boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false, isRightPressed = false;
-
-	private OrbitCamera camera = new OrbitCamera(1e12, TM_PER_UNIT);
 	private SectorId galaxyId;
 	private SectorId currentSystemId;
 
 	private TicketedVolume.Ticket galaxyVolumeTicket;
-	// private TicketedVolume.Ticket focusTicket;
 
 	public GalaxyMapScreen(@Nullable Screen previousScreen, SystemId systemToFocus) {
-		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen);
-
-		this.camera.pitch.set(Math.PI / 8);
-		this.camera.yaw.set(Math.PI / 8);
-		this.camera.scale.set(4.0);
-		this.camera.scale.setTarget(8.0);
+		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12, TM_PER_UNIT),
+				1e-3, 1e5);
 
 		this.universe = MinecraftClientAccessor.getUniverse(this.client);
 		this.galaxyVolumeTicket = this.universe.volume.addTicket(systemToFocus.galaxySector().sectorPos(), 0, -1);
@@ -96,92 +82,80 @@ public class GalaxyMapScreen extends UniversalScreen {
 			this.galaxy.parentUniverse.volume.removeTicket(this.galaxyVolumeTicket);
 	}
 
-	@Override
-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
-		if (super.mouseDragged(mouseX, mouseY, button, dx, dy))
-			return true;
+	// @Override
+	// public boolean mouseDragged(double mouseX, double mouseY, int button, double
+	// dx, double dy) {
+	// if (super.mouseDragged(mouseX, mouseY, button, dx, dy))
+	// return true;
 
-		final var partialTick = this.client.getFrameTime();
-		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
+	// final var partialTick = this.client.getFrameTime();
+	// final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 /
+	// Units.Tm_PER_ly;
 
-		if (button == 2) {
-			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
-			var offset = Vec3.from(dx, 0, realDy).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
-			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
-		} else if (button == 1) {
-			this.camera.focus.setTarget(this.camera.focus.getTarget().add(0, dragScale * dy, 0));
-		} else if (button == 0) {
-			this.camera.yaw.setTarget(this.camera.yaw.getTarget() + dx * 0.005);
-			var desiredPitch = this.camera.pitch.getTarget() + dy * 0.005;
-			var actualPitch = Mth.clamp(desiredPitch, -Math.PI / 2, Math.PI / 2);
-			this.camera.pitch.setTarget(actualPitch);
-		}
+	// if (button == 2) {
+	// var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
+	// var offset = Vec3.from(dx, 0,
+	// realDy).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
+	// this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
+	// } else if (button == 1) {
+	// this.camera.focus.setTarget(this.camera.focus.getTarget().add(0, dragScale *
+	// dy, 0));
+	// } else if (button == 0) {
+	// this.camera.yaw.setTarget(this.camera.yaw.getTarget() + dx * 0.005);
+	// var desiredPitch = this.camera.pitch.getTarget() + dy * 0.005;
+	// var actualPitch = Mth.clamp(desiredPitch, -Math.PI / 2, Math.PI / 2);
+	// this.camera.pitch.setTarget(actualPitch);
+	// }
 
-		return true;
-	}
+	// return true;
+	// }
 
-	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double scrollDelta) {
-		if (super.mouseScrolled(mouseX, mouseY, scrollDelta))
-			return true;
+	// @Override
+	// public boolean mouseScrolled(double mouseX, double mouseY, double
+	// scrollDelta) {
+	// if (super.mouseScrolled(mouseX, mouseY, scrollDelta))
+	// return true;
 
-		if (scrollDelta > 0) {
-			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.001));
-			return true;
-		} else if (scrollDelta < 0) {
-			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 1000000));
-			return true;
-		}
+	// if (scrollDelta > 0) {
+	// var prevTarget = this.camera.scale.getTarget();
+	// this.camera.scale.setTarget(Math.max(prevTarget / 1.2, 0.001));
+	// return true;
+	// } else if (scrollDelta < 0) {
+	// var prevTarget = this.camera.scale.getTarget();
+	// this.camera.scale.setTarget(Math.min(prevTarget * 1.2, 1000000));
+	// return true;
+	// }
 
-		return false;
-	}
+	// return false;
+	// }
 
 	@Override
 	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		if (super.keyPressed(keyCode, scanCode, modifiers))
 			return true;
 
-		// TODO: key mappings
-		if (keyCode == GLFW.GLFW_KEY_W) {
-			this.isForwardPressed = true;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_S) {
-			this.isBackwardPressed = true;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_A) {
-			this.isLeftPressed = true;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_D) {
-			this.isRightPressed = true;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_M) {
+		final var partialTick = this.client.getFrameTime();
+		if (keyCode == GLFW.GLFW_KEY_M) {
 			this.client.setScreen(new GalaxyDensityDebugScreen(this, this.galaxy));
 		} else if (keyCode == GLFW.GLFW_KEY_N) {
 			this.client.setScreen(new SystemGenerationDebugScreen(this));
-		}
-
-		return false;
-	}
-
-	@Override
-	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
-		if (super.keyReleased(keyCode, scanCode, modifiers))
+		} else if (keyCode == GLFW.GLFW_KEY_E) {
+			var volume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
+			var system = volume.getById(this.currentSystemId.sectorId())
+					.getFull();
+			var screen = new SystemMapScreen(this, new SystemId(this.galaxyId, this.currentSystemId),
+					system);
+			this.client.setScreen(screen);
 			return true;
-
-		// TODO: key mappings
-		if (keyCode == GLFW.GLFW_KEY_W) {
-			this.isForwardPressed = false;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_S) {
-			this.isBackwardPressed = false;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_A) {
-			this.isLeftPressed = false;
-			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_D) {
-			this.isRightPressed = false;
+		} else if (keyCode == GLFW.GLFW_KEY_F) {
+			var focusPos = this.camera.focus.get(partialTick);
+			var nearestId = getNearestSystem(focusPos, 10000);
+			if (nearestId != null) {
+				var volume = this.galaxy.getVolumeAt(nearestId.sectorPos());
+				this.currentSystemId = nearestId;
+				this.camera.focus.setTarget(
+						volume.posById(this.currentSystemId.sectorId()));
+			}
 			return true;
 		}
 
@@ -206,41 +180,6 @@ public class GalaxyMapScreen extends UniversalScreen {
 		});
 
 		return nearest.id;
-	}
-
-	@Override
-	public boolean charTyped(char c, int i) {
-		if (super.charTyped(c, i))
-			return true;
-
-		final var partialTick = this.client.getFrameTime();
-
-		if (c == 'q') {
-			var nameTemplate = NameTemplate.compile("^SL?(< >[<Major><Minor>])< >^*^*<->^*");
-			// var nameTemplate = NameTemplate.compile("[(<M>d?d?d)(<NGC >dddddd?d?d)]");
-			var name = nameTemplate.generate(Rng.wrap(new Random()));
-			Mod.LOGGER.info(name);
-			return true;
-		} else if (c == 'e') {
-			var volume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
-			var system = volume.getById(this.currentSystemId.sectorId())
-					.getFull();
-			var screen = new SystemMapScreen(this, new SystemId(this.galaxyId, this.currentSystemId),
-					system);
-			this.client.setScreen(screen);
-			return true;
-		} else if (c == 'f') {
-			var focusPos = this.camera.focus.get(partialTick);
-			var nearestId = getNearestSystem(focusPos, 10000);
-			if (nearestId != null) {
-				var volume = this.galaxy.getVolumeAt(nearestId.sectorPos());
-				this.currentSystemId = nearestId;
-				this.camera.focus.setTarget(
-						volume.posById(this.currentSystemId.sectorId()));
-			}
-			return true;
-		}
-		return false;
 	}
 
 	private void renderGrid(OrbitCamera.Cached camera, float partialTick) {
@@ -287,48 +226,6 @@ public class GalaxyMapScreen extends UniversalScreen {
 		prevMatrices.restore();
 	}
 
-	// private void renderSectorBox(VertexConsumer builder, Vec3i sectorPos) {
-	// var lo = sectorPos.lowerCorner().mul(UNITS_PER_SECTOR);
-	// var hi = sectorPos.upperCorner().mul(UNITS_PER_SECTOR);
-	// var color = new Color(1, 1, 1, 0.2f);
-	// RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
-	// }
-
-	// private <T> int countOctreeDescendants(Octree.Node<T> node) {
-	// if (node instanceof Octree.Node.Branch<T> branchNode) {
-	// int size = 0;
-	// size += countOctreeDescendants(branchNode.nnn);
-	// size += countOctreeDescendants(branchNode.nnp);
-	// size += countOctreeDescendants(branchNode.npn);
-	// size += countOctreeDescendants(branchNode.npp);
-	// size += countOctreeDescendants(branchNode.pnn);
-	// size += countOctreeDescendants(branchNode.pnp);
-	// size += countOctreeDescendants(branchNode.ppn);
-	// size += countOctreeDescendants(branchNode.ppp);
-	// return size;
-	// } else if (node instanceof Octree.Node.Leaf<T> leafNode) {
-	// return leafNode.elements.size();
-	// }
-	// return 0;
-	// }
-
-	// private <T> void renderOctreeDebug(BufferBuilder builder, Octree.Node<T>
-	// node, Color color) {
-	// var lo = node.min.div(TM_PER_UNIT);
-	// var hi = node.max.div(TM_PER_UNIT);
-	// RenderHelper.addAxisAlignedBox(builder, lo, hi, color);
-	// if (node instanceof Octree.Node.Branch<T> branchNode) {
-	// renderOctreeDebug(builder, branchNode.nnn, color);
-	// renderOctreeDebug(builder, branchNode.nnp, color);
-	// renderOctreeDebug(builder, branchNode.npn, color);
-	// renderOctreeDebug(builder, branchNode.npp, color);
-	// renderOctreeDebug(builder, branchNode.pnn, color);
-	// renderOctreeDebug(builder, branchNode.pnp, color);
-	// renderOctreeDebug(builder, branchNode.ppn, color);
-	// renderOctreeDebug(builder, branchNode.ppp, color);
-	// }
-	// }
-
 	private void renderStars(OrbitCamera.Cached camera, Octree<Lazy<StarSystem.Info, StarSystem>> volume,
 			float partialTick) {
 		var prevMatrices = camera.setupRenderMatrices();
@@ -342,14 +239,6 @@ public class GalaxyMapScreen extends UniversalScreen {
 
 		// setup
 
-		final var maxVisibleScale = 0;
-
-		// if (camera.scale > maxVisibleScale) {
-		// return;
-		// }
-
-		// final var scaleAlpha = 1 - Mth.clamp(camera.scale / maxVisibleScale, 0, 1);
-
 		final var builder = BufferRenderer.immediateBuilder();
 
 		// Stars
@@ -357,6 +246,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
 		volume.enumerateElements(element -> {
+			if (camera.pos.mul(TM_PER_UNIT).dot(element.pos) < 0)
+				return;
 			var distanceFromFocus = camera.pos.mul(TM_PER_UNIT).distanceTo(element.pos);
 			var alphaFactorFocus = 1 - Mth.clamp(distanceFromFocus / STAR_RENDER_RADIUS, 0, 1);
 			if (alphaFactorFocus <= 0.05)
@@ -410,50 +301,12 @@ public class GalaxyMapScreen extends UniversalScreen {
 	}
 
 	@Override
-	public void tick() {
-		super.tick();
-		this.camera.tick();
-
-		double forward = 0, right = 0;
-		double speed = 25;
-		forward += this.isForwardPressed ? speed : 0;
-		forward += this.isBackwardPressed ? -speed : 0;
-		right += this.isLeftPressed ? speed : 0;
-		right += this.isRightPressed ? -speed : 0;
-
-		// TODO: consolidate with the logic in mouseDragged()?
-		final var partialTick = this.client.getFrameTime();
-		final var dragScale = TM_PER_UNIT * this.camera.scale.get(partialTick) * 10 / Units.Tm_PER_ly;
-
-		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
-		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
+	public Cached setupCamera(float partialTick) {
+		return this.camera.cached(partialTick);
 	}
 
 	@Override
-	public boolean shouldRenderWorld() {
-		return false;
-	}
-
-	@Override
-	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
-		// This render method gets a tick delta instead of a tick completion percentage,
-		// so we have to get the partialTick manually.
-		final var partialTick = this.client.getFrameTime();
-		final var camera = this.camera.cached(partialTick);
-		var prevMatrices = camera.setupRenderMatrices();
-
-		// TODO: render distant galaxies or something as a backdrop so its not just
-		// pitch black. or maybe thats just how space is :p
-
-		// TODO: figure out how to render the shape of the galaxy. Might have to rethink
-		// how i do the density field stuff. Maybe have like a list of parts that are
-		// explicitly assembled, instead of chaining together interfaces.
-
-		RenderSystem.depthMask(false);
-		// fillGradient(poseStack, 0, 0, this.width, this.height, 0xcf000000,
-		// 0xcf000000);
-		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
-		RenderSystem.depthMask(true);
+	public void render3d(Cached camera, float partialTick) {
 
 		renderGrid(camera, partialTick);
 
@@ -463,7 +316,8 @@ public class GalaxyMapScreen extends UniversalScreen {
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
-			RenderHelper.addBillboard(builder, camera, new PoseStack(), pos.div(TM_PER_UNIT), size / TM_PER_UNIT, Color.WHITE.withA(0.2));
+			RenderHelper.addBillboard(builder, camera, new PoseStack(), pos.div(TM_PER_UNIT), size / TM_PER_UNIT,
+					Color.WHITE.withA(0.2));
 		});
 
 		builder.end();
@@ -479,15 +333,19 @@ public class GalaxyMapScreen extends UniversalScreen {
 		builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
 
 		if (camera.scale < 300) {
-			TicketedVolume.enumerateSectors(camera.pos.mul(TM_PER_UNIT), STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR, sectorPos -> {
-				// TODO: figure out how to evict old volumes that we're not using. Maybe use
-				// something like vanilla's chunk ticketing system?
-				var volume = this.galaxy.getVolumeAt(sectorPos);
-				renderStars(camera, volume, partialTick);
-			});
+			TicketedVolume.enumerateSectors(camera.pos.mul(TM_PER_UNIT), 1.5 * STAR_RENDER_RADIUS, Galaxy.TM_PER_SECTOR,
+					sectorPos -> {
+						// TODO: figure out how to evict old volumes that we're not using. Maybe use
+						// something like vanilla's chunk ticketing system?
+						var volume = this.galaxy.getVolumeAt(sectorPos);
+						renderStars(camera, volume, partialTick);
+					});
 		}
 
-		prevMatrices.restore();
+	}
+
+	@Override
+	public void render2d(PoseStack poseStack, float partialTick) {
 
 		// sidebar
 
@@ -503,7 +361,9 @@ public class GalaxyMapScreen extends UniversalScreen {
 		if (this.currentSystemId.sectorPos().z < 0)
 			systemId += "M";
 		systemId += Math.abs(this.currentSystemId.sectorPos().z) + "#";
-		systemId += this.currentSystemId.sectorId();
+		systemId += this.currentSystemId.sectorId().layerIndex();
+		systemId += ":";
+		systemId += this.currentSystemId.sectorId().elementIndex();
 
 		var volume = this.galaxy.getVolumeAt(this.currentSystemId.sectorPos());
 		var system = volume.getById(this.currentSystemId.sectorId()).getInitial();
@@ -518,9 +378,6 @@ public class GalaxyMapScreen extends UniversalScreen {
 		this.client.font.draw(poseStack, describeStar(system.primaryStar), 10, h, 0xffffffff);
 		h += this.client.font.lineHeight;
 
-		// TODO: mouse picking
-
-		super.render(poseStack, mouseX, mouseY, tickDelta);
 	}
 
 	private String describeStar(StellarCelestialNode starNode) {

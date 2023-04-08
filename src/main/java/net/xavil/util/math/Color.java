@@ -1,8 +1,11 @@
 package net.xavil.util.math;
 
 import net.minecraft.util.Mth;
+import net.xavil.util.FastHasher;
+import net.xavil.util.Hashable;
+import net.xavil.util.Hasher;
 
-public record Color(float r, float g, float b, float a) {
+public record Color(float r, float g, float b, float a) implements Hashable {
 
 	public static final Color TRANSPARENT = new Color(0, 0, 0, 0);
 	public static final Color BLACK = new Color(0, 0, 0, 1);
@@ -76,6 +79,16 @@ public record Color(float r, float g, float b, float a) {
 
 	public static Color rgb(double r, double g, double b) {
 		return new Color(r, g, b, 1);
+	}
+
+	@Override
+	public int hashCode() {
+		return FastHasher.hashToInt(this);
+	}
+
+	@Override
+	public void appendHash(Hasher hasher) {
+		hasher.appendFloat(this.r).appendFloat(this.g).appendFloat(this.b).appendFloat(this.a);
 	}
 
 }

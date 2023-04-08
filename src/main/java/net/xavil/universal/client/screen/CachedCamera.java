@@ -9,11 +9,13 @@ import net.xavil.util.math.Vec3;
 
 public class CachedCamera<T> {
 	public final T camera;
-	public final Vec3 pos, up, right;
+	public final Vec3 pos, up, right, forward;
 	public final Quat orientation;
 	public final double metersPerUnit;
 
+	public final Matrix4f viewMatrix;
 	public final Matrix4f projectionMatrix;
+	public final Matrix4f viewProjectionMatrix;
 
 	public CachedCamera(T camera, Vec3 pos, Vec3 up, Vec3 right, Quat orientation, double metersPerUnit,
 			Matrix4f projectionMatrix) {
@@ -24,6 +26,22 @@ public class CachedCamera<T> {
 		this.orientation = orientation;
 		this.metersPerUnit = metersPerUnit;
 		this.projectionMatrix = projectionMatrix;
+		this.forward = right.cross(up);
+
+		this.viewMatrix = new Matrix4f();
+		this.viewMatrix.m00 = (float) right.x;
+		this.viewMatrix.m10 = (float) right.y;
+		this.viewMatrix.m20 = (float) right.z;
+		this.viewMatrix.m01 = (float) up.x;
+		this.viewMatrix.m11 = (float) up.y;
+		this.viewMatrix.m21 = (float) up.z;
+		this.viewMatrix.m02 = (float) forward.x;
+		this.viewMatrix.m12 = (float) forward.y;
+		this.viewMatrix.m22 = (float) forward.z;
+		this.viewMatrix.multiplyWithTranslation((float) pos.x, (float) pos.y, (float) pos.z);
+
+		this.viewProjectionMatrix = this.projectionMatrix.copy();
+		this.viewProjectionMatrix.multiply(this.viewMatrix);
 	}
 
 	public RenderMatricesSnapshot setupRenderMatrices() {
@@ -51,6 +69,10 @@ public class CachedCamera<T> {
 
 	public Vec3 toCameraSpace(Vec3 posWorld) {
 		return posWorld.sub(this.pos);
+	}
+
+	public Vec3 projectWorldSpace(Vec3 posWorld) {
+		return posWorld.transformBy(this.viewProjectionMatrix);
 	}
 
 	public static <T> CachedCamera<T> create(T camera, Vec3 pos, float xRot, float yRot, Quat prependedRotation, Matrix4f projectionMatrix) {

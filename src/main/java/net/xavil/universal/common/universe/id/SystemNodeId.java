@@ -18,13 +18,13 @@ public record SystemNodeId(SystemId system, int nodeId) {
 				+ escapeMinus(this.system.galaxySector().sectorPos().x) + "_"
 				+ escapeMinus(this.system.galaxySector().sectorPos().y) + "_"
 				+ escapeMinus(this.system.galaxySector().sectorPos().z) + "_"
-				+ this.system.galaxySector().sectorId().layerIndex() + "_"
-				+ this.system.galaxySector().sectorId().elementIndex() + "_"
-				+ escapeMinus(this.system.systemSector().sectorPos().x) + "_"
-				+ escapeMinus(this.system.systemSector().sectorPos().y) + "_"
-				+ escapeMinus(this.system.systemSector().sectorPos().z) + "_"
-				+ this.system.systemSector().sectorId().layerIndex() + "_"
-				+ this.system.systemSector().sectorId().elementIndex() + "_"
+				+ this.system.galaxySector().id() + "_"
+				+ escapeMinus(this.system.systemSector().pos().x) + "_"
+				+ escapeMinus(this.system.systemSector().pos().y) + "_"
+				+ escapeMinus(this.system.systemSector().pos().z) + "_"
+				+ this.system.systemSector().level() + "_"
+				+ this.system.systemSector().layerIndex() + "_"
+				+ this.system.systemSector().elementIndex() + "_"
 				+ this.nodeId;
 	}
 

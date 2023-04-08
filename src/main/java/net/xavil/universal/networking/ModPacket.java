@@ -4,7 +4,8 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.xavil.universal.common.universe.Octree;
-import net.xavil.universal.common.universe.id.SectorId;
+import net.xavil.universal.common.universe.id.GalaxySectorId;
+import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.util.math.Vec3i;
@@ -33,32 +34,32 @@ public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 		buf.writeInt(vec.z);
 	}
 
-	public static SectorId readSectorId(FriendlyByteBuf buf) {
+	public static UniverseSectorId readSectorId(FriendlyByteBuf buf) {
 		var x = buf.readInt();
 		var y = buf.readInt();
 		var z = buf.readInt();
-		var layer = buf.readInt();
 		var id = buf.readInt();
-		return new SectorId(Vec3i.from(x, y, z), new Octree.Id(layer, id));
+		return new UniverseSectorId(Vec3i.from(x, y, z), id);
 	}
 
-	public static void writeSectorId(FriendlyByteBuf buf, SectorId id) {
+	public static void writeSectorId(FriendlyByteBuf buf, UniverseSectorId id) {
 		buf.writeInt(id.sectorPos().x);
 		buf.writeInt(id.sectorPos().y);
 		buf.writeInt(id.sectorPos().z);
-		buf.writeInt(id.sectorId().layerIndex());
-		buf.writeInt(id.sectorId().elementIndex());
+		buf.writeInt(id.id());
 	}
 
 	public static SystemId readSystemId(FriendlyByteBuf buf) {
 		var galaxySector = readSectorId(buf);
-		var systemSector = readSectorId(buf);
-		return new SystemId(galaxySector, systemSector);
+		var packedInfo = buf.readInt();
+		var packedPos = buf.readLong();
+		return new SystemId(galaxySector, new GalaxySectorId(packedInfo, packedPos));
 	}
 
 	public static void writeSystemId(FriendlyByteBuf buf, SystemId id) {
 		writeSectorId(buf, id.galaxySector());
-		writeSectorId(buf, id.systemSector());
+		buf.writeInt(id.systemSector().packedInfo());
+		buf.writeLong(id.systemSector().packedPos());
 	}
 
 	public static SystemNodeId readSystemNodeId(FriendlyByteBuf buf) {

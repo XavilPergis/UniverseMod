@@ -12,6 +12,9 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.xavil.universal.common.block.ModBlocks;
 import net.xavil.universal.common.dimension.DynamicDimensionManager;
 import net.xavil.universal.common.item.StarmapItem;
+import net.xavil.universal.common.universe.id.SystemId;
+import net.xavil.universal.common.universe.system.StarSystem;
+import net.xavil.universal.common.universe.universe.Universe;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.ModNetworking;
@@ -22,6 +25,8 @@ import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.util.Disposable;
+import net.xavil.util.Option;
 
 public class Mod implements ModInitializer {
 
@@ -50,7 +55,8 @@ public class Mod implements ModInitializer {
 			acceptor.clientboundPlay.register(ClientboundUniverseInfoPacket.class, ClientboundUniverseInfoPacket::new);
 			acceptor.clientboundPlay.register(ClientboundOpenStarmapPacket.class, ClientboundOpenStarmapPacket::new);
 			acceptor.clientboundPlay.register(ClientboundChangeSystemPacket.class, ClientboundChangeSystemPacket::new);
-			acceptor.clientboundPlay.register(ClientboundSyncCelestialTimePacket.class, ClientboundSyncCelestialTimePacket::new);
+			acceptor.clientboundPlay.register(ClientboundSyncCelestialTimePacket.class,
+					ClientboundSyncCelestialTimePacket::new);
 
 			acceptor.serverboundPlay.register(ServerboundTeleportToPlanetPacket.class,
 					ServerboundTeleportToPlanetPacket::new);
@@ -69,44 +75,50 @@ public class Mod implements ModInitializer {
 			if (packet.planetId == null)
 				return;
 
-			var universe = MinecraftServerAccessor.getUniverse(server);
-			var systemNode = universe.getSystemNode(packet.planetId);
-			if (systemNode == null)
-				return;
+			final var universe = MinecraftServerAccessor.getUniverse(server);
+			Disposable.scope(disposer -> {
+				final var system = universe.loadSystem(disposer, packet.planetId.system()).unwrapOrNull();
+				if (system == null)
+					return;
+				final var systemNode = system.rootNode.lookup(packet.planetId.nodeId());
+				if (systemNode == null)
+					return;
 
-			// FIXME: save which planet each player is on and use that to sync.
+				// FIXME: save which planet each player is on and use that to sync.
 
-			if (packet.planetId.equals(universe.getStartingSystemGenerator().getStartingSystemId())) {
-				var p = server.overworld().getSharedSpawnPos();
-				var yaw = sender.getRespawnAngle();
-				sender.teleportTo(server.overworld(), p.getX(), p.getY(), p.getZ(), yaw, 0);
-			} else {
-				if (systemNode instanceof PlanetaryCelestialNode planetNode) {
-					var propertiesSupplier = planetNode.dimensionProperties(server);
-					if (propertiesSupplier != null) {
-						final var key = DynamicDimensionManager
-								.getKey(new ResourceLocation("dynamic", packet.planetId.uniqueName()));
-						final var manager = DynamicDimensionManager.get(server);
-						final var newLevel = manager.getOrCreateLevel(key, propertiesSupplier);
+				if (packet.planetId.equals(universe.getStartingSystemGenerator().getStartingSystemId())) {
+					var p = server.overworld().getSharedSpawnPos();
+					var yaw = sender.getRespawnAngle();
+					sender.teleportTo(server.overworld(), p.getX(), p.getY(), p.getZ(), yaw, 0);
+				} else {
+					if (systemNode instanceof PlanetaryCelestialNode planetNode) {
+						var propertiesSupplier = planetNode.dimensionProperties(server);
+						if (propertiesSupplier != null) {
+							final var key = DynamicDimensionManager
+									.getKey(new ResourceLocation("dynamic", packet.planetId.uniqueName()));
+							final var manager = DynamicDimensionManager.get(server);
+							final var newLevel = manager.getOrCreateLevel(key, propertiesSupplier);
 
-						LevelAccessor.setUniverseId(newLevel, packet.planetId);
+							LevelAccessor.setUniverseId(newLevel, packet.planetId);
 
-						// TODO: find actual spawn pos
-						sender.teleportTo(newLevel, 0, 100, 0, 0, 0);
+							// TODO: find actual spawn pos
+							sender.teleportTo(newLevel, 0, 100, 0, 0, 0);
+						} else {
+							Mod.LOGGER.warn("tried to teleport to non-landable node " + packet.planetId);
+							return;
+						}
 					} else {
 						Mod.LOGGER.warn("tried to teleport to non-landable node " + packet.planetId);
 						return;
 					}
-				} else {
-					Mod.LOGGER.warn("tried to teleport to non-landable node " + packet.planetId);
-					return;
 				}
-			}
 
-			var changeSystemPacket = new ClientboundChangeSystemPacket(packet.planetId);
-			sender.connection.send(changeSystemPacket);
+				var changeSystemPacket = new ClientboundChangeSystemPacket(packet.planetId);
+				sender.connection.send(changeSystemPacket);
 
-			Mod.LOGGER.info("teleport to planet! " + packet.planetId);
+				Mod.LOGGER.info("teleport to planet! " + packet.planetId);
+
+			});
 		}
 	}
 }

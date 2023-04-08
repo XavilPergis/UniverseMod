@@ -1,8 +1,10 @@
 package net.xavil.universal.common.universe;
 
+import java.util.Random;
 import java.util.function.DoubleUnaryOperator;
 
 import net.minecraft.util.Mth;
+import net.xavil.util.FastHasher;
 import net.xavil.util.math.Vec3;
 
 public interface DoubleField3 {
@@ -45,8 +47,16 @@ public interface DoubleField3 {
 		return pos -> Math.max(a.sampleDensity(pos), b.sampleDensity(pos));
 	}
 
+	default DoubleField3 lerp(double min, double max) {
+		return pos -> Mth.lerp(this.sampleDensity(pos), min, max);
+	}
+
 	static DoubleField3 uniform(double density) {
 		return pos -> density;
+	}
+
+	static DoubleField3 random() {
+		return pos -> new Random(FastHasher.hash(pos)).nextDouble();
 	}
 
 	static DoubleField3 spokes(double spokeCount, double spokeCurveExponent) {

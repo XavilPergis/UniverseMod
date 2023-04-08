@@ -6,6 +6,14 @@ public class FastHasher implements Hasher {
 	private static final long C2 = 0x4cf5ad432745937fL;
 	private long currentHash;
 
+	public static long hash(Hashable hashable) {
+		return new FastHasher(0).append(hashable).currentHash();
+	}
+
+	public static int hashToInt(Hashable hashable) {
+		return new FastHasher(0).append(hashable).currentHashInt();
+	}
+
 	public static long hashInt(int value) {
 		return new FastHasher(0).appendInt(value).currentHash();
 	}

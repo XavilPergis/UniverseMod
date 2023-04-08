@@ -34,7 +34,7 @@ public interface EntityAccessor {
 		final var nodeId = EntityAccessor.getSystemNodeId(entity);
 		final var universe = EntityAccessor.getUniverse(entity);
 		if (universe != null && nodeId != null) {
-			final var node = universe.getSystemNode(nodeId);
+			final var node = universe.getSystemNode(nodeId).unwrap();
 			if (node instanceof PlanetaryCelestialNode planetNode) {
 				return OptionalDouble.of(planetNode.surfaceGravityEarthRelative());
 			}

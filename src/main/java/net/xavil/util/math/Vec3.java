@@ -10,9 +10,12 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.Position;
+import net.minecraft.util.Mth;
 import net.xavil.util.FastHasher;
+import net.xavil.util.Hashable;
+import net.xavil.util.Hasher;
 
-public final class Vec3 {
+public final class Vec3 implements Hashable {
 
 	public static final Vec3 ZERO = new Vec3(0, 0, 0);
 	public static final Vec3 XN = new Vec3(-1, 0, 0);
@@ -97,6 +100,10 @@ public final class Vec3 {
 
 	public Vec3 neg() {
 		return new Vec3(-x, -y, -z);
+	}
+
+	public Vec3 abs() {
+		return new Vec3(Math.abs(x), Math.abs(y), Math.abs(z));
 	}
 
 	public double dot(Vec3 other) {
@@ -193,17 +200,26 @@ public final class Vec3 {
 		return false;
 	}
 
-	@Override
-	public int hashCode() {
-		return FastHasher.create()
-				.appendDouble(this.x)
-				.appendDouble(this.y)
-				.appendDouble(this.z)
-				.currentHashInt();
-	}
-
 	public static double volume(Vec3 a, Vec3 b) {
 		return Math.abs(a.x - b.x) * Math.abs(a.y - b.y) * Math.abs(a.z - b.z);
+	}
+
+	public Vec3i floor() {
+		return Vec3i.from(Mth.floor(x), Mth.floor(y), Mth.floor(z));
+	}
+
+	public Vec3i ceil() {
+		return Vec3i.from(Mth.ceil(x), Mth.ceil(y), Mth.ceil(z));
+	}
+
+	@Override
+	public int hashCode() {
+		return FastHasher.hashToInt(this);
+	}
+
+	@Override
+	public void appendHash(Hasher hasher) {
+		hasher.appendDouble(this.x).appendDouble(this.y).appendDouble(this.z);
 	}
 
 }

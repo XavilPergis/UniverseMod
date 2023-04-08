@@ -1,11 +1,15 @@
 package net.xavil.util.math;
 
+import java.util.function.Consumer;
+
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.xavil.util.FastHasher;
+import net.xavil.util.Hashable;
+import net.xavil.util.Hasher;
 
-public final class Vec3i {
+public final class Vec3i implements Hashable {
 
 	public static final Vec3i ZERO = new Vec3i(0, 0, 0);
 	public static final Vec3i XN = new Vec3i(-1, 0, 0);
@@ -89,7 +93,6 @@ public final class Vec3i {
 		return new Vec3i(-x, -y, -z);
 	}
 
-
 	public static Vec3i fromMinecraft(net.minecraft.core.Vec3i vec) {
 		return new Vec3i(vec.getX(), vec.getY(), vec.getZ());
 	}
@@ -113,11 +116,19 @@ public final class Vec3i {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.create()
-			.appendInt(this.x)
-			.appendInt(this.y)
-			.appendInt(this.z)
-			.currentHashInt();
+		return FastHasher.hashToInt(this);
+	}
+
+	@Override
+	public void appendHash(Hasher hasher) {
+		hasher.appendInt(this.x).appendInt(this.y).appendInt(this.z);
+	}
+
+	public static void iterateInclusive(Vec3i min, Vec3i max, Consumer<Vec3i> consumer) {
+		for (var x = min.x; x <= max.x; ++x)
+			for (var y = min.y; y <= max.y; ++y)
+				for (var z = min.z; z <= max.z; ++z)
+					consumer.accept(new Vec3i(x, y, z));
 	}
 
 }

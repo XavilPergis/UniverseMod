@@ -5,6 +5,12 @@ public interface Hasher {
 	Hasher appendLong(long value);
 
 	long currentHash();
+
+	default Hasher append(Hashable hashable) {
+		hashable.appendHash(this);
+		return this;
+	}
+
 	default int currentHashInt() {
 		long h = currentHash();
 		return ((int) (h >>> 32)) ^ ((int) h);

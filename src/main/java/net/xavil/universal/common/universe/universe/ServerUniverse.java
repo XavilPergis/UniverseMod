@@ -4,15 +4,18 @@ import java.util.Random;
 
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Mth;
-import net.xavil.universal.common.universe.Octree;
+import net.minecraft.util.profiling.ProfilerFiller;
+import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
-import net.xavil.universal.common.universe.id.SectorId;
+import net.xavil.universal.common.universe.galaxy.SystemTicket;
+import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Disposable;
 import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Interval;
@@ -24,6 +27,8 @@ public final class ServerUniverse extends Universe {
 	protected final MinecraftServer server;
 	protected StartingSystemGalaxyGenerationLayer startingGenerator;
 	protected int overworldNodeId = -1;
+
+	protected SystemTicket startingSystemTicket = null;
 
 	public ServerUniverse(MinecraftServer server) {
 		this.server = server;
@@ -52,8 +57,8 @@ public final class ServerUniverse extends Universe {
 	}
 
 	@Override
-	public void tick() {
-		super.tick();
+	public void tick(ProfilerFiller profiler) {
+		super.tick(profiler);
 		if (this.celestialTimeTicks % 200 == 0) {
 			var syncPacket = new ClientboundSyncCelestialTimePacket(this.celestialTimeTicks);
 			this.server.getPlayerList().broadcastAll(syncPacket);
@@ -70,24 +75,7 @@ public final class ServerUniverse extends Universe {
 		sol.obliquityAngle = Math.toRadians(7.25);
 		sol.rotationalPeriod = 2 * Math.PI / 2.90307e-6;
 
-		// final var s1 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(0.5));
-		// final var s2 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(1));
-		// final var s3 = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(5));
-
-		// final var b1 = new BinaryNode(s1, s2, OrbitalPlane.ZERO, 0.5, 1, 0);
-		// final var b2 = new BinaryNode(b1, s3, OrbitalPlane.ZERO, 0.2, 10, 0);
-
-		// final var testStar = StarNode.fromMass(random, StarNode.Type.MAIN_SEQUENCE, Units.msol(0.4));
-		// sol.obliquityAngle = Math.toRadians(7.25);
-		// sol.rotationalSpeed = 2.90307e-6;
-
 		// @formatter:off
-		// final var a = new PlanetNode(PlanetNode.Type.ROCKY_WORLD, Units.mearth(1), 0.3829, 427);
-		// a.obliquityAngle = Math.toRadians(0);
-		// a.rotationalSpeed = 1.24099e-8;
-		// final var b = new PlanetNode(PlanetNode.Type.ROCKY_ICE_WORLD, Units.mearth(0.01), 0.3829, 427);
-		// b.obliquityAngle = Math.toRadians(0);
-		// b.rotationalSpeed = 1.24099e-8;
 		final var mercury = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, Units.fromMearth(0.055), 0.3829, 427);
 		mercury.obliquityAngle = Math.toRadians(0.034);
 		mercury.rotationalPeriod = 2 * Math.PI / 1.24099e-6;
@@ -117,7 +105,6 @@ public final class ServerUniverse extends Universe {
 		pluto.rotationalPeriod = 2 * Math.PI / 1.08338253e-4;
 
 		sol.insertChild(mercury, 0.205630,  Units.fromAu(0.387098), Math.toRadians(7.005),   Math.toRadians(48.331),    Math.toRadians(29.124),    1);
-		// sol.insertChild(mercury, 0.9,       Units.au(3.1),      Math.toRadians(86),      Math.toRadians(48.331),    Math.toRadians(29.124),    1);
 		sol.insertChild(venus,   0.006772,  Units.fromAu(0.723332), Math.toRadians(3.39458), Math.toRadians(76.680),    Math.toRadians(54.884),    2);
 		sol.insertChild(earth,   0.0167086, Units.fromAu(1),        Math.toRadians(0.00005), Math.toRadians(-11.26064), Math.toRadians(114.20783), 3);
 		sol.insertChild(mars,    0.0934,    Units.fromAu(1.523680), Math.toRadians(1.850),   Math.toRadians(49.57854),  Math.toRadians(286.5),     4);
@@ -126,12 +113,11 @@ public final class ServerUniverse extends Universe {
 		sol.insertChild(uranus,  0.04717,   Units.fromAu(19.19126), Math.toRadians(0.773),   Math.toRadians(74.006),    Math.toRadians(96.998857), 7);
 		sol.insertChild(neptune, 0.008678,  Units.fromAu(30.07),    Math.toRadians(1.770),   Math.toRadians(131.783),   Math.toRadians(273.187),   8);
 		sol.insertChild(pluto,   0.2488,    Units.fromAu(29.658),    Math.toRadians(17.16),   Math.toRadians(110.299),   Math.toRadians(113.834),   9);
-		// s1.insertChild(a, 0.5,   Units.au(1), Math.toRadians(0),   Math.toRadians(0), Math.toRadians(0), 0);
-		// a.insertChild(b, 0,   Units.au(0.01), Math.toRadians(45),   Math.toRadians(0), Math.toRadians(0), 0);
 
 		final var moon = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, Units.fromMearth(0.0123), 0.2727, 250);
 		moon.obliquityAngle = Math.toRadians(6.687);
 		moon.rotationalPeriod = 2 * Math.PI / 2.4626008e-6;
+
 		earth.insertChild(moon, 0.0549, Units.fromAu(0.00257), Math.toRadians(5.145), 0, 0, 8);
 
 		final var io = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, Units.fromMearth(0.015), 0.286, 110);
@@ -174,8 +160,6 @@ public final class ServerUniverse extends Universe {
 		iapetus.obliquityAngle = Math.toRadians(0);
 		iapetus.rotationalPeriod = 6853377.6;
 
-		// saturn axial tilt 0.46652651
-
 		saturn.insertChild(mimas,     0.0196, Units.fromAu(0.00124), Math.toRadians(1.574),   0.0  % (2.0 * Math.PI), 0, 13);
 		saturn.insertChild(enceladus, 0.0047, Units.fromAu(0.00159), Math.toRadians(0.009),   1.0  % (2.0 * Math.PI), 0, 14);
 		saturn.insertChild(tethys,    0.0001, Units.fromAu(0.00196), Math.toRadians(1.12),    5.0  % (2.0 * Math.PI), 0, 15);
@@ -187,59 +171,37 @@ public final class ServerUniverse extends Universe {
 		saturn.addRing(new CelestialRing(OrbitalPlane.ZERO, 0, new Interval(Units.fromAu(0.00044719888), Units.fromAu(0.000937045423)), Units.fromMearth(0.40 * 6.3e-6)));
 		// @formatter:on
 
-		// var root = new BinaryNode(sol, testStar, OrbitalPlane.ZERO, 1, Units.au(100), 0);
-		// var root = b2;
-
 		return new StartingSystem(4600, "Sol", sol, earth);
 	}
 
-	// private Vec3i selectStartingVolume(Random random) {
-	// 	var sx = (int) (250 * random.nextGaussian());
-	// 	var sy = (int) (250 * random.nextGaussian());
-	// 	var sz = (int) (250 * random.nextGaussian());
-	// 	var systemVolumePos = Vec3i.ZERO;
-	// }
-
 	public void prepare() {
-		var rng = Rng.wrap(new Random(getUniqueUniverseSeed() + 4));
+		final var rng = Rng.wrap(new Random(getUniqueUniverseSeed() + 4));
 
 		var startingSystem = startingSystem(rng);
 		startingSystem.rootNode.assignIds();
 
-		// var info = StarSystem.Info.custom(startingSystem.systemAgeMya, startingSystem.name, startingSystem);
-		// info.systemAgeMya = startingSystem.systemAgeMya;
-		// info.remainingHydrogenYg = 0;
-		// info.name = startingSystem.name;	
-		// startingSystem.rootNode.visit(node -> {
-		// 	if (node instanceof StellarCelestialNode starNode)
-		// 		info.addStar(starNode);
-		// });
-
 		var rootNode = startingSystem.rootNode;
 		var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);
 
-		var gx = (int) (1000 * rng.uniformDouble(-1, 1));
-		var gy = (int) (1000 * rng.uniformDouble(-1, 1));
-		var gz = (int) (1000 * rng.uniformDouble(-1, 1));
-		var galaxySectorPos = Vec3i.from(gx, gy, gz);
-		var galaxyVolume = getVolumeAt(galaxySectorPos, true);
+		Disposable.scope(disposer -> {
+			final var sectorPos = Vec3i.ZERO;
+			final var tempTicket = this.sectorManager.createSectorTicket(disposer,
+					UniverseSectorTicketInfo.single(sectorPos));
+			this.sectorManager.forceLoad(tempTicket);
 
-		var layerIds = galaxyVolume.elements.keySet().toIntArray();
-		var initialLayerId = layerIds[rng.uniformInt(0, layerIds.length)];
+			final var galaxySector = this.sectorManager.getSector(sectorPos).unwrap();
+			final var elementIndex = rng.uniformInt(0, galaxySector.initialElements.size());
 
-		var initialLayer = galaxyVolume.elements.get(initialLayerId);
-		var initialGalaxySectorId = rng.uniformInt(0, initialLayer.size());
-		var initialGalaxyId = new SectorId(galaxySectorPos, new Octree.Id(initialLayerId, initialGalaxySectorId));
+			final var tempTicket2 = this.sectorManager.createGalaxyTicket(disposer, new UniverseSectorId(sectorPos, elementIndex));
+			final var galaxy = this.sectorManager.forceLoad(tempTicket2).unwrap();
 
-		// var initialG
+			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, rootNode, startingNodeId);
+			galaxy.addGenerationLayer(this.startingGenerator);
+			final var startingId = this.startingGenerator.getStartingSystemId();
 
-		// var sx = (int) (250 * random.nextGaussian());
-		// var sy = (int) (250 * random.nextGaussian());
-		// var sz = (int) (250 * random.nextGaussian());
-		var systemVolumePos = Vec3i.ZERO;
-
-		this.startingGenerator = new StartingSystemGalaxyGenerationLayer(initialGalaxyId, systemVolumePos, rootNode,
-				startingNodeId);
+			this.startingSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, startingId.system().systemSector());
+			galaxy.sectorManager.forceLoad(this.startingSystemTicket);
+		});
 	}
 
 }

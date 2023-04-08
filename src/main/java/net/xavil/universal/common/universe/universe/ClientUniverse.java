@@ -2,7 +2,11 @@ package net.xavil.universal.common.universe.universe;
 
 import net.minecraft.client.Minecraft;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
+import net.xavil.universal.common.universe.galaxy.SystemTicket;
+import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
+import net.xavil.util.Disposable;
+import net.xavil.util.math.Vec3i;
 
 public final class ClientUniverse extends Universe {
 
@@ -12,6 +16,8 @@ public final class ClientUniverse extends Universe {
 	private long commonUniverseSeed = 0;
 	private long uniqueUniverseSeed = 0;
 	private StartingSystemGalaxyGenerationLayer startingGenerator;
+
+	protected SystemTicket startingSystemTicket = null;
 
 	public ClientUniverse(Minecraft client) {
 		this.client = client;
@@ -35,11 +41,22 @@ public final class ClientUniverse extends Universe {
 	public void updateFromInfoPacket(ClientboundUniverseInfoPacket packet) {
 		this.commonUniverseSeed = packet.commonSeed;
 		this.uniqueUniverseSeed = packet.uniqueSeed;
-		this.startingGenerator = new StartingSystemGalaxyGenerationLayer(
-				packet.startingId.system().galaxySector(),
-				packet.startingId.system().systemSector().sectorPos(),
-				packet.startingSystem,
-				packet.startingId.nodeId());
+
+		Disposable.scope(disposer -> {
+			final var sectorPos = packet.startingId.system().galaxySector();
+			final var tempTicket = this.sectorManager.createGalaxyTicket(disposer, sectorPos);
+			final var galaxy = this.sectorManager.forceLoad(tempTicket).unwrap();
+
+			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, packet.startingSystem,
+					packet.startingId.nodeId());
+			galaxy.addGenerationLayer(this.startingGenerator);
+			final var startingId = this.startingGenerator.getStartingSystemId();
+
+			this.startingSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer,
+					startingId.system().systemSector());
+			galaxy.sectorManager.forceLoad(this.startingSystemTicket);
+		});
+
 	}
 
 }

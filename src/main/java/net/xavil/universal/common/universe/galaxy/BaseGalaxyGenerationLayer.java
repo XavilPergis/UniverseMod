@@ -6,89 +6,83 @@ import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.DensityFields;
-import net.xavil.universal.common.universe.Lazy;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.system.StarSystemGenerator;
+import net.xavil.universal.common.universe.system.StarSystem.Info;
+import net.xavil.universal.common.universe.system.StarSystemGeneratorImpl;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.FastHasher;
 import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Vec3;
-import net.xavil.util.math.Vec3i;
 
 public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
-	public static final int MAXIMUM_STARS_PER_SECTOR = 30000;
+	public static final int MAXIMUM_STARS_PER_SECTOR = 10000;
 	public static final int MAXIMUM_STAR_PLACEMENT_ATTEMPTS = 16;
-	public static final int DENSITY_SAMPLE_COUNT = 2500;
+	public static final int DENSITY_SAMPLE_COUNT = 100;
 
-	public final Galaxy parentGalaxy;
 	public final DensityFields densityFields;
 
 	public BaseGalaxyGenerationLayer(Galaxy parentGalaxy, DensityFields densityFields) {
-		super(1);
-		this.parentGalaxy = parentGalaxy;
+		super(parentGalaxy, 0);
 		this.densityFields = densityFields;
 	}
 
-	private static Vec3 randomVec(Random random) {
-		var x = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
-		var y = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
-		var z = random.nextDouble(0, Galaxy.TM_PER_SECTOR);
-		return Vec3.from(x, y, z);
-	}
-
-	private long volumeSeed(Vec3i volumeCoords) {
-		var seed = Mth.murmurHash3Mixer(this.parentGalaxy.parentUniverse.getCommonUniverseSeed());
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.x);
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.y);
-		seed ^= Mth.murmurHash3Mixer(seed ^ (long) volumeCoords.z);
-		return seed;
-	}
-
-	private long systemSeed(Vec3i volumeCoords, int id) {
-		var seed = volumeSeed(volumeCoords);
-		seed ^= Mth.murmurHash3Mixer((long) id);
-		return seed;
+	private static long systemSeed(int volumeSeed, int id) {
+		return FastHasher.create().appendInt(volumeSeed).appendInt(id).currentHashInt();
 	}
 
 	@Override
 	public void generateInto(Context ctx, Sink sink) {
-		var random = new Random(volumeSeed(ctx.volumeCoords));
+		final var volumeSeed = ctx.random.nextInt();
 
 		var sectorDensitySum = 0.0;
 		for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
-			var volumeOffsetTm = randomVec(random);
-			sectorDensitySum += this.densityFields.stellarDensity.sampleDensity(ctx.volumeMin.add(volumeOffsetTm));
+			final var samplePos = Vec3.random(ctx.random, ctx.volumeMin, ctx.volumeMax);
+			sectorDensitySum += this.densityFields.stellarDensity.sampleDensity(samplePos);
 		}
+
 		final var averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
+		final var sectorSideLengths = ctx.volumeMin.sub(ctx.volumeMax).abs();
+		final var sectorVolume = sectorSideLengths.x * sectorSideLengths.y * sectorSideLengths.z;
+		final var starsPerSector = sectorVolume * averageSectorDensity;
 
-		var starAttemptCount = (int) (averageSectorDensity * Galaxy.TM_PER_SECTOR_3);
-
+		int starAttemptCount = Mth.floor(starsPerSector);
 		if (starAttemptCount > MAXIMUM_STARS_PER_SECTOR) {
-			Mod.LOGGER.warn("high star attempt count: {}", starAttemptCount);
+			Mod.LOGGER.warn("star attempt count of {} exceeded limit of {}", starAttemptCount,
+					MAXIMUM_STARS_PER_SECTOR);
 			starAttemptCount = MAXIMUM_STARS_PER_SECTOR;
 		}
 
 		int successfulAttempts = 0;
-		var maxDensity = starAttemptCount / Galaxy.TM_PER_SECTOR_3;
 		for (var i = 0; i < starAttemptCount; ++i) {
-			var infoSeed = random.nextLong();
+			final var infoSeed = ctx.random.nextLong();
+			final var systemSeed = systemSeed(volumeSeed, i);
 
+			// I think this retry behavior is warranted. We do a coarse esimate of the
+			// average density of the sector, and then multiply that with the sector volume
+			// to get the approximate amount of stars we expect to see in the sector. Say we
+			// had a density field where half of the field had a density of 0, and the rest
+			// had a density of 1. In that case, we'd expect the average density to be 0.5,
+			// and try to place `0.5 * volume` stars. This already accounts for the
+			// extinction from the part of the density field that is 0, so applying it again
+			// by not retrying when we fail causes this loop to emit a smaller amount of
+			// stars than the expected count.
+			//
+			// I still do wonder if this is correct for more complicated cases than a simple
+			// "on or off" density field, as it generally causes placement attempts to
+			// "migrate" towards areas of higher densities.
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
-				var volumeOffsetTm = randomVec(random);
-				var systemPos = ctx.volumeMin.add(volumeOffsetTm);
-				var density = this.densityFields.stellarDensity.sampleDensity(systemPos);
+				final var systemPos = Vec3.random(ctx.random, ctx.volumeMin, ctx.volumeMax);
+				final var density = this.densityFields.stellarDensity.sampleDensity(systemPos);
 
-				if (density >= random.nextDouble(0, maxDensity)) {
-					var initial = generateStarSystemInfo(ctx.volumeCoords, systemPos, infoSeed);
-					var systemSeed = systemSeed(ctx.volumeCoords, i);
-					var i2 = i;
-					var lazy = new Lazy<>(initial,
-							info -> generateStarSystem(ctx.volumeCoords, systemPos, info, i2, systemSeed));
-					sink.accept(systemPos, lazy);
-					successfulAttempts += 1;
-					break;
-				}
+				if (density < ctx.random.nextDouble(0.0, averageSectorDensity))
+					continue;
+
+				final var initial = generateStarSystemInfo(systemPos, infoSeed);
+				// final var lazy = new Lazy<>(initial, info -> generateStarSystem(info, systemSeed));
+				sink.accept(systemPos, initial, systemSeed);
+				successfulAttempts += 1;
 			}
 		}
 
@@ -117,7 +111,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	// Basic system info
-	private StarSystem.Info generateStarSystemInfo(Vec3i volumeCoords, Vec3 systemPos, long seed) {
+	private StarSystem.Info generateStarSystemInfo(Vec3 systemPos, long seed) {
 		var rng = Rng.wrap(new Random(seed));
 
 		var minSystemAgeFactor = Math.min(1, this.densityFields.minAgeFactor.sampleDensity(systemPos));
@@ -134,16 +128,15 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		return new StarSystem.Info(systemAgeMyr, remainingMass, starMass - primaryStar.massYg, name, primaryStar);
 	}
 
-	// Full system info
-	public StarSystem generateStarSystem(Vec3i volumeCoords, Vec3 volumeOffsetTm, StarSystem.Info info, int i,
-			long seed) {
-		var rng = Rng.wrap(new Random(seed));
-
-		var systemGenerator = new StarSystemGenerator(rng, this.parentGalaxy, info);
+	@Override
+	public StarSystem generateFullSystem(Info systemInfo, long systemSeed) {
+		var rng = Rng.wrap(new Random(systemSeed));
+	
+		var systemGenerator = new StarSystemGeneratorImpl(rng, this.parentGalaxy, systemInfo);
 		var rootNode = systemGenerator.generate();
 		rootNode.assignIds();
-
-		return new StarSystem(this.parentGalaxy, rootNode);
+	
+		return new StarSystem(this.parentGalaxy, rootNode);	
 	}
 
 }

@@ -12,7 +12,6 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
-import net.minecraft.util.Unit;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.flexible.BufferRenderer;
@@ -69,7 +68,8 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 		var random = new Random();
 		var densityFields = this.galaxy.densityFields;
 		if (generateRandomDensityField) {
-			densityFields = this.galaxy.info.type.createDensityFields(random);
+			final var age = random.nextDouble(500, 12000);
+			densityFields = this.galaxy.info.type.createDensityFields(age, random);
 		}
 
 		var volumeMin = Vec3.from(-densityFields.galaxyRadius, -densityFields.galaxyRadius,

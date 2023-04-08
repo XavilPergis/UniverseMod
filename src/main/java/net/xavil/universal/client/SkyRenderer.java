@@ -2,6 +2,7 @@ package net.xavil.universal.client;
 
 import java.util.OptionalInt;
 import java.util.Random;
+import java.util.concurrent.CompletableFuture;
 
 import org.lwjgl.opengl.GL32;
 
@@ -26,7 +27,6 @@ import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
-import net.xavil.universal.common.universe.galaxy.TicketedVolume;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
@@ -111,7 +111,7 @@ public class SkyRenderer {
 		}
 
 		var distanceFromFocus = offset.length();
-		if (distanceFromFocus > 1.5 * Galaxy.TM_PER_SECTOR)
+		if (distanceFromFocus > Units.fromLy(15))
 			return;
 
 		double alpha = 0.0;
@@ -151,96 +151,103 @@ public class SkyRenderer {
 
 		Mod.LOGGER.info("rebuilding background galaxy");
 
-		final var currentSystemId = currentId.system();
-		final var universe = MinecraftClientAccessor.getUniverse(this.client);
-		final var galaxyVolume = universe.getVolumeAt(currentSystemId.galaxySector().sectorPos());
-		final var galaxy = galaxyVolume
-				.getById(currentSystemId.galaxySector().sectorId())
-				.getFull();
-		final var systemVolume = galaxy.getVolumeAt(currentSystemId.systemSector().sectorPos());
-		final var systemPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
-		if (systemPos == null) {
-			Mod.LOGGER.error("could not build galaxy because the system pos was null.");
-			return;
-		}
-		final var selfPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
+		// final var currentSystemId = currentId.system();
+		// final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		// final var galaxyVolume = universe.getVolumeAt(currentSystemId.galaxySector().sectorPos());
+		// final var galaxy = galaxyVolume
+		// 		.getById(currentSystemId.galaxySector().sectorId())
+		// 		.getFull();
+		// final var systemVolume = galaxy.getVolumeAt(currentSystemId.systemSector().sectorPos());
+		// final var systemPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
+		// if (systemPos == null) {
+		// 	Mod.LOGGER.error("could not build galaxy because the system pos was null.");
+		// 	return;
+		// }
+		// final var selfPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
 
-		final var ctx = new GalaxyRenderingContext(galaxy);
-		ctx.build();
+		// final var ctx = new GalaxyRenderingContext(galaxy);
+		// ctx.build();
 
-		final var builder = Tesselator.getInstance().getBuilder();
-		final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// final var builder = Tesselator.getInstance().getBuilder();
+		// final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
+		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		final var rng = Rng.wrap(new Random());
-		ctx.enumerate((pos, size) -> {
-			var offset = pos.sub(selfPos);
-			var forward = offset.normalize();
+		// final var rng = Rng.wrap(new Random());
+		// ctx.enumerate((pos, size) -> {
+		// 	var offset = pos.sub(selfPos);
+		// 	var forward = offset.normalize();
 
-			final var s = 3e1 * size / offset.length(); // size / 3e5f
+		// 	final var s = 3e1 * size / offset.length(); // size / 3e5f
 
-			var du = forward.dot(Vec3.YP);
-			var df = forward.dot(Vec3.ZN);
-			var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
-			var right = v1.cross(forward);
-			var rotation = rng.uniformDouble(0, 2.0 * Math.PI);
-			right = Quat.axisAngle(forward, rotation).transform(right);
-			var up = forward.cross(right).neg();
+		// 	var du = forward.dot(Vec3.YP);
+		// 	var df = forward.dot(Vec3.ZN);
+		// 	var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
+		// 	var right = v1.cross(forward);
+		// 	var rotation = rng.uniformDouble(0, 2.0 * Math.PI);
+		// 	right = Quat.axisAngle(forward, rotation).transform(right);
+		// 	var up = forward.cross(right).neg();
 
-			RenderHelper.addBillboardCamspace(wrappedBuilder, up, right, forward.mul(100), s, 0,
-					Color.WHITE.withA(0.15));
-			// RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s,
-			// Color.WHITE.withA(0.2));
-		});
+		// 	RenderHelper.addBillboardCamspace(wrappedBuilder, up, right, forward.mul(100), s, 0,
+		// 			Color.WHITE.withA(0.15));
+		// 	// RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s,
+		// 	// Color.WHITE.withA(0.2));
+		// });
 
-		builder.end();
-		this.galaxyParticlesBuffer.upload(builder);
+		// builder.end();
+		// this.galaxyParticlesBuffer.upload(builder);
+		// VertexBuffer.unbind();
 		this.shouldRebuildGalaxyBuffer = false;
-		VertexBuffer.unbind();
 	}
 
 	private void buildStars() {
 		Mod.LOGGER.info("rebuilding background stars");
-		var builder = Tesselator.getInstance().getBuilder();
+		// var builder = Tesselator.getInstance().getBuilder();
 
-		var currentId = LevelAccessor.getUniverseId(this.client.level);
-		if (currentId == null)
-			return;
+		// var currentId = LevelAccessor.getUniverseId(this.client.level);
+		// if (currentId == null)
+		// 	return;
 
-		var currentSystemId = currentId.system();
-		var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var galaxyVolume = universe.getVolumeAt(currentSystemId.galaxySector().sectorPos());
-		var galaxy = galaxyVolume
-				.getById(currentSystemId.galaxySector().sectorId())
-				.getFull();
-		var systemVolume = galaxy.getVolumeAt(currentSystemId.systemSector().sectorPos());
-		var systemPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
-		if (systemPos == null) {
-			Mod.LOGGER.error("could not build background stars because the system pos was null.");
-			return;
-		}
+		// var currentSystemId = currentId.system();
+		// var universe = MinecraftClientAccessor.getUniverse(this.client);
 
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// var galaxyVolume = universe.getVolumeAt(currentSystemId.galaxySector().sectorPos());
+		// var galaxy = galaxyVolume
+		// 		.getById(currentSystemId.galaxySector().sectorId())
+		// 		.getFull();
 
-		final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
+		// // galaxy.sectorManager.
+		// var systemVolume = galaxy.getVolumeAt(currentSystemId.systemSector().sectorPos());
+		// var systemPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
+		// if (systemPos == null) {
+		// 	Mod.LOGGER.error("could not build background stars because the system pos was null.");
+		// 	return;
+		// }
 
-		var selfPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
-		TicketedVolume.enumerateSectors(systemPos, Galaxy.TM_PER_SECTOR, Galaxy.TM_PER_SECTOR, sectorPos -> {
-			var volume = galaxy.getVolumeAt(sectorPos);
-			volume.enumerateInRadius(systemPos, Galaxy.TM_PER_SECTOR, element -> {
-				if (element.id == currentId.system().systemSector().sectorId())
-					return;
-				var displayStar = element.value.getInitial().primaryStar;
-				addBillboard(wrappedBuilder, new PoseStack(), selfPos, element.pos, 1, displayStar);
-			});
-			// volume.streamElements().forEach(element -> {
-			// });
-		});
+		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		builder.end();
-		distantStarsBuffer.upload(builder);
+		// final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
+
+
+		// // var fut = CompletableFuture.runAsync(() -> {});
+		// // galaxy.sectorManager.captureVisual(systemPos, );
+
+		// var selfPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
+		// TicketedVolume.enumerateSectors(systemPos, Galaxy.SECTOR_WIDTH_Tm, Galaxy.SECTOR_WIDTH_Tm, sectorPos -> {
+		// 	var volume = galaxy.getVolumeAt(sectorPos);
+		// 	volume.enumerateInRadius(systemPos, Galaxy.SECTOR_WIDTH_Tm, element -> {
+		// 		if (element.id == currentId.system().systemSector().sectorId())
+		// 			return;
+		// 		var displayStar = element.value.getInitial().primaryStar;
+		// 		addBillboard(wrappedBuilder, new PoseStack(), selfPos, element.pos, 1, displayStar);
+		// 	});
+		// 	// volume.streamElements().forEach(element -> {
+		// 	// });
+		// });
+
+		// builder.end();
+		// distantStarsBuffer.upload(builder);
+		// VertexBuffer.unbind();
 		shouldRebuildStarBuffer = false;
-		VertexBuffer.unbind();
 	}
 
 	private void drawStars(Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
@@ -284,7 +291,7 @@ public class SkyRenderer {
 
 		profiler.popPush("system_lookup");
 		var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var system = universe.getSystem(currentNodeId.system());
+		var system = universe.getSystem(currentNodeId.system()).unwrap();
 		var currentNode = system.rootNode.lookup(currentNodeId.nodeId());
 
 		profiler.popPush("planet_context_setup");
@@ -364,7 +371,7 @@ public class SkyRenderer {
 			return false;
 
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
-		var currentNodeUntyped = universe.getSystemNode(currentId);
+		var currentNodeUntyped = universe.getSystemNode(currentId).unwrapOrNull();
 		if (currentNodeUntyped == null)
 			return false;
 
@@ -376,7 +383,7 @@ public class SkyRenderer {
 
 		double time = universe.getCelestialTime(partialTick);
 
-		var currentSystem = universe.getSystem(currentId.system());
+		var currentSystem = universe.getSystem(currentId.system()).unwrap();
 		profiler.push("update_positions");
 		currentSystem.rootNode.updatePositions(time);
 

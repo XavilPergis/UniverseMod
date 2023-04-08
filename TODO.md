@@ -61,6 +61,7 @@
 - [x] Render the galaxy somehow
 
 ## Other
+- [ ] Figure out what to do about worlds that have a system node ID that no longer exists in the galaxy.
 - [ ] Day/night cycle based on star system configuration
 - [x] Server-authoratative celestial body positioning
 - [ ] Spyglass with larger zoom

@@ -6,8 +6,10 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.util.Mth;
 import net.xavil.util.FastHasher;
+import net.xavil.util.Hashable;
+import net.xavil.util.Hasher;
 
-public final class Quat {
+public final class Quat implements Hashable {
 
 	public static final Quat ZERO = new Quat(0, 0, 0, 0);
 	public static final Quat IDENTITY = new Quat(1, 0, 0, 0);
@@ -109,12 +111,12 @@ public final class Quat {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.create()
-				.appendDouble(this.w)
-				.appendDouble(this.i)
-				.appendDouble(this.j)
-				.appendDouble(this.k)
-				.currentHashInt();
+		return FastHasher.hashToInt(this);
+	}
+
+	@Override
+	public void appendHash(Hasher hasher) {
+		hasher.appendDouble(this.w).appendDouble(this.i).appendDouble(this.j).appendDouble(this.k);
 	}
 
 }

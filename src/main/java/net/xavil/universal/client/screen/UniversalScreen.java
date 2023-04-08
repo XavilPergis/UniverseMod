@@ -5,11 +5,13 @@ import javax.annotation.Nullable;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.xavil.util.Disposable;
 
 public abstract class UniversalScreen extends Screen {
 
 	protected final Minecraft client = Minecraft.getInstance();
 	protected final @Nullable Screen previousScreen;
+	protected final Disposable.Multi disposer = new Disposable.Multi();
 
 	protected UniversalScreen(Component component, @Nullable Screen previousScreen) {
 		super(component);
@@ -29,6 +31,7 @@ public abstract class UniversalScreen extends Screen {
 		// NOTE: explicitly not calling super's onClose because we want to set the
 		// screen to the previous scrren instead of always setting it to null.
 		this.client.setScreen(previousScreen);
+		this.disposer.dispose();
 	}
 
 }

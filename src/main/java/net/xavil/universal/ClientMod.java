@@ -7,6 +7,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
+import net.xavil.universal.client.SkyRenderer;
 import net.xavil.universal.client.UniversalTextureManager;
 import net.xavil.universal.client.UniversalTextureManager.SpriteRegistrationContext;
 import net.xavil.universal.client.screen.GalaxyMapScreen;
@@ -19,6 +20,7 @@ import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
+import net.xavil.util.Disposable;
 
 public class ClientMod implements ClientModInitializer {
 
@@ -62,20 +64,26 @@ public class ClientMod implements ClientModInitializer {
 
 	public static void handlePacket(ModPacket<ClientGamePacketListener> packetUntyped) {
 		final var client = Minecraft.getInstance();
+		final var universe = MinecraftClientAccessor.getUniverse(client);
 
 		if (packetUntyped instanceof ClientboundOpenStarmapPacket packet) {
-			var universe = MinecraftClientAccessor.getUniverse(client);
-			var system = universe.getSystem(packet.toOpen.system());
-			var galaxyMap = new GalaxyMapScreen(client.screen, packet.toOpen.system());
-			var systemMap = new SystemMapScreen(galaxyMap, packet.toOpen, system);
-			client.setScreen(systemMap);
+			Disposable.scope(disposer -> {
+				final var systemId = packet.toOpen.system();
+				final var galaxyTicket = universe.sectorManager.createGalaxyTicket(disposer, systemId.galaxySector());
+				final var galaxy = universe.sectorManager.forceLoad(galaxyTicket).unwrap();
+				final var systemTicket = galaxy.sectorManager.createSystemTicket(disposer, systemId.systemSector());
+				final var system = galaxy.sectorManager.forceLoad(systemTicket).unwrap();
+
+				final var galaxyMap = new GalaxyMapScreen(client.screen, galaxy, systemId.systemSector());
+				final var systemMap = new SystemMapScreen(galaxyMap, packet.toOpen, system);
+				client.setScreen(systemMap);
+			});
 		} else if (packetUntyped instanceof ClientboundUniverseInfoPacket packet) {
-			var universe = MinecraftClientAccessor.getUniverse(client);
 			universe.updateFromInfoPacket(packet);
 		} else if (packetUntyped instanceof ClientboundChangeSystemPacket packet) {
 			LevelAccessor.setUniverseId(client.level, packet.id);
+			// SkyRenderer.INSTANCE.changedSystem();
 		} else if (packetUntyped instanceof ClientboundSyncCelestialTimePacket packet) {
-			var universe = MinecraftClientAccessor.getUniverse(client);
 			universe.celestialTimeTicks = packet.celestialTimeTicks;
 		}
 	}

@@ -5,6 +5,7 @@ import java.util.concurrent.Executor;
 import java.util.function.BooleanSupplier;
 
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -15,6 +16,7 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.progress.ChunkProgressListener;
 import net.minecraft.server.level.progress.ChunkProgressListenerFactory;
+import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.WorldData;
@@ -28,6 +30,9 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 
 	private DynamicDimensionManager dynamicDimensionManager = null;
 	private ServerUniverse universe = null;
+
+	@Shadow
+	private ProfilerFiller profiler;
 
 	@Override
 	@Accessor("worldData")
@@ -52,7 +57,7 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 	@Inject(method = "tickChildren", at = @At("TAIL"))
 	private void onTick(BooleanSupplier hasTimeLeft, CallbackInfo info) {
 		if (this.universe != null)
-			this.universe.tick();
+			this.universe.tick(this.profiler);
 	}
 
 	@Inject(method = "createLevels", at = @At("HEAD"))

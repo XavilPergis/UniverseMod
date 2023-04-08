@@ -42,7 +42,7 @@ public abstract class LivingEntityMixin {
 		final var nodeId = EntityAccessor.getSystemNodeId(self);
 		final var universe = EntityAccessor.getUniverse(self);
 		if (universe != null && nodeId != null) {
-			final var node = universe.getSystemNode(nodeId);
+			final var node = universe.getSystemNode(nodeId).unwrap();
 			if (node instanceof PlanetaryCelestialNode planetNode) {
 				return damageMultiplier * (float) planetNode.surfaceGravityEarthRelative();
 			}

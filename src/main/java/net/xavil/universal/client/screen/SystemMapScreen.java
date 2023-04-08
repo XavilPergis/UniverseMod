@@ -130,13 +130,13 @@ public class SystemMapScreen extends Universal3dScreen {
 				packet.planetId = new SystemNodeId(this.systemId, this.selectedId);
 				this.client.player.connection.send(packet);
 			}
-		} else if (keyCode == GLFW.GLFW_KEY_J && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
-			final var universe = MinecraftClientAccessor.getUniverse(this.client);
-			final var id = universe.getStartingSystemGenerator().getStartingSystemId();
-			// final var system = universe.getSystem(id.system());
-			var screen = new GalaxyMapScreen(client.screen, id.system());
-			// this.client.setScreen(new SystemMapScreen(previousScreen, id, system));
-			this.client.setScreen(screen);
+		// } else if (keyCode == GLFW.GLFW_KEY_J && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
+		// 	final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		// 	final var id = universe.getStartingSystemGenerator().getStartingSystemId();
+		// 	// final var system = universe.getSystem(id.system());
+		// 	var screen = new GalaxyMapScreen(client.screen, id.system());
+		// 	// this.client.setScreen(new SystemMapScreen(previousScreen, id, system));
+		// 	this.client.setScreen(screen);
 		} else if (keyCode == GLFW.GLFW_KEY_P && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
 			ClientDebugFeatures.SHOW_ORBIT_PATH_SUBDIVISIONS.toggle();
 		} else if (keyCode == GLFW.GLFW_KEY_L && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {

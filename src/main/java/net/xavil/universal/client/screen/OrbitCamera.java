@@ -68,7 +68,7 @@ public class OrbitCamera {
 	// in meters.
 	public final double metersPerUnit;
 
-	// The amount of units that 
+	// The amount of units that
 	public final double renderScaleFactor;
 
 	public final MotionSmoother<Vec3> focus = MotionSmoother.smoothVectors(0.6);
@@ -90,6 +90,9 @@ public class OrbitCamera {
 		// this works well enough, and gets us framerate independence, but it feels
 		// slightly laggy to use, since we're always a tick behind the current target.
 		// would be nice if there was a better way to do this.
+
+		// TODO: polish: tilt camera slightly when moving, as if it was attached to
+		// something that was being yoinked
 		this.focus.tick();
 		this.yaw.tick();
 		this.pitch.tick();
@@ -114,8 +117,7 @@ public class OrbitCamera {
 	public Matrix4f getProjectionMatrix() {
 		var window = Minecraft.getInstance().getWindow();
 		var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
-		return Matrix4f.perspective((float) this.fovDeg, aspectRatio,
-				(float) (this.scale.get(0) * this.nearPlane),
+		return Matrix4f.perspective((float) this.fovDeg, aspectRatio, (float) (this.scale.get(0) * this.nearPlane),
 				(float) (this.scale.get(0) * this.farPlane));
 	}
 
@@ -140,19 +142,13 @@ public class OrbitCamera {
 		public final double scale;
 
 		public Cached(OrbitCamera camera, float partialTick) {
-			this(camera,
-					camera.getUpVector(partialTick),
-					camera.getRightVector(partialTick),
-					camera.focus.get(partialTick),
-					camera.getPos(partialTick),
-					camera.getOrientation(partialTick),
-					camera.scale.get(partialTick),
-					camera.metersPerUnit,
-					camera.getProjectionMatrix());
+			this(camera, camera.getUpVector(partialTick), camera.getRightVector(partialTick),
+					camera.focus.get(partialTick), camera.getPos(partialTick), camera.getOrientation(partialTick),
+					camera.scale.get(partialTick), camera.metersPerUnit, camera.getProjectionMatrix());
 		}
 
-		public Cached(OrbitCamera camera, Vec3 up, Vec3 right, Vec3 focus, Vec3 pos, Quat orientation,
-				double scale, double metersPerUnit, Matrix4f projectionMatrix) {
+		public Cached(OrbitCamera camera, Vec3 up, Vec3 right, Vec3 focus, Vec3 pos, Quat orientation, double scale,
+				double metersPerUnit, Matrix4f projectionMatrix) {
 			super(camera, pos, up, right, orientation, metersPerUnit, projectionMatrix);
 			this.focus = focus;
 			this.scale = scale;

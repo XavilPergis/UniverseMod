@@ -7,9 +7,11 @@ import net.minecraft.util.profiling.InactiveProfiler;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
+import net.xavil.universal.common.universe.universe.Universe;
 import net.xavil.util.Assert;
 import net.xavil.util.Disposable;
 import net.xavil.util.Option;
+import net.xavil.util.Util;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.collections.interfaces.MutableMap;
@@ -67,25 +69,32 @@ public final class SectorManager {
 					.unwrapOrElse(() -> CompletableFuture.completedFuture(this.sector.lookupSubtree(pos)));
 		}
 
-		public void load(SectorPos pos) {
+		private boolean isSectorLoaded(SectorPos pos) {
 			final var sector = this.sector.lookupSubtree(pos);
-			final var isInitialLoad = !sector.isLoaded();
-			sector.load(pos);
+			return sector != null && sector.isLoaded();
+		}
+
+		public void load(SectorPos pos) {
+			final var isInitialLoad = !isSectorLoaded(pos);
+			this.sector.load(pos);
 			if (isInitialLoad) {
-				final var prev = this.waitingFutures.insert(pos, CompletableFuture.supplyAsync(() -> {
-					final var elements = galaxy.generateSectorElements(pos);
-					synchronized (sector) {
-						if (!Thread.interrupted())
-							sector.initialElements = elements;
-					}
-					return sector;
-				}));
+				final var sector = this.sector.lookupSubtree(pos);
+				final var prev = this.waitingFutures.insert(pos,
+						Util.makeSupplyFuture(Universe.IS_UNIVERSE_GEN_ASYNC, () -> {
+							final var elements = galaxy.generateSectorElements(pos);
+							synchronized (sector) {
+								if (!Thread.interrupted())
+									sector.initialElements = elements;
+							}
+							return sector;
+						}));
 				Assert.isTrue(prev.isNone());
 			}
 		}
 
 		public void unload(SectorPos pos) {
 			final var sector = this.sector.lookupSubtree(pos);
+			Assert.isTrue(sector != null);
 			synchronized (sector) {
 				this.waitingFutures.remove(pos).ifSome(future -> future.cancel(true));
 			}
@@ -112,7 +121,8 @@ public final class SectorManager {
 				return;
 			final var sectorSlot = sectorMap.get(this.id.sectorPos().rootCoords()).unwrap();
 			final var sectorFuture = sectorSlot.getSectorFuture(this.id.sectorPos());
-			this.waitingFuture = sectorFuture.thenApplyAsync(sector -> generateSystem(sector, this.id));
+			this.waitingFuture = Util.makeApplyFuture(Universe.IS_UNIVERSE_GEN_ASYNC, sectorFuture,
+					sector -> generateSystem(sector, this.id));
 		}
 
 		public void unload() {
@@ -235,7 +245,7 @@ public final class SectorManager {
 			slot.waitingFutures.retain((pos, future) -> !future.isDone());
 		}
 		for (final var slot : this.systemMap.values().iterable()) {
-			if (slot.waitingFuture.isDone()) {
+			if (slot.waitingFuture != null && slot.waitingFuture.isDone()) {
 				slot.system = slot.waitingFuture.join();
 				slot.waitingFuture = null;
 			}

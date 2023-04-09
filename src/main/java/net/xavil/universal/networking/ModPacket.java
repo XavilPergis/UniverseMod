@@ -52,14 +52,14 @@ public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 	public static SystemId readSystemId(FriendlyByteBuf buf) {
 		var galaxySector = readSectorId(buf);
 		var packedInfo = buf.readInt();
-		var packedPos = buf.readLong();
-		return new SystemId(galaxySector, new GalaxySectorId(packedInfo, packedPos));
+		var pos = readVector(buf);
+		return new SystemId(galaxySector, new GalaxySectorId(pos, packedInfo));
 	}
 
 	public static void writeSystemId(FriendlyByteBuf buf, SystemId id) {
 		writeSectorId(buf, id.galaxySector());
 		buf.writeInt(id.systemSector().packedInfo());
-		buf.writeLong(id.systemSector().packedPos());
+		writeVector(buf, id.systemSector().levelCoords());
 	}
 
 	public static SystemNodeId readSystemNodeId(FriendlyByteBuf buf) {

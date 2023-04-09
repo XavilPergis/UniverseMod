@@ -11,4 +11,8 @@ public record UniverseSectorId(Vec3i sectorPos, int id) {
 			Codec.INT.fieldOf("id").forGetter(UniverseSectorId::id))
 			.apply(inst, UniverseSectorId::new));
 
+	@Override
+	public String toString() {
+		return "[" + this.sectorPos.x + ", " + this.sectorPos.y + ", " + this.sectorPos.z + "]:" + this.id;
+	}
 }

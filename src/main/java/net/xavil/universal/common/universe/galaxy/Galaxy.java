@@ -42,7 +42,7 @@ public class Galaxy {
 		this.info = info;
 		this.densityFields = densityFields;
 
-		addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
+		// addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
 	}
 
 	public void addGenerationLayer(GalaxyGenerationLayer layer) {
@@ -73,8 +73,9 @@ public class Galaxy {
 			final var genLayer = this.generationLayers.get(i);
 			final var i2 = i;
 			genLayer.generateInto(ctx, (systemPos, info, seed) -> {
+				final var index = elements.size();
 				elements.push(new GalaxySector.InitialElement(systemPos, info, seed, i2));
-				return elements.size() - 1;
+				return index;
 			});
 		}
 		elements.optimize();

@@ -9,4 +9,8 @@ public record SystemId(UniverseSectorId galaxySector, GalaxySectorId systemSecto
 			GalaxySectorId.CODEC.fieldOf("system").forGetter(SystemId::systemSector))
 			.apply(inst, SystemId::new));
 
+	@Override
+	public String toString() {
+		return this.galaxySector.toString() + "/" + this.systemSector.toString();
+	}
 }

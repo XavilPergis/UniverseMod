@@ -307,7 +307,7 @@ public class GalaxyMapScreen extends Universal3dScreen {
 
 		if (this.selectedSystemId != null) {
 			final var systemSector = this.selectedSystemId;
-			final var sectorPos = systemSector.pos();
+			final var sectorPos = systemSector.levelCoords();
 
 			// @formatter:off
 			var systemId = "";
@@ -321,8 +321,6 @@ public class GalaxyMapScreen extends Universal3dScreen {
 			systemId += systemSector.level();
 			systemId += "#";
 			systemId += systemSector.elementIndex();
-			systemId += ":";
-			systemId += systemSector.layerIndex();
 			// @formatter:on
 
 			final var system = this.galaxy.sectorManager.getInitial(this.selectedSystemId).unwrap().info();

@@ -65,13 +65,14 @@ public final class Vector<T> implements MutableList<T> {
 				final var elem = this.elements[src++];
 				if (predicate.test(elem))
 					this.elements[dst++] = elem;
-			} finally {
+			} catch (Throwable throwable) {
 				src -= 1;
 				System.arraycopy(this.elements, src, this.elements, dst, this.size - src);
 				final var oldSize = this.size;
 				this.size -= src - dst;
 				for (int i = this.size; i < oldSize; ++i)
 					this.elements[i] = null;
+				throw throwable;
 			}
 		}
 		for (int i = dst; i < this.size; ++i) {

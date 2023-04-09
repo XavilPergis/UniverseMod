@@ -95,8 +95,8 @@ public abstract sealed class SectorTicketInfo {
 			double radiusCur = this.baseRadius;
 			for (int level = 0; level <= GalaxySector.ROOT_LEVEL; ++level) {
 				final var level2 = level;
-				final var curMin = this.centerPos.sub(Vec3.broadcast(radiusCur)).floor();
-				final var curMax = this.centerPos.add(Vec3.broadcast(radiusCur)).ceil();
+				final var curMin = GalaxySector.levelCoordsForPos(level, this.centerPos.sub(Vec3.broadcast(radiusCur)));
+				final var curMax = GalaxySector.levelCoordsForPos(level, this.centerPos.add(Vec3.broadcast(radiusCur)));
 				Vec3i.iterateInclusive(curMin, curMax, pos -> consumer.accept(new SectorPos(level2, pos)));
 				radiusCur *= this.multiplicitaveFactor;
 				radiusCur += this.additiveFactor;
@@ -113,10 +113,14 @@ public abstract sealed class SectorTicketInfo {
 				for (int level = 0; level <= GalaxySector.ROOT_LEVEL; ++level) {
 					final var level2 = level;
 
-					final var curMin = this.centerPos.sub(Vec3.broadcast(radiusCur)).floor();
-					final var curMax = this.centerPos.add(Vec3.broadcast(radiusCur)).ceil();
-					final var prevMin = multi.centerPos.sub(Vec3.broadcast(radiusPrev)).floor();
-					final var prevMax = multi.centerPos.add(Vec3.broadcast(radiusPrev)).ceil();
+					final var curMin = GalaxySector.levelCoordsForPos(level,
+							this.centerPos.sub(Vec3.broadcast(radiusCur)));
+					final var curMax = GalaxySector.levelCoordsForPos(level,
+							this.centerPos.add(Vec3.broadcast(radiusCur)));
+					final var prevMin = GalaxySector.levelCoordsForPos(level,
+							multi.centerPos.sub(Vec3.broadcast(radiusPrev)));
+					final var prevMax = GalaxySector.levelCoordsForPos(level,
+							multi.centerPos.add(Vec3.broadcast(radiusPrev)));
 
 					if (!curMin.equals(prevMin) || !curMax.equals(prevMax)) {
 						final var levelCur = MutableSet.<SectorPos>hashSet();

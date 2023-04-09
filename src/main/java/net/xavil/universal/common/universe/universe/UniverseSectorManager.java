@@ -1,32 +1,22 @@
 package net.xavil.universal.common.universe.universe;
 
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ForkJoinPool;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import net.minecraft.util.profiling.InactiveProfiler;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
-import net.xavil.universal.common.universe.galaxy.SectorPos;
-import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.universal.common.universe.galaxy.SectorTicket;
-import net.xavil.universal.common.universe.galaxy.SystemTicket;
-import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
-import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.util.Assert;
 import net.xavil.util.Disposable;
-import net.xavil.util.KeyedTaskQueue;
 import net.xavil.util.Option;
-import net.xavil.util.ThreadSignal;
+import net.xavil.util.Util;
 import net.xavil.util.collections.Vector;
-import net.xavil.util.collections.interfaces.ImmutableList;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.collections.interfaces.MutableMap;
-import net.xavil.util.collections.interfaces.MutableMultiMap;
 import net.xavil.util.collections.interfaces.MutableSet;
-import net.xavil.util.iterator.Iterator;
-import net.xavil.util.math.Vec3;
 import net.xavil.util.math.Vec3i;
 
 public final class UniverseSectorManager {
@@ -124,7 +114,7 @@ public final class UniverseSectorManager {
 			this.referenceCount += 1;
 			if (this.sector.isComplete() || this.waitingFuture != null)
 				return;
-			this.waitingFuture = CompletableFuture.supplyAsync(() -> {
+			this.waitingFuture = Util.makeSupplyFuture(Universe.IS_UNIVERSE_GEN_ASYNC, () -> {
 				final var elements = universe.generateSectorElements(this.sector.pos);
 				synchronized (this.sector) {
 					if (!Thread.interrupted())
@@ -162,7 +152,10 @@ public final class UniverseSectorManager {
 			if (this.galaxy != null || this.waitingFuture != null)
 				return;
 			final var sectorSlot = sectorMap.get(this.id.sectorPos()).unwrap();
-			this.waitingFuture = sectorSlot.getSectorFuture().thenApplyAsync(sector -> generateGalaxy(this.id));
+			this.waitingFuture = Util.makeApplyFuture(Universe.IS_UNIVERSE_GEN_ASYNC, sectorSlot.getSectorFuture(),
+					sector -> generateGalaxy(this.id));
+			// this.waitingFuture = sectorSlot.getSectorFuture().thenApplyAsync(sector ->
+			// generateGalaxy(this.id));
 		}
 
 		public void unload() {
@@ -172,8 +165,10 @@ public final class UniverseSectorManager {
 				if (this.waitingFuture != null)
 					this.waitingFuture.cancel(false);
 			}
-			if (!isLive())
+			if (!isLive()) {
 				galaxyMap.remove(this.id);
+				sectorMap.get(this.id.sectorPos()).unwrap().unload();
+			}
 		}
 
 		public boolean isLive() {
@@ -273,7 +268,8 @@ public final class UniverseSectorManager {
 		this.removedTickets.clear();
 
 		sectorsToLoad.extend(galaxiesToLoad.iter().map(UniverseSectorId::sectorPos));
-		sectorsToUnload.extend(galaxiesToUnload.iter().map(UniverseSectorId::sectorPos));
+		// unloading of galaxies is handled differently than in SectorManager because
+		// galaxies are not always unloaded when their ticket is removed.
 
 		profiler.popPush("load");
 		sectorsToLoad.forEach(pos -> this.sectorMap.entry(pos).orInsertWith(SectorSlot::new).load());
@@ -296,14 +292,14 @@ public final class UniverseSectorManager {
 
 	private void applyFinished() {
 		for (final var slot : this.sectorMap.values().iterable()) {
-			if (slot.waitingFuture.isDone()) {
+			if (slot.waitingFuture != null && slot.waitingFuture.isDone()) {
 				// NOTE: this future sets the elements for this slot, so we dont have to do
 				// anything else here.
 				slot.waitingFuture = null;
 			}
 		}
 		for (final var slot : this.galaxyMap.values().iterable()) {
-			if (slot.waitingFuture.isDone()) {
+			if (slot.waitingFuture != null && slot.waitingFuture.isDone()) {
 				slot.galaxy = slot.waitingFuture.join();
 				slot.waitingFuture = null;
 			}

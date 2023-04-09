@@ -57,7 +57,7 @@ public enum GalaxyType {
 			var finalStellarDensity = densityCombined.mul(ly3_PER_Tm3);
 			var finalMinAge = ageCombined;
 
-			return new DensityFields(galaxyAge, radius, finalStellarDensity, finalMinAge);
+			return new DensityFields(radius, galaxyAge, finalStellarDensity, finalMinAge);
 		}
 	},
 	// a disc galaxy with a nebulous, almost elliptical-like core and no noticable

@@ -13,7 +13,7 @@ import net.xavil.util.math.Vec3i;
 
 public final class GalaxySector {
 
-	public static final int ROOT_LEVEL = 10;
+	public static final int ROOT_LEVEL = 8;
 	public static final double BASE_SIZE_Tm = 10.0 / Units.ly_PER_Tm;
 	public static final double ROOT_SIZE_Tm = sizeForLevel(ROOT_LEVEL);
 
@@ -63,7 +63,7 @@ public final class GalaxySector {
 	}
 
 	public static Vec3i levelCoordsForPos(int level, Vec3 pos) {
-		return pos.div(BASE_SIZE_Tm).floor().div(1 << level);
+		return pos.div(sizeForLevel(level)).floor();
 	}
 
 	// public void setInitialElements(ImmutableList<InitialElement> initialElements) {
@@ -110,15 +110,16 @@ public final class GalaxySector {
 		if (this.branch != null || this.level == 0)
 			return;
 		final var nl = this.level - 1;
+		final int bx = 2 * x, by = 2 * y, bz = 2 * z;
 		// @formatter:off
-		final var nnn = new GalaxySector(nl, x, y, z);
-		final var nnp = new GalaxySector(nl, x, y, z + 1);
-		final var npn = new GalaxySector(nl, x, y + 1, z);
-		final var npp = new GalaxySector(nl, x, y + 1, z + 1);
-		final var pnn = new GalaxySector(nl, x + 1, y, z);
-		final var pnp = new GalaxySector(nl, x + 1, y, z + 1);
-		final var ppn = new GalaxySector(nl, x + 1, y + 1, z);
-		final var ppp = new GalaxySector(nl, x + 1, y + 1, z + 1);
+		final var nnn = new GalaxySector(nl, bx + 0, by + 0, bz + 0);
+		final var nnp = new GalaxySector(nl, bx + 0, by + 0, bz + 1);
+		final var npn = new GalaxySector(nl, bx + 0, by + 1, bz + 0);
+		final var npp = new GalaxySector(nl, bx + 0, by + 1, bz + 1);
+		final var pnn = new GalaxySector(nl, bx + 1, by + 0, bz + 0);
+		final var pnp = new GalaxySector(nl, bx + 1, by + 0, bz + 1);
+		final var ppn = new GalaxySector(nl, bx + 1, by + 1, bz + 0);
+		final var ppp = new GalaxySector(nl, bx + 1, by + 1, bz + 1);
 		// @formatter:on
 		this.branch = new Branch(nnn, nnp, npn, npp, pnn, pnp, ppn, ppp);
 	}
@@ -139,7 +140,7 @@ public final class GalaxySector {
 			return;
 		// this is basically `pos` but in the coorinate system for the level that this
 		// node is on.
-		final var levelPos = pos.levelCoords().div((1 << this.level) / (1 << pos.level()));
+		final var levelPos = pos.levelCoords().floorDiv((1 << this.level) / (1 << pos.level()));
 		// bail if our target node is not a descendant of this node
 		if (this.x != levelPos.x || this.y != levelPos.y || this.z != levelPos.z)
 			return;
@@ -168,10 +169,6 @@ public final class GalaxySector {
 	/**
 	 * Unloads the sector at the given sector pos.
 	 * 
-	 * This method will automatically clean up any
-	 * 
-	 * 
-	 * 
 	 * @param pos The position of the target sector.
 	 * @return Whether the current node is allowed to be unloaded.
 	 */
@@ -180,7 +177,7 @@ public final class GalaxySector {
 			return this.weakReferenceCount == 0;
 		// this is basically `pos` but in the coorinate system for the level that this
 		// node is on.
-		final var levelPos = pos.levelCoords().div((1 << this.level) / (1 << pos.level()));
+		final var levelPos = pos.levelCoords().floorDiv((1 << this.level) / (1 << pos.level()));
 		// bail if our target node is not a descendant of this node
 		if (this.x != levelPos.x || this.y != levelPos.y || this.z != levelPos.z)
 			return this.weakReferenceCount == 0;
@@ -218,23 +215,26 @@ public final class GalaxySector {
 
 		// this is basically `pos` but in the coorinate system for the level that this
 		// node is on.
-		final var levelPos = pos.levelCoords().div((1 << this.level) / (1 << pos.level()));
+		final var levelPos = pos.levelCoords().floorDiv((1 << this.level) / (1 << pos.level()));
 		// bail if our target node is not a descendant of this node
 		if (this.x != levelPos.x || this.y != levelPos.y || this.z != levelPos.z)
 			return null;
 
 		if (pos.level() == this.level)
 			return this;
-		// @formatter:off
-		final var nnn = this.branch.nnn.lookupSubtree(pos); if (nnn != null) return nnn;
-		final var nnp = this.branch.nnp.lookupSubtree(pos); if (nnp != null) return nnp;
-		final var npn = this.branch.npn.lookupSubtree(pos); if (npn != null) return npn;
-		final var npp = this.branch.npp.lookupSubtree(pos); if (npp != null) return npp;
-		final var pnn = this.branch.pnn.lookupSubtree(pos); if (pnn != null) return pnn;
-		final var pnp = this.branch.pnp.lookupSubtree(pos); if (pnp != null) return pnp;
-		final var ppn = this.branch.ppn.lookupSubtree(pos); if (ppn != null) return ppn;
-		final var ppp = this.branch.ppp.lookupSubtree(pos); if (ppp != null) return ppp;
-		// @formatter:on
+
+		if (this.branch != null) {
+			// @formatter:off
+			final var nnn = this.branch.nnn.lookupSubtree(pos); if (nnn != null) return nnn;
+			final var nnp = this.branch.nnp.lookupSubtree(pos); if (nnp != null) return nnp;
+			final var npn = this.branch.npn.lookupSubtree(pos); if (npn != null) return npn;
+			final var npp = this.branch.npp.lookupSubtree(pos); if (npp != null) return npp;
+			final var pnn = this.branch.pnn.lookupSubtree(pos); if (pnn != null) return pnn;
+			final var pnp = this.branch.pnp.lookupSubtree(pos); if (pnp != null) return pnp;
+			final var ppn = this.branch.ppn.lookupSubtree(pos); if (ppn != null) return ppn;
+			final var ppp = this.branch.ppp.lookupSubtree(pos); if (ppp != null) return ppp;
+			// @formatter:on
+		}
 
 		return null;
 	}

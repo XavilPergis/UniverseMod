@@ -64,6 +64,7 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 	private void onCreateLevels(ChunkProgressListener listener, CallbackInfo info) {
 		this.dynamicDimensionManager = new DynamicDimensionManager((MinecraftServer) (Object) this);
 		this.universe = new ServerUniverse((MinecraftServer) (Object) this);
+		this.universe.prepare();
 	}
 
 	@Override
@@ -78,7 +79,6 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 
 	@Inject(method = "createLevels", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getDataStorage()Lnet/minecraft/world/level/storage/DimensionDataStorage;"))
 	private void prepareStartingVolume(CallbackInfo info) {
-		this.universe.prepare();
 		var overworld = ((MinecraftServer) (Object) this).overworld();
 		var startingId = this.universe.getStartingSystemGenerator().getStartingSystemId();
 		LevelAccessor.setUniverseId(overworld, startingId);

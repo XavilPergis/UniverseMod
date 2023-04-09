@@ -16,7 +16,7 @@ import net.xavil.util.math.Vec3i;
 public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	public static final int STARTING_LOCATION_SAMPLE_ATTEMPTS = 1000;
-	public static final Interval STARTING_LOCATION_ACCEPTABLE_DENSITY = new Interval(1, 2);
+	public static final Interval STARTING_LOCATION_ACCEPTABLE_DENSITY = new Interval(0, 2e10);
 
 	public final int startingNodeId;
 	public final StarSystem startingSystem;
@@ -24,7 +24,8 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	private boolean isLocationChosen = false;
 	private Vec3 startingSystemPos = Vec3.ZERO;
-	private Vec3i startingSystemCoords = Vec3i.ZERO;
+	// private Vec3i startingSystemCoords = Vec3i.ZERO;
+	private SectorPos startingSystemSectorPos;
 	private int elementIndex = -1;
 
 	public StartingSystemGalaxyGenerationLayer(Galaxy parentGalaxy, CelestialNode startingNode, int startingNodeId) {
@@ -38,7 +39,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		if (this.isLocationChosen)
 			return;
 		this.isLocationChosen = true;
-		final var random = new Random(this.parentGalaxy.parentUniverse.getUniqueUniverseSeed());
+		final var random = new Random(this.parentGalaxy.parentUniverse.getUniqueUniverseSeed() + 10);
 		final var densityFields = this.parentGalaxy.densityFields;
 
 		for (int i = 0; i < STARTING_LOCATION_SAMPLE_ATTEMPTS; ++i) {
@@ -48,7 +49,9 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			final var density = densityFields.stellarDensity.sampleDensity(samplePos);
 			if (STARTING_LOCATION_ACCEPTABLE_DENSITY.contains(density)) {
 				this.startingSystemPos = samplePos;
-				this.startingSystemCoords = GalaxySector.levelCoordsForPos(GalaxySector.ROOT_LEVEL, samplePos);
+				this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, samplePos);
+				Mod.LOGGER.info("placing starting system in sector at {} (in sector {})",
+					this.startingSystemPos, this.startingSystemSectorPos.levelCoords());
 				return;
 			}
 		}
@@ -59,25 +62,21 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	private void findElementIndex() {
 		chooseStartingLocation();
 		if (this.elementIndex == -1)
-			this.parentGalaxy.generateSectorElements(new SectorPos(GalaxySector.ROOT_LEVEL, this.startingSystemCoords));
+			this.parentGalaxy.generateSectorElements(this.startingSystemSectorPos);
 	}
 
 	@Override
 	public void generateInto(Context ctx, Sink sink) {
 		chooseStartingLocation();
 		final var pos = this.startingSystemPos;
-		if (ctx.level != GalaxySector.ROOT_LEVEL)
-			return;
-		if (pos.x < ctx.volumeMin.x || pos.x >= ctx.volumeMax.x
-				|| pos.y < ctx.volumeMin.y || pos.y >= ctx.volumeMax.y
-				|| pos.z < ctx.volumeMin.z || pos.z >= ctx.volumeMax.z)
+		if (!this.startingSystemSectorPos.equals(ctx.pos))
 			return;
 		this.elementIndex = sink.accept(pos, this.startingSystemInfo, 0);
 	}
 
 	public SystemNodeId getStartingSystemId() {
 		findElementIndex();
-		final var systemSectorId = GalaxySectorId.from(GalaxySector.ROOT_LEVEL, this.startingSystemCoords, this.layerId, this.elementIndex);
+		final var systemSectorId = GalaxySectorId.from(this.startingSystemSectorPos, this.elementIndex);
 		final var system = new SystemId(this.parentGalaxy.galaxyId, systemSectorId);
 		return new SystemNodeId(system, this.startingNodeId);
 	}

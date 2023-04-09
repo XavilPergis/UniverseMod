@@ -7,35 +7,34 @@ import net.xavil.universal.common.universe.galaxy.SectorPos;
 import net.xavil.util.Util;
 import net.xavil.util.math.Vec3i;
 
-public record GalaxySectorId(int packedInfo, long packedPos) {
+public record GalaxySectorId(Vec3i levelCoords, int packedInfo) {
 
-	public static final long MASK_X = Util.longMask(0, 21);
-	public static final long MASK_Y = Util.longMask(21, 42);
-	public static final long MASK_Z = Util.longMask(42, 63);
+	// public static final long MASK_X = Util.longMask(0, 21);
+	// public static final long MASK_Y = Util.longMask(21, 42);
+	// public static final long MASK_Z = Util.longMask(42, 63);
 	public static final int MASK_ELEMENT_INDEX = Util.intMask(0, 16);
-	public static final int MASK_LAYER_INDEX = Util.intMask(16, 20);
+	// public static final int MASK_LAYER_INDEX = Util.intMask(16, 20);
 	public static final int MASK_LEVEL = Util.intMask(20, 24);
 
-	public static GalaxySectorId from(int level, Vec3i levelCoords, int layerIndex, int elementIndex) {
+	public static GalaxySectorId from(int level, Vec3i levelCoords, int elementIndex) {
 		int info = 0;
 		info |= (level << 20) & MASK_LEVEL;
-		info |= (layerIndex << 16) & MASK_LAYER_INDEX;
+		// info |= (layerIndex << 16) & MASK_LAYER_INDEX;
 		info |= (elementIndex << 0) & MASK_ELEMENT_INDEX;
-		long pos = 0L;
-		pos |= (levelCoords.x << 0L) & MASK_X;
-		pos |= (levelCoords.y << 21L) & MASK_Y;
-		pos |= (levelCoords.z << 42L) & MASK_Z;
-		return new GalaxySectorId(info, pos);
+		return new GalaxySectorId(levelCoords, info);
+	}
+	public static GalaxySectorId from(SectorPos pos, int elementIndex) {
+		return from(pos.level(), pos.levelCoords(), elementIndex);
 	}
 
 	public static final Codec<GalaxySectorId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-			Codec.INT.fieldOf("packed_info").forGetter(GalaxySectorId::packedInfo),
-			Codec.LONG.fieldOf("packed_pos").forGetter(GalaxySectorId::packedPos))
+			Vec3i.CODEC.fieldOf("pos").forGetter(GalaxySectorId::levelCoords),
+			Codec.INT.fieldOf("packed_info").forGetter(GalaxySectorId::packedInfo))
 			.apply(inst, GalaxySectorId::new));
 
-	public int layerIndex() {
-		return (packedInfo & MASK_LAYER_INDEX) >>> 16;
-	}
+	// public int layerIndex() {
+	// 	return (packedInfo & MASK_LAYER_INDEX) >>> 16;
+	// }
 
 	public int elementIndex() {
 		return (packedInfo & MASK_ELEMENT_INDEX) >>> 0;
@@ -45,15 +44,14 @@ public record GalaxySectorId(int packedInfo, long packedPos) {
 		return (packedInfo & MASK_LEVEL) >>> 20;
 	}
 
-	public Vec3i pos() {
-		final var x = (int) ((packedPos & MASK_X) >>> 0L);
-		final var y = (int) ((packedPos & MASK_Y) >>> 21L);
-		final var z = (int) ((packedPos & MASK_Z) >>> 42L);
-		return Vec3i.from(x, y, z);
+	public SectorPos sectorPos() {
+		return new SectorPos(level(), levelCoords());
 	}
 
-	public SectorPos sectorPos() {
-		return new SectorPos(level(), pos());
+	@Override
+	public String toString() {
+		final var p = this.levelCoords();
+		return this.level() + ":[" + p.x + ", " + p.y + ", " + p.z + "]:" + this.elementIndex();
 	}
 
 }

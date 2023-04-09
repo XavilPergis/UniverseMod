@@ -5,6 +5,7 @@ import java.util.Random;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.universal.common.universe.galaxy.SystemTicket;
@@ -198,6 +199,8 @@ public final class ServerUniverse extends Universe {
 			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, rootNode, startingNodeId);
 			galaxy.addGenerationLayer(this.startingGenerator);
 			final var startingId = this.startingGenerator.getStartingSystemId();
+
+			Mod.LOGGER.info("placing starting system at {}", startingId);
 
 			this.startingSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, startingId.system().systemSector());
 			galaxy.sectorManager.forceLoad(this.startingSystemTicket);

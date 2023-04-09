@@ -11,8 +11,11 @@ public interface Disposable {
 
 	static void scope(Consumer<Multi> consumer) {
 		final var multi = new Multi();
-		consumer.accept(multi);
-		multi.dispose();
+		try {
+			consumer.accept(multi);
+		} finally {
+			multi.dispose();
+		}
 	}
 
 	static <T> Wrapped<T> wrapped(T value, Consumer<T> disposer) {

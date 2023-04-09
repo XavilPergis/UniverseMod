@@ -89,6 +89,10 @@ public final class Vec3i implements Hashable {
 		return new Vec3i(this.x / scalar, this.y / scalar, this.z / scalar);
 	}
 
+	public Vec3i floorDiv(int scalar) {
+		return new Vec3i(Math.floorDiv(this.x, scalar), Math.floorDiv(this.y, scalar), Math.floorDiv(this.z, scalar));
+	}
+
 	public Vec3i neg() {
 		return new Vec3i(-x, -y, -z);
 	}

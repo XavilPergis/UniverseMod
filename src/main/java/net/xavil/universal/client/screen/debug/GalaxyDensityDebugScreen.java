@@ -72,9 +72,9 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 			densityFields = this.galaxy.info.type.createDensityFields(age, random);
 		}
 
-		var volumeMin = Vec3.from(-densityFields.galaxyRadius, -densityFields.galaxyRadius,
+		var volumeMin = Vec3.from(-densityFields.galaxyRadius, -densityFields.galaxyRadius * 0.3,
 				-densityFields.galaxyRadius);
-		var volumeMax = Vec3.from(densityFields.galaxyRadius, densityFields.galaxyRadius, densityFields.galaxyRadius);
+		var volumeMax = Vec3.from(densityFields.galaxyRadius, densityFields.galaxyRadius * 0.3, densityFields.galaxyRadius);
 
 		this.galaxyPoints = new Octree<Double>(volumeMin, volumeMax);
 
@@ -85,7 +85,7 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 		double lowestSeenDensity = Double.POSITIVE_INFINITY;
 		var maxDensity = 4e17 * attemptCount / aabbVolume(volumeMin, volumeMax);
 		for (var i = 0; i < attemptCount; ++i) {
-			if (successfulPlacements >= 10000)
+			if (successfulPlacements >= 30000)
 				break;
 
 			var pos = Vec3.random(random, volumeMin, volumeMax);
@@ -124,8 +124,9 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 
 		this.galaxyPoints.enumerateElements(elem -> {
 			// var s = 0.2 * camera.pos.distanceTo(elem.pos);
-			double s = 6e6 * (elem.value / 5.0);
-			RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s, Color.WHITE.withA(0.2));
+			// double s = 6e6 * (elem.value / 5.0);
+			double s = 1.0 * (elem.value / 5.0);
+			RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, 1e6, Color.WHITE.withA(s));
 		});
 
 		builder.end();

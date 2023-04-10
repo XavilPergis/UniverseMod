@@ -345,45 +345,43 @@ public final class RenderHelper {
 				.endVertex();
 	}
 
-	// public static void addAxisAlignedBox(FlexibleVertexConsumer builder, Vec3 p0,
-	// Vec3
-	// p1, Color color) {
-	// double lx = p0.x < p1.x ? p0.x : p1.x;
-	// double ly = p0.y < p1.y ? p0.y : p1.y;
-	// double lz = p0.z < p1.z ? p0.z : p1.z;
-	// double hx = p0.x >= p1.x ? p0.x : p1.x;
-	// double hy = p0.y >= p1.y ? p0.y : p1.y;
-	// double hz = p0.z >= p1.z ? p0.z : p1.z;
+	public static void addAxisAlignedBox(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 p0, Vec3 p1, Color color) {
+		p0 = camera.toCameraSpace(p0);
+		p1 = camera.toCameraSpace(p1);
+		double lx = p0.x < p1.x ? p0.x : p1.x;
+		double ly = p0.y < p1.y ? p0.y : p1.y;
+		double lz = p0.z < p1.z ? p0.z : p1.z;
+		double hx = p0.x >= p1.x ? p0.x : p1.x;
+		double hy = p0.y >= p1.y ? p0.y : p1.y;
+		double hz = p0.z >= p1.z ? p0.z : p1.z;
 
-	// float r = color.r(), g = color.g(), b = color.b(), a = color.a();
-
-	// // X axis
-	// builder.vertex(lx, ly, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-	// builder.vertex(hx, ly, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-	// builder.vertex(lx, ly, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-	// builder.vertex(hx, ly, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-	// builder.vertex(lx, hy, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-	// builder.vertex(hx, hy, lz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-	// builder.vertex(lx, hy, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-	// builder.vertex(hx, hy, hz).color(r, g, b, a).normal(1, 0, 0).endVertex();
-	// // Y axis
-	// builder.vertex(lx, ly, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-	// builder.vertex(lx, hy, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-	// builder.vertex(lx, ly, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-	// builder.vertex(lx, hy, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-	// builder.vertex(hx, ly, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-	// builder.vertex(hx, hy, lz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-	// builder.vertex(hx, ly, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-	// builder.vertex(hx, hy, hz).color(r, g, b, a).normal(0, 1, 0).endVertex();
-	// // Z axis
-	// builder.vertex(lx, ly, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	// builder.vertex(lx, ly, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	// builder.vertex(lx, hy, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	// builder.vertex(lx, hy, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	// builder.vertex(hx, ly, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	// builder.vertex(hx, ly, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	// builder.vertex(hx, hy, lz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	// builder.vertex(hx, hy, hz).color(r, g, b, a).normal(0, 0, 1).endVertex();
-	// }
+		// X axis
+		builder.vertex(lx, ly, lz).color(color).normal(1, 0, 0).endVertex();
+		builder.vertex(hx, ly, lz).color(color).normal(1, 0, 0).endVertex();
+		builder.vertex(lx, ly, hz).color(color).normal(1, 0, 0).endVertex();
+		builder.vertex(hx, ly, hz).color(color).normal(1, 0, 0).endVertex();
+		builder.vertex(lx, hy, lz).color(color).normal(1, 0, 0).endVertex();
+		builder.vertex(hx, hy, lz).color(color).normal(1, 0, 0).endVertex();
+		builder.vertex(lx, hy, hz).color(color).normal(1, 0, 0).endVertex();
+		builder.vertex(hx, hy, hz).color(color).normal(1, 0, 0).endVertex();
+		// Y axis
+		builder.vertex(lx, ly, lz).color(color).normal(0, 1, 0).endVertex();
+		builder.vertex(lx, hy, lz).color(color).normal(0, 1, 0).endVertex();
+		builder.vertex(lx, ly, hz).color(color).normal(0, 1, 0).endVertex();
+		builder.vertex(lx, hy, hz).color(color).normal(0, 1, 0).endVertex();
+		builder.vertex(hx, ly, lz).color(color).normal(0, 1, 0).endVertex();
+		builder.vertex(hx, hy, lz).color(color).normal(0, 1, 0).endVertex();
+		builder.vertex(hx, ly, hz).color(color).normal(0, 1, 0).endVertex();
+		builder.vertex(hx, hy, hz).color(color).normal(0, 1, 0).endVertex();
+		// Z axis
+		builder.vertex(lx, ly, lz).color(color).normal(0, 0, 1).endVertex();
+		builder.vertex(lx, ly, hz).color(color).normal(0, 0, 1).endVertex();
+		builder.vertex(lx, hy, lz).color(color).normal(0, 0, 1).endVertex();
+		builder.vertex(lx, hy, hz).color(color).normal(0, 0, 1).endVertex();
+		builder.vertex(hx, ly, lz).color(color).normal(0, 0, 1).endVertex();
+		builder.vertex(hx, ly, hz).color(color).normal(0, 0, 1).endVertex();
+		builder.vertex(hx, hy, lz).color(color).normal(0, 0, 1).endVertex();
+		builder.vertex(hx, hy, hz).color(color).normal(0, 0, 1).endVertex();
+	}
 
 }

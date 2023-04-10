@@ -39,13 +39,13 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		var sectorDensitySum = 0.0;
 		for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
 			final var samplePos = Vec3.random(ctx.random, ctx.volumeMin, ctx.volumeMax);
-			sectorDensitySum += this.densityFields.stellarDensity.sampleDensity(samplePos);
+			sectorDensitySum += this.densityFields.stellarDensity.sampleDensity(samplePos) * 0.05;
 		}
 
 		final var averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
 		final var sectorSideLengths = ctx.volumeMin.sub(ctx.volumeMax).abs();
 		final var sectorVolume = sectorSideLengths.x * sectorSideLengths.y * sectorSideLengths.z;
-		final var starsPerSector = sectorVolume * averageSectorDensity;
+		final var starsPerSector = sectorVolume * averageSectorDensity * ctx.starCountFactor;
 
 		int starAttemptCount = Mth.floor(starsPerSector);
 		if (starAttemptCount > MAXIMUM_STARS_PER_SECTOR) {
@@ -74,15 +74,15 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			// "migrate" towards areas of higher densities.
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
 				final var systemPos = Vec3.random(ctx.random, ctx.volumeMin, ctx.volumeMax);
-				final var density = this.densityFields.stellarDensity.sampleDensity(systemPos);
+				final var density = this.densityFields.stellarDensity.sampleDensity(systemPos) * 0.05;
 
 				if (density < ctx.random.nextDouble(0.0, averageSectorDensity))
 					continue;
 
 				final var initial = generateStarSystemInfo(systemPos, infoSeed);
-				// final var lazy = new Lazy<>(initial, info -> generateStarSystem(info, systemSeed));
 				sink.accept(systemPos, initial, systemSeed);
 				successfulAttempts += 1;
+				break;
 			}
 		}
 

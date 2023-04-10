@@ -26,7 +26,7 @@ public abstract class Universe implements Disposable {
 	public static final double VOLUME_LENGTH_ZM = 10;
 	public static final int ATTEMPT_COUNT = 10000;
 
-	public static final boolean IS_UNIVERSE_GEN_ASYNC = false;
+	public static final boolean IS_UNIVERSE_GEN_ASYNC = true;
 
 	public long celestialTimeTicks = 0;
 	public final UniverseSectorManager sectorManager = new UniverseSectorManager(this);
@@ -43,8 +43,9 @@ public abstract class Universe implements Disposable {
 
 	public abstract StartingSystemGalaxyGenerationLayer getStartingSystemGenerator();
 
-	public void tick(ProfilerFiller profiler) {
-		this.celestialTimeTicks += 1;
+	public void tick(ProfilerFiller profiler, boolean tickTime) {
+		if (tickTime)
+			this.celestialTimeTicks += 1;
 		this.sectorManager.tick(profiler);
 	}
 

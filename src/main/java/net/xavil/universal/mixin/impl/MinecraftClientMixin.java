@@ -49,8 +49,8 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 
 	@Inject(method = "tick", at = @At("TAIL"))
 	private void onTick(CallbackInfo info) {
-		if (!this.pause && this.universe != null) {
-			this.universe.tick(this.profiler);
+		if (this.universe != null) {
+			this.universe.tick(this.profiler, !this.pause);
 		}
 	}
 

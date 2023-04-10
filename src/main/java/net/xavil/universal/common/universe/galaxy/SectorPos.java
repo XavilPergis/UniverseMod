@@ -18,7 +18,7 @@ public record SectorPos(int level, Vec3i levelCoords) implements Hashable {
 	}
 
 	public Vec3 minBound() {
-		return this.levelCoords.mul(1 << this.level).lowerCorner().mul(width());
+		return this.levelCoords.lowerCorner().mul(width());
 	}
 
 	public Vec3 maxBound() {

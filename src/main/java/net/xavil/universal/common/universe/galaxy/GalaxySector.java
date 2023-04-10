@@ -13,7 +13,7 @@ import net.xavil.util.math.Vec3i;
 
 public final class GalaxySector {
 
-	public static final int ROOT_LEVEL = 8;
+	public static final int ROOT_LEVEL = 7; // 0 -> 7, resulting in 8 total levels
 	public static final double BASE_SIZE_Tm = 10.0 / Units.ly_PER_Tm;
 	public static final double ROOT_SIZE_Tm = sizeForLevel(ROOT_LEVEL);
 
@@ -183,11 +183,14 @@ public final class GalaxySector {
 			return this.weakReferenceCount == 0;
 
 		if (pos.level() == this.level) {
-			Assert.isTrue(this.referenceCount > 0);
-			setGenerationStarted(false);
-			setGenerationFinished(false);
-			if (--this.referenceCount == 0)
-				this.initialElements = null;
+			if (this.referenceCount > 0) {
+				setGenerationStarted(false);
+				setGenerationFinished(false);
+				if (--this.referenceCount == 0)
+					this.initialElements = null;
+			} else {
+				Mod.LOGGER.error("tried to unload a sector with a reference count of 0.");
+			}
 		}
 
 		boolean mayUnload = true;

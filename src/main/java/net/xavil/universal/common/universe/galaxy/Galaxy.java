@@ -19,6 +19,7 @@ import net.xavil.util.Option;
 import net.xavil.util.Disposable;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.ImmutableList;
+import net.xavil.util.math.Interval;
 
 public class Galaxy {
 
@@ -42,7 +43,7 @@ public class Galaxy {
 		this.info = info;
 		this.densityFields = densityFields;
 
-		// addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
+		addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
 	}
 
 	public void addGenerationLayer(GalaxyGenerationLayer layer) {
@@ -66,7 +67,9 @@ public class Galaxy {
 
 	public ImmutableList<GalaxySector.InitialElement> generateSectorElements(SectorPos pos) {
 		final var random = new Random(sectorSeed(pos));
-		final var ctx = new GalaxyGenerationLayer.Context(this, random, 1.0 / (1 << pos.level()), pos);
+
+		final var starFactor = 1.0 / Math.pow(1 << pos.level(), 3.0);
+		final var ctx = new GalaxyGenerationLayer.Context(this, random, starFactor, pos, new Interval(0, 1));
 
 		final var elements = new Vector<GalaxySector.InitialElement>();
 		for (int i = 0; i < this.generationLayers.size(); ++i) {

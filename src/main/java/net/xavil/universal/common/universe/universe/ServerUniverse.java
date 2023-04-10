@@ -58,8 +58,8 @@ public final class ServerUniverse extends Universe {
 	}
 
 	@Override
-	public void tick(ProfilerFiller profiler) {
-		super.tick(profiler);
+	public void tick(ProfilerFiller profiler, boolean tickTime) {
+		super.tick(profiler, tickTime);
 		if (this.celestialTimeTicks % 200 == 0) {
 			var syncPacket = new ClientboundSyncCelestialTimePacket(this.celestialTimeTicks);
 			this.server.getPlayerList().broadcastAll(syncPacket);

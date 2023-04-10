@@ -29,9 +29,9 @@ public class GalaxyRenderingContext {
 	private void buildGalaxyPoints(DensityFields densityFields) {
 		var random = new Random();
 
-		var volumeMin = Vec3.from(-densityFields.galaxyRadius, -densityFields.galaxyRadius,
+		var volumeMin = Vec3.from(-densityFields.galaxyRadius, -densityFields.galaxyRadius * 0.25,
 				-densityFields.galaxyRadius);
-		var volumeMax = Vec3.from(densityFields.galaxyRadius, densityFields.galaxyRadius, densityFields.galaxyRadius);
+		var volumeMax = Vec3.from(densityFields.galaxyRadius, densityFields.galaxyRadius * 0.25, densityFields.galaxyRadius);
 
 		this.galaxyPoints = new Octree<Double>(volumeMin, volumeMax);
 
@@ -40,9 +40,9 @@ public class GalaxyRenderingContext {
 		int successfulPlacements = 0;
 		double highestSeenDensity = Double.NEGATIVE_INFINITY;
 		double lowestSeenDensity = Double.POSITIVE_INFINITY;
-		var maxDensity = 2e17 * attemptCount / aabbVolume(volumeMin, volumeMax);
+		var maxDensity = 1e18 * attemptCount / aabbVolume(volumeMin, volumeMax);
 		for (var i = 0; i < attemptCount; ++i) {
-			if (successfulPlacements > 10000)
+			if (successfulPlacements > 20000)
 				break;
 
 			var pos = Vec3.random(random, volumeMin, volumeMax);
@@ -81,7 +81,9 @@ public class GalaxyRenderingContext {
 
 	public void enumerate(PointConsumer consumer) {
 		this.galaxyPoints.enumerateElements(elem -> {
-			double s = 6e6 * (elem.value / 5.0);
+			double s = 2e6 * (elem.value / 5.0);
+			if (s < 5e5) s = 5e5;
+			if (s > 3e6) s = 3e6;
 			consumer.accept(elem.pos, s);
 		});
 	}

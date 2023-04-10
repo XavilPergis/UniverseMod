@@ -3,6 +3,7 @@ package net.xavil.universal.common.universe.galaxy;
 import java.util.Random;
 
 import net.xavil.universal.common.universe.system.StarSystem;
+import net.xavil.util.math.Interval;
 import net.xavil.util.math.Vec3;
 
 public abstract class GalaxyGenerationLayer {
@@ -18,13 +19,15 @@ public abstract class GalaxyGenerationLayer {
 	public static final class Context {
 		public final Galaxy galaxy;
 		public final Random random;
-		public final double starCountFactor;
 		public final SectorPos pos;
 		public final int level;
 		public final Vec3 volumeMin;
 		public final Vec3 volumeMax;
+		public final double starCountFactor;
+		public final double minStarMass;
+		public final double maxStarMass;
 
-		public Context(Galaxy galaxy, Random random, double starCountFactor, SectorPos pos) {
+		public Context(Galaxy galaxy, Random random, double starCountFactor, SectorPos pos, Interval starMassInterval) {
 			this.galaxy = galaxy;
 			this.random = random;
 			this.starCountFactor = starCountFactor;
@@ -32,7 +35,8 @@ public abstract class GalaxyGenerationLayer {
 			this.level = pos.level();
 			this.volumeMin = pos.minBound();
 			this.volumeMax = pos.maxBound();
-
+			this.minStarMass = starMassInterval.lower();
+			this.maxStarMass = starMassInterval.higher();
 		}
 	}
 

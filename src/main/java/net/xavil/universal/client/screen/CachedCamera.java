@@ -32,13 +32,19 @@ public class CachedCamera<T> {
 		this.viewMatrix.m00 = (float) right.x;
 		this.viewMatrix.m10 = (float) right.y;
 		this.viewMatrix.m20 = (float) right.z;
+		this.viewMatrix.m30 = 0.0f;
 		this.viewMatrix.m01 = (float) up.x;
 		this.viewMatrix.m11 = (float) up.y;
 		this.viewMatrix.m21 = (float) up.z;
+		this.viewMatrix.m31 = 0.0f;
 		this.viewMatrix.m02 = (float) forward.x;
 		this.viewMatrix.m12 = (float) forward.y;
 		this.viewMatrix.m22 = (float) forward.z;
-		this.viewMatrix.multiplyWithTranslation((float) pos.x, (float) pos.y, (float) pos.z);
+		this.viewMatrix.m32 = 0.0f;
+		this.viewMatrix.m03 = (float) pos.x;
+		this.viewMatrix.m13 = (float) pos.y;
+		this.viewMatrix.m23 = (float) pos.z;
+		this.viewMatrix.m33 = 1.0f;
 
 		this.viewProjectionMatrix = this.projectionMatrix.copy();
 		this.viewProjectionMatrix.multiply(this.viewMatrix);
@@ -72,6 +78,13 @@ public class CachedCamera<T> {
 	}
 
 	public Vec3 projectWorldSpace(Vec3 posWorld) {
+		// final var posCam = posWorld.sub(this.pos);
+		// final Vec3 i = this.right, j = this.up, k = this.forward;
+		// final var x = posCam.x * i.x + posCam.y * j.x + posCam.z * k.x;
+		// final var y = posCam.x * i.y + posCam.y * j.y + posCam.z * k.y;
+		// final var z = posCam.x * i.z + posCam.y * j.z + posCam.z * k.z;
+		// final var posView = Vec3.from(x, y, z);
+		// return posView.transformBy(this.projectionMatrix);
 		return posWorld.transformBy(this.viewProjectionMatrix);
 	}
 

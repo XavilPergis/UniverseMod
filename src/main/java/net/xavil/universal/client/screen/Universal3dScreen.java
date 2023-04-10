@@ -14,7 +14,7 @@ import net.xavil.util.math.Vec3;
 public abstract class Universal3dScreen extends UniversalScreen {
 
 	protected boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false,
-			isRightPressed = false;
+			isRightPressed = false, isUpPressed = false, isDownPressed = false;
 	public final OrbitCamera camera;
 	public double scrollMultiplier = 1.2;
 	public double scrollMin, scrollMax;
@@ -44,8 +44,11 @@ public abstract class Universal3dScreen extends UniversalScreen {
 			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
 			var offset = Vec3.from(dx, 0, realDy).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
 			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
+			onMoved(offset);
 		} else if (button == 1) {
-			this.camera.focus.setTarget(this.camera.focus.getTarget().add(0, dragScale * dy, 0));
+			var offset = Vec3.from(0, dragScale * dy, 0);
+			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
+			onMoved(offset);
 		} else if (button == 0) {
 			this.camera.yaw.setTarget(this.camera.yaw.getTarget() + dx * 0.005);
 			var desiredPitch = this.camera.pitch.getTarget() + dy * 0.005;
@@ -97,6 +100,12 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		} else if (keyCode == GLFW.GLFW_KEY_D) {
 			this.isRightPressed = true;
 			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_Q) {
+			this.isDownPressed = true;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_E) {
+			this.isUpPressed = true;
+			return true;
 		}
 
 		return false;
@@ -120,6 +129,12 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		} else if (keyCode == GLFW.GLFW_KEY_D) {
 			this.isRightPressed = false;
 			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_Q) {
+			this.isDownPressed = false;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_E) {
+			this.isUpPressed = false;
+			return true;
 		}
 
 		return false;
@@ -130,21 +145,24 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		super.tick();
 		this.camera.tick();
 
-		double forward = 0, right = 0;
+		double forward = 0, right = 0, up = 0;
 		double speed = 25;
 		forward += this.isForwardPressed ? speed : 0;
 		forward += this.isBackwardPressed ? -speed : 0;
 		right += this.isLeftPressed ? speed : 0;
 		right += this.isRightPressed ? -speed : 0;
+		up += this.isUpPressed ? speed : 0;
+		up += this.isDownPressed ? -speed : 0;
 
 		// TODO: consolidate with the logic in mouseDragged()?
 		final var partialTick = this.client.getFrameTime();
 		final var dragScale = this.camera.scale.get(partialTick) * this.camera.renderScaleFactor * 0.0035;
 
-		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
+		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).add(0, up, 0)
+				.mul(dragScale);
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
 
-		if (forward != 0 || right != 0) {
+		if (forward != 0 || right != 0 || up != 0) {
 			onMoved(offset);
 		}
 	}
@@ -162,7 +180,8 @@ public abstract class Universal3dScreen extends UniversalScreen {
 
 	public abstract OrbitCamera.Cached setupCamera(float partialTick);
 
-	public void onMoved(Vec3 displacement) {}
+	public void onMoved(Vec3 displacement) {
+	}
 
 	public void render3d(OrbitCamera.Cached camera, float partialTick) {
 	}

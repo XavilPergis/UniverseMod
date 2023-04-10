@@ -5,6 +5,7 @@ import java.util.function.Consumer;
 
 import net.minecraft.util.profiling.InactiveProfiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.Universe;
@@ -94,9 +95,12 @@ public final class SectorManager {
 
 		public void unload(SectorPos pos) {
 			final var sector = this.sector.lookupSubtree(pos);
-			Assert.isTrue(sector != null);
-			synchronized (sector) {
-				this.waitingFutures.remove(pos).ifSome(future -> future.cancel(true));
+			if (sector == null) {
+				Mod.LOGGER.error("tried to remove null sector {}", pos);
+			} else {
+				synchronized (sector) {
+					this.waitingFutures.remove(pos).ifSome(future -> future.cancel(true));
+				}
 			}
 			if (this.sector.unload(pos)) {
 				sectorMap.remove(pos.rootCoords());
@@ -319,7 +323,7 @@ public final class SectorManager {
 	public void enumerate(SectorTicket ticket, Consumer<GalaxySector> sectorConsumer) {
 		ticket.info.enumerateAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
 			final var sector = slot.sector.lookupSubtree(pos);
-			if (sector.isComplete())
+			if (sector != null && sector.isComplete())
 				sectorConsumer.accept(sector);
 		}));
 	}

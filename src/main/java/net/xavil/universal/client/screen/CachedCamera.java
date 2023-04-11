@@ -1,10 +1,14 @@
 package net.xavil.universal.client.screen;
 
+import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Matrix3f;
 import com.mojang.math.Matrix4f;
+import com.mojang.math.Vector4f;
 
+import net.xavil.universal.Mod;
 import net.xavil.util.math.Quat;
+import net.xavil.util.math.Ray;
 import net.xavil.util.math.Vec3;
 
 public class CachedCamera<T> {
@@ -46,6 +50,8 @@ public class CachedCamera<T> {
 		this.viewMatrix.m23 = (float) pos.z;
 		this.viewMatrix.m33 = 1.0f;
 
+		// this.viewMatrix.invert();
+
 		this.viewProjectionMatrix = this.projectionMatrix.copy();
 		this.viewProjectionMatrix.multiply(this.viewMatrix);
 	}
@@ -86,6 +92,20 @@ public class CachedCamera<T> {
 		// final var posView = Vec3.from(x, y, z);
 		// return posView.transformBy(this.projectionMatrix);
 		return posWorld.transformBy(this.viewProjectionMatrix);
+	}
+
+	public Ray rayForPicking(Window window, double mouseX, double mouseY) {
+		final var x = (2.0 * mouseX) / window.getGuiScaledWidth() - 1.0;
+		final var y = 1.0 - (2.0 * mouseY) / window.getGuiScaledHeight();
+
+		var ray = new Ray(Vec3.ZERO, Vec3.from(x, y, 1));
+		final var inverseProj = this.projectionMatrix.copy();
+		inverseProj.invert();
+		final var inverseView = this.viewMatrix.copy();
+		inverseView.invert();
+		ray = ray.transformBy(inverseProj);
+		ray = ray.transformBy(inverseView);
+		return ray;
 	}
 
 	public static <T> CachedCamera<T> create(T camera, Vec3 pos, float xRot, float yRot, Quat prependedRotation, Matrix4f projectionMatrix) {

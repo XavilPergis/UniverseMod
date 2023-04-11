@@ -17,7 +17,7 @@ import net.xavil.util.math.Vec3;
 
 public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
-	public static final int MAXIMUM_STARS_PER_SECTOR = 10000;
+	public static final int MAXIMUM_STARS_PER_SECTOR = 2000;
 	public static final int MAXIMUM_STAR_PLACEMENT_ATTEMPTS = 16;
 	public static final int DENSITY_SAMPLE_COUNT = 100;
 
@@ -39,7 +39,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		var sectorDensitySum = 0.0;
 		for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
 			final var samplePos = Vec3.random(ctx.random, ctx.volumeMin, ctx.volumeMax);
-			sectorDensitySum += this.densityFields.stellarDensity.sampleDensity(samplePos) * 0.05;
+			sectorDensitySum += this.densityFields.stellarDensity.sample(samplePos) * 0.05;
 		}
 
 		final var averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
@@ -74,7 +74,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			// "migrate" towards areas of higher densities.
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
 				final var systemPos = Vec3.random(ctx.random, ctx.volumeMin, ctx.volumeMax);
-				final var density = this.densityFields.stellarDensity.sampleDensity(systemPos) * 0.05;
+				final var density = this.densityFields.stellarDensity.sample(systemPos) * 0.05;
 
 				if (density < ctx.random.nextDouble(0.0, averageSectorDensity))
 					continue;
@@ -114,7 +114,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	private StarSystem.Info generateStarSystemInfo(Vec3 systemPos, long seed) {
 		var rng = Rng.wrap(new Random(seed));
 
-		var minSystemAgeFactor = Math.min(1, this.densityFields.minAgeFactor.sampleDensity(systemPos));
+		var minSystemAgeFactor = Math.min(1, this.densityFields.minAgeFactor.sample(systemPos));
 		var systemAgeFactor = Math.pow(rng.uniformDouble(), 2);
 		var systemAgeMyr = this.parentGalaxy.info.ageMya * Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
 

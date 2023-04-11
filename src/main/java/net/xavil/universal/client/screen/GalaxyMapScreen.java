@@ -31,16 +31,20 @@ import net.xavil.universal.common.universe.galaxy.GalaxySector;
 import net.xavil.universal.common.universe.galaxy.SectorPos;
 import net.xavil.universal.common.universe.galaxy.SectorTicket;
 import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
+import net.xavil.universal.common.universe.galaxy.SystemTicket;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
+import net.xavil.universal.common.universe.system.StarSystem.Info;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
 import net.xavil.universal.common.universe.universe.GalaxyTicket;
 import net.xavil.universal.common.universe.universe.Universe;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Disposable;
+import net.xavil.util.Option;
 import net.xavil.util.math.Color;
+import net.xavil.util.math.Ray;
 import net.xavil.util.math.Vec3;
 
 public class GalaxyMapScreen extends Universal3dScreen {
@@ -60,12 +64,14 @@ public class GalaxyMapScreen extends Universal3dScreen {
 	private final GalaxyRenderingContext galaxyRenderingContext;
 	private final GalaxyTicket galaxyTicket;
 	private final SectorTicket cameraTicket;
+	private final SystemTicket selectedSystemTicket;
 
 	private GalaxySectorId selectedSystemId;
+	private Ray lastPickRay = null;
 
 	public GalaxyMapScreen(@Nullable Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
 		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12, TM_PER_UNIT),
-				1e1, 1e5);
+				1e2, 1e5);
 
 		final var tempDisposer = new Disposable.Multi();
 
@@ -88,6 +94,8 @@ public class GalaxyMapScreen extends Universal3dScreen {
 		this.camera.focus.set(initialPos);
 		this.cameraTicket = galaxy.sectorManager.createSectorTicket(this.disposer, SectorTicketInfo.visual(initialPos));
 
+		this.selectedSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, systemToFocus);
+
 		if (initial.isSome())
 			this.selectedSystemId = systemToFocus;
 
@@ -97,7 +105,56 @@ public class GalaxyMapScreen extends Universal3dScreen {
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
 		if (ClientDebugFeatures.SECTOR_TICKET_AROUND_FOCUS.isEnabled())
 			return camera.focus;
-		return camera.pos.mul(TM_PER_UNIT);
+		return camera.pos.mul(TM_PER_UNIT).add(camera.forward.mul(GalaxySector.BASE_SIZE_Tm));
+	}
+
+	@Override
+	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		final var wasDragging = this.isDragging();
+		if (super.mouseReleased(mouseX, mouseY, button))
+			return true;
+
+		if (!wasDragging && button == 0) {
+			getLastCamera().ifSome(camera -> {
+				final var ray = camera.rayForPicking(this.client.getWindow(), mouseX, mouseY);
+				pickElement(ray).ifSome(id -> this.selectedSystemId = id);
+				this.lastPickRay = ray;
+			});
+			return true;
+		}
+
+		return false;
+	}
+
+	private Option<GalaxySectorId> pickElement(Ray ray) {
+		// @formatter:off
+		final var closest = new Object() {
+			double    distance    = Double.POSITIVE_INFINITY;
+			int       sectorIndex = -1;
+			SectorPos sectorPos   = null;
+		};
+		// @formatter:on
+		this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
+			final var min = sector.pos().minBound();
+			final var max = sector.pos().maxBound();
+			if (!ray.intersectAABB(min, max))
+				return;
+			sector.initialElements.iter().enumerate().forEach(elem -> {
+				final var elemPos = elem.item.pos().div(TM_PER_UNIT);
+				final var distance = ray.origin().distanceTo(elemPos);
+				if (ray.intersectsSphere(elemPos, 0.05 * distance))
+					return;
+				if (distance < closest.distance) {
+					closest.distance = distance;
+					closest.sectorPos = sector.pos();
+					closest.sectorIndex = elem.index;
+				}
+			});
+		});
+
+		if (closest.sectorIndex == -1)
+			return Option.none();
+		return Option.some(GalaxySectorId.from(closest.sectorPos, closest.sectorIndex));
 	}
 
 	@Override
@@ -184,21 +241,30 @@ public class GalaxyMapScreen extends Universal3dScreen {
 
 		final var builder = BufferRenderer.immediateBuilder();
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
-			final var min = sector.pos().minBound().div(TM_PER_UNIT);
-			final var max = sector.pos().maxBound().div(TM_PER_UNIT);
-			// if (sector.pos().level() == 0) {
-			RenderHelper.addAxisAlignedBox(builder, camera, min, max, SECTOR_DEBUG_LINE_COLOR);
-			// }
-		});
-		builder.end();
 
+		if (ClientDebugFeatures.SHOW_SECTOR_BOUNDARIES.isEnabled()) {
+			this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
+				final var min = sector.pos().minBound().div(TM_PER_UNIT);
+				final var max = sector.pos().maxBound().div(TM_PER_UNIT);
+				if (!sector.initialElements.isEmpty())
+					RenderHelper.addAxisAlignedBox(builder, camera, min, max, SECTOR_DEBUG_LINE_COLOR);
+			});
+		}
+
+		if (this.lastPickRay != null) {
+			RenderHelper.addLine(builder, camera, this.lastPickRay.origin(), this.lastPickRay.stepBy(10000),
+					Color.CYAN, Color.MAGENTA);
+		}
+		// RenderHelper.addLine(builder, camera, pickingRay.origin(), Vec3.ZERO,
+		// Color.MAGENTA, Color.CYAN);
+
+		builder.end();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
-		RenderSystem.lineWidth(1.0f);
+		RenderSystem.lineWidth(2.0f);
 		builder.draw(GameRenderer.getRendertypeLinesShader());
 	}
 
@@ -229,7 +295,7 @@ public class GalaxyMapScreen extends Universal3dScreen {
 			RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 			RenderSystem.depthMask(false);
 			RenderSystem.enableDepthTest();
-			RenderSystem.disableCull();
+			RenderSystem.enableCull();
 			RenderSystem.enableBlend();
 			builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 
@@ -253,7 +319,6 @@ public class GalaxyMapScreen extends Universal3dScreen {
 		final var builder = BufferRenderer.immediateBuilder();
 		final var batcher = new BillboardBatcher(builder, 10000, camera);
 
-
 		final var viewCenter = getStarViewCenterPos(camera);
 		// builder.begin(VertexFormat.Mode.QUADS,
 		// DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -262,7 +327,7 @@ public class GalaxyMapScreen extends Universal3dScreen {
 			// final var min = sector.pos().minBound().div(TM_PER_UNIT);
 			// final var max = sector.pos().maxBound().div(TM_PER_UNIT);
 			// if (!isAabbInFrustum(camera, min, max))
-			// 	return;
+			// return;
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
 			sector.initialElements.forEach(elem -> {
 				if (elem.pos().distanceTo(viewCenter) > levelSize)
@@ -355,6 +420,19 @@ public class GalaxyMapScreen extends Universal3dScreen {
 	// }
 
 	@Override
+	public void tick() {
+		super.tick();
+		if (this.selectedSystemId != null)
+			this.selectedSystemTicket.id = this.selectedSystemId;
+		getLastCamera().ifSome(camera -> {
+			if (this.cameraTicket.info instanceof SectorTicketInfo.Multi multi) {
+				// multi.centerPos = camera.pos.mul(TM_PER_UNIT);
+				multi.centerPos = getStarViewCenterPos(camera);
+			}
+		});
+	}
+
+	@Override
 	public Cached setupCamera(float partialTick) {
 		return this.camera.cached(partialTick);
 	}
@@ -371,7 +449,7 @@ public class GalaxyMapScreen extends Universal3dScreen {
 
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
 			RenderHelper.addBillboard(builder, camera, new PoseStack(), pos.div(TM_PER_UNIT), size / TM_PER_UNIT,
-					Color.WHITE.withA(0.20));
+					Color.WHITE.withA(0.18));
 		});
 
 		builder.end();
@@ -382,18 +460,23 @@ public class GalaxyMapScreen extends Universal3dScreen {
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
 		RenderSystem.enableDepthTest();
-		RenderSystem.disableCull();
+		RenderSystem.enableCull();
 		RenderSystem.enableBlend();
 		builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
 
-		if (this.cameraTicket.info instanceof SectorTicketInfo.Multi multi) {
-			// multi.centerPos = camera.pos.mul(TM_PER_UNIT);
-			multi.centerPos = getStarViewCenterPos(camera);
-		}
-
 		renderStars(camera, partialTick);
-		if (ClientDebugFeatures.SHOW_SECTOR_BOUNDARIES.isEnabled()) {
-			renderDebugLines(camera, partialTick);
+		renderDebugLines(camera, partialTick);
+
+		if (this.selectedSystemId != null) {
+			// final var systemSector = this.selectedSystemId;
+			// final var sectorPos = systemSector.levelCoords();
+			this.galaxy.sectorManager.getInitial(this.selectedSystemId).ifSome(info -> {
+				final var pos = info.pos().div(TM_PER_UNIT);
+				final var size = 0.05 * camera.pos.distanceTo(pos);
+				RenderHelper.renderBillboard(builder, camera, new PoseStack(), pos, size,
+						Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION,
+						GameRenderer.getPositionColorTexShader());
+			});
 		}
 		// if (camera.scale < 300) {
 		// }
@@ -425,17 +508,22 @@ public class GalaxyMapScreen extends Universal3dScreen {
 			systemId += systemSector.elementIndex();
 			// @formatter:on
 
-			final var system = this.galaxy.sectorManager.getInitial(this.selectedSystemId).unwrap().info();
+			final var holder = new Object() {
+				int height = 10;
 
-			int h = 10;
-			this.client.font.draw(poseStack, "System " + systemId, 10, h, 0xffffffff);
-			h += this.client.font.lineHeight;
-			this.client.font.draw(poseStack, system.name, 10, h, 0xffffffff);
-			h += this.client.font.lineHeight;
-			h += 10;
+				void emit(String text, int color) {
+					client.font.draw(poseStack, text, 10, this.height, 0xffffffff);
+					this.height += client.font.lineHeight;
+				}
+			};
 
-			this.client.font.draw(poseStack, describeStar(system.primaryStar), 10, h, 0xffffffff);
-			h += this.client.font.lineHeight;
+			holder.emit("System " + systemId, 0xffffffff);
+			this.galaxy.sectorManager.getInitial(this.selectedSystemId).ifSome(info -> {
+				final var system = info.info();
+				holder.emit(system.name, 0xffffffff);
+				holder.height += 10;
+				holder.emit(describeStar(system.primaryStar), 0xffffffff);
+			});
 		}
 
 	}

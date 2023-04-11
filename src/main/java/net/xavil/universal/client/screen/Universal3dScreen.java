@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.xavil.util.Option;
 import net.xavil.util.math.Vec3;
 
 public abstract class Universal3dScreen extends UniversalScreen {
@@ -18,6 +19,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public final OrbitCamera camera;
 	public double scrollMultiplier = 1.2;
 	public double scrollMin, scrollMax;
+	private OrbitCamera.Cached lastCamera = null;
 
 	protected Universal3dScreen(Component component, Screen previousScreen, OrbitCamera camera,
 			double scrollMin, double scrollMax) {
@@ -36,6 +38,8 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
 		if (super.mouseDragged(mouseX, mouseY, button, dx, dy))
 			return true;
+		
+		this.setDragging(true);
 
 		final var partialTick = this.client.getFrameTime();
 		final var dragScale = this.camera.scale.get(partialTick) * this.camera.renderScaleFactor * 0.0035;
@@ -189,11 +193,16 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public void render2d(PoseStack poseStack, float partialTick) {
 	}
 
+	public Option<OrbitCamera.Cached> getLastCamera() {
+		return Option.fromNullable(this.lastCamera);
+	}
+
 	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
 		final var partialTick = this.client.getFrameTime();
 		drawBackground(poseStack, mouseX, mouseY, partialTick);
 		final var camera = setupCamera(partialTick);
+		this.lastCamera = camera;
 		final var prevMatrices = camera.setupRenderMatrices();
 		render3d(camera, partialTick);
 		prevMatrices.restore();

@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
+import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
@@ -105,16 +106,29 @@ public final class RenderHelper {
 				camera.toCameraSpace(pos), d, 0, color);
 	}
 
+	public static void renderBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
+		Vec3 center, double scale, Color color, ResourceLocation texture, ShaderInstance shader) {
+		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		addBillboard(builder, camera, poseStack, center, scale, color);
+		builder.end();
+		CLIENT.getTextureManager().getTexture(texture).setFilter(true, false);
+		RenderSystem.setShaderTexture(0, texture);
+		RenderSystem.enableBlend();
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		RenderSystem.depthMask(false);
+		RenderSystem.enableDepthTest();
+		RenderSystem.disableCull();
+		builder.draw(shader);
+	}
+
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
-			Vec3 center,
-			double scale, Color color) {
+			Vec3 center, double scale, Color color) {
 		addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
 				camera.toCameraSpace(center), scale, 0, color);
 	}
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
-			Vec3 up,
-			Vec3 right, Vec3 center, double scale, double zOffset, Color color) {
+			Vec3 up, Vec3 right, Vec3 center, double scale, double zOffset, Color color) {
 		addBillboardCamspace(builder, poseStack, camera.toCameraSpace(up), camera.toCameraSpace(right),
 				camera.toCameraSpace(center), scale, zOffset, color);
 	}
@@ -345,7 +359,8 @@ public final class RenderHelper {
 				.endVertex();
 	}
 
-	public static void addAxisAlignedBox(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 p0, Vec3 p1, Color color) {
+	public static void addAxisAlignedBox(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 p0, Vec3 p1,
+			Color color) {
 		p0 = camera.toCameraSpace(p0);
 		p1 = camera.toCameraSpace(p1);
 		double lx = p0.x < p1.x ? p0.x : p1.x;

@@ -46,7 +46,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			final var samplePos = Vec3.random(random,
 					Vec3.broadcast(-densityFields.galaxyRadius),
 					Vec3.broadcast(densityFields.galaxyRadius));
-			final var density = densityFields.stellarDensity.sampleDensity(samplePos);
+			final var density = densityFields.stellarDensity.sample(samplePos);
 			if (STARTING_LOCATION_ACCEPTABLE_DENSITY.contains(density)) {
 				this.startingSystemPos = samplePos;
 				this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, samplePos);

@@ -51,6 +51,20 @@ public final class Vec3 implements Hashable {
 		return new Vec3(intVec.x, intVec.y, intVec.z);
 	}
 
+	public static Vec3 min(Vec3 a, Vec3 b) {
+		return new Vec3(
+				Math.min(a.x, b.x),
+				Math.min(a.y, b.y),
+				Math.min(a.z, b.z));
+	}
+
+	public static Vec3 max(Vec3 a, Vec3 b) {
+		return new Vec3(
+				Math.max(a.x, b.x),
+				Math.max(a.y, b.y),
+				Math.max(a.z, b.z));
+	}
+
 	public static Vec3 random(Random random, Vec3 min, Vec3 max) {
 		var x = random.nextDouble(min.x, max.x);
 		var y = random.nextDouble(min.y, max.y);
@@ -102,6 +116,14 @@ public final class Vec3 implements Hashable {
 		return new Vec3(-x, -y, -z);
 	}
 
+	public Vec3 recip() {
+		return new Vec3(1.0 / x, 1.0 / y, 1.0 / z);
+	}
+
+	public Vec3 recip(double n) {
+		return new Vec3(n / x, n / y, n / z);
+	}
+
 	public Vec3 abs() {
 		return new Vec3(Math.abs(x), Math.abs(y), Math.abs(z));
 	}
@@ -146,7 +168,11 @@ public final class Vec3 implements Hashable {
 	}
 
 	public Vec3 transformBy(Matrix4f matrix) {
-		var vec = new Vector4f((float) this.x, (float) this.y, (float) this.z, 1f);
+		return transformBy(matrix, 1);
+	}
+
+	public Vec3 transformBy(Matrix4f matrix, double w) {
+		var vec = new Vector4f((float) this.x, (float) this.y, (float) this.z, (float) w);
 		vec.transform(matrix);
 		return new Vec3(vec.x() / vec.w(), vec.y() / vec.w(), vec.z() / vec.w());
 	}

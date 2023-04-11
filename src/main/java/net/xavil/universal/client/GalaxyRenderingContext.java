@@ -40,7 +40,7 @@ public class GalaxyRenderingContext {
 		int successfulPlacements = 0;
 		double highestSeenDensity = Double.NEGATIVE_INFINITY;
 		double lowestSeenDensity = Double.POSITIVE_INFINITY;
-		var maxDensity = 1e18 * attemptCount / aabbVolume(volumeMin, volumeMax);
+		var maxDensity = 1e21 * attemptCount / aabbVolume(volumeMin, volumeMax);
 		for (var i = 0; i < attemptCount; ++i) {
 			if (successfulPlacements > 20000)
 				break;
@@ -48,7 +48,7 @@ public class GalaxyRenderingContext {
 			var pos = Vec3.random(random, volumeMin, volumeMax);
 
 			// density is specified in Tm^-3 (ie, number of stars per cubic terameter)
-			var density = densityFields.stellarDensity.sampleDensity(pos)
+			var density = densityFields.stellarDensity.sample(pos)
 					/ (Units.ly_PER_Tm * Units.ly_PER_Tm * Units.ly_PER_Tm);
 
 			if (density > highestSeenDensity)
@@ -81,9 +81,9 @@ public class GalaxyRenderingContext {
 
 	public void enumerate(PointConsumer consumer) {
 		this.galaxyPoints.enumerateElements(elem -> {
-			double s = 2e6 * (elem.value / 5.0);
+			double s = 4e7 * (elem.value / 5.0);
 			if (s < 5e5) s = 5e5;
-			if (s > 3e6) s = 3e6;
+			if (s > 3e7) s = 3e7;
 			consumer.accept(elem.pos, s);
 		});
 	}

@@ -112,8 +112,9 @@ public final class SectorManager {
 		public final GalaxySectorId id;
 		public int referenceCount = 0;
 
+		public boolean generationFailed = false;
 		public StarSystem system;
-		public CompletableFuture<StarSystem> waitingFuture = null;
+		public CompletableFuture<Option<StarSystem>> waitingFuture = null;
 
 		public SystemSlot(GalaxySectorId id) {
 			this.id = id;
@@ -121,7 +122,7 @@ public final class SectorManager {
 
 		public void load() {
 			this.referenceCount += 1;
-			if (this.system != null || this.waitingFuture != null)
+			if (this.system != null || this.waitingFuture != null || this.generationFailed)
 				return;
 			final var sectorSlot = sectorMap.get(this.id.sectorPos().rootCoords()).unwrap();
 			final var sectorFuture = sectorSlot.getSectorFuture(this.id.sectorPos());
@@ -187,13 +188,13 @@ public final class SectorManager {
 		}
 		final var system = systemSlot.waitingFuture.join();
 		applyFinished();
-		return Option.some(system);
+		return system;
 	}
 
 	public void tick(ProfilerFiller profiler) {
 		tickGeneration(profiler);
-		final var time = this.galaxy.parentUniverse.getCelestialTime(0);
-		this.systemMap.values().forEach(slot -> slot.system.rootNode.updatePositions(time));
+		// final var time = this.galaxy.parentUniverse.getCelestialTime(0);
+		// this.systemMap.values().forEach(slot -> slot.system.rootNode.updatePositions(time));
 	}
 
 	public void applyTickets(ProfilerFiller profiler) {
@@ -250,14 +251,28 @@ public final class SectorManager {
 		}
 		for (final var slot : this.systemMap.values().iterable()) {
 			if (slot.waitingFuture != null && slot.waitingFuture.isDone()) {
-				slot.system = slot.waitingFuture.join();
+				final var systemOpt = slot.waitingFuture.join();
+				if (systemOpt.isNone()) {
+					Mod.LOGGER.warn("failed to generate system {}", slot.id);
+					slot.generationFailed = true;
+				} else {
+					slot.system = systemOpt.unwrap();
+				}
 				slot.waitingFuture = null;
 			}
 		}
 	}
 
-	private StarSystem generateSystem(GalaxySector sector, GalaxySectorId id) {
-		return this.galaxy.generateFullSystem(sector, sector.lookupInitial(id.elementIndex()));
+	private Option<StarSystem> generateSystem(GalaxySector sector, GalaxySectorId id) {
+		if (id.elementIndex() >= sector.initialElements.size())
+			return Option.none();
+		try {
+			return Option.some(this.galaxy.generateFullSystem(sector, sector.initialElements.get(id.elementIndex())));
+		} catch (Throwable t) {
+			Mod.LOGGER.error("failed to generate system because of an exception!");
+			t.printStackTrace();
+		}
+		return Option.none();
 	}
 
 	public boolean isLoaded(SectorPos pos) {

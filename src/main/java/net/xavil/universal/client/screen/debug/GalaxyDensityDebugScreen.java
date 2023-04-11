@@ -31,7 +31,7 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 
 	public GalaxyDensityDebugScreen(Screen previousScreen, Galaxy galaxy) {
 		super(new TranslatableComponent("narrator.screen.debug.galaxy_density"), previousScreen,
-				new OrbitCamera(1e12, 1), 3e3, 1e8);
+				new OrbitCamera(1e12, 1), 3e3, 1e9);
 		this.galaxy = galaxy;
 	}
 
@@ -83,7 +83,7 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 		int successfulPlacements = 0;
 		double highestSeenDensity = Double.NEGATIVE_INFINITY;
 		double lowestSeenDensity = Double.POSITIVE_INFINITY;
-		var maxDensity = 4e17 * attemptCount / aabbVolume(volumeMin, volumeMax);
+		var maxDensity = 1e21 * attemptCount / aabbVolume(volumeMin, volumeMax);
 		for (var i = 0; i < attemptCount; ++i) {
 			if (successfulPlacements >= 30000)
 				break;
@@ -91,7 +91,7 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 			var pos = Vec3.random(random, volumeMin, volumeMax);
 
 			// density is specified in Tm^-3 (ie, number of stars per cubic terameter)
-			var density = densityFields.stellarDensity.sampleDensity(pos)
+			var density = densityFields.stellarDensity.sample(pos)
 					/ (Units.ly_PER_Tm * Units.ly_PER_Tm * Units.ly_PER_Tm);
 
 			if (density > highestSeenDensity)
@@ -124,9 +124,11 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 
 		this.galaxyPoints.enumerateElements(elem -> {
 			// var s = 0.2 * camera.pos.distanceTo(elem.pos);
-			// double s = 6e6 * (elem.value / 5.0);
-			double s = 1.0 * (elem.value / 5.0);
-			RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, 1e6, Color.WHITE.withA(s));
+			double s = 4e7 * (elem.value / 5.0);
+			if (s < 5e5) s = 5e5;
+			if (s > 4e7) s = 4e7;
+			// double s = 1.0 * (elem.value / 5.0);
+			RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s, Color.WHITE.withA(0.2));
 		});
 
 		builder.end();

@@ -49,8 +49,7 @@ public class CachedCamera<T> {
 		this.viewMatrix.m13 = (float) pos.y;
 		this.viewMatrix.m23 = (float) pos.z;
 		this.viewMatrix.m33 = 1.0f;
-
-		// this.viewMatrix.invert();
+		this.viewMatrix.invert();
 
 		this.viewProjectionMatrix = this.projectionMatrix.copy();
 		this.viewProjectionMatrix.multiply(this.viewMatrix);
@@ -83,29 +82,28 @@ public class CachedCamera<T> {
 		return posWorld.sub(this.pos);
 	}
 
-	public Vec3 projectWorldSpace(Vec3 posWorld) {
-		// final var posCam = posWorld.sub(this.pos);
-		// final Vec3 i = this.right, j = this.up, k = this.forward;
-		// final var x = posCam.x * i.x + posCam.y * j.x + posCam.z * k.x;
-		// final var y = posCam.x * i.y + posCam.y * j.y + posCam.z * k.y;
-		// final var z = posCam.x * i.z + posCam.y * j.z + posCam.z * k.z;
-		// final var posView = Vec3.from(x, y, z);
-		// return posView.transformBy(this.projectionMatrix);
-		return posWorld.transformBy(this.viewProjectionMatrix);
+	public Vec3 ndcToWorld(Vec3 posWorld) {
+		final var inverseProj = this.projectionMatrix.copy();
+		inverseProj.invert();
+		final var inverseView = this.viewMatrix.copy();
+		var pos = posWorld;
+		inverseView.invert();
+		pos = pos.transformBy(inverseProj);
+		pos = Vec3.from(pos.x, pos.y, -pos.z);
+		pos = pos.transformBy(inverseView);
+		return pos;
 	}
 
 	public Ray rayForPicking(Window window, double mouseX, double mouseY) {
 		final var x = (2.0 * mouseX) / window.getGuiScaledWidth() - 1.0;
 		final var y = 1.0 - (2.0 * mouseY) / window.getGuiScaledHeight();
 
-		var ray = new Ray(Vec3.ZERO, Vec3.from(x, y, 1));
+		var dir = Vec3.from(x, y, -1);
 		final var inverseProj = this.projectionMatrix.copy();
 		inverseProj.invert();
-		final var inverseView = this.viewMatrix.copy();
-		inverseView.invert();
-		ray = ray.transformBy(inverseProj);
-		ray = ray.transformBy(inverseView);
-		return ray;
+		dir = dir.transformBy(inverseProj);
+		dir = this.orientation.inverse().transform(dir);
+		return new Ray(this.pos, dir);
 	}
 
 	public static <T> CachedCamera<T> create(T camera, Vec3 pos, float xRot, float yRot, Quat prependedRotation, Matrix4f projectionMatrix) {

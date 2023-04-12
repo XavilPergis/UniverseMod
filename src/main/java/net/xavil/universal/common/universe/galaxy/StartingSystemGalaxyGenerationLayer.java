@@ -16,7 +16,7 @@ import net.xavil.util.math.Vec3i;
 public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	public static final int STARTING_LOCATION_SAMPLE_ATTEMPTS = 1000;
-	public static final Interval STARTING_LOCATION_ACCEPTABLE_DENSITY = new Interval(0, 2e10);
+	public static final Interval STARTING_LOCATION_ACCEPTABLE_DENSITY = new Interval(0.01, 0.1);
 
 	public final int startingNodeId;
 	public final StarSystem startingSystem;
@@ -47,7 +47,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 					Vec3.broadcast(-densityFields.galaxyRadius),
 					Vec3.broadcast(densityFields.galaxyRadius));
 			final var density = densityFields.stellarDensity.sample(samplePos);
-			if (STARTING_LOCATION_ACCEPTABLE_DENSITY.contains(density)) {
+			if (new Interval(1e-14, 1e-15).contains(density)) {
 				this.startingSystemPos = samplePos;
 				this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, samplePos);
 				Mod.LOGGER.info("placing starting system in sector at {} (in sector {})",
@@ -57,6 +57,9 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		}
 
 		Mod.LOGGER.error("could not find suitable starting system location!");
+		this.startingSystemPos = Vec3.ZERO;
+		this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, this.startingSystemPos);
+
 	}
 
 	private void findElementIndex() {

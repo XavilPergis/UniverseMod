@@ -33,6 +33,7 @@ import net.xavil.universal.common.universe.galaxy.SectorTicket;
 import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.universal.common.universe.galaxy.SystemTicket;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
+import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystem.Info;
@@ -68,6 +69,7 @@ public class GalaxyMapScreen extends Universal3dScreen {
 
 	private GalaxySectorId selectedSystemId;
 	private Ray lastPickRay = null;
+	private Vec3[] frustumPoints = null;
 
 	public GalaxyMapScreen(@Nullable Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
 		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12, TM_PER_UNIT),
@@ -117,7 +119,7 @@ public class GalaxyMapScreen extends Universal3dScreen {
 		if (!wasDragging && button == 0) {
 			getLastCamera().ifSome(camera -> {
 				final var ray = camera.rayForPicking(this.client.getWindow(), mouseX, mouseY);
-				pickElement(ray).ifSome(id -> this.selectedSystemId = id);
+				pickElement(camera, ray).ifSome(id -> this.selectedSystemId = id);
 				this.lastPickRay = ray;
 			});
 			return true;
@@ -126,7 +128,7 @@ public class GalaxyMapScreen extends Universal3dScreen {
 		return false;
 	}
 
-	private Option<GalaxySectorId> pickElement(Ray ray) {
+	private Option<GalaxySectorId> pickElement(OrbitCamera.Cached camera, Ray ray) {
 		// @formatter:off
 		final var closest = new Object() {
 			double    distance    = Double.POSITIVE_INFINITY;
@@ -134,15 +136,20 @@ public class GalaxyMapScreen extends Universal3dScreen {
 			SectorPos sectorPos   = null;
 		};
 		// @formatter:on
+		final var viewCenter = getStarViewCenterPos(camera);
 		this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
 			final var min = sector.pos().minBound();
 			final var max = sector.pos().maxBound();
 			if (!ray.intersectAABB(min, max))
 				return;
+			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
+			// sector.initialElements.forEach(elem -> {
 			sector.initialElements.iter().enumerate().forEach(elem -> {
+				if (elem.item.pos().distanceTo(viewCenter) > levelSize)
+					return;
 				final var elemPos = elem.item.pos().div(TM_PER_UNIT);
 				final var distance = ray.origin().distanceTo(elemPos);
-				if (ray.intersectsSphere(elemPos, 0.05 * distance))
+				if (!ray.intersectsSphere(elemPos, 0.05 * distance))
 					return;
 				if (distance < closest.distance) {
 					closest.distance = distance;
@@ -171,47 +178,32 @@ public class GalaxyMapScreen extends Universal3dScreen {
 			ClientDebugFeatures.SHOW_SECTOR_BOUNDARIES.toggle();
 		} else if (keyCode == GLFW.GLFW_KEY_H && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
 			ClientDebugFeatures.SECTOR_TICKET_AROUND_FOCUS.toggle();
+		} else if (keyCode == GLFW.GLFW_KEY_F && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
+			getLastCamera().ifSome(camera -> {
+				this.frustumPoints = new Vec3[8];
+				// @formatter:off
+				int i = 0;
+				this.frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1, -1, -1));
+				this.frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1, -1,  1));
+				this.frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1,  1, -1));
+				this.frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1,  1,  1));
+				this.frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1, -1, -1));
+				this.frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1, -1,  1));
+				this.frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1,  1, -1));
+				this.frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1,  1,  1));
+				// @formatter:on
+			});
+		} else if (keyCode == GLFW.GLFW_KEY_R) {
+			this.galaxy.sectorManager.getSystem(this.selectedSystemId).ifSome(system -> {
+				final var id = new SystemId(this.galaxy.galaxyId, this.selectedSystemId);
+				final var screen = new SystemMapScreen(this, id, system);
+				this.client.setScreen(screen);
+			});
+			return true;
 		}
-		// } else if (keyCode == GLFW.GLFW_KEY_E) {
-		// var system = this.galaxy.getSystem(this.selectedSystemId.systemSector());
-		// var screen = new SystemMapScreen(this, this.selectedSystemId, system);
-		// this.client.setScreen(screen);
-		// return true;
-		// } else if (keyCode == GLFW.GLFW_KEY_F) {
-		// var focusPos = this.camera.focus.get(partialTick);
-		// var nearestId = getNearestSystem(focusPos, 10000);
-		// if (nearestId != null) {
-		// var volume = this.galaxy.getVolumeAt(nearestId.sectorPos());
-		// this.selectedSystemId = nearestId;
-		// this.camera.focus.setTarget(
-		// volume.posById(this.selectedSystemId.sectorId()));
-		// }
-		// return true;
-		// }
 
 		return false;
 	}
-
-	// public @Nullable SectorId getNearestSystem(Vec3 pos, double radius) {
-
-	// var nearest = new Object() {
-	// double distanceSqr = Double.MAX_VALUE;
-	// SectorId id = null;
-	// };
-	// TicketedVolume.enumerateSectors(pos, STAR_RENDER_RADIUS,
-	// Galaxy.SECTOR_WIDTH_Tm, sectorPos -> {
-	// var volume = this.galaxy.getVolumeAt(sectorPos);
-	// var nearestInSector = volume.nearestInRadius(pos, radius);
-	// if (nearestInSector != null) {
-	// if (nearestInSector.pos.distanceToSquared(pos) < nearest.distanceSqr) {
-	// nearest.distanceSqr = nearestInSector.pos.distanceToSquared(pos);
-	// nearest.id = new SectorPos(sectorPos, nearestInSector.id);
-	// }
-	// }
-	// });
-
-	// return nearest.id;
-	// }
 
 	private static boolean isAabbInFrustum(OrbitCamera.Cached camera, Vec3 min, Vec3 max) {
 		// final var nnn = camera.projectWorldSpace(Vec3.from(min.x, min.y, min.z));
@@ -255,8 +247,34 @@ public class GalaxyMapScreen extends Universal3dScreen {
 			RenderHelper.addLine(builder, camera, this.lastPickRay.origin(), this.lastPickRay.stepBy(10000),
 					Color.CYAN, Color.MAGENTA);
 		}
-		// RenderHelper.addLine(builder, camera, pickingRay.origin(), Vec3.ZERO,
-		// Color.MAGENTA, Color.CYAN);
+
+		if (this.frustumPoints != null) {
+			int i = 0;
+			final var nnn = this.frustumPoints[i++];
+			final var nnp = this.frustumPoints[i++];
+			final var npn = this.frustumPoints[i++];
+			final var npp = this.frustumPoints[i++];
+			final var pnn = this.frustumPoints[i++];
+			final var pnp = this.frustumPoints[i++];
+			final var ppn = this.frustumPoints[i++];
+			final var ppp = this.frustumPoints[i++];
+
+			// near
+			RenderHelper.addLine(builder, camera, nnn, npn, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, pnn, ppn, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, nnn, pnn, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, npn, ppn, Color.YELLOW);
+			// far
+			RenderHelper.addLine(builder, camera, nnp, npp, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, pnp, ppp, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, nnp, pnp, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, npp, ppp, Color.YELLOW);
+			// sides
+			RenderHelper.addLine(builder, camera, nnn, nnp, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, npn, npp, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, pnn, pnp, Color.YELLOW);
+			RenderHelper.addLine(builder, camera, ppn, ppp, Color.YELLOW);
+		}
 
 		builder.end();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
@@ -478,8 +496,6 @@ public class GalaxyMapScreen extends Universal3dScreen {
 						GameRenderer.getPositionColorTexShader());
 			});
 		}
-		// if (camera.scale < 300) {
-		// }
 
 	}
 

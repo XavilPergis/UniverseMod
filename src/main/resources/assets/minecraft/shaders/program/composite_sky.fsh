@@ -42,8 +42,8 @@ void main(){
 	lightOut += imageLight;
 	lightOut += skyIntensity * skyColor;
 
-	vec3 tonemapped = tonemap(lightOut);
-	tonemapped *= exposure;
+	// vec3 tonemapped = tonemap(lightOut);
+	// tonemapped *= exposure;
 	// float gamma = 2.2;
 	// tonemapped = pow(tonemapped, vec3(1.0 / gamma));
 	// lightOut *= 0.4;
@@ -55,6 +55,6 @@ void main(){
 
 	// outColor = mix(light, skyColor, blendFactor);
 
-    fragColor = vec4(tonemapped, 1.0);
-    // fragColor = vec4(lightOut, 1.0);
+    // fragColor = vec4(tonemapped, 1.0);
+    fragColor = vec4(lightOut, 1.0);
 }

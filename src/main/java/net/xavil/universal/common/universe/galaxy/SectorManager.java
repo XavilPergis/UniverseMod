@@ -305,6 +305,7 @@ public final class SectorManager {
 	}
 
 	public SystemTicket createSystemTicket(Disposable.Multi disposer, GalaxySectorId id) {
+		Mod.LOGGER.info("creating system ticket for {}", id);
 		final var ticket = new SystemTicket(this, id);
 		this.trackedSystemTickets.push(new SystemTicketTracker(ticket));
 		applyTickets(InactiveProfiler.INSTANCE);
@@ -312,6 +313,7 @@ public final class SectorManager {
 	}
 
 	public void removeSystemTicket(SystemTicket ticket) {
+		Mod.LOGGER.info("removing system ticket for {}", ticket.id);
 		this.trackedSystemTickets.retain(tracked -> tracked.loanedTicket != ticket);
 		this.removedSystemTickets.push(ticket);
 		applyTickets(InactiveProfiler.INSTANCE);

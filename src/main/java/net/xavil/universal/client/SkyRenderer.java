@@ -27,6 +27,8 @@ import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.universal.common.universe.galaxy.GalaxySector;
+import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
@@ -34,6 +36,7 @@ import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Disposable;
 import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
@@ -145,11 +148,78 @@ public class SkyRenderer {
 	}
 
 	private void buildGalaxy() {
+		Mod.LOGGER.info("rebuilding background galaxy");
 		final var currentId = LevelAccessor.getUniverseId(this.client.level);
 		if (currentId == null)
 			return;
 
-		Mod.LOGGER.info("rebuilding background galaxy");
+		final var currentSystemId = currentId.system();
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+
+		final var builder = Tesselator.getInstance().getBuilder();
+		Disposable.scope(disposer -> {
+			final var galaxyTicket = universe.sectorManager.createGalaxyTicket(disposer,
+					currentSystemId.galaxySector());
+			final var galaxy = universe.sectorManager.forceLoad(galaxyTicket).unwrapOrNull();
+			if (galaxy == null)
+				return;
+
+			final var tempTicket = galaxy.sectorManager.createSectorTicket(disposer,
+					SectorTicketInfo.single(currentSystemId.systemSector().sectorPos()));
+			galaxy.sectorManager.forceLoad(tempTicket);
+
+			builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+
+			final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
+
+			final var selfSector = galaxy.sectorManager.getSector(currentSystemId.systemSector().sectorPos())
+					.unwrapOrNull();
+			if (selfSector == null)
+				return;
+
+			final var selfInfo = selfSector.initialElements.get(currentSystemId.systemSector().elementIndex());
+			final var selfPos = selfInfo.pos();
+
+			// final var sectorTicket = galaxy.sectorManager.createSectorTicket(disposer,
+			// 		SectorTicketInfo.visual(selfPos));
+			// galaxy.sectorManager.forceLoad(sectorTicket);
+
+			final var ctx = new GalaxyRenderingContext(galaxy);
+			ctx.build();
+
+			final var rng = Rng.wrap(new Random());
+			ctx.enumerate((pos, size) -> {
+				var offset = pos.sub(selfPos);
+				var forward = offset.normalize();
+
+				var s = 3e1 * size / offset.length();
+				if (s < 1.5) s = 1.5;
+
+				var du = forward.dot(Vec3.YP);
+				var df = forward.dot(Vec3.ZN);
+				var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
+				var right = v1.cross(forward);
+				var rotation = rng.uniformDouble(0, 2.0 * Math.PI);
+				right = Quat.axisAngle(forward, rotation).transform(right);
+				var up = forward.cross(right).neg();
+
+				RenderHelper.addBillboardCamspace(wrappedBuilder, up, right,
+						forward.mul(150), s, 0,
+						Color.WHITE.withA(0.15));
+				// RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s,
+				// Color.WHITE.withA(0.2));
+			});
+
+			builder.end();
+			this.galaxyParticlesBuffer.upload(builder);
+			VertexBuffer.unbind();
+		});
+
+		// final var currentId = LevelAccessor.getUniverseId(this.client.level);
+		// if (currentId == null)
+		// 	return;
+
+		// Mod.LOGGER.info("rebuilding background galaxy");
 
 		// final var currentSystemId = currentId.system();
 		// final var universe = MinecraftClientAccessor.getUniverse(this.client);
@@ -170,7 +240,8 @@ public class SkyRenderer {
 
 		// final var builder = Tesselator.getInstance().getBuilder();
 		// final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
-		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// builder.begin(VertexFormat.Mode.QUADS,
+		// 		DefaultVertexFormat.POSITION_COLOR_TEX);
 
 		// final var rng = Rng.wrap(new Random());
 		// ctx.enumerate((pos, size) -> {
@@ -187,7 +258,8 @@ public class SkyRenderer {
 		// 	right = Quat.axisAngle(forward, rotation).transform(right);
 		// 	var up = forward.cross(right).neg();
 
-		// 	RenderHelper.addBillboardCamspace(wrappedBuilder, up, right, forward.mul(100), s, 0,
+		// 	RenderHelper.addBillboardCamspace(wrappedBuilder, up, right,
+		// 			forward.mul(100), s, 0,
 		// 			Color.WHITE.withA(0.15));
 		// 	// RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s,
 		// 	// Color.WHITE.withA(0.2));
@@ -201,52 +273,56 @@ public class SkyRenderer {
 
 	private void buildStars() {
 		Mod.LOGGER.info("rebuilding background stars");
-		// var builder = Tesselator.getInstance().getBuilder();
+		final var currentId = LevelAccessor.getUniverseId(this.client.level);
+		if (currentId == null)
+			return;
 
-		// var currentId = LevelAccessor.getUniverseId(this.client.level);
-		// if (currentId == null)
-		// 	return;
+		final var currentSystemId = currentId.system();
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
 
-		// var currentSystemId = currentId.system();
-		// var universe = MinecraftClientAccessor.getUniverse(this.client);
+		final var builder = Tesselator.getInstance().getBuilder();
+		Disposable.scope(disposer -> {
+			final var galaxyTicket = universe.sectorManager.createGalaxyTicket(disposer,
+					currentSystemId.galaxySector());
+			final var galaxy = universe.sectorManager.forceLoad(galaxyTicket).unwrapOrNull();
+			if (galaxy == null)
+				return;
 
-		// var galaxyVolume = universe.getVolumeAt(currentSystemId.galaxySector().sectorPos());
-		// var galaxy = galaxyVolume
-		// 		.getById(currentSystemId.galaxySector().sectorId())
-		// 		.getFull();
+			final var tempTicket = galaxy.sectorManager.createSectorTicket(disposer,
+					SectorTicketInfo.single(currentSystemId.systemSector().sectorPos()));
+			galaxy.sectorManager.forceLoad(tempTicket);
 
-		// // galaxy.sectorManager.
-		// var systemVolume = galaxy.getVolumeAt(currentSystemId.systemSector().sectorPos());
-		// var systemPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
-		// if (systemPos == null) {
-		// 	Mod.LOGGER.error("could not build background stars because the system pos was null.");
-		// 	return;
-		// }
+			builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+			final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
 
-		// final var wrappedBuilder = FlexibleVertexConsumer.wrapVanilla(builder);
+			final var selfSector = galaxy.sectorManager.getSector(currentSystemId.systemSector().sectorPos())
+					.unwrapOrNull();
+			if (selfSector == null)
+				return;
 
+			final var selfInfo = selfSector.initialElements.get(currentSystemId.systemSector().elementIndex());
+			final var selfPos = selfInfo.pos();
 
-		// // var fut = CompletableFuture.runAsync(() -> {});
-		// // galaxy.sectorManager.captureVisual(systemPos, );
+			final var sectorTicket = galaxy.sectorManager.createSectorTicket(disposer,
+					SectorTicketInfo.visual(selfPos));
+			galaxy.sectorManager.forceLoad(sectorTicket);
 
-		// var selfPos = systemVolume.posById(currentSystemId.systemSector().sectorId());
-		// TicketedVolume.enumerateSectors(systemPos, Galaxy.SECTOR_WIDTH_Tm, Galaxy.SECTOR_WIDTH_Tm, sectorPos -> {
-		// 	var volume = galaxy.getVolumeAt(sectorPos);
-		// 	volume.enumerateInRadius(systemPos, Galaxy.SECTOR_WIDTH_Tm, element -> {
-		// 		if (element.id == currentId.system().systemSector().sectorId())
-		// 			return;
-		// 		var displayStar = element.value.getInitial().primaryStar;
-		// 		addBillboard(wrappedBuilder, new PoseStack(), selfPos, element.pos, 1, displayStar);
-		// 	});
-		// 	// volume.streamElements().forEach(element -> {
-		// 	// });
-		// });
+			galaxy.sectorManager.enumerate(sectorTicket, sector -> {
+				final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
+				sector.initialElements.forEach(elem -> {
+					if (elem.pos().distanceTo(selfPos) > levelSize)
+						return;
+					// batcher.add(elem.info().primaryStar, elem.pos());
+					addBillboard(wrappedBuilder, new PoseStack(), selfPos, elem.pos(), 1, elem.info().primaryStar);
+				});
+			});
 
-		// builder.end();
-		// distantStarsBuffer.upload(builder);
-		// VertexBuffer.unbind();
+			builder.end();
+			distantStarsBuffer.upload(builder);
+			VertexBuffer.unbind();
+		});
+
 		shouldRebuildStarBuffer = false;
 	}
 
@@ -262,6 +338,7 @@ public class SkyRenderer {
 		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
 		RenderSystem.depthMask(false);
 		RenderSystem.disableDepthTest();
+		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
@@ -270,8 +347,9 @@ public class SkyRenderer {
 
 	private void drawGalaxy(Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
 		final var shader = ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER);
-		
-		this.client.getTextureManager().getTexture(Mod.namespaced("textures/misc/galaxyglow.png")).setFilter(true, false);
+
+		this.client.getTextureManager().getTexture(Mod.namespaced("textures/misc/galaxyglow.png")).setFilter(true,
+				false);
 		RenderSystem.setShaderTexture(0, Mod.namespaced("textures/misc/galaxyglow.png"));
 		RenderSystem.depthMask(false);
 		RenderSystem.disableDepthTest();
@@ -431,8 +509,12 @@ public class SkyRenderer {
 
 		getSkyResolveTarget().clear(false);
 
-		GL32.glEnable(GL32.GL_MULTISAMPLE);
-		final var skyTargetMs = getSkyTargetMultisampled();
+		// GL32.glEnable(GL32.GL_MULTISAMPLE);
+		// final var skyTargetMs = getSkyTargetMultisampled();
+		// skyTargetMs.setClearColor(0, 0, 0, 0);
+		// skyTargetMs.clear(false);
+		// skyTargetMs.bindWrite(false);
+		final var skyTargetMs = getSkyResolveTarget();
 		skyTargetMs.setClearColor(0, 0, 0, 0);
 		skyTargetMs.clear(false);
 		skyTargetMs.bindWrite(false);
@@ -448,7 +530,7 @@ public class SkyRenderer {
 		// resolve nice and crispy multisampled framebuffer to a normal (but floating
 		// point backed) framebuffer
 		profiler.push("resolve");
-		skyTargetMs.resolveTo(getSkyResolveTarget());
+		// skyTargetMs.resolveTo(getSkyResolveTarget());
 
 		profiler.popPush("composite");
 		this.client.getMainRenderTarget().setClearColor(0f, 0f, 0f, 1.0f);

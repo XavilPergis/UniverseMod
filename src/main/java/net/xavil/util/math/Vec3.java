@@ -160,7 +160,9 @@ public final class Vec3 implements Hashable {
 	}
 
 	public Vec3 projectOnto(Vec3 other) {
-		return other.mul(this.dot(other) / other.lengthSquared());
+		// return other.mul(this.dot(other) / other.lengthSquared());
+		final var b = other.normalize();
+		return b.mul(this.dot(b));
 	}
 
 	public Vec3 transformBy(PoseStack.Pose pose) {

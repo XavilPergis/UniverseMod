@@ -99,6 +99,7 @@ public class Mod implements ModInitializer {
 							final var manager = DynamicDimensionManager.get(server);
 							final var newLevel = manager.getOrCreateLevel(key, propertiesSupplier);
 
+							((LevelAccessor)newLevel).universal_setUniverse(universe);
 							LevelAccessor.setUniverseId(newLevel, packet.planetId);
 
 							// TODO: find actual spawn pos

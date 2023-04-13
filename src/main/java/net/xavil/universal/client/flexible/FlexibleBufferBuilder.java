@@ -38,21 +38,14 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 	private final List<FinishedBuffer> finishedBuffers = Lists.newArrayList();
 	private int poppedBufferCount = 0;
 
-	private static final float BYTE_MAX = (float) Byte.MAX_VALUE;
-	private static final float SHORT_MAX = (float) Short.MAX_VALUE;
-	private static final float INT_MAX = (float) Integer.MAX_VALUE;
-
-	public static byte normalizedByte(float num) {
-		return (byte) ((short) (Mth.clamp(num, -1f, 1f) * BYTE_MAX) & 0xFF);
-	}
-
-	public static short normalizedShort(float num) {
-		return (short) ((int) (Mth.clamp(num, -1f, 1f) * SHORT_MAX) & 0xFFFF);
-	}
-
-	public static int normalizedInt(float num) {
-		return (int) (Mth.clamp(num, -1f, 1f) * INT_MAX);
-	}
+	// @formatter:off
+	private static final float   BYTE_MAX =      (float)    Byte.MAX_VALUE;
+	private static final float  SHORT_MAX =      (float)   Short.MAX_VALUE;
+	private static final float    INT_MAX =      (float) Integer.MAX_VALUE;
+	private static final float  UBYTE_MAX = 2f * (float)    Byte.MAX_VALUE;
+	private static final float USHORT_MAX = 2f * (float)   Short.MAX_VALUE;
+	private static final float   UINT_MAX = 2f * (float) Integer.MAX_VALUE;
+	// @formatter:on
 
 	private static ElementConsumer writerForType(VertexFormatElement elem, ByteBuffer buf, int elementOffset) {
 		final var normalized = switch (elem.getUsage()) {
@@ -61,23 +54,23 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 		};
 		// @formatter:off
 		if (!normalized) return switch (elem.getType()) {
-			case BYTE   -> (off, n) -> buf.put     (off + elementOffset, (byte)  n);
-			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset, (byte)  n);
+			case BYTE   -> (off, n) -> buf.put     (off + elementOffset,  (byte) n);
+			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset,  (byte) n);
 			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, (short) n);
 			case USHORT -> (off, n) -> buf.putShort(off + elementOffset, (short) n);
-			case INT    -> (off, n) -> buf.putInt  (off + elementOffset, (int)   n);
-			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset, (int)   n);
-			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset, (float) n);
+			case INT    -> (off, n) -> buf.putInt  (off + elementOffset,   (int) n);
+			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset,   (int) n);
+			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset,         n);
 			default     -> (k, n) -> {};
 		};
 		return switch (elem.getType()) {
-			case BYTE   -> (off, n) -> buf.put     (off + elementOffset, normalizedByte(n));
-			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset, (byte) ((short) (Mth.clamp(n, 0f, 1f) * 255.0) & 0xFF));
-			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, normalizedShort(n));
-			case USHORT -> (off, n) -> buf.putShort(off + elementOffset, normalizedShort(n));
-			case INT    -> (off, n) -> buf.putInt  (off + elementOffset, normalizedInt(n));
-			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset, normalizedInt(n));
-			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset, n);
+			case BYTE   -> (off, n) -> buf.put     (off + elementOffset,  (byte) (n *   BYTE_MAX));
+			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset,  (byte) (n *  UBYTE_MAX));
+			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, (short) (n *  SHORT_MAX));
+			case USHORT -> (off, n) -> buf.putShort(off + elementOffset, (short) (n * USHORT_MAX));
+			case INT    -> (off, n) -> buf.putInt  (off + elementOffset,   (int) (n *    INT_MAX));
+			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset,   (int) (n *   UINT_MAX));
+			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset,         (n             ));
 			default     -> (k, n) -> {};
 		};
 		// @formatter:on

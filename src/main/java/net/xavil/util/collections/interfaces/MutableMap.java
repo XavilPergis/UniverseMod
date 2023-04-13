@@ -1,5 +1,6 @@
 package net.xavil.util.collections.interfaces;
 
+import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
@@ -35,6 +36,10 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 
 	static <K, V> MutableMap<K, V> hashMap() {
 		return new MutableMapProxy<>(new Object2ObjectOpenHashMap<>());
+	}
+
+	static <K, V> MutableMap<K, V> identityHashMap() {
+		return new MutableMapProxy<>(new IdentityHashMap<>());
 	}
 
 	public abstract class EntryMut<K, V> extends Entry<K, V> {

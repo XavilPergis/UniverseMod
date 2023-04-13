@@ -7,6 +7,7 @@ import java.util.List;
 import org.slf4j.Logger;
 
 import com.google.common.collect.Lists;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.MemoryTracker;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
@@ -71,7 +72,7 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 		};
 		return switch (elem.getType()) {
 			case BYTE   -> (off, n) -> buf.put     (off + elementOffset, normalizedByte(n));
-			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset, normalizedByte(n));
+			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset, (byte) ((short) (Mth.clamp(n, 0f, 1f) * 255.0) & 0xFF));
 			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, normalizedShort(n));
 			case USHORT -> (off, n) -> buf.putShort(off + elementOffset, normalizedShort(n));
 			case INT    -> (off, n) -> buf.putInt  (off + elementOffset, normalizedInt(n));
@@ -199,6 +200,12 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 	public void draw(ShaderInstance shader) {
 		Assert.isTrue(!isBuilding());
 		BufferRenderer.draw(shader, this);
+	}
+	public void draw(RenderTarget target, ShaderInstance shader) {
+		Assert.isTrue(!isBuilding());
+		target.bindWrite(false);
+		BufferRenderer.draw(shader, this);
+		target.unbindWrite();
 	}
 
 	public void reset() {

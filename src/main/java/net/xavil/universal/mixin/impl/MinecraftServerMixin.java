@@ -81,6 +81,7 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 	private void prepareStartingVolume(CallbackInfo info) {
 		var overworld = ((MinecraftServer) (Object) this).overworld();
 		var startingId = this.universe.getStartingSystemGenerator().getStartingSystemId();
+		((LevelAccessor)overworld).universal_setUniverse(this.universe);
 		LevelAccessor.setUniverseId(overworld, startingId);
 	}
 }

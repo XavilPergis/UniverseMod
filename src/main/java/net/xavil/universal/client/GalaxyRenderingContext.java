@@ -42,7 +42,7 @@ public class GalaxyRenderingContext {
 		double lowestSeenDensity = Double.POSITIVE_INFINITY;
 		var maxDensity = 1e21 * attemptCount / aabbVolume(volumeMin, volumeMax);
 		for (var i = 0; i < attemptCount; ++i) {
-			if (successfulPlacements > 20000)
+			if (successfulPlacements > 5000)
 				break;
 
 			var pos = Vec3.random(random, volumeMin, volumeMax);
@@ -82,7 +82,7 @@ public class GalaxyRenderingContext {
 	public void enumerate(PointConsumer consumer) {
 		this.galaxyPoints.enumerateElements(elem -> {
 			double s = 4e7 * (elem.value / 5.0);
-			if (s < 5e5) s = 5e5;
+			if (s < 5e6) s = 5e6;
 			if (s > 3e7) s = 3e7;
 			consumer.accept(elem.pos, s);
 		});

@@ -76,10 +76,12 @@ public class OrbitCamera {
 	public final MotionSmoother<Double> pitch = MotionSmoother.smoothDoubles(0.6);
 	public final MotionSmoother<Double> scale = MotionSmoother.smoothDoubles(0.4);
 
+	private Vec3 velocity = Vec3.ZERO, prevVelocity = Vec3.ZERO;
+
 	// projection properties
 	public double fovDeg = 90;
-	public double nearPlane = 0.01;
-	public double farPlane = 10000;
+	public double nearPlane = 0.001;
+	public double farPlane = 1e8;
 
 	public OrbitCamera(double metersPerUnit, double renderScaleFactor) {
 		this.metersPerUnit = metersPerUnit;
@@ -97,40 +99,63 @@ public class OrbitCamera {
 		this.yaw.tick();
 		this.pitch.tick();
 		this.scale.tick();
+
+		this.prevVelocity = this.velocity;
+		this.velocity = getCurPos().sub(getPrevPos());
 	}
 
-	public Vec3 getPos(float partialTick) {
-		var backwards = getUpVector(partialTick).cross(getRightVector(partialTick));
+	private Vec3 getPrevPos() {
+		final var backwards = Vec3.YP.rotateX(-this.pitch.previous).rotateY(-this.yaw.previous)
+				.cross(Vec3.XP.rotateX(-this.pitch.previous).rotateY(-this.yaw.previous));
+		var backwardsTranslation = backwards.mul(this.scale.previous);
+		return this.focus.previous.div(this.renderScaleFactor).add(backwardsTranslation);
+	}
+
+	private Vec3 getCurPos() {
+		final var backwards = Vec3.YP.rotateX(-this.pitch.current).rotateY(-this.yaw.current)
+				.cross(Vec3.XP.rotateX(-this.pitch.current).rotateY(-this.yaw.current));
+		var backwardsTranslation = backwards.mul(this.scale.current);
+		return this.focus.current.div(this.renderScaleFactor).add(backwardsTranslation);
+	}
+
+	private Vec3 getPosRaw(float partialTick) {
+		var backwards = applyRotationRaw(Vec3.YP, partialTick).cross(applyRotationRaw(Vec3.XP, partialTick));
 		var backwardsTranslation = backwards.mul(this.scale.get(partialTick));
 		var cameraPos = this.focus.get(partialTick).div(this.renderScaleFactor).add(backwardsTranslation);
 		return cameraPos;
 	}
 
-	public Vec3 getUpVector(float partialTick) {
-		return Vec3.YP.rotateX(-this.pitch.get(partialTick)).rotateY(-this.yaw.get(partialTick));
+	private Vec3 applyRotationRaw(Vec3 vec, float partialTick) {
+		return vec.rotateX(-this.pitch.get(partialTick)).rotateY(-this.yaw.get(partialTick));
 	}
 
-	public Vec3 getRightVector(float partialTick) {
-		return Vec3.XP.rotateX(-this.pitch.get(partialTick)).rotateY(-this.yaw.get(partialTick));
-	}
-
-	public Matrix4f getProjectionMatrix() {
+	private Matrix4f getProjectionMatrix() {
 		var window = Minecraft.getInstance().getWindow();
 		var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
 		return Matrix4f.perspective((float) this.fovDeg, aspectRatio, (float) (this.scale.get(0) * this.nearPlane),
 				(float) (this.scale.get(0) * this.farPlane));
 	}
 
-	public Quat getOrientation(float partialTick) {
-		// var xRot = Vector3f.XP.rotation(this.pitch.get(partialTick).floatValue());
-		// var yRot = Vector3f.YP.rotation(this.yaw.get(partialTick).floatValue() +
-		// Mth.PI);
-		// var res = new Quaternion(xRot);
-		// res.mul(yRot);
-		// return res;
-		var xRot = Quat.axisAngle(Vec3.XP, this.pitch.get(partialTick));
-		var yRot = Quat.axisAngle(Vec3.YP, this.yaw.get(partialTick) + Mth.PI);
-		return xRot.hamiltonProduct(yRot);
+	private Quat getOrientationRaw(float partialTick) {
+		var xRotQuat = Quat.axisAngle(Vec3.XP, this.pitch.get(partialTick));
+		var yRotQuat = Quat.axisAngle(Vec3.YP, this.yaw.get(partialTick) + Math.PI);
+		return xRotQuat.hamiltonProduct(yRotQuat);
+		// var xRot = Quat.axisAngle(Vec3.XP, this.pitch.get(partialTick));
+		// var yRot = Quat.axisAngle(Vec3.YP, this.yaw.get(partialTick) + Mth.PI);
+		// return xRot.hamiltonProduct(yRot);
+	}
+
+	private Quat getOrientation(float partialTick) {
+		final var raw = getOrientationRaw(partialTick);
+
+		final var vel = Vec3.lerp(partialTick, this.prevVelocity, this.velocity);
+		if (vel.length() > 0.000000001) {
+			final var vertYoinkAxis = vel.normalize().cross(Vec3.YP);
+			final var yoinkStrength = Mth.clamp(vel.length() / (15 * this.scale.get(partialTick)), -Math.PI / 8, Math.PI / 8);
+			return raw.hamiltonProduct(Quat.axisAngle(vertYoinkAxis, yoinkStrength));
+		}
+
+		return raw;
 	}
 
 	public Cached cached(float partialTick) {
@@ -142,14 +167,14 @@ public class OrbitCamera {
 		public final double scale;
 
 		public Cached(OrbitCamera camera, float partialTick) {
-			this(camera, camera.getUpVector(partialTick), camera.getRightVector(partialTick),
-					camera.focus.get(partialTick), camera.getPos(partialTick), camera.getOrientation(partialTick),
-					camera.scale.get(partialTick), camera.metersPerUnit, camera.getProjectionMatrix());
+			this(camera, camera.focus.get(partialTick), camera.getPosRaw(partialTick),
+					camera.getOrientation(partialTick), camera.scale.get(partialTick), camera.metersPerUnit,
+					camera.getProjectionMatrix(), camera.renderScaleFactor);
 		}
 
-		public Cached(OrbitCamera camera, Vec3 up, Vec3 right, Vec3 focus, Vec3 pos, Quat orientation, double scale,
-				double metersPerUnit, Matrix4f projectionMatrix) {
-			super(camera, pos, up, right, orientation, metersPerUnit, projectionMatrix);
+		public Cached(OrbitCamera camera, Vec3 focus, Vec3 pos, Quat orientation, double scale,
+				double metersPerUnit, Matrix4f projectionMatrix, double renderScale) {
+			super(camera, pos, orientation, metersPerUnit, renderScale, projectionMatrix);
 			this.focus = focus;
 			this.scale = scale;
 		}

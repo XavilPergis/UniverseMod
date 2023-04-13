@@ -232,6 +232,13 @@ public final class Vec3 implements Hashable {
 		return Math.abs(a.x - b.x) * Math.abs(a.y - b.y) * Math.abs(a.z - b.z);
 	}
 
+	public static Vec3 lerp(double delta, Vec3 a, Vec3 b) {
+		return new Vec3(
+				Mth.lerp(delta, a.x, b.x),
+				Mth.lerp(delta, a.y, b.y),
+				Mth.lerp(delta, a.z, b.z));
+	}
+
 	public Vec3i floor() {
 		return Vec3i.from(Mth.floor(x), Mth.floor(y), Mth.floor(z));
 	}

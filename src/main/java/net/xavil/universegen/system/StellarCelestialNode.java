@@ -59,13 +59,13 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	}
 
 	public static enum StarClass {
-		O("O", Color.rgb(0.1, 0.1, 1)),
-		B("B", Color.rgb(0.6, 0.6, 1)),
-		A("A", Color.rgb(0.8, 0.8, 1)),
-		F("F", Color.rgb(1, 1, 1)),
-		G("G", Color.rgb(1, 1, 0.7)),
-		K("K", Color.rgb(1, 0.7, 0.3)),
-		M("M", Color.rgb(1, 0.3, 0.05));
+		O("O", Color.rgb(0, 0, 1)),
+		B("B", Color.rgb(0.1, 0.2, 1)),
+		A("A", Color.rgb(0.2, 0.4, 1)),
+		F("F", Color.rgb(0.8, 0.8, 0.9)),
+		G("G", Color.rgb(1, 0.8, 0.5)),
+		K("K", Color.rgb(1, 0.5, 0.1)),
+		M("M", Color.rgb(1, 0.2, 0.1));
 
 		public final String name;
 		// FIXME: color is based on star temperature, not star class!

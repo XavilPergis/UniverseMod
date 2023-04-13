@@ -25,6 +25,7 @@ import net.xavil.util.math.Vec3;
 public final class RenderHelper {
 
 	public static final ResourceLocation STAR_ICON_LOCATION = Mod.namespaced("textures/misc/star_icon.png");
+	public static final ResourceLocation GALAXY_GLOW_LOCATION = Mod.namespaced("textures/misc/galaxyglow.png");
 	public static final ResourceLocation SELECTION_CIRCLE_ICON_LOCATION = Mod
 			.namespaced("textures/misc/selection_circle.png");
 
@@ -83,7 +84,8 @@ public final class RenderHelper {
 
 		double radius = 0;
 		if (node instanceof StellarCelestialNode starNode) {
-			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
+			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
+			if (radius > 3) radius = 3;
 		} else if (node instanceof PlanetaryCelestialNode planetNode) {
 			radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
 		}
@@ -228,7 +230,7 @@ public final class RenderHelper {
 		var gridMinX = gridCellResolution * Math.floor(focusPos.x / gridCellResolution);
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
 
-		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.2f, a2 = 0.5f;
+		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.1f, a2 = 0.33f;
 		var color = new Color(r, g, b, 1);
 		final double gridFadeFactor = 2.3;
 

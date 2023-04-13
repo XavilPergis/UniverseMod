@@ -111,44 +111,44 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 		Mod.LOGGER.info("highest " + highestSeenDensity);
 	}
 
-	@Override
-	public void render3d(OrbitCamera.Cached camera, float partialTick) {
-		if (galaxyPoints == null)
-			buildGalaxyPoints(false);
+	// @Override
+	// public void render3d(OrbitCamera.Cached camera, float partialTick) {
+	// 	if (galaxyPoints == null)
+	// 		buildGalaxyPoints(false);
 
-		final var builder = BufferRenderer.immediateBuilder();
+	// 	final var builder = BufferRenderer.immediateBuilder();
 
-		RenderHelper.renderGrid(builder, camera, 1, 1, 10, 40, partialTick);
+	// 	RenderHelper.renderGrid(builder, camera, 1, 1, 10, 40, partialTick);
 
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+	// 	builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
-		this.galaxyPoints.enumerateElements(elem -> {
-			// var s = 0.2 * camera.pos.distanceTo(elem.pos);
-			double s = 4e7 * (elem.value / 5.0);
-			if (s < 5e5) s = 5e5;
-			if (s > 4e7) s = 4e7;
-			// double s = 1.0 * (elem.value / 5.0);
-			RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s, Color.WHITE.withA(0.2));
-		});
+	// 	this.galaxyPoints.enumerateElements(elem -> {
+	// 		// var s = 0.2 * camera.pos.distanceTo(elem.pos);
+	// 		double s = 4e7 * (elem.value / 5.0);
+	// 		if (s < 5e5) s = 5e5;
+	// 		if (s > 4e7) s = 4e7;
+	// 		// double s = 1.0 * (elem.value / 5.0);
+	// 		RenderHelper.addBillboard(builder, camera, new PoseStack(), elem.pos, s, Color.WHITE.withA(0.2));
+	// 	});
 
-		builder.end();
+	// 	builder.end();
 
-		this.client.getTextureManager().getTexture(Mod.namespaced("textures/misc/galaxyglow.png")).setFilter(true,
-				false);
-		RenderSystem.setShaderTexture(0, Mod.namespaced("textures/misc/galaxyglow.png"));
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
-	}
+	// 	this.client.getTextureManager().getTexture(Mod.namespaced("textures/misc/galaxyglow.png")).setFilter(true,
+	// 			false);
+	// 	RenderSystem.setShaderTexture(0, Mod.namespaced("textures/misc/galaxyglow.png"));
+	// 	RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+	// 	RenderSystem.depthMask(false);
+	// 	RenderSystem.enableDepthTest();
+	// 	RenderSystem.disableCull();
+	// 	RenderSystem.enableBlend();
+	// 	builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
+	// }
 
-	@Override
-	public void render2d(PoseStack poseStack, float partialTick) {
-		this.client.font.draw(poseStack,
-				"test", 0, 0,
-				0xff777777);
-	}
+	// @Override
+	// public void render2d(PoseStack poseStack, float partialTick) {
+	// 	this.client.font.draw(poseStack,
+	// 			"test", 0, 0,
+	// 			0xff777777);
+	// }
 
 }

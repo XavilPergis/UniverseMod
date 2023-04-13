@@ -349,111 +349,111 @@ public class SystemMapScreen extends Universal3dScreen {
 
 	}
 
-	@Override
-	public void render3d(OrbitCamera.Cached camera, float partialTick) {
-		final var builder = BufferRenderer.immediateBuilder();
+	// @Override
+	// public void render3d(OrbitCamera.Cached camera, float partialTick) {
+	// 	final var builder = BufferRenderer.immediateBuilder();
 
-		// system.rootNode.visit(node -> {
-		// if (!this.clientInfo.containsKey(node.getId())) {
-		// var info = new ClientNodeInfo();
-		// info.vertexBuffer = new VertexBuffer();
-		// this.clientInfo.put(node.getId(), info);
-		// }
-		// });
+	// 	// system.rootNode.visit(node -> {
+	// 	// if (!this.clientInfo.containsKey(node.getId())) {
+	// 	// var info = new ClientNodeInfo();
+	// 	// info.vertexBuffer = new VertexBuffer();
+	// 	// this.clientInfo.put(node.getId(), info);
+	// 	// }
+	// 	// });
 
-		RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.Tm_PER_au, 10,
-				40, partialTick);
+	// 	RenderHelper.renderGrid(builder, camera, TM_PER_UNIT, Units.Tm_PER_au, 10,
+	// 			40, partialTick);
 
-		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+	// 	final var universe = MinecraftClientAccessor.getUniverse(this.client);
 
-		// FIXME: `Minecraft` has a `pausePartialTick` field that we should use instead
-		// of 0 here.
-		double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
+	// 	// FIXME: `Minecraft` has a `pausePartialTick` field that we should use instead
+	// 	// of 0 here.
+	// 	double time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
 
-		var ctx = new PlanetRenderingContext(time);
-		system.rootNode.visit(node -> {
-			if (node instanceof StellarCelestialNode starNode) {
-				var light = PlanetRenderingContext.PointLight.fromStar(starNode);
-				ctx.pointLights.add(light);
-			}
-		});
+	// 	var ctx = new PlanetRenderingContext(time);
+	// 	system.rootNode.visit(node -> {
+	// 		if (node instanceof StellarCelestialNode starNode) {
+	// 			var light = PlanetRenderingContext.PointLight.fromStar(starNode);
+	// 			ctx.pointLights.add(light);
+	// 		}
+	// 	});
 
-		system.rootNode.visit(node -> {
-			renderNode(camera, node, ctx, partialTick);
-		});
+	// 	system.rootNode.visit(node -> {
+	// 		renderNode(camera, node, ctx, partialTick);
+	// 	});
 
-		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS,
-		// DefaultVertexFormat.POSITION_COLOR_TEX);
-		// var k = this.camera.scale.get(partialTick);
-		// RenderHelper.addBillboard(builder,
-		// new PoseStack(),
-		// camera.focus.div(TM_PER_UNIT),
-		// Vec3.from(0.02 * k, 0, 0),
-		// Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
-		// builder.end();
+	// 	// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+	// 	// builder.begin(VertexFormat.Mode.QUADS,
+	// 	// DefaultVertexFormat.POSITION_COLOR_TEX);
+	// 	// var k = this.camera.scale.get(partialTick);
+	// 	// RenderHelper.addBillboard(builder,
+	// 	// new PoseStack(),
+	// 	// camera.focus.div(TM_PER_UNIT),
+	// 	// Vec3.from(0.02 * k, 0, 0),
+	// 	// Vec3.from(0, 0, 0.02 * k), Vec3.ZERO, 0, 0.5f, 0.5f, 1);
+	// 	// builder.end();
 
-		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-		// .setFilter(true, false);
-		// RenderSystem.setShaderTexture(0,
-		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-		// RenderSystem.enableBlend();
-		// RenderSystem.defaultBlendFunc();
-		// RenderSystem.disableCull();
-		// RenderSystem.disableDepthTest();
-		// BufferUploader.end(builder);
+	// 	// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+	// 	// .setFilter(true, false);
+	// 	// RenderSystem.setShaderTexture(0,
+	// 	// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+	// 	// RenderSystem.enableBlend();
+	// 	// RenderSystem.defaultBlendFunc();
+	// 	// RenderSystem.disableCull();
+	// 	// RenderSystem.disableDepthTest();
+	// 	// BufferUploader.end(builder);
 
-		var closestPos = getClosestNode(camera).position;
-		RenderSystem.enableBlend();
-		RenderSystem.disableTexture();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
-		RenderSystem.lineWidth(1);
-		RenderSystem.depthMask(false);
+	// 	var closestPos = getClosestNode(camera).position;
+	// 	RenderSystem.enableBlend();
+	// 	RenderSystem.disableTexture();
+	// 	RenderSystem.defaultBlendFunc();
+	// 	RenderSystem.disableCull();
+	// 	RenderSystem.lineWidth(1);
+	// 	RenderSystem.depthMask(false);
 
-		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+	// 	builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
-		RenderHelper.addLine(builder, camera, camera.focus.div(TM_PER_UNIT), closestPos, new Color(1, 1, 1, 1));
+	// 	RenderHelper.addLine(builder, camera, camera.focus.div(TM_PER_UNIT), closestPos, new Color(1, 1, 1, 1));
 
-		builder.end();
+	// 	builder.end();
 
-		RenderSystem.enableBlend();
-		RenderSystem.disableTexture();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
-		RenderSystem.lineWidth(1);
-		RenderSystem.depthMask(false);
-		builder.draw(GameRenderer.getRendertypeLinesShader());
+	// 	RenderSystem.enableBlend();
+	// 	RenderSystem.disableTexture();
+	// 	RenderSystem.defaultBlendFunc();
+	// 	RenderSystem.disableCull();
+	// 	RenderSystem.lineWidth(1);
+	// 	RenderSystem.depthMask(false);
+	// 	builder.draw(GameRenderer.getRendertypeLinesShader());
 
-		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS,
-		// DefaultVertexFormat.POSITION_COLOR_TEX);
-		// this.system.rootNode.visit(node -> {
-		// var camPos = this.camera.getPos(partialTick);
-		// var nodePos = node.position;
-		// var distanceFromCamera = camPos.distanceTo(nodePos);
+	// 	// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
+	// 	// builder.begin(VertexFormat.Mode.QUADS,
+	// 	// DefaultVertexFormat.POSITION_COLOR_TEX);
+	// 	// this.system.rootNode.visit(node -> {
+	// 	// var camPos = this.camera.getPos(partialTick);
+	// 	// var nodePos = node.position;
+	// 	// var distanceFromCamera = camPos.distanceTo(nodePos);
 
-		// if (this.selectedId == node.getId()) {
-		// RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right,
-		// nodePos,
-		// 0.01 * distanceFromCamera, 0, new Color(1, 0.5, 0.5, 0.2));
-		// } else {
-		// RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right,
-		// nodePos,
-		// 0.01 * distanceFromCamera, 0, new Color(0.5, 0.5, 0.5, 0.2));
-		// }
-		// });
-		// builder.end();
-		// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
-		// .setFilter(true, false);
-		// RenderSystem.setShaderTexture(0,
-		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-		// RenderSystem.enableBlend();
-		// RenderSystem.defaultBlendFunc();
-		// RenderSystem.disableCull();
-		// RenderSystem.disableDepthTest();
-		// BufferUploader.end(builder);
-	}
+	// 	// if (this.selectedId == node.getId()) {
+	// 	// RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right,
+	// 	// nodePos,
+	// 	// 0.01 * distanceFromCamera, 0, new Color(1, 0.5, 0.5, 0.2));
+	// 	// } else {
+	// 	// RenderHelper.addBillboard(builder, new PoseStack(), camera.up, camera.right,
+	// 	// nodePos,
+	// 	// 0.01 * distanceFromCamera, 0, new Color(0.5, 0.5, 0.5, 0.2));
+	// 	// }
+	// 	// });
+	// 	// builder.end();
+	// 	// this.client.getTextureManager().getTexture(RenderHelper.SELECTION_CIRCLE_ICON_LOCATION)
+	// 	// .setFilter(true, false);
+	// 	// RenderSystem.setShaderTexture(0,
+	// 	// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+	// 	// RenderSystem.enableBlend();
+	// 	// RenderSystem.defaultBlendFunc();
+	// 	// RenderSystem.disableCull();
+	// 	// RenderSystem.disableDepthTest();
+	// 	// BufferUploader.end(builder);
+	// }
 
 	private void addNodeInfo(CelestialNode node, BiConsumer<String, String> consumer) {
 
@@ -495,34 +495,34 @@ public class SystemMapScreen extends Universal3dScreen {
 
 	}
 
-	@Override
-	public void render2d(PoseStack poseStack, float partialTick) {
+	// @Override
+	// public void render2d(PoseStack poseStack, float partialTick) {
 
-		if (this.selectedId != -1) {
-			var node = this.system.rootNode.lookup(this.selectedId);
-			poseStack.pushPose();
-			poseStack.translate(20, 20, 0);
-			this.client.font.draw(poseStack, String.format("§9§l§nNode %s§r", "" + node.getId()), 0, 0, 0xff777777);
-			poseStack.translate(4, 0, 0);
+	// 	if (this.selectedId != -1) {
+	// 		var node = this.system.rootNode.lookup(this.selectedId);
+	// 		poseStack.pushPose();
+	// 		poseStack.translate(20, 20, 0);
+	// 		this.client.font.draw(poseStack, String.format("§9§l§nNode %s§r", "" + node.getId()), 0, 0, 0xff777777);
+	// 		poseStack.translate(4, 0, 0);
 
-			var obj = new Object() {
-				int currentHeight = client.font.lineHeight;
-			};
-			addNodeInfo(node, (property, value) -> {
-				this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0, obj.currentHeight, 0xff777777);
-				obj.currentHeight += this.client.font.lineHeight + 1;
-			});
+	// 		var obj = new Object() {
+	// 			int currentHeight = client.font.lineHeight;
+	// 		};
+	// 		addNodeInfo(node, (property, value) -> {
+	// 			this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0, obj.currentHeight, 0xff777777);
+	// 			obj.currentHeight += this.client.font.lineHeight + 1;
+	// 		});
 
-			// drawString(poseStack, this.client.font, "scale: " + scale, 0, 0, 0xffffffff);
-			poseStack.popPose();
-		}
+	// 		// drawString(poseStack, this.client.font, "scale: " + scale, 0, 0, 0xffffffff);
+	// 		poseStack.popPose();
+	// 	}
 
-		// RenderHelper.renderStarBillboard(null, null, poseStack, null);
+	// 	// RenderHelper.renderStarBillboard(null, null, poseStack, null);
 
-		// poseStack.pushPose();
-		// new NodeRenderer(poseStack).renderNodeMain(system.rootNode);
-		// poseStack.popPose();
-	}
+	// 	// poseStack.pushPose();
+	// 	// new NodeRenderer(poseStack).renderNodeMain(system.rootNode);
+	// 	// poseStack.popPose();
+	// }
 
 	@Override
 	public void onMoved(Vec3 displacement) {

@@ -2,24 +2,54 @@ package net.xavil.universal.client.screen;
 
 import org.lwjgl.glfw.GLFW;
 
+import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.util.Option;
+import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
 
 public abstract class Universal3dScreen extends UniversalScreen {
 
-	protected boolean isForwardPressed = false, isBackwardPressed = false, isLeftPressed = false,
-			isRightPressed = false, isUpPressed = false, isDownPressed = false;
-	public final OrbitCamera camera;
+	protected boolean isForwardPressed = false, isBackwardPressed = false,
+			isLeftPressed = false, isRightPressed = false,
+			isUpPressed = false, isDownPressed = false;
 	public double scrollMultiplier = 1.2;
 	public double scrollMin, scrollMax;
+
+	public final OrbitCamera camera;
 	private OrbitCamera.Cached lastCamera = null;
+
+	// debug info
+	private Vec3[] frustumPoints = null;
+	private Vec3[] cullingFrustumPoints = null;
+	private OrbitCamera.Cached cullingCamera = null;
+
+	public static abstract class Layer3d extends Layer2d {
+		private OrbitCamera.Cached camera;
+
+		public Layer3d(Universal3dScreen attachedScreen) {
+			super(attachedScreen);
+		}
+
+		@Override
+		public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
+			final var prevMatrices = this.camera.setupRenderMatrices();
+			render3d(this.camera, partialTick);
+			prevMatrices.restore();
+		}
+
+		public abstract void render3d(OrbitCamera.Cached camera, float partialTick);
+	}
 
 	protected Universal3dScreen(Component component, Screen previousScreen, OrbitCamera camera,
 			double scrollMin, double scrollMax) {
@@ -38,7 +68,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
 		if (super.mouseDragged(mouseX, mouseY, button, dx, dy))
 			return true;
-		
+
 		this.setDragging(true);
 
 		final var partialTick = this.client.getFrameTime();
@@ -86,9 +116,34 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		if (super.keyPressed(keyCode, scanCode, modifiers))
 			return true;
 
-		if (keyCode == GLFW.GLFW_KEY_R && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
+		if (keyCode == GLFW.GLFW_KEY_F3 && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
 			Minecraft.getInstance().reloadResourcePacks();
 			return true;
+		}
+
+		if (((modifiers & GLFW.GLFW_MOD_SHIFT) != 0) && ((modifiers & GLFW.GLFW_MOD_ALT) != 0)) {
+			if (keyCode == GLFW.GLFW_KEY_F) {
+				// capture/hide camera frustum
+				if (this.frustumPoints != null) {
+					this.frustumPoints = null;
+				} else {
+					getLastCamera().ifSome(camera -> this.frustumPoints = captureCameraFrustum(camera));
+				}
+				return true;
+			}
+			if (keyCode == GLFW.GLFW_KEY_C) {
+				// debug culling
+				if (this.cullingCamera != null) {
+					this.cullingCamera = null;
+					this.cullingFrustumPoints = null;
+				} else {
+					getLastCamera().ifSome(camera -> {
+						this.cullingCamera = camera;
+						this.cullingFrustumPoints = captureCameraFrustum(camera);
+					});
+				}
+				return true;
+			}
 		}
 
 		// TODO: key mappings
@@ -113,6 +168,70 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		}
 
 		return false;
+	}
+
+	public final OrbitCamera.Cached getCullingCamera(OrbitCamera.Cached camera) {
+		return this.cullingCamera != null ? this.cullingCamera : camera;
+	}
+
+	private Vec3[] captureCameraFrustum(OrbitCamera.Cached camera) {
+		final var frustumPoints = new Vec3[8];
+		// @formatter:off
+		int i = 0;
+		frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1, -1, -1));
+		frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1, -1,  1));
+		frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1,  1, -1));
+		frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1,  1,  1));
+		frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1, -1, -1));
+		frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1, -1,  1));
+		frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1,  1, -1));
+		frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1,  1,  1));
+		// @formatter:on
+		return frustumPoints;
+	}
+
+	private void renderCameraFrustum(OrbitCamera.Cached camera, Vec3[] frustumPoints, Color color) {
+		if (frustumPoints == null)
+			return;
+
+		int i = 0;
+		final var nnn = frustumPoints[i++];
+		final var nnp = frustumPoints[i++];
+		final var npn = frustumPoints[i++];
+		final var npp = frustumPoints[i++];
+		final var pnn = frustumPoints[i++];
+		final var pnp = frustumPoints[i++];
+		final var ppn = frustumPoints[i++];
+		final var ppp = frustumPoints[i++];
+
+		final var builder = BufferRenderer.immediateBuilder();
+		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+
+		// near
+		RenderHelper.addLine(builder, camera, nnn, npn, color);
+		RenderHelper.addLine(builder, camera, pnn, ppn, color);
+		RenderHelper.addLine(builder, camera, nnn, pnn, color);
+		RenderHelper.addLine(builder, camera, npn, ppn, color);
+		// far
+		RenderHelper.addLine(builder, camera, nnp, npp, color);
+		RenderHelper.addLine(builder, camera, pnp, ppp, color);
+		RenderHelper.addLine(builder, camera, nnp, pnp, color);
+		RenderHelper.addLine(builder, camera, npp, ppp, color);
+		// sides
+		RenderHelper.addLine(builder, camera, nnn, nnp, color);
+		RenderHelper.addLine(builder, camera, npn, npp, color);
+		RenderHelper.addLine(builder, camera, pnn, pnp, color);
+		RenderHelper.addLine(builder, camera, ppn, ppp, color);
+
+		builder.end();
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		RenderSystem.depthMask(false);
+		RenderSystem.enableDepthTest();
+		RenderSystem.disableCull();
+		RenderSystem.enableBlend();
+		RenderSystem.lineWidth(2.0f);
+		builder.draw(GameRenderer.getRendertypeLinesShader());
+
 	}
 
 	@Override
@@ -147,7 +266,6 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	@Override
 	public void tick() {
 		super.tick();
-		this.camera.tick();
 
 		double forward = 0, right = 0, up = 0;
 		double speed = 25;
@@ -169,17 +287,8 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		if (forward != 0 || right != 0 || up != 0) {
 			onMoved(offset);
 		}
-	}
 
-	@Override
-	public boolean shouldRenderWorld() {
-		return false;
-	}
-
-	public void drawBackground(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-		RenderSystem.depthMask(false);
-		fillGradient(poseStack, 0, 0, this.width, this.height, 0xff000000, 0xff000000);
-		RenderSystem.depthMask(true);
+		this.camera.tick();
 	}
 
 	public abstract OrbitCamera.Cached setupCamera(float partialTick);
@@ -187,11 +296,11 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public void onMoved(Vec3 displacement) {
 	}
 
-	public void render3d(OrbitCamera.Cached camera, float partialTick) {
-	}
+	// public void render3d(OrbitCamera.Cached camera, float partialTick) {
+	// }
 
-	public void render2d(PoseStack poseStack, float partialTick) {
-	}
+	// public void render2d(PoseStack poseStack, float partialTick) {
+	// }
 
 	public Option<OrbitCamera.Cached> getLastCamera() {
 		return Option.fromNullable(this.lastCamera);
@@ -200,14 +309,18 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
 		final var partialTick = this.client.getFrameTime();
-		drawBackground(poseStack, mouseX, mouseY, partialTick);
 		final var camera = setupCamera(partialTick);
 		this.lastCamera = camera;
-		final var prevMatrices = camera.setupRenderMatrices();
-		render3d(camera, partialTick);
-		prevMatrices.restore();
-		render2d(poseStack, partialTick);
+		this.layers.forEach(layer -> {
+			if (layer instanceof Layer3d layer3d)
+				layer3d.camera = camera;
+		});
 		super.render(poseStack, mouseX, mouseY, tickDelta);
+
+		final var prevMatrices = camera.setupRenderMatrices();
+		renderCameraFrustum(camera, this.frustumPoints, Color.YELLOW);
+		renderCameraFrustum(camera, this.cullingFrustumPoints, Color.CYAN);
+		prevMatrices.restore();
 	}
 
 }

@@ -10,7 +10,8 @@ import net.xavil.universal.client.PlanetRenderingContext;
 import net.xavil.universal.client.SkyRenderer;
 import net.xavil.universal.client.UniversalTextureManager;
 import net.xavil.universal.client.UniversalTextureManager.SpriteRegistrationContext;
-import net.xavil.universal.client.screen.GalaxyMapScreen;
+import net.xavil.universal.client.screen.NewGalaxyMapScreen;
+import net.xavil.universal.client.screen.NewSystemMapScreen;
 import net.xavil.universal.client.screen.SystemMapScreen;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
@@ -74,8 +75,8 @@ public class ClientMod implements ClientModInitializer {
 				final var systemTicket = galaxy.sectorManager.createSystemTicket(disposer, systemId.systemSector());
 				final var system = galaxy.sectorManager.forceLoad(systemTicket).unwrap();
 
-				final var galaxyMap = new GalaxyMapScreen(client.screen, galaxy, systemId.systemSector());
-				final var systemMap = new SystemMapScreen(galaxyMap, packet.toOpen, system);
+				final var galaxyMap = new NewGalaxyMapScreen(client.screen, galaxy, systemId.systemSector());
+				final var systemMap = new NewSystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
 				client.setScreen(systemMap);
 			});
 		} else if (packetUntyped instanceof ClientboundUniverseInfoPacket packet) {

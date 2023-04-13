@@ -401,15 +401,15 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 		builder.draw(GameRenderer.getRendertypeLinesShader());
 	}
 
-	@Override
-	public void render3d(Cached camera, float partialTick) {
-		final var builder = BufferRenderer.immediateBuilder();
+	// @Override
+	// public void render3d(Cached camera, float partialTick) {
+	// 	final var builder = BufferRenderer.immediateBuilder();
 
-		RenderHelper.renderGrid(builder, camera, 1, 1, 10, 40, partialTick);
+	// 	RenderHelper.renderGrid(builder, camera, 1, 1, 10, 40, partialTick);
 
-		if (this.currentDustBands != null)
-			renderDustBands(camera, this.currentDustBands, partialTick);
-	}
+	// 	if (this.currentDustBands != null)
+	// 		renderDustBands(camera, this.currentDustBands, partialTick);
+	// }
 
 	private void addPlanetesimalLines(Table table) {
 		if (this.planetesimalInfos == null)
@@ -507,35 +507,35 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 		}
 	}
 
-	@Override
-	public void render2d(PoseStack poseStack, float partialTick) {
-		if (this.currentEvent != -1 && this.currentEvent < this.events.size()) {
-			var currentEvent = this.events.get(this.currentEvent);
-			this.client.font.draw(poseStack,
-					String.format("(%s/%s) §9§l§n%s§r",
-							"" + this.currentEvent,
-							"" + (this.events.size() - 1),
-							currentEvent.kind()),
-					0, 0, 0xff777777);
-			var obj = new Object() {
-				int currentHeight = client.font.lineHeight;
-			};
-			currentEvent.addInfoLines((property, value) -> {
-				this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0, obj.currentHeight, 0xff777777);
-				obj.currentHeight += this.client.font.lineHeight + 1;
-			});
+	// @Override
+	// public void render2d(PoseStack poseStack, float partialTick) {
+	// 	if (this.currentEvent != -1 && this.currentEvent < this.events.size()) {
+	// 		var currentEvent = this.events.get(this.currentEvent);
+	// 		this.client.font.draw(poseStack,
+	// 				String.format("(%s/%s) §9§l§n%s§r",
+	// 						"" + this.currentEvent,
+	// 						"" + (this.events.size() - 1),
+	// 						currentEvent.kind()),
+	// 				0, 0, 0xff777777);
+	// 		var obj = new Object() {
+	// 			int currentHeight = client.font.lineHeight;
+	// 		};
+	// 		currentEvent.addInfoLines((property, value) -> {
+	// 			this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0, obj.currentHeight, 0xff777777);
+	// 			obj.currentHeight += this.client.font.lineHeight + 1;
+	// 		});
 
-			// obj.currentHeight = this.height - (font.lineHeight + 1);
-			// addPlanetesimalLines((property, value) -> {
-			// this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0,
-			// obj.currentHeight, 0xff777777);
-			// obj.currentHeight -= this.client.font.lineHeight + 1;
-			// });
-			var planetesimalTable = new Table();
-			addPlanetesimalLines(planetesimalTable);
-			planetesimalTable.display(poseStack, font, this.height - (font.lineHeight + 1),
-					-(this.client.font.lineHeight + 1));
-		}
-	}
+	// 		// obj.currentHeight = this.height - (font.lineHeight + 1);
+	// 		// addPlanetesimalLines((property, value) -> {
+	// 		// this.client.font.draw(poseStack, "§9" + property + "§r: " + value, 0,
+	// 		// obj.currentHeight, 0xff777777);
+	// 		// obj.currentHeight -= this.client.font.lineHeight + 1;
+	// 		// });
+	// 		var planetesimalTable = new Table();
+	// 		addPlanetesimalLines(planetesimalTable);
+	// 		planetesimalTable.display(poseStack, font, this.height - (font.lineHeight + 1),
+	// 				-(this.client.font.lineHeight + 1));
+	// 	}
+	// }
 
 }

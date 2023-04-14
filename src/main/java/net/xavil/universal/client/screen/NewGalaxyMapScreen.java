@@ -8,6 +8,7 @@ import net.xavil.universal.client.screen.layer.ScreenLayerBackground;
 import net.xavil.universal.client.screen.layer.ScreenLayerGalaxy;
 import net.xavil.universal.client.screen.layer.ScreenLayerGrid;
 import net.xavil.universal.client.screen.layer.ScreenLayerStars;
+import net.xavil.universal.client.screen.layer.ScreenLayerSystemInfo;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
@@ -22,7 +23,7 @@ public class NewGalaxyMapScreen extends Universal3dScreen {
 
 	public NewGalaxyMapScreen(Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
 		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12, TM_PER_UNIT),
-				1e2, 1e5);
+				1e0, 1e5);
 
 		BlackboardKeys.SELECTED_STAR_SYSTEM.insert(blackboard, systemToFocus);
 
@@ -45,6 +46,8 @@ public class NewGalaxyMapScreen extends Universal3dScreen {
 
 			this.layers.push(new ScreenLayerStars(this, galaxy, SectorTicketInfo.visual(initialPos)));
 		});
+
+		this.layers.push(new ScreenLayerSystemInfo(this, galaxy));
 	}
 
 	@Override

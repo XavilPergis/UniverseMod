@@ -13,6 +13,7 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.xavil.universal.Mod;
 import net.xavil.util.Assert;
+import net.xavil.util.Units;
 import net.xavil.util.math.Formulas;
 import net.xavil.util.math.OrbitalPlane;
 import net.xavil.util.math.OrbitalShape;
@@ -274,6 +275,68 @@ public abstract sealed class CelestialNode permits
 
 			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
 			childOrbit.node.updatePositions(newPlane, time);
+		}
+	}
+
+	@FunctionalInterface
+	public interface PropertyConsumer {
+		void addProperty(String name, String info);
+	}
+
+	private String describeStar(StellarCelestialNode starNode) {
+		String starKind = "";
+		final var starClass = starNode.starClass();
+		if (starClass != null)
+			starKind += "Class " + starClass.name + " ";
+		if (starNode.type == StellarCelestialNode.Type.BLACK_HOLE)
+			starKind += "Black Hole ";
+		else if (starNode.type == StellarCelestialNode.Type.NEUTRON_STAR)
+			starKind += "Neutron Star ";
+		else if (starNode.type == StellarCelestialNode.Type.WHITE_DWARF)
+			starKind += "White Dwarf ";
+		else if (starNode.type == StellarCelestialNode.Type.GIANT)
+			starKind += "(Giant) ";
+		return starKind;
+	}
+
+
+	public void describe(PropertyConsumer consumer) {
+		if (this instanceof BinaryCelestialNode)
+			return;
+
+		// consumer.accept("Mass", String.format("%.2f Yg", this.massYg));
+		consumer.addProperty("Obliquity", String.format("%.2f rad", this.obliquityAngle));
+		consumer.addProperty("Rotational Period", String.format("%.2f s", this.rotationalPeriod));
+
+		// TODO: inclination n stuff
+
+		if (this instanceof StellarCelestialNode starNode) {
+			consumer.addProperty("Mass",
+					String.format("%.4e Yg (%.2f M☉)", this.massYg, this.massYg / Units.Yg_PER_Msol));
+			consumer.addProperty("Luminosity", String.format("%.6f L☉", starNode.luminosityLsol));
+			consumer.addProperty("Radius", String.format("%.2f R☉", starNode.radiusRsol));
+			consumer.addProperty("Temperature", String.format("%.0f K", starNode.temperatureK));
+			// var starClass = starNode.starClass();
+			// if (starClass != null)
+			// 	consumer.addProperty("Spectral Class", starClass.name);
+			consumer.addProperty("Type", describeStar(starNode));
+			// consumer.addProperty("Type", starNode.type.name());
+		} else if (this instanceof PlanetaryCelestialNode planetNode) {
+			if (planetNode.type == PlanetaryCelestialNode.Type.GAS_GIANT) {
+				consumer.addProperty("Mass",
+						String.format("%.2f Yg (%.2f M♃)", this.massYg, this.massYg / Units.Yg_PER_Mjupiter));
+			} else {
+				consumer.addProperty("Mass",
+						String.format("%.2f Yg (%.2f Mⴲ)", this.massYg, this.massYg / Units.Yg_PER_Mearth));
+			}
+			consumer.addProperty("Type", planetNode.type.name());
+			consumer.addProperty("Temperature", String.format("%.0f K", planetNode.temperatureK));
+			if (planetNode.type == PlanetaryCelestialNode.Type.GAS_GIANT) {
+				consumer.addProperty("Radius", String.format("%.2f R♃",
+						planetNode.radiusRearth * (Units.m_PER_Rearth / Units.m_PER_Rjupiter)));
+			} else {
+				consumer.addProperty("Radius", String.format("%.2f Rⴲ", planetNode.radiusRearth));
+			}
 		}
 	}
 

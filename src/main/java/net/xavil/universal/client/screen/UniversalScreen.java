@@ -10,10 +10,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.xavil.util.Disposable;
+import net.xavil.util.Option;
 import net.xavil.util.collections.Blackboard;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.math.Vec2;
+import net.xavil.util.math.Vec2i;
 
 public abstract class UniversalScreen extends Screen {
 
@@ -38,7 +40,7 @@ public abstract class UniversalScreen extends Screen {
 			this.disposer.dispose();
 		}
 
-		public abstract void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick);
+		public abstract void render(PoseStack poseStack, Vec2i mousePos, float partialTick);
 
 		public boolean handleClick(Vec2 mousePos, int button) {
 			return false;
@@ -57,6 +59,14 @@ public abstract class UniversalScreen extends Screen {
 		 */
 		public boolean clobbersScreen() {
 			return false;
+		}
+
+		public final <T> Option<T> getBlackboard(Blackboard.Key<T> key) {
+			return this.attachedScreen.blackboard.get(key);
+		}
+
+		public final <T> Option<T> insertBlackboard(Blackboard.Key<T> key, T value) {
+			return this.attachedScreen.blackboard.insert(key, value);
 		}
 	}
 
@@ -94,7 +104,8 @@ public abstract class UniversalScreen extends Screen {
 
 	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
-		this.layers.forEach(layer -> layer.render(poseStack, mouseX, mouseY, partialTick));
+		final var mousePos = Vec2i.from(mouseX, mouseY);
+		this.layers.forEach(layer -> layer.render(poseStack, mousePos, partialTick));
 		super.render(poseStack, mouseX, mouseY, partialTick);
 	}
 

@@ -58,7 +58,7 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 			this.screen.getLastCamera().ifSome(camera -> {
 				final var ray = camera.rayForPicking(this.client.getWindow(), mousePos);
 				final var selected = pickElement(camera, ray);
-				BlackboardKeys.SELECTED_STAR_SYSTEM.insert(screen.blackboard, selected.unwrapOrNull());
+				insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM, selected.unwrapOrNull());
 				this.selectedPos = selected
 						.flatMap(this.galaxy.sectorManager::getInitial)
 						.map(elem -> elem.pos())
@@ -86,7 +86,7 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 		}
 
 		if (keyCode == GLFW.GLFW_KEY_R) {
-			final var selected = BlackboardKeys.SELECTED_STAR_SYSTEM.get(this.screen.blackboard).unwrapOrNull();
+			final var selected = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
 			if (selected != null) {
 				final var disposer = new Disposable.Multi();
 				final var ticket = this.galaxy.sectorManager.createSystemTicket(disposer, selected);

@@ -16,13 +16,15 @@ import net.minecraft.util.Mth;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.util.Option;
 import net.xavil.util.math.Color;
+import net.xavil.util.math.Vec2i;
 import net.xavil.util.math.Vec3;
 
 public abstract class Universal3dScreen extends UniversalScreen {
 
 	protected boolean isForwardPressed = false, isBackwardPressed = false,
 			isLeftPressed = false, isRightPressed = false,
-			isUpPressed = false, isDownPressed = false;
+			isUpPressed = false, isDownPressed = false,
+			isRotateCWPressed = false, isRotateCCWPressed = false;
 	public double scrollMultiplier = 1.2;
 	public double scrollMin, scrollMax;
 
@@ -42,7 +44,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		}
 
 		@Override
-		public void render(PoseStack poseStack, int mouseX, int mouseY, float partialTick) {
+		public void render(PoseStack poseStack, Vec2i mousePos, float partialTick) {
 			final var prevMatrices = this.camera.setupRenderMatrices();
 			render3d(this.camera, partialTick);
 			prevMatrices.restore();
@@ -65,10 +67,27 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	}
 
 	@Override
+	public boolean mouseClicked(double mouseX, double mouseY, int button) {
+		if (super.mouseClicked(mouseX, mouseY, button))
+			return true;
+		return false;
+	}
+
+	@Override
+	public boolean mouseReleased(double mouseX, double mouseY, int button) {
+		if (super.mouseReleased(mouseX, mouseY, button))
+			return true;
+		// GLFW.glfwSetInputMode(this.client.getWindow().getWindow(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
+		return false;
+	}
+
+	@Override
 	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
 		if (super.mouseDragged(mouseX, mouseY, button, dx, dy))
 			return true;
 
+		// if (!isDragging())
+			// GLFW.glfwSetInputMode(this.client.getWindow().getWindow(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
 		this.setDragging(true);
 
 		final var partialTick = this.client.getFrameTime();
@@ -165,6 +184,12 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		} else if (keyCode == GLFW.GLFW_KEY_E) {
 			this.isUpPressed = true;
 			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_Z) {
+			this.isRotateCWPressed = true;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_C) {
+			this.isRotateCCWPressed = true;
+			return true;
 		}
 
 		return false;
@@ -258,6 +283,12 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		} else if (keyCode == GLFW.GLFW_KEY_E) {
 			this.isUpPressed = false;
 			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_Z) {
+			this.isRotateCWPressed = false;
+			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_C) {
+			this.isRotateCCWPressed = false;
+			return true;
 		}
 
 		return false;
@@ -267,14 +298,19 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public void tick() {
 		super.tick();
 
+		final double speed = 25, rotateSpeed = 0.05;
+
 		double forward = 0, right = 0, up = 0;
-		double speed = 25;
 		forward += this.isForwardPressed ? speed : 0;
 		forward += this.isBackwardPressed ? -speed : 0;
 		right += this.isLeftPressed ? speed : 0;
 		right += this.isRightPressed ? -speed : 0;
 		up += this.isUpPressed ? speed : 0;
 		up += this.isDownPressed ? -speed : 0;
+
+		double rotate = 0;
+		rotate += this.isRotateCWPressed ? rotateSpeed : 0;
+		rotate += this.isRotateCCWPressed ? -rotateSpeed : 0;
 
 		// TODO: consolidate with the logic in mouseDragged()?
 		final var partialTick = this.client.getFrameTime();
@@ -283,6 +319,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).add(0, up, 0)
 				.mul(dragScale);
 		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
+		this.camera.yaw.setTarget(this.camera.yaw.getTarget() + rotate);
 
 		if (forward != 0 || right != 0 || up != 0) {
 			onMoved(offset);

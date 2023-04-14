@@ -71,17 +71,17 @@ public class OrbitCamera {
 	// The amount of units that
 	public final double renderScaleFactor;
 
-	public final MotionSmoother<Vec3> focus = MotionSmoother.smoothVectors(0.6);
-	public final MotionSmoother<Double> yaw = MotionSmoother.smoothDoubles(0.6);
-	public final MotionSmoother<Double> pitch = MotionSmoother.smoothDoubles(0.6);
-	public final MotionSmoother<Double> scale = MotionSmoother.smoothDoubles(0.4);
+	public final MotionSmoother<Vec3> focus = MotionSmoother.smoothVectors(0.2);
+	public final MotionSmoother<Double> yaw = MotionSmoother.smoothDoubles(0.3);
+	public final MotionSmoother<Double> pitch = MotionSmoother.smoothDoubles(0.3);
+	public final MotionSmoother<Double> scale = MotionSmoother.smoothDoubles(0.2);
 
 	private Vec3 velocity = Vec3.ZERO, prevVelocity = Vec3.ZERO;
 
 	// projection properties
 	public double fovDeg = 90;
-	public double nearPlane = 0.001;
-	public double farPlane = 1e8;
+	public double nearPlane = 0.01;
+	public double farPlane = 1e6;
 
 	public OrbitCamera(double metersPerUnit, double renderScaleFactor) {
 		this.metersPerUnit = metersPerUnit;

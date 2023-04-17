@@ -7,12 +7,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
-import net.xavil.universal.client.SkyRenderer;
 import net.xavil.universal.client.UniversalTextureManager;
 import net.xavil.universal.client.UniversalTextureManager.SpriteRegistrationContext;
 import net.xavil.universal.client.screen.NewGalaxyMapScreen;
 import net.xavil.universal.client.screen.NewSystemMapScreen;
 import net.xavil.universal.client.screen.SystemMapScreen;
+import net.xavil.universal.client.sky.SkyRenderDispatcher;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universal.networking.ModNetworking;
@@ -82,7 +82,7 @@ public class ClientMod implements ClientModInitializer {
 		} else if (packetUntyped instanceof ClientboundUniverseInfoPacket packet) {
 			universe.updateFromInfoPacket(packet);
 		} else if (packetUntyped instanceof ClientboundChangeSystemPacket packet) {
-			LevelAccessor.setUniverseId(client.level, packet.id);
+			LevelAccessor.setLocation(client.level, packet.location);
 			// SkyRenderer.INSTANCE.changedSystem();
 		} else if (packetUntyped instanceof ClientboundSyncCelestialTimePacket packet) {
 			universe.celestialTimeTicks = packet.celestialTimeTicks;

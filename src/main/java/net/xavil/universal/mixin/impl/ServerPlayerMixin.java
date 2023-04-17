@@ -30,7 +30,7 @@ public abstract class ServerPlayerMixin extends Player {
 	
 	@Inject(method = "changeDimension", at = @At("HEAD"))
 	public void changeDimension(ServerLevel destination, CallbackInfoReturnable<Entity> info) {
-		var packet = new ClientboundChangeSystemPacket(LevelAccessor.getUniverseId(destination));
+		var packet = new ClientboundChangeSystemPacket(LevelAccessor.getLocation(destination));
 		this.connection.send(packet);
 	}
 

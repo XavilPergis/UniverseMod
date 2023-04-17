@@ -11,13 +11,17 @@ import net.minecraft.client.renderer.ShaderInstance;
 public interface GameRendererAccessor {
 
 	double universal_getFov(Camera activeRenderInfo, float partialTicks, boolean useFOVSetting);
-	Matrix4f universal_makeProjectionMatrix(float near, float far, float partialTick);
+
+	Matrix4f universal_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation, float partialTick);
+
 	ShaderInstance universal_getShader(String id);
+
 	PostChain universal_getPostChain(String id);
 
 	static ShaderInstance getShader(GameRenderer renderer, String id) {
 		return ((GameRendererAccessor) renderer).universal_getShader(id);
 	}
+
 	static PostChain getPostChain(GameRenderer renderer, String id) {
 		return ((GameRendererAccessor) renderer).universal_getPostChain(id);
 	}
@@ -34,8 +38,10 @@ public interface GameRendererAccessor {
 		return ((GameRendererAccessor) renderer).universal_getFov(activeRenderInfo, partialTicks, useFOVSetting);
 	}
 
-	static Matrix4f makeProjectionMatrix(GameRenderer renderer, float near, float far, float partialTick) {
-		return ((GameRendererAccessor) renderer).universal_makeProjectionMatrix(near, far, partialTick);
+	static Matrix4f makeProjectionMatrix(GameRenderer renderer, float near, float far, boolean applyViewBobTranslation,
+			float partialTick) {
+		return ((GameRendererAccessor) renderer).universal_makeProjectionMatrix(near, far, applyViewBobTranslation,
+				partialTick);
 	}
 
 }

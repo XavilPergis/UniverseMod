@@ -1,18 +1,17 @@
-package net.xavil.universal.networking.s2c;
+package net.xavil.universal.networking.c2s;
 
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.protocol.game.ServerGamePacketListener;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.networking.ModPacket;
 
-public class ClientboundChangeSystemPacket extends ModPacket<ClientGamePacketListener> {
+public class ServerboundTeleportToLocationPacket extends ModPacket<ServerGamePacketListener> {
 
 	public Location location;
 
-	public ClientboundChangeSystemPacket() {
-	}
+	public ServerboundTeleportToLocationPacket() {}
 
-	public ClientboundChangeSystemPacket(Location location) {
+	public ServerboundTeleportToLocationPacket(Location location) {
 		this.location = location;
 	}
 
@@ -25,5 +24,5 @@ public class ClientboundChangeSystemPacket extends ModPacket<ClientGamePacketLis
 	public void write(FriendlyByteBuf buf) {
 		writeLocation(buf, this.location);
 	}
-
+	
 }

@@ -3,10 +3,8 @@ package net.xavil.universal.common.universe.universe;
 import net.minecraft.client.Minecraft;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.universal.common.universe.galaxy.SystemTicket;
-import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 import net.xavil.util.Disposable;
-import net.xavil.util.math.Vec3i;
 
 public final class ClientUniverse extends Universe {
 

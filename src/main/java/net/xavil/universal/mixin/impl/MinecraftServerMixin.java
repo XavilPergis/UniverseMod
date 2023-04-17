@@ -21,6 +21,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.WorldData;
 import net.xavil.universal.common.dimension.DynamicDimensionManager;
+import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.universe.ServerUniverse;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
@@ -79,9 +80,9 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 
 	@Inject(method = "createLevels", at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerLevel;getDataStorage()Lnet/minecraft/world/level/storage/DimensionDataStorage;"))
 	private void prepareStartingVolume(CallbackInfo info) {
-		var overworld = ((MinecraftServer) (Object) this).overworld();
-		var startingId = this.universe.getStartingSystemGenerator().getStartingSystemId();
-		((LevelAccessor)overworld).universal_setUniverse(this.universe);
-		LevelAccessor.setUniverseId(overworld, startingId);
+		final var overworld = ((MinecraftServer) (Object) this).overworld();
+		final var startingId = this.universe.getStartingSystemGenerator().getStartingSystemId();
+		((LevelAccessor) overworld).universal_setUniverse(this.universe);
+		LevelAccessor.setLocation(overworld, new Location.World(startingId));
 	}
 }

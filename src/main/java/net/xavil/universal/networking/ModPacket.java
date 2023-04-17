@@ -3,6 +3,7 @@ package net.xavil.universal.networking;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
+import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
@@ -76,6 +77,39 @@ public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 		if (id != null) {
 			writeSystemId(buf, id.system());
 			buf.writeInt(id.nodeId());
+		}
+	}
+
+	public static Location readLocation(FriendlyByteBuf buf) {
+		if (buf.readBoolean())
+			return null;
+
+		final var type = buf.readByte();
+		if (type == 0) {
+			return Location.UNKNOWN;
+		} else if (type == 1) {
+			final var systemNodeId = readSystemNodeId(buf);
+			if (systemNodeId == null)
+				return null;
+			return new Location.World(systemNodeId);
+		} else if (type == 2) {
+			return new Location.Station(buf.readInt());
+		}
+		return null;
+	}
+
+	public static void writeLocation(FriendlyByteBuf buf, Location id) {
+		buf.writeBoolean(id == null);
+		if (id == null)
+			return;
+		if (id instanceof Location.Unknown) {
+			buf.writeByte(0);
+		} else if (id instanceof Location.World world) {
+			buf.writeByte(1);
+			writeSystemNodeId(buf, world.id);
+		} else if (id instanceof Location.Station station) {
+			buf.writeByte(2);
+			buf.writeInt(station.id);
 		}
 	}
 

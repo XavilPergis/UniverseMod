@@ -92,6 +92,9 @@ public final class PlanetRenderingContext {
 
 	public void renderStar(FlexibleBufferBuilder builder, CachedCamera<?> camera, StellarCelestialNode node,
 			PoseStack poseStack, Color tintColor, boolean skip) {
+		RenderSystem.depthMask(true);
+		RenderSystem.enableDepthTest();
+		RenderSystem.disableCull();
 		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
 		// builder.begin(VertexFormat.Mode.QUADS,
 		// DefaultVertexFormat.POSITION_COLOR_TEX);
@@ -205,6 +208,7 @@ public final class PlanetRenderingContext {
 		setupShaderCommon(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.PLANET_SHADER));
 		setupShaderCommon(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.RING_SHADER));
 		setupPlanetShader(node, ModRendering.getShader(ModRendering.PLANET_SHADER));
+
 
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();

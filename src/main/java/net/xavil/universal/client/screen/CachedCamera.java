@@ -151,4 +151,9 @@ public class CachedCamera<T> {
 		return new CachedCamera<T>(camera, pos, quat, 1, 1e12, projectionMatrix);
 	}
 
+	public static <T> CachedCamera<T> create(T camera, Vec3 pos, Quat orientation, double metersPerUnit,
+			double renderScale, Matrix4f projectionMatrix) {
+		return new CachedCamera<T>(camera, pos, orientation, metersPerUnit, renderScale, projectionMatrix);
+	}
+
 }

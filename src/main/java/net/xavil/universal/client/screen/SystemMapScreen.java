@@ -26,11 +26,12 @@ import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.OrbitCamera.Cached;
+import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
-import net.xavil.universal.networking.c2s.ServerboundTeleportToPlanetPacket;
+import net.xavil.universal.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
@@ -126,8 +127,8 @@ public class SystemMapScreen extends Universal3dScreen {
 			this.showGuides = !this.showGuides;
 		} else if (keyCode == GLFW.GLFW_KEY_T) {
 			if (this.selectedId != -1) {
-				var packet = new ServerboundTeleportToPlanetPacket();
-				packet.planetId = new SystemNodeId(this.systemId, this.selectedId);
+				var packet = new ServerboundTeleportToLocationPacket();
+				packet.location = new Location.World(new SystemNodeId(this.systemId, this.selectedId));
 				this.client.player.connection.send(packet);
 			}
 		// } else if (keyCode == GLFW.GLFW_KEY_J && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {

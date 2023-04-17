@@ -24,28 +24,14 @@ public abstract class ServerLevelMixin {
 	private MinecraftServer server;
 
 	@Inject(method = "<init>", at = @At("TAIL"))
-	private void setSystemNodeId(CallbackInfo info) {
+	private void loadLocationIfPresent(CallbackInfo info) {
 		final var self = (ServerLevel) (Object) this;
 		final var savedData = self.getDataStorage().get(ModSavedData::load, "universe_id");
 		if (savedData == null)
 			return;
 		final var universe = MinecraftServerAccessor.getUniverse(this.server);
 		((LevelAccessor) self).universal_setUniverse(universe);
-		((LevelAccessor) self).universal_setUniverseIdRaw(savedData.systemNodeId);
-		if (!self.dimension().equals(Level.OVERWORLD)) {
-			// var systemNode = universe.getSystemNode(savedData.systemNodeId);
-			// if (systemNode == null) {
-			// Mod.LOGGER.error("loaded server level with unknown ID " +
-			// savedData.systemNodeId);
-			// ((LevelAccessor) self).universal_setUniverseIdRaw(null);
-			// }
-		}
+		((LevelAccessor) self).universal_setLocation(savedData.location);
 	}
 
-	@Inject(method = "tickNonPassenger(Lnet/minecraft/world/entity/Entity;)V", at = @At("HEAD"))
-	private void setSystemNodeId(Entity entity, CallbackInfo info) {
-		final var self = (ServerLevel) (Object) this;
-		EntityAccessor.setSystemNodeId(entity, LevelAccessor.getUniverseId(self));
-		EntityAccessor.setUniverse(entity, MinecraftServerAccessor.getUniverse(this.server));
-	}
 }

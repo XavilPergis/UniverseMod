@@ -8,6 +8,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -25,9 +26,10 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.player.Player;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
-import net.xavil.universal.client.SkyRenderer;
+import net.xavil.universal.client.sky.NewSkyRenderDispatcher;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 
 @Mixin(GameRenderer.class)
@@ -35,6 +37,8 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 
 	private final Map<String, ShaderInstance> modShaders = new Object2ObjectOpenHashMap<>();
 	private final Map<String, PostChain> modPostChains = new Object2ObjectOpenHashMap<>();
+
+	private boolean applyViewBobTranslation = true;
 
 	// @formatter:off
 	@Shadow @Final private Map<String, ShaderInstance> shaders;
@@ -57,7 +61,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	@Inject(method = "resize", at = @At("HEAD"))
 	private void onResize(int width, int height, CallbackInfo info) {
 		this.modPostChains.values().forEach(chain -> chain.resize(width, height));
-		SkyRenderer.INSTANCE.resize(width, height);
+		NewSkyRenderDispatcher.INSTANCE.resize(width, height);
 	}
 
 	@Inject(method = "reloadShaders", at = @At("HEAD"))
@@ -111,40 +115,51 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 		return this.getFov(activeRenderInfo, partialTicks, useFOVSetting);
 	}
 
+	@Redirect(method = "bobView", at = @At(value = "INVOKE", target = "Lcom/mojang/blaze3d/vertex/PoseStack;translate(DDD)V"))
+	private void modifyViewBobTranslation(PoseStack poses, double x, double y, double z) {
+		if (this.applyViewBobTranslation)
+			poses.translate(x, y, z);
+	}
+
 	// ok so. this is awful. i want to render very distant objects at a 1:1 scale,
 	// which requires that i have a far clipping plane waaaaaay far away, which
 	// means i need to make a custom projection matrix, but minecraft doesnt give
 	// any particularly easy way to do that...
 
 	@Override
-	public Matrix4f universal_makeProjectionMatrix(float near, float far, float partialTick) {
+	public Matrix4f universal_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation,
+			float partialTick) {
 		final var projectionStack = new PoseStack();
-		double fov = this.getFov(this.mainCamera, partialTick, true);
+		final var fov = this.getFov(this.mainCamera, partialTick, true);
 
-		var aspectRatio = (float) this.minecraft.getWindow().getWidth()
+		final var aspectRatio = (float) this.minecraft.getWindow().getWidth()
 				/ (float) this.minecraft.getWindow().getHeight();
 		if (this.zoom != 1f) {
 			projectionStack.translate(this.zoomX, -this.zoomY, 0);
 			projectionStack.scale(this.zoom, this.zoom, 1f);
 		}
-		var projectionMatrix = Matrix4f.perspective(fov, aspectRatio, near, far);
+		final var projectionMatrix = Matrix4f.perspective(fov, aspectRatio, near, far);
 		projectionStack.last().pose().multiply(projectionMatrix);
 
 		this.bobHurt(projectionStack, partialTick);
 		if (this.minecraft.options.bobView) {
+			// cursed
+			final var oldApplyViewBobTranslation = this.applyViewBobTranslation;
+			this.applyViewBobTranslation = applyViewBobTranslation;
 			this.bobView(projectionStack, partialTick);
+			this.applyViewBobTranslation = oldApplyViewBobTranslation;
 		}
 
-		var portalTime = Mth.lerp(partialTick, this.minecraft.player.oPortalTime, this.minecraft.player.portalTime);
-		var effectScale = this.minecraft.options.screenEffectScale * this.minecraft.options.screenEffectScale;
-		var portalStrength = portalTime * effectScale;
+		final var portalTime = Mth.lerp(partialTick, this.minecraft.player.oPortalTime, this.minecraft.player.portalTime);
+		final var effectScale = this.minecraft.options.screenEffectScale * this.minecraft.options.screenEffectScale;
+		final var portalStrength = portalTime * effectScale;
 
 		if (portalStrength > 0f) {
-			var nauseaModifier = this.minecraft.player.hasEffect(MobEffects.CONFUSION) ? 7f : 20f;
-			var scaleFactor = 5f / (portalStrength * portalStrength + 5f) - portalStrength * 0.04f;
+			final var nauseaModifier = this.minecraft.player.hasEffect(MobEffects.CONFUSION) ? 7f : 20f;
+			final var scaleFactor = 5f / (portalStrength * portalStrength + 5f) - portalStrength * 0.04f;
 
-			var rotationAxis = new Vector3f(0f, Mth.SQRT_OF_TWO / 2f, Mth.SQRT_OF_TWO / 2f);
-			var rotationAngle = ((float) this.tick + partialTick) * nauseaModifier;
+			final var rotationAxis = new Vector3f(0f, Mth.SQRT_OF_TWO / 2f, Mth.SQRT_OF_TWO / 2f);
+			final var rotationAngle = ((float) this.tick + partialTick) * nauseaModifier;
 
 			projectionStack.mulPose(rotationAxis.rotationDegrees(rotationAngle));
 			projectionStack.scale(1.0f / (scaleFactor * scaleFactor), 1.0f, 1.0f);

@@ -6,7 +6,6 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.universal.Mod;
-import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.universal.common.universe.galaxy.SystemTicket;
 import net.xavil.universal.common.universe.id.UniverseSectorId;

@@ -38,11 +38,4 @@ public abstract class ClientLevelMixin {
 		// galaxy.sectorManager.forceLoad(this.server.getProfiler(), this.systemTicket);
 	}
 
-	@Inject(method = "tickNonPassenger(Lnet/minecraft/world/entity/Entity;)V", at = @At("TAIL"))
-	private void onEntityAdded(Entity entity, CallbackInfo info) {
-		final var self = (ClientLevel) (Object) this;
-		EntityAccessor.setSystemNodeId(entity, LevelAccessor.getUniverseId(self));
-		EntityAccessor.setUniverse(entity, MinecraftClientAccessor.getUniverse(Minecraft.getInstance()));
-	}
-
 }

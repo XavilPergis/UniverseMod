@@ -1,10 +1,7 @@
 package net.xavil.universal.common.universe.galaxy;
 
-import java.util.List;
-
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.util.Assert;
 import net.xavil.util.Units;
 import net.xavil.util.Util;
 import net.xavil.util.collections.interfaces.ImmutableList;

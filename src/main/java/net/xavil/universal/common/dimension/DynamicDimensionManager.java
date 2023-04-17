@@ -34,6 +34,9 @@ public class DynamicDimensionManager {
 	public static ResourceKey<Level> getKey(ResourceLocation location) {
 		return ResourceKey.create(Registry.DIMENSION_REGISTRY, location);
 	}
+	public static ResourceKey<Level> getKey(String location) {
+		return ResourceKey.create(Registry.DIMENSION_REGISTRY, new ResourceLocation("dynamic", location));
+	}
 
 	public @Nullable ServerLevel getLevel(ResourceKey<Level> name) {
 		return MinecraftServerAccessor.getLevels(this.server).get(name);

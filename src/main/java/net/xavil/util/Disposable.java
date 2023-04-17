@@ -1,6 +1,7 @@
 package net.xavil.util;
 
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
@@ -13,6 +14,15 @@ public interface Disposable {
 		final var multi = new Multi();
 		try {
 			consumer.accept(multi);
+		} finally {
+			multi.dispose();
+		}
+	}
+
+	static <T> T scope(Function<Multi, T> func) {
+		final var multi = new Multi();
+		try {
+			return func.apply(multi);
 		} finally {
 			multi.dispose();
 		}

@@ -4,8 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 
-import org.jetbrains.annotations.Nullable;
-
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.DensityFields;

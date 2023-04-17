@@ -46,6 +46,40 @@ public final class Quat implements Hashable {
 		return new Quat(0, ijk.x, ijk.y, ijk.z);
 	}
 
+	// https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
+	public static Quat fromOrthonormalBasis(Vec3 a, Vec3 b, Vec3 c) {
+		double tr = a.x + b.y + c.z;
+
+		double qw = 0, qx = 0, qy = 0, qz = 0;
+		if (tr > 0) {
+			double S = Math.sqrt(tr + 1.0) * 2; // S=4*qw
+			qw = 0.25 * S;
+			qx = (c.y - b.z) / S;
+			qy = (a.z - c.x) / S;
+			qz = (b.x - a.y) / S;
+		} else if ((a.x > b.y) & (a.x > c.z)) {
+			double S = Math.sqrt(1.0 + a.x - b.y - c.z) * 2; // S=4*qx
+			qw = (c.y - b.z) / S;
+			qx = 0.25 * S;
+			qy = (a.y + b.x) / S;
+			qz = (a.z + c.x) / S;
+		} else if (b.y > c.z) {
+			double S = Math.sqrt(1.0 + b.y - a.x - c.z) * 2; // S=4*qy
+			qw = (a.z - c.x) / S;
+			qx = (a.y + b.x) / S;
+			qy = 0.25 * S;
+			qz = (b.z + c.y) / S;
+		} else {
+			double S = Math.sqrt(1.0 + c.z - a.x - b.y) * 2; // S=4*qz
+			qw = (b.x - a.y) / S;
+			qx = (a.z + c.x) / S;
+			qy = (b.z + c.y) / S;
+			qz = 0.25 * S;
+		}
+
+		return new Quat(qw, qx, qy, qz);
+	}
+
 	public static Quat axisAngle(Vec3 dir, double angle) {
 		var qx = dir.x * Math.sin(angle / 2);
 		var qy = dir.y * Math.sin(angle / 2);

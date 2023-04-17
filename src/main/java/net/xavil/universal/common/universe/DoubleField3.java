@@ -1,7 +1,5 @@
 package net.xavil.universal.common.universe;
 
-import static net.xavil.universal.common.universe.DoubleField3.uniform;
-
 import java.util.function.DoubleBinaryOperator;
 
 import net.minecraft.util.Mth;

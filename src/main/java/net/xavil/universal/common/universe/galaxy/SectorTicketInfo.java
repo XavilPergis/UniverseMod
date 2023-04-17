@@ -1,9 +1,6 @@
 package net.xavil.universal.common.universe.galaxy;
 
-import java.util.HashSet;
 import java.util.function.Consumer;
-
-import com.google.common.collect.Sets;
 
 import net.xavil.util.collections.interfaces.ImmutableSet;
 import net.xavil.util.collections.interfaces.MutableSet;

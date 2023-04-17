@@ -27,7 +27,7 @@ public abstract class PlayerListMixin {
 		universeInfoPacket.startingSystem = universe.getStartingSystemGenerator().startingSystem.rootNode;
 		serverPlayer.connection.send(universeInfoPacket);
 
-		var changeSystemPacket = new ClientboundChangeSystemPacket(LevelAccessor.getUniverseId(serverPlayer.level));
+		var changeSystemPacket = new ClientboundChangeSystemPacket(LevelAccessor.getLocation(serverPlayer.level));
 		serverPlayer.connection.send(changeSystemPacket);
 	}
 

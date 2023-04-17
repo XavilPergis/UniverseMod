@@ -11,7 +11,6 @@ import net.xavil.universal.common.universe.system.StarSystem.Info;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.math.Interval;
 import net.xavil.util.math.Vec3;
-import net.xavil.util.math.Vec3i;
 
 public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 

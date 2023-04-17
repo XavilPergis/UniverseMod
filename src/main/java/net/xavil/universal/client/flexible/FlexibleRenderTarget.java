@@ -109,6 +109,10 @@ public class FlexibleRenderTarget extends RenderTarget {
 		GlStateManager._glBindFramebuffer(GL32.GL_FRAMEBUFFER, 0);
 	}
 
+	public boolean isMultisampled() {
+		return this.format.multisample;
+	}
+
 	@Override
 	public void bindRead() {
 		RenderSystem.assertOnRenderThread();

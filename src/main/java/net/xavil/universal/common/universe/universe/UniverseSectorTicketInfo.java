@@ -1,11 +1,7 @@
 package net.xavil.universal.common.universe.universe;
 
-import java.util.HashSet;
 import java.util.function.Consumer;
 
-import com.google.common.collect.Sets;
-
-import net.xavil.universal.common.universe.galaxy.GalaxySector;
 import net.xavil.util.collections.interfaces.ImmutableSet;
 import net.xavil.util.collections.interfaces.MutableSet;
 import net.xavil.util.math.Vec3;

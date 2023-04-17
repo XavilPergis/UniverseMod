@@ -27,23 +27,24 @@ There are currently 4 custom packet types:
 
 ### IDs
 - `SystemNodeId`
-	- Full-resolution ID that allows identifying a single celestial node with no prior context.
+	- Full-resolution ID that allows identifying a single celestial node, given no prior context.
+- `GalaxySectorId`
+	- ID that allows identifying a star system, given a galaxy as prior context.
 - `SystemId`
-	- Represents an entire star system with no prior context.
-- `SectorId`
-	- Represents a single element inside a `TicketedVolume`
+	- ID that allows identifying a star system, given no prior context.
+- `UniverseSectorId`
+	- ID that allows identifying a galaxy, given no prior context.
 
-### `TicketedVolume`
-An infinite spatial data structure comprised of a 3d grid of octrees that store galaxies or systems inside. There's some jank here, since all of my code accesses this structure in an immediate mode sort of way, but the structure wants to know what sectors should be loaded and unloaded at any given time, but we just access it like `volume.get(...)`, which means it has to store temporary tickets for each lookup.
+### `GalaxySector`, `SectorManager`, `SectorTicket`, `SystemTicket`, `SectorPos`
+`GalaxySector`s are octree nodes that span 10ly in each axis at the "base" level. These octrees are limited to 8 levels of depth. They primarily store basic info about star systems, like their position and context needed for more in-depth generation of the star system. Within a galaxy, `SectorPos`es are used to identify `GalaxySector`s. `GalaxySector`s are loaded, unloaded, and stored by `SectorManager`, which is responsible for keeping track of tickets that were issued by it, loading and unloading sectors/systems as needed. `SystemTicket`s load a single star system in its entirety, as well as the sector that the system resides within. `SectorTicket`s may load multiple sectors, and come in a few different flavors. They can either load a single sector given a `SectorPos`, or they can load a region of sectors around a point, given a "base radius", and a description of how that radius changes for each level higher in the octree. For both kinds of tickets, the contents of what they are loading can be modified at any point, and the sector manager will reflect that. For example, you can keep a single system ticket around, and simply change `ticket.id` to load a different system. `null` is also a valid ID, and will make the `SectorManager` unload anything that ticket has loaded. The `SectorManager` will do all its generation in a background threadpool, but it is also possible to wait until a ticket has completed being loaded.
+
+### `UniverseSector` and `UniverseSectorManager`
+Very similar to ther galaxy counterparts, just that they refer to sectors that contain galaxies instead of sectors that contain star systems, and are attached to a `Universe` instead of a `Galaxy`.
 
 ### `Galaxy`
-Galaxies are responsible for a few things. They serve as context for generating star systems, as well as storing the results of system generation. Sectors within a galaxy are called "galaxy sectors".
+Galaxies primarily act as a host for a `GalaxySectorManager`, but are also responsible for actually generating star system sectors. They contain a list of `GalaxyGenerationLayer`s, which each contribute a set of stars to the generating sector. Every galaxy gets a `BaseGalaxyGenerationLayer` attached to it, which does all the heavy lifting. The galaxy that the starting system resides in gets an additional `StartingSystemGalaxyGenerationLayer` that simply places the starting system in the correct location. There are also plans for adding authored systems, which would probably be its own generation layer.
 
 ### `Universe`
 Like Minecraft's `Level`, `ServerLevel`, and `ClientLevel`, `Universe` is split between itself, `ServerUniverse`, and `ClientUniverse`. Like `Galaxy`, `Universe` serves as a context for generating galaxies, and also stores the results of that generation within itself. The generation process does not happen in the same way that star system generation does.
 
 There are two types of seed: _common_ and _unique_. The _common_ seed is shared between everyone that uses the mod (this will be configurable in the future) and the _unique_ seed is unique per world. The _common_ seed drives the actual universe generation: the distribution of galaxies, the shape of those galaxies, the distribution of stars within those galaxies, and the layout of star systems. The _unique_ seed drives starting system placement. This means that for the default _common_ seed, two beings may share universe coordinates and be able to talk about the same planet/system/galaxy, even on worlds with different vanilla seeds. The reason the seeds are shared is so that the client can generate its own copy of the galaxies in the universe and the starts in a galaxy, so that the server doesn't need to stream a huve amount of data to the client when they, say, need to rebuild the background stars, or move around in the galaxy map view.
-
-`Universe` also provides a `StartingSystemGalaxyGenerationLayer`, which needs the galaxy sector, the position within that sector to place the starting system at, the actual `CelesialNode` that is the starting system, and the ID of the subnode that is the actual starting planet. This whole system like, barely works. A mixin in `MinecraftServer` calls `ServerUniverse.prepare()`, which selects a galaxy to start in, and selects a position from that galaxy to place the starting system in. We can generate universe sectors, but unfortunately, we cannot actually generate galaxy sectors, because we would need to provide the starting system generator, which we are in the process of making. So for now we just pick a random galaxy in a radius and put the starting system in sector `(0, 0, 0)`.
-
-ok i ran out of steam writing this. maybe ill write more later.

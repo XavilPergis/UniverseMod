@@ -320,10 +320,14 @@ public final class UniverseSectorManager {
 	}
 
 	public UniverseSectorTicket createSectorTicket(Disposable.Multi disposer, UniverseSectorTicketInfo info) {
+		return disposer.attach(createSectorTicketManual(info));
+	}
+
+	public UniverseSectorTicket createSectorTicketManual(UniverseSectorTicketInfo info) {
 		final var ticket = new UniverseSectorTicket(this, info.copy());
 		this.trackedTickets.push(new SectorTicketTracker(ticket));
 		applyTickets(InactiveProfiler.INSTANCE);
-		return disposer.attach(ticket);
+		return ticket;
 	}
 
 	public void removeSectorTicket(UniverseSectorTicket ticket) {
@@ -334,10 +338,14 @@ public final class UniverseSectorManager {
 	}
 
 	public GalaxyTicket createGalaxyTicket(Disposable.Multi disposer, UniverseSectorId id) {
+		return disposer.attach(createGalaxyTicketManual(id));
+	}
+
+	public GalaxyTicket createGalaxyTicketManual(UniverseSectorId id) {
 		final var ticket = new GalaxyTicket(this, id);
 		this.trackedGalaxyTickets.push(new GalaxyTicketTracker(ticket));
 		applyTickets(InactiveProfiler.INSTANCE);
-		return disposer.attach(ticket);
+		return ticket;
 	}
 
 	public void removeGalaxyTicket(GalaxyTicket ticket) {

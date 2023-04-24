@@ -9,22 +9,16 @@ public record SystemNodeId(SystemId system, int nodeId) {
 			Codec.INT.fieldOf("id").forGetter(SystemNodeId::nodeId))
 			.apply(inst, SystemNodeId::new));
 
-	private static String escapeMinus(int n) {
-		return n >= 0 ? "" + n : "m" + -n;
+	public UniverseSectorId universeSector() {
+		return this.system.universeSector();
+	}
+
+	public GalaxySectorId galaxySector() {
+		return this.system.galaxySector();
 	}
 
 	public String uniqueName() {
-		return "id"
-				+ escapeMinus(this.system.galaxySector().sectorPos().x) + "_"
-				+ escapeMinus(this.system.galaxySector().sectorPos().y) + "_"
-				+ escapeMinus(this.system.galaxySector().sectorPos().z) + "_"
-				+ this.system.galaxySector().id() + "_"
-				+ escapeMinus(this.system.systemSector().levelCoords().x) + "_"
-				+ escapeMinus(this.system.systemSector().levelCoords().y) + "_"
-				+ escapeMinus(this.system.systemSector().levelCoords().z) + "_"
-				+ this.system.systemSector().level() + "_"
-				+ this.system.systemSector().elementIndex() + "_"
-				+ this.nodeId;
+		return String.format("%s_%d", system.uniqueName(), this.nodeId);
 	}
 
 	@Override

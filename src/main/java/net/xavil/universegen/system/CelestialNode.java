@@ -14,6 +14,10 @@ import net.minecraft.nbt.Tag;
 import net.xavil.universal.Mod;
 import net.xavil.util.Assert;
 import net.xavil.util.Units;
+import net.xavil.util.collections.Vector;
+import net.xavil.util.collections.interfaces.ImmutableList;
+import net.xavil.util.iterator.Iterator;
+import net.xavil.util.math.Ellipse;
 import net.xavil.util.math.Formulas;
 import net.xavil.util.math.OrbitalPlane;
 import net.xavil.util.math.OrbitalShape;
@@ -145,11 +149,15 @@ public abstract sealed class CelestialNode permits
 		this.childNodes.forEach(child -> consumer.accept(child.node));
 	}
 
-	public List<CelestialNode> selfAndChildren() {
-		var nodes = new ArrayList<CelestialNode>();
-		visit(nodes::add);
+	public ImmutableList<CelestialNode> selfAndChildren() {
+		final var nodes = new Vector<CelestialNode>();
+		visit(nodes::push);
 		return nodes;
 	}
+
+	// public Iterator<CelestialNode> iter() {
+	// 	// return selfAndChildren();
+	// }
 
 	public int find(CelestialNode node) {
 		return find(other -> other == node);
@@ -247,35 +255,29 @@ public abstract sealed class CelestialNode permits
 		this.referencePlane = referencePlane;
 
 		if (this instanceof BinaryCelestialNode binaryNode) {
-			var combinedSemiMajor = binaryNode.orbitalShapeA.semiMajor() + binaryNode.orbitalShapeB.semiMajor();
-			var combinedMass = binaryNode.getA().massYg + binaryNode.getB().massYg;
-			var orbitalPeriod = Formulas.orbitalPeriod(combinedSemiMajor, combinedMass);
-
-			var ellipseA = binaryNode.getEllipseA(referencePlane);
-			var meanAnomalyA = (2 * Math.PI / orbitalPeriod) * time + binaryNode.offset;
-			var trueAnomalyA = Formulas.calculateTrueAnomaly(meanAnomalyA, binaryNode.orbitalShapeA.eccentricity());
-			binaryNode.getA().position = ellipseA.pointFromTrueAnomaly(-trueAnomalyA);
-
-			var ellipseB = binaryNode.getEllipseB(referencePlane);
-			var meanAnomalyB = (2 * Math.PI / orbitalPeriod) * time + binaryNode.offset;
-			var trueAnomalyB = Formulas.calculateTrueAnomaly(meanAnomalyB, binaryNode.orbitalShapeB.eccentricity());
-			binaryNode.getB().position = ellipseB.pointFromTrueAnomaly(trueAnomalyB);
-
-			var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
+			final var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
+			binaryNode.getA().position = getOrbitalPosition(newPlane, binaryNode.orbitalShapeA, false, time);
 			binaryNode.getA().updatePositions(newPlane, time);
+			binaryNode.getB().position = getOrbitalPosition(newPlane, binaryNode.orbitalShapeB, true, time);
 			binaryNode.getB().updatePositions(newPlane, time);
 		}
 
 		for (var childOrbit : this.childOrbits()) {
-			var ellipse = childOrbit.getEllipse(referencePlane);
-			var orbitalPeriod = Formulas.orbitalPeriod(childOrbit.orbitalShape.semiMajor(), this.massYg);
-			var meanAnomaly = (2 * Math.PI / orbitalPeriod) * time + childOrbit.offset;
-			var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, childOrbit.orbitalShape.eccentricity());
-			childOrbit.node.position = ellipse.pointFromTrueAnomaly(trueAnomaly);
-
-			var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
+			final var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
+			childOrbit.node.position = getOrbitalPosition(newPlane, childOrbit.orbitalShape, false, time);
 			childOrbit.node.updatePositions(newPlane, time);
 		}
+	}
+
+	public Vec3 getOrbitalPosition(OrbitalPlane plane, OrbitalShape shape, boolean reverse, double time) {
+		final var ellipse = Ellipse.fromOrbit(this.position, plane, shape, reverse);
+
+		final var orbitalPeriod = Formulas.orbitalPeriod(shape.semiMajor(), this.massYg);
+		final var meanAnomaly = (2 * Math.PI / orbitalPeriod) * time;
+		final var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, shape.eccentricity());
+		final var pos = ellipse.pointFromTrueAnomaly(reverse ? -trueAnomaly : trueAnomaly);
+
+		return pos;
 	}
 
 	@FunctionalInterface
@@ -299,7 +301,6 @@ public abstract sealed class CelestialNode permits
 		return starKind;
 	}
 
-
 	public void describe(PropertyConsumer consumer) {
 		if (this instanceof BinaryCelestialNode)
 			return;
@@ -318,7 +319,7 @@ public abstract sealed class CelestialNode permits
 			consumer.addProperty("Temperature", String.format("%.0f K", starNode.temperatureK));
 			// var starClass = starNode.starClass();
 			// if (starClass != null)
-			// 	consumer.addProperty("Spectral Class", starClass.name);
+			// consumer.addProperty("Spectral Class", starClass.name);
 			consumer.addProperty("Type", describeStar(starNode));
 			// consumer.addProperty("Type", starNode.type.name());
 		} else if (this instanceof PlanetaryCelestialNode planetNode) {

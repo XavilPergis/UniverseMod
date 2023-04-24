@@ -86,9 +86,9 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			}
 		}
 
-		Mod.LOGGER.debug("[galaxygen] average stellar density: {}", averageSectorDensity);
-		Mod.LOGGER.debug("[galaxygen] star placement attempt count: {}", starAttemptCount);
-		Mod.LOGGER.debug("[galaxygen] successful star placements: {}", successfulAttempts);
+		Mod.LOGGER.trace("[galaxygen] average stellar density: {}", averageSectorDensity);
+		Mod.LOGGER.trace("[galaxygen] star placement attempt count: {}", starAttemptCount);
+		Mod.LOGGER.trace("[galaxygen] successful star placements: {}", successfulAttempts);
 
 	}
 

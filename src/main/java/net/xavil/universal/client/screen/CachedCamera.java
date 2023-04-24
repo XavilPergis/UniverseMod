@@ -5,6 +5,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Matrix3f;
 import com.mojang.math.Matrix4f;
 
+import net.minecraft.client.Camera;
+import net.xavil.util.math.Mat4;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.Ray;
 import net.xavil.util.math.Vec2;
@@ -17,14 +19,19 @@ public class CachedCamera<T> {
 	public final double metersPerUnit;
 	public final double renderScale;
 
-	public final Matrix4f viewMatrix;
-	public final Matrix4f projectionMatrix;
-	public final Matrix4f inverseProjectionMatrix;
-	public final Matrix4f viewProjectionMatrix;
-	public final Matrix4f inverseViewProjectionMatrix;
+	public final Mat4 viewMatrix;
+	public final Mat4 projectionMatrix;
+	public final Mat4 inverseProjectionMatrix;
+	public final Mat4 viewProjectionMatrix;
+	public final Mat4 inverseViewProjectionMatrix;
+	// public final Matrix4f viewMatrix;
+	// public final Matrix4f projectionMatrix;
+	// public final Matrix4f inverseProjectionMatrix;
+	// public final Matrix4f viewProjectionMatrix;
+	// public final Matrix4f inverseViewProjectionMatrix;
 
 	public CachedCamera(T camera, Vec3 pos, Quat orientation, double metersPerUnit,
-			double renderScale, Matrix4f projectionMatrix) {
+			double renderScale, Mat4 projectionMatrix) {
 		this.camera = camera;
 		this.pos = pos;
 		this.up = orientation.inverse().transform(Vec3.XP);
@@ -36,16 +43,11 @@ public class CachedCamera<T> {
 		this.forward = right.cross(up).normalize();
 
 		this.projectionMatrix = projectionMatrix;
-		this.inverseProjectionMatrix = this.projectionMatrix.copy();
-		this.inverseProjectionMatrix.invert();
+		this.inverseProjectionMatrix = this.projectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
+		this.viewMatrix = Mat4.fromBases(right, up, forward.neg(), pos).inverse().unwrapOr(Mat4.IDENTITY);
 
-		this.viewMatrix = matrixFromBases(right, up, forward.neg(), pos);
-		this.viewMatrix.invert();
-
-		this.viewProjectionMatrix = this.projectionMatrix.copy();
-		this.viewProjectionMatrix.multiply(this.viewMatrix);
-		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.copy();
-		this.inverseViewProjectionMatrix.invert();
+		this.viewProjectionMatrix = this.viewMatrix.applyBefore(this.projectionMatrix);
+		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
 	}
 
 	public static Matrix4f matrixFromBases(Vec3 x, Vec3 y, Vec3 z, Vec3 pos) {
@@ -71,7 +73,7 @@ public class CachedCamera<T> {
 
 	public RenderMatricesSnapshot setupRenderMatrices() {
 		var snapshot = RenderMatricesSnapshot.capture();
-		RenderSystem.setProjectionMatrix(this.projectionMatrix);
+		RenderSystem.setProjectionMatrix(this.projectionMatrix.asMinecraft());
 
 		var poseStack = RenderSystem.getModelViewStack();
 		poseStack.setIdentity();
@@ -129,7 +131,6 @@ public class CachedCamera<T> {
 	}
 
 	public Vec3 ndcToWorld(Vec3 posNdc) {
-		// posNdc = Vec3.from(posNdc.x, posNdc.y, -posNdc.z);
 		return posNdc.transformBy(this.inverseViewProjectionMatrix);
 	}
 
@@ -143,17 +144,16 @@ public class CachedCamera<T> {
 		return new Ray(this.pos, dir);
 	}
 
-	public static <T> CachedCamera<T> create(T camera, Vec3 pos, float xRot, float yRot, Quat prependedRotation,
-			Matrix4f projectionMatrix) {
-		var xRotQuat = Quat.axisAngle(Vec3.XP, Math.toRadians(xRot));
-		var yRotQuat = Quat.axisAngle(Vec3.YP, Math.toRadians(yRot) + Math.PI);
-		var quat = xRotQuat.hamiltonProduct(yRotQuat).hamiltonProduct(prependedRotation);
-		return new CachedCamera<T>(camera, pos, quat, 1, 1e12, projectionMatrix);
+	public static <T> CachedCamera<T> create(T camera, Vec3 pos, Quat orientation, double metersPerUnit,
+			double renderScale, Mat4 projectionMatrix) {
+		return new CachedCamera<T>(camera, pos, orientation, metersPerUnit, renderScale, projectionMatrix);
 	}
 
-	public static <T> CachedCamera<T> create(T camera, Vec3 pos, Quat orientation, double metersPerUnit,
-			double renderScale, Matrix4f projectionMatrix) {
-		return new CachedCamera<T>(camera, pos, orientation, metersPerUnit, renderScale, projectionMatrix);
+	public static Quat orientationFromMinecraftCamera(Camera camera) {
+		final var px = Vec3.fromMinecraft(camera.getLeftVector()).neg();
+		final var py = Vec3.fromMinecraft(camera.getUpVector());
+		final var pz = px.cross(py);
+		return Quat.fromOrthonormalBasis(px, py, pz);
 	}
 
 }

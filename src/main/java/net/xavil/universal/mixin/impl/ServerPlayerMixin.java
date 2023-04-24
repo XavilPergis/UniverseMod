@@ -4,6 +4,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import com.mojang.authlib.GameProfile;
@@ -27,11 +28,13 @@ public abstract class ServerPlayerMixin extends Player {
 	public ServerPlayerMixin(Level level, BlockPos blockPos, float f, GameProfile gameProfile) {
 		super(level, blockPos, f, gameProfile);
 	}
-	
-	@Inject(method = "changeDimension", at = @At("HEAD"))
-	public void changeDimension(ServerLevel destination, CallbackInfoReturnable<Entity> info) {
-		var packet = new ClientboundChangeSystemPacket(LevelAccessor.getLocation(destination));
-		this.connection.send(packet);
+
+	@Inject(method = "setLevel", at = @At("TAIL"))
+	public void changeLevel(ServerLevel level, CallbackInfo info) {
+		if (this.connection != null) {
+			final var packet = new ClientboundChangeSystemPacket(LevelAccessor.getLocation(level));
+			this.connection.send(packet);
+		}
 	}
 
 }

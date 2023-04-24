@@ -38,7 +38,8 @@ vec3 contribution(vec4 color, vec4 pos) {
 		float starDistanceMeters = distance(vertexPos.xyz, starPos) * MetersPerUnit;
 		float fragDistanceMeters = length(vertexPos.xyz) * MetersPerUnit;
 
-		float receivedIntensity = (color.a * 3.827e26) / (4 * PI * pow(starDistanceMeters, 2.0));
+		// float receivedIntensity = (color.a * 3.827e26) / (4 * PI * pow(starDistanceMeters, 2.0));
+		float receivedIntensity = (color.a * 3.827e13) / (4 * PI * pow(starDistanceMeters, 1.0));
 		receivedIntensity *= max(0.0, dot(toStar, normal.xyz));
 		// float reflectedIntensity = receivedIntensity / (4 * PI * pow(fragDistanceMeters, 2.0));
 

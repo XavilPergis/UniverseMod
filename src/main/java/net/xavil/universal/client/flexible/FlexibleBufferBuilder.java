@@ -329,6 +329,8 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 
 	@Override
 	public void endVertex() {
+		if (this.currentVertexFormat == null)
+			throw new RuntimeException("cannot add vertices to FlexibleBufferBuilder; it is not currently building!");
 		try {
 			ensureBufferCapacity(this.currentVertexFormat.getVertexSize());
 			this.dispatch.emit(this.vertexByteOffset);

@@ -18,6 +18,7 @@ import net.xavil.util.Disposable;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.ImmutableList;
 import net.xavil.util.math.Interval;
+import net.xavil.util.math.Vec3;
 
 public class Galaxy {
 
@@ -94,6 +95,10 @@ public class Galaxy {
 
 	public Option<StarSystem> getSystem(GalaxySectorId id) {
 		return this.sectorManager.getSystem(id);
+	}
+
+	public Option<Vec3> getSystemPos(GalaxySectorId id) {
+		return this.sectorManager.getInitial(id).map(info -> info.pos());
 	}
 
 	public Option<CelestialNode> getSystemNode(GalaxySectorId id, int nodeId) {

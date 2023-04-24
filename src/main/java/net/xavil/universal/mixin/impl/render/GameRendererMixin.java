@@ -29,8 +29,9 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.entity.player.Player;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
-import net.xavil.universal.client.sky.NewSkyRenderDispatcher;
+import net.xavil.universal.client.sky.SkyRenderDispatcher;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
+import net.xavil.util.math.Mat4;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin implements ResourceManagerReloadListener, AutoCloseable, GameRendererAccessor {
@@ -61,7 +62,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	@Inject(method = "resize", at = @At("HEAD"))
 	private void onResize(int width, int height, CallbackInfo info) {
 		this.modPostChains.values().forEach(chain -> chain.resize(width, height));
-		NewSkyRenderDispatcher.INSTANCE.resize(width, height);
+		SkyRenderDispatcher.INSTANCE.resize(width, height);
 	}
 
 	@Inject(method = "reloadShaders", at = @At("HEAD"))
@@ -127,7 +128,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	// any particularly easy way to do that...
 
 	@Override
-	public Matrix4f universal_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation,
+	public Mat4 universal_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation,
 			float partialTick) {
 		final var projectionStack = new PoseStack();
 		final var fov = this.getFov(this.mainCamera, partialTick, true);
@@ -166,7 +167,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 			projectionStack.mulPose(rotationAxis.rotationDegrees(-rotationAngle));
 		}
 
-		return projectionStack.last().pose();
+		return Mat4.fromMinecraft(projectionStack.last().pose());
 	}
 
 }

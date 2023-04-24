@@ -16,18 +16,29 @@ import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
+import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.server.level.TicketType;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.level.ChunkPos;
 import net.xavil.universal.common.block.ModBlocks;
 import net.xavil.universal.common.dimension.DimensionCreationProperties;
 import net.xavil.universal.common.dimension.DynamicDimensionManager;
 import net.xavil.universal.common.item.StarmapItem;
+import net.xavil.universal.common.level.EmptyChunkGenerator;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.id.SystemNodeId;
+import net.xavil.universal.common.universe.station.StationLocation;
+import net.xavil.universal.common.universe.station.StationLocation.OrbitingCelestialBody;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.ModNetworking;
@@ -35,6 +46,7 @@ import net.xavil.universal.networking.ModPacket;
 import net.xavil.universal.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
+import net.xavil.universal.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 import net.xavil.universegen.system.CelestialNode;
@@ -42,6 +54,7 @@ import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.util.Assert;
 import net.xavil.util.Disposable;
 import net.xavil.util.Option;
+import net.xavil.util.math.Vec3;
 
 public class Mod implements ModInitializer {
 
@@ -63,6 +76,8 @@ public class Mod implements ModInitializer {
 	public void onInitialize() {
 		ModBlocks.register();
 
+		Registry.register(Registry.CHUNK_GENERATOR, namespaced("empty"), EmptyChunkGenerator.CODEC);
+
 		ModNetworking.SERVERBOUND_PLAY_HANDLER = (player, packet) -> player.server
 				.execute(() -> handlePacket(player, packet));
 
@@ -72,6 +87,8 @@ public class Mod implements ModInitializer {
 			acceptor.clientboundPlay.register(ClientboundChangeSystemPacket.class, ClientboundChangeSystemPacket::new);
 			acceptor.clientboundPlay.register(ClientboundSyncCelestialTimePacket.class,
 					ClientboundSyncCelestialTimePacket::new);
+			acceptor.clientboundPlay.register(ClientboundSpaceStationInfoPacket.class,
+					ClientboundSpaceStationInfoPacket::new);
 
 			acceptor.serverboundPlay.register(ServerboundTeleportToLocationPacket.class,
 					ServerboundTeleportToLocationPacket::new);
@@ -81,33 +98,78 @@ public class Mod implements ModInitializer {
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
 			dispatcher.register(literal("universal")
+					.requires(src -> src.hasPermission(2))
 					.then(literal("station")
 							.then(literal("add")
-									.then(argument("name", StringArgumentType.string()))
-									.executes(this::executeStationAdd))
+									.then(argument("name", StringArgumentType.string())
+											.executes(this::executeStationAdd)))
 							.then(literal("remove")
-									.then(argument("name", StringArgumentType.string()))
-									.executes(this::executeStationRemove))
+									.then(argument("name", StringArgumentType.string())
+											.executes(this::executeStationRemove)))
 							.then(literal("tp")
-									.then(argument("entity", EntityArgument.entity()))
-									.then(argument("name", StringArgumentType.string()))
-									.executes(this::executeStationTp))
+									.then(argument("entity", EntityArgument.entity())
+											.then(argument("name", StringArgumentType.string())
+													.executes(this::executeStationTp))))
 							.then(literal("move")
-									.then(argument("name", StringArgumentType.string()))
-									.executes(this::executeStationTp))));
+									.then(argument("name", StringArgumentType.string())
+											.executes(this::executeStationMove)))));
 		});
 	}
 
 	private int executeStationAdd(CommandContext<CommandSourceStack> ctx) {
 		final var level = ctx.getSource().getLevel();
+		final var universe = LevelAccessor.getUniverse(level);
+		final var location = LevelAccessor.getLocation(level);
+		final var name = StringArgumentType.getString(ctx, "name");
+		if (location instanceof Location.World loc) {
+			final var sloc = OrbitingCelestialBody.createDefault(universe, loc.id);
+			if (sloc.isSome()) {
+				universe.createStation(name, sloc.unwrap());
+				ctx.getSource().sendSuccess(new TextComponent("created station around node " + loc.id), true);
+			}
+		} else if (location instanceof Location.Station loc) {
+			universe.getStation(loc.id).ifSome(station -> {
+				if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
+					final var newSloc = OrbitingCelestialBody.createDefault(universe, sloc.id);
+					if (newSloc.isSome()) {
+						universe.createStation(name, newSloc.unwrap());
+						ctx.getSource().sendSuccess(new TextComponent("created station around node " + sloc.id), true);
+					}
+				}
+			});
+		} else {
+			ctx.getSource().sendFailure(new TextComponent("connot create station: location invalid"));
+		}
 		return 1;
 	}
 
 	private int executeStationRemove(CommandContext<CommandSourceStack> ctx) {
+		ctx.getSource().sendFailure(new TextComponent("station removal is unimplemented."));
 		return 1;
 	}
 
 	private int executeStationTp(CommandContext<CommandSourceStack> ctx) {
+		final var level = ctx.getSource().getLevel();
+		final var universe = LevelAccessor.getUniverse(level);
+		final var name = StringArgumentType.getString(ctx, "name");
+		final var stationOpt = universe.getStationByName(name);
+		stationOpt.ifSome(station -> {
+			final var entity = ctx.getSource().getEntity();
+			if (entity != null && station.level instanceof ServerLevel newLevel) {
+				final var spawnPos = Vec3.from(0, 128, 0);
+				teleportEntityToWorld(entity, newLevel, spawnPos, 0, 0);
+			}
+			ctx.getSource().sendSuccess(new TextComponent("teleported to station '" + station.name + "'"), true);
+		});
+		if (stationOpt.isNone()) {
+			ctx.getSource()
+					.sendFailure(new TextComponent("cannot teleport to station: '" + name + "' could not be found"));
+		}
+		return 1;
+	}
+
+	private int executeStationMove(CommandContext<CommandSourceStack> ctx) {
+		ctx.getSource().sendFailure(new TextComponent("station movement is unimplemented."));
 		return 1;
 	}
 
@@ -164,6 +226,48 @@ public class Mod implements ModInitializer {
 					.flatMap(node -> getDimProperties(server, node))
 					.map(props -> createWorld(server, id, props));
 		});
+	}
+
+	// /universal station tp @p foo
+	private static void teleportEntityToWorld(Entity entity, ServerLevel level, Vec3 pos, float yaw, float pitch) {
+		double x = pos.x, y = pos.y, z = pos.z;
+		yaw = Mth.wrapDegrees(yaw);
+		pitch = Mth.wrapDegrees(pitch);
+
+		if (entity instanceof ServerPlayer player) {
+			final var chunkPos = new ChunkPos(new BlockPos(x, y, z));
+			level.getChunkSource().addRegionTicket(TicketType.POST_TELEPORT, chunkPos, 1, player.getId());
+			player.stopRiding();
+			if (player.isSleeping())
+				player.stopSleepInBed(true, true);
+			player.teleportTo(level, x, y, z, yaw, pitch);
+			player.setYHeadRot(yaw);
+		} else {
+			pitch = Mth.clamp(pitch, -90.0f, 90.0f);
+			if (level == entity.level) {
+				entity.moveTo(x, y, z, yaw, pitch);
+				entity.setYHeadRot(yaw);
+			} else {
+				final var originalEntity = entity;
+				entity = originalEntity.getType().create(level);
+				if (entity == null)
+					return;
+				originalEntity.unRide();
+				entity.restoreFrom(originalEntity);
+				entity.moveTo(x, y, z, yaw, pitch);
+				entity.setYHeadRot(yaw);
+				originalEntity.setRemoved(Entity.RemovalReason.CHANGED_DIMENSION);
+				level.addDuringTeleport(entity);
+			}
+		}
+
+		if (!(entity instanceof LivingEntity) || !((LivingEntity) entity).isFallFlying()) {
+			entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, 0.0, 1.0));
+			entity.setOnGround(true);
+		}
+		if (entity instanceof PathfinderMob mob) {
+			mob.getNavigation().stop();
+		}
 	}
 
 	private static void teleportToWorld(ServerPlayer sender, SystemNodeId id) {

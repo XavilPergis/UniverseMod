@@ -9,4 +9,6 @@ public final class BlackboardKeys {
 
 	public static final Blackboard.Key<GalaxySectorId> SELECTED_STAR_SYSTEM = Blackboard.Key
 			.create("selected_star_system");
+	public static final Blackboard.Key<Integer> SELECTED_STAR_SYSTEM_NODE = Blackboard.Key
+			.create("selected_star_system_node");
 }

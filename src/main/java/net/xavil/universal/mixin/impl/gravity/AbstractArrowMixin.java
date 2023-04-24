@@ -1,20 +1,19 @@
 package net.xavil.universal.mixin.impl.gravity;
 
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.Constant;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 import net.minecraft.world.entity.projectile.AbstractArrow;
 import net.xavil.universal.mixin.accessor.EntityAccessor;
+import net.xavil.util.math.Vec3;
 
 @Mixin(AbstractArrow.class)
 public abstract class AbstractArrowMixin {
-	
-	@ModifyConstant(method = "tick()V", constant = @Constant(floatValue = 0.05f))
-	private float modifyGravity(float value) {
-		final var self = (AbstractArrow) (Object) this;
-		final var gravity = EntityAccessor.getEntityGravity(self);
-		return value * (float) gravity.orElse(1.0);
+
+	@Redirect(method = "tick()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/projectile/AbstractArrow;setDeltaMovement(DDD)V", ordinal = 0))
+	private void modifyDeltaMovement(AbstractArrow entity, double x, double y, double z) {
+		EntityAccessor.applyGravity(entity, Vec3.from(x, y, z));
 	}
 
 }

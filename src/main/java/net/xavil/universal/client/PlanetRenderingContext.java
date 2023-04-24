@@ -67,11 +67,16 @@ public final class PlanetRenderingContext {
 	public final List<PointLight> pointLights = new ArrayList<>();
 	private final Minecraft client = Minecraft.getInstance();
 	private final double celestialTime;
+	private Vec3 origin = Vec3.ZERO;
 	private int renderedPlanetCount = 0;
 	private int renderedStarCount = 0;
 
 	public PlanetRenderingContext(double celestialTime) {
 		this.celestialTime = celestialTime;
+	}
+
+	public void setSystemOrigin(Vec3 origin) {
+		this.origin = origin;
 	}
 
 	public int getRenderedPlanetCount() {
@@ -224,7 +229,7 @@ public final class PlanetRenderingContext {
 			// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 			renderPlanetLayer(builder, camera, baseTexture, poseStack, nodePosUnits, radiusUnits, tintColor);
 			if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
-				renderPlanetLayer(builder, camera, FEATURE_EARTH_LIKE_LOCATION, poseStack, nodePosUnits, radiusUnits,
+				renderPlanetLayer(builder, camera, BASE_ROCKY_LOCATION, poseStack, nodePosUnits, radiusUnits,
 						tintColor);
 			}
 		}
@@ -270,6 +275,7 @@ public final class PlanetRenderingContext {
 		builder.begin(VertexFormat.Mode.QUADS, ModRendering.PLANET_VERTEX_FORMAT);
 		addNormSphere(builder, camera, poseStack, center, radius, tintColor);
 		builder.end();
+		Minecraft.getInstance().getTextureManager().getTexture(texture).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, texture);
 		RenderSystem.disableCull();
 		builder.draw(ModRendering.getShader(ModRendering.PLANET_SHADER));
@@ -318,7 +324,7 @@ public final class PlanetRenderingContext {
 		poseStack.pushPose();
 		// poseStack.translate(center.x, center.y, center.z);
 		final var pose = poseStack.last();
-		final var subdivisions = 10;
+		final var subdivisions = 32;
 
 		// -X
 		double nxlu = 0.00f, nxlv = 0.5f, nxhu = 0.25f, nxhv = 0.25f;

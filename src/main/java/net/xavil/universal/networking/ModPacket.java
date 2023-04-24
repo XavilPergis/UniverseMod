@@ -58,9 +58,9 @@ public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 	}
 
 	public static void writeSystemId(FriendlyByteBuf buf, SystemId id) {
-		writeSectorId(buf, id.galaxySector());
-		buf.writeInt(id.systemSector().packedInfo());
-		writeVector(buf, id.systemSector().levelCoords());
+		writeSectorId(buf, id.universeSector());
+		buf.writeInt(id.galaxySector().packedInfo());
+		writeVector(buf, id.galaxySector().levelCoords());
 	}
 
 	public static SystemNodeId readSystemNodeId(FriendlyByteBuf buf) {

@@ -113,6 +113,7 @@ public final class SectorManager {
 		public int referenceCount = 0;
 
 		public boolean generationFailed = false;
+		public boolean isLoaded = false;
 		public StarSystem system;
 		public CompletableFuture<Option<StarSystem>> waitingFuture = null;
 
@@ -259,6 +260,7 @@ public final class SectorManager {
 					slot.system = systemOpt.unwrap();
 				}
 				slot.waitingFuture = null;
+				slot.isLoaded = true;
 			}
 		}
 	}
@@ -292,10 +294,14 @@ public final class SectorManager {
 	}
 
 	public SectorTicket createSectorTicket(Disposable.Multi disposer, SectorTicketInfo info) {
+		return disposer.attach(createSectorTicketManual(info));
+	}
+
+	public SectorTicket createSectorTicketManual(SectorTicketInfo info) {
 		final var ticket = new SectorTicket(this, info.copy());
 		this.trackedTickets.push(new SectorTicketTracker(ticket));
 		applyTickets(InactiveProfiler.INSTANCE);
-		return disposer.attach(ticket);
+		return ticket;
 	}
 
 	public void removeSectorTicket(SectorTicket ticket) {
@@ -305,11 +311,15 @@ public final class SectorManager {
 	}
 
 	public SystemTicket createSystemTicket(Disposable.Multi disposer, GalaxySectorId id) {
+		return disposer.attach(createSystemTicketManual(id));
+	}
+
+	public SystemTicket createSystemTicketManual(GalaxySectorId id) {
 		Mod.LOGGER.info("creating system ticket for {}", id);
 		final var ticket = new SystemTicket(this, id);
 		this.trackedSystemTickets.push(new SystemTicketTracker(ticket));
 		applyTickets(InactiveProfiler.INSTANCE);
-		return disposer.attach(ticket);
+		return ticket;
 	}
 
 	public void removeSystemTicket(SystemTicket ticket) {
@@ -335,6 +345,12 @@ public final class SectorManager {
 
 	public Option<StarSystem> getSystem(GalaxySectorId id) {
 		return this.systemMap.get(id).flatMap(sys -> Option.fromNullable(sys.system));
+	}
+
+	public boolean isSystemLoaded(GalaxySectorId id) {
+		final var slot = this.systemMap.get(id).unwrapOrNull();
+		if (slot == null) return false;
+		return slot.isLoaded;
 	}
 
 	public void enumerate(SectorTicket ticket, Consumer<GalaxySector> sectorConsumer) {

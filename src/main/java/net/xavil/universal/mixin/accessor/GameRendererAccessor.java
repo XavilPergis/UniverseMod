@@ -1,18 +1,17 @@
 package net.xavil.universal.mixin.accessor;
 
-import com.mojang.math.Matrix4f;
-
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.ShaderInstance;
+import net.xavil.util.math.Mat4;
 
 public interface GameRendererAccessor {
 
 	double universal_getFov(Camera activeRenderInfo, float partialTicks, boolean useFOVSetting);
 
-	Matrix4f universal_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation, float partialTick);
+	Mat4 universal_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation, float partialTick);
 
 	ShaderInstance universal_getShader(String id);
 
@@ -38,7 +37,7 @@ public interface GameRendererAccessor {
 		return ((GameRendererAccessor) renderer).universal_getFov(activeRenderInfo, partialTicks, useFOVSetting);
 	}
 
-	static Matrix4f makeProjectionMatrix(GameRenderer renderer, float near, float far, boolean applyViewBobTranslation,
+	static Mat4 makeProjectionMatrix(GameRenderer renderer, float near, float far, boolean applyViewBobTranslation,
 			float partialTick) {
 		return ((GameRendererAccessor) renderer).universal_makeProjectionMatrix(near, far, applyViewBobTranslation,
 				partialTick);

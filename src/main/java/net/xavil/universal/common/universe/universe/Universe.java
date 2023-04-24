@@ -3,6 +3,7 @@ package net.xavil.universal.common.universe.universe;
 import java.util.Random;
 
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.level.Level;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.GalaxyType;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
@@ -10,6 +11,7 @@ import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.common.universe.station.SpaceStation;
+import net.xavil.universal.common.universe.station.StationLocation;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.Disposable;
@@ -18,6 +20,7 @@ import net.xavil.util.Option;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.ImmutableList;
 import net.xavil.util.collections.interfaces.MutableList;
+import net.xavil.util.collections.interfaces.MutableMap;
 import net.xavil.util.math.Vec3;
 import net.xavil.util.math.Vec3i;
 
@@ -32,7 +35,8 @@ public abstract class Universe implements Disposable {
 	public long celestialTimeTicks = 0;
 	public final UniverseSectorManager sectorManager = new UniverseSectorManager(this);
 	public final Disposable.Multi disposer = new Disposable.Multi();
-	private final MutableList<SpaceStation> spaceStations = new Vector<>();
+	protected final MutableMap<Integer, SpaceStation> spaceStations = MutableMap.hashMap();
+	private int nextStationId = 0;
 
 	@Override
 	public void dispose() {
@@ -45,14 +49,41 @@ public abstract class Universe implements Disposable {
 
 	public abstract StartingSystemGalaxyGenerationLayer getStartingSystemGenerator();
 
+	public abstract Level createLevelForStation(String name, int id);
+
 	public Option<SpaceStation> getStation(int id) {
-		return Option.some(this.spaceStations.get(id));
+		return this.spaceStations.get(id);
+	}
+
+	public Option<Integer> createStation(String name, StationLocation location) {
+		if (this.spaceStations.values().any(station -> station.name == name))
+			return Option.none();
+		
+		while (this.spaceStations.containsKey(this.nextStationId)) {
+			this.nextStationId += 1;
+		}
+		final var id = this.nextStationId;
+		this.nextStationId += 1;
+
+		final var level = createLevelForStation(name, id);
+		final var station = new SpaceStation(this, level, name, location);
+		this.spaceStations.insert(id, station);
+		return Option.some(id);
+	}
+
+	public Option<SpaceStation> getStationByName(String name) {
+		return this.spaceStations.values().find(station -> station.name.equals(name));
 	}
 
 	public void tick(ProfilerFiller profiler, boolean tickTime) {
 		if (tickTime)
 			this.celestialTimeTicks += 1;
 		this.sectorManager.tick(profiler);
+		this.spaceStations.values().forEach(station -> station.tick());
+	}
+
+	public final double getCelestialTime() {
+		return getCelestialTime(0);
 	}
 
 	public double getCelestialTime(float partialTick) {
@@ -62,9 +93,9 @@ public abstract class Universe implements Disposable {
 	}
 
 	public Option<StarSystem> loadSystem(Disposable.Multi disposer, SystemId id) {
-		final var galaxyTicket = this.sectorManager.createGalaxyTicket(disposer, id.galaxySector());
+		final var galaxyTicket = this.sectorManager.createGalaxyTicket(disposer, id.universeSector());
 		return this.sectorManager.forceLoad(galaxyTicket)
-				.flatMap(galaxy -> galaxy.loadSystem(disposer, id.systemSector()));
+				.flatMap(galaxy -> galaxy.loadSystem(disposer, id.galaxySector()));
 	}
 
 	public Option<Galaxy> loadGalaxy(Disposable.Multi disposer, UniverseSectorId id) {
@@ -73,12 +104,29 @@ public abstract class Universe implements Disposable {
 	}
 
 	public Option<StarSystem> getSystem(SystemId id) {
-		return this.sectorManager.getGalaxy(id.galaxySector()).flatMap(galaxy -> galaxy.getSystem(id.systemSector()));
+		return this.sectorManager.getGalaxy(id.universeSector()).flatMap(galaxy -> galaxy.getSystem(id.galaxySector()));
 	}
 
+	public Option<Vec3> getSystemPos(SystemId id) {
+		return this.sectorManager.getGalaxy(id.universeSector())
+				.flatMap(galaxy -> galaxy.getSystemPos(id.galaxySector()));
+	}
+
+	// public Option<Vec3> getSystemNodePos(SystemNodeId id, double time) {
+	// final var systemPos = getSystemPos(id.system()).unwrapOrNull();
+	// final var system = getSystem(id.system()).unwrapOrNull();
+	// if (systemPos == null || system == null)
+	// return Option.none();
+	// final var node = system.rootNode.lookup(id.nodeId());
+	// if (node == null)
+	// return Option.none();
+	// system.rootNode.updatePositions(time);
+	// return Option.some(systemPos.add(node.position));
+	// }
+
 	public Option<CelestialNode> getSystemNode(SystemNodeId id) {
-		return this.sectorManager.getGalaxy(id.system().galaxySector())
-				.flatMap(galaxy -> galaxy.getSystemNode(id.system().systemSector(), id.nodeId()));
+		return this.sectorManager.getGalaxy(id.system().universeSector())
+				.flatMap(galaxy -> galaxy.getSystemNode(id.system().galaxySector(), id.nodeId()));
 	}
 
 	protected static Vec3 randomVec(Random random) {

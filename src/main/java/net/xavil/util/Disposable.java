@@ -59,6 +59,7 @@ public interface Disposable {
 		@Override
 		public void dispose() {
 			this.children.forEach(Disposable::dispose);
+			this.children.clear();
 		}
 	}
 

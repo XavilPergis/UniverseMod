@@ -1,5 +1,6 @@
 package net.xavil.util.iterator;
 
+import java.util.Comparator;
 import java.util.OptionalInt;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -147,6 +148,28 @@ public interface Iterator<T> extends IntoIterator<T> {
 				return false;
 		}
 		return true;
+	}
+
+	default Option<T> min(Comparator<T> comparator) {
+		T minValue = null;
+		while (hasNext()) {
+			final var value = next();
+			if (minValue == null || comparator.compare(minValue, value) >= 0) {
+				minValue = value;
+			}
+		}
+		return Option.fromNullable(minValue);
+	}
+
+	default Option<T> max(Comparator<T> comparator) {
+		T maxValue = null;
+		while (hasNext()) {
+			final var value = next();
+			if (maxValue == null || comparator.compare(maxValue, value) <= 0) {
+				maxValue = value;
+			}
+		}
+		return Option.fromNullable(maxValue);
 	}
 
 	default int count() {
@@ -318,7 +341,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		public void forEach(Consumer<? super Item<T>> consumer) {
 			this.source.forEach(value -> {
 				this.item.index = this.currentIndex++;
-				this.item.item = value;	
+				this.item.item = value;
 				consumer.accept(this.item);
 			});
 		}

@@ -25,7 +25,7 @@ public final class Vec2 implements Hashable {
 
 	public final double x, y;
 
-	private Vec2(double x, double y) {
+	public Vec2(double x, double y) {
 		this.x = x;
 		this.y = y;
 	}
@@ -154,6 +154,18 @@ public final class Vec2 implements Hashable {
 		return new Vec2(nx, ny);
 	}
 
+	public Vec2 withX(double x) {
+		return new Vec2(x, y);
+	}
+
+	public Vec2 withY(double Y) {
+		return new Vec2(x, y);
+	}
+
+	public Vec3 withZ(double z) {
+		return new Vec3(x, y, z);
+	}
+
 	public static Vec2 fromMinecraft(net.minecraft.world.phys.Vec2 pos) {
 		return new Vec2(pos.x, pos.y);
 	}
@@ -196,5 +208,40 @@ public final class Vec2 implements Hashable {
 	public void appendHash(Hasher hasher) {
 		hasher.appendDouble(this.x).appendDouble(this.y);
 	}
+
+	// #region Swizzle Operations
+	// @formatter:off
+	public Vec2 xx() {return new Vec2(x,x);}
+	public Vec2 xy() {return this;}
+	public Vec2 yx() {return new Vec2(y,x);}
+	public Vec2 yy() {return new Vec2(y,y);}
+
+	public Vec3 xxx() {return new Vec3(x,x,x);}
+	public Vec3 xxy() {return new Vec3(x,x,y);}
+	public Vec3 xyx() {return new Vec3(x,y,x);}
+	public Vec3 xyy() {return new Vec3(x,y,y);}
+	public Vec3 yxx() {return new Vec3(y,x,x);}
+	public Vec3 yxy() {return new Vec3(y,x,y);}
+	public Vec3 yyx() {return new Vec3(y,y,x);}
+	public Vec3 yyy() {return new Vec3(y,y,y);}
+
+	public Vec4 xxxx() {return new Vec4(x,x,x,x);}
+	public Vec4 xxxy() {return new Vec4(x,x,x,y);}
+	public Vec4 xxyx() {return new Vec4(x,x,y,x);}
+	public Vec4 xxyy() {return new Vec4(x,x,y,y);}
+	public Vec4 xyxx() {return new Vec4(x,y,x,x);}
+	public Vec4 xyxy() {return new Vec4(x,y,x,y);}
+	public Vec4 xyyx() {return new Vec4(x,y,y,x);}
+	public Vec4 xyyy() {return new Vec4(x,y,y,y);}
+	public Vec4 yxxx() {return new Vec4(y,x,x,x);}
+	public Vec4 yxxy() {return new Vec4(y,x,x,y);}
+	public Vec4 yxyx() {return new Vec4(y,x,y,x);}
+	public Vec4 yxyy() {return new Vec4(y,x,y,y);}
+	public Vec4 yyxx() {return new Vec4(y,y,x,x);}
+	public Vec4 yyxy() {return new Vec4(y,y,x,y);}
+	public Vec4 yyyx() {return new Vec4(y,y,y,x);}
+	public Vec4 yyyy() {return new Vec4(y,y,y,y);}
+	// @formatter:on
+	// #endregion
 
 }

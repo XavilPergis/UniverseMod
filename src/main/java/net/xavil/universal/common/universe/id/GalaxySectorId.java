@@ -48,6 +48,13 @@ public record GalaxySectorId(Vec3i levelCoords, int packedInfo) {
 		return new SectorPos(level(), levelCoords());
 	}
 
+	public String uniqueName() {
+		final var x = Util.escapeMinus(this.levelCoords.x);
+		final var y = Util.escapeMinus(this.levelCoords.x);
+		final var z = Util.escapeMinus(this.levelCoords.x);
+		return String.format("%s_%s_%s_%d_%d", x, y, z, level(), elementIndex());
+	}
+
 	@Override
 	public String toString() {
 		final var p = this.levelCoords();

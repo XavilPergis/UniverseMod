@@ -12,6 +12,7 @@ public final class BinaryCelestialNode extends CelestialNode {
 	// binary orbits always share a common orbital plane
 	public OrbitalPlane orbitalPlane;
 	public OrbitalShape orbitalShapeA;
+	// this is always the larger of the two
 	public OrbitalShape orbitalShapeB;
 	public double offset;
 

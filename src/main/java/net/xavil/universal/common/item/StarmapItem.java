@@ -33,7 +33,7 @@ public class StarmapItem extends Item {
 			return Option.some(world.id);
 		} else if (location instanceof Location.Station station) {
 			return universe.getStation(station.id).flatMap(s -> {
-				if (s.location instanceof StationLocation.OrbitingCelestialBody orbiting) {
+				if (s.getLocation() instanceof StationLocation.OrbitingCelestialBody orbiting) {
 					return Option.some(orbiting.id);
 				}
 				return Option.none();

@@ -1,21 +1,35 @@
 package net.xavil.universal.common.universe.universe;
 
+import java.util.OptionalLong;
 import java.util.Random;
 
+import net.minecraft.core.Holder;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.DimensionType;
+import net.minecraft.world.level.dimension.LevelStem;
 import net.xavil.universal.Mod;
+import net.xavil.universal.common.dimension.DimensionCreationProperties;
+import net.xavil.universal.common.dimension.DynamicDimensionManager;
+import net.xavil.universal.common.level.EmptyChunkGenerator;
+import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.universal.common.universe.galaxy.SystemTicket;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
+import net.xavil.universal.common.universe.station.StationLocation;
+import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
+import net.xavil.universal.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Disposable;
+import net.xavil.util.Option;
 import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Interval;
@@ -54,6 +68,44 @@ public final class ServerUniverse extends Universe {
 	@Override
 	public StartingSystemGalaxyGenerationLayer getStartingSystemGenerator() {
 		return this.startingGenerator;
+	}
+
+	// ew
+	@Override
+	public Option<Integer> createStation(String name, StationLocation location) {
+		final var res = super.createStation(name, location);
+		res.ifSome(id -> {
+			final var station = this.spaceStations.get(id).unwrap();
+			final var packet = new ClientboundSpaceStationInfoPacket();
+			packet.id = id;
+			packet.name = station.name;
+			packet.orientation = station.orientation;
+			packet.locationNbt = StationLocation.toNbt(station.getLocation());
+			this.server.getPlayerList().broadcastAll(packet);
+		});
+		return res;
+	}
+
+	public static final DimensionType STATION_DIM_TYPE = DimensionType.create(OptionalLong.of(1000), true, false, false,
+			false, 1, false, false, true, true, false, 0, 384, 384, BlockTags.INFINIBURN_OVERWORLD,
+			DimensionType.OVERWORLD_EFFECTS, 0.0f);
+
+	@Override
+	public Level createLevelForStation(String name, int id) {
+		final var manager = DynamicDimensionManager.get(this.server);
+		final var universe = MinecraftServerAccessor.getUniverse(this.server);
+
+		final var key = DynamicDimensionManager.getKey("station_" + name);
+		final var newLevel = manager.getOrCreateLevel(key, () -> {
+			final var generator = EmptyChunkGenerator.create(this.server.registryAccess());
+			final var levelStem = new LevelStem(Holder.direct(STATION_DIM_TYPE), generator);
+			return DimensionCreationProperties.basic(levelStem);
+		});
+
+		((LevelAccessor) newLevel).universal_setUniverse(universe);
+		((LevelAccessor) newLevel).universal_setLocation(new Location.Station(id));
+
+		return newLevel;
 	}
 
 	@Override
@@ -192,7 +244,8 @@ public final class ServerUniverse extends Universe {
 			final var galaxySector = this.sectorManager.getSector(sectorPos).unwrap();
 			final var elementIndex = rng.uniformInt(0, galaxySector.initialElements.size());
 
-			final var tempTicket2 = this.sectorManager.createGalaxyTicket(disposer, new UniverseSectorId(sectorPos, elementIndex));
+			final var tempTicket2 = this.sectorManager.createGalaxyTicket(disposer,
+					new UniverseSectorId(sectorPos, elementIndex));
 			final var galaxy = this.sectorManager.forceLoad(tempTicket2).unwrap();
 
 			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, rootNode, startingNodeId);
@@ -201,7 +254,8 @@ public final class ServerUniverse extends Universe {
 
 			Mod.LOGGER.info("placing starting system at {}", startingId);
 
-			this.startingSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, startingId.system().systemSector());
+			this.startingSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer,
+					startingId.system().galaxySector());
 			galaxy.sectorManager.forceLoad(this.startingSystemTicket);
 		});
 	}

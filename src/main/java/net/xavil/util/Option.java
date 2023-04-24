@@ -91,7 +91,7 @@ public abstract sealed class Option<T> implements IntoIterator<T>, Hashable {
 
 		@Override
 		public T unwrap() {
-			throw Assert.isUnreachable();
+			throw new RuntimeException("tried to unwrap an `Option` that was `None`!");
 		}
 
 		@Override

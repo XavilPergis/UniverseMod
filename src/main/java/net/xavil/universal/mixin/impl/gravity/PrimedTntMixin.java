@@ -1,20 +1,19 @@
 package net.xavil.universal.mixin.impl.gravity;
 
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.Constant;
-import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Redirect;
 
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.xavil.universal.mixin.accessor.EntityAccessor;
+import net.xavil.util.math.Vec3;
 
 @Mixin(PrimedTnt.class)
 public abstract class PrimedTntMixin {
 
-	@ModifyConstant(method = "tick()V", constant = @Constant(doubleValue = -0.04))
-	private double modifyGravity(double value) {
-		final var self = (PrimedTnt) (Object) this;
-		final var gravity = EntityAccessor.getEntityGravity(self);
-		return value * gravity.orElse(1.0);
+	@Redirect(method = "tick()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/PrimedTnt;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V", ordinal = 0))
+	private void modifyDeltaMovement(PrimedTnt entity, net.minecraft.world.phys.Vec3 motion) {
+		EntityAccessor.applyGravity(entity, Vec3.fromMinecraft(motion));
 	}
 
 }

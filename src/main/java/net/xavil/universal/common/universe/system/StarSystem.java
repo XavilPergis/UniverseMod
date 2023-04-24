@@ -32,7 +32,7 @@ public class StarSystem {
 
 		public static Info custom(double systemAge, String name, StarSystem system) {
 			StellarCelestialNode primaryStar = null;
-			for (var child : system.rootNode.selfAndChildren()) {
+			for (var child : system.rootNode.selfAndChildren().iterable()) {
 				if (child instanceof StellarCelestialNode starNode) {
 					if (primaryStar == null)
 						primaryStar = starNode;

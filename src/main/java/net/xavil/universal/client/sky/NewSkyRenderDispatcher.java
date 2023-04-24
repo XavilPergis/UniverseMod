@@ -1,58 +1,42 @@
 package net.xavil.universal.client.sky;
 
 import java.util.OptionalInt;
-import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 
 import org.lwjgl.opengl.GL32;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.Tesselator;
-import com.mojang.blaze3d.vertex.VertexBuffer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.util.Mth;
-import net.minecraft.util.profiling.ProfilerFiller;
-import net.xavil.universal.Mod;
 import net.xavil.universal.client.GalaxyRenderingContext;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
-import net.xavil.universal.client.PlanetRenderingContext.PointLight;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
-import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.CachedCamera;
-import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.Location;
-import net.xavil.universal.common.universe.galaxy.Galaxy;
-import net.xavil.universal.common.universe.galaxy.GalaxySector;
-import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
+import net.xavil.universal.common.universe.galaxy.SectorTicket;
 import net.xavil.universal.common.universe.id.SystemNodeId;
+import net.xavil.universal.common.universe.station.StationLocation;
+import net.xavil.universal.mixin.accessor.EntityAccessor;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
-import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
-import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Assert;
 import net.xavil.util.Disposable;
-import net.xavil.util.Rng;
-import net.xavil.util.Units;
+import net.xavil.util.Option;
 import net.xavil.util.math.Color;
+import net.xavil.util.math.Ellipse;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.Vec3;
 
 public class NewSkyRenderDispatcher {
 
-	public static final NewSkyRenderDispatcher INSTANCE = new NewSkyRenderDispatcher();
+	// public static final NewSkyRenderDispatcher INSTANCE = new
+	// NewSkyRenderDispatcher();
 
 	private final Minecraft client = Minecraft.getInstance();
 
@@ -63,6 +47,9 @@ public class NewSkyRenderDispatcher {
 	private Location previousLocation = null;
 	private GalaxyRenderingContext galaxyRenderingContext = null;
 	private long galaxyRenderingSeed = 314159265358979L; // :p
+
+	private final Disposable.Multi disposer = new Disposable.Multi();
+	private SectorTicket sectorTicket;
 
 	public void resize(int width, int height) {
 		if (this.skyTarget != null) {
@@ -131,9 +118,20 @@ public class NewSkyRenderDispatcher {
 		final var pz = px.cross(py);
 		final var quat = Quat.fromOrthonormalBasis(px, py, pz);
 
-		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 0.01f, 1e6f, false, partialTick);
+		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 0.01f, 1e6f, false,
+				partialTick);
 
 		return CachedCamera.create(camera, celestialPos, quat, 1e12, 1e12, proj);
+	}
+
+	private Option<Vec3> posForLocation(Location location) {
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		if (location instanceof Location.World loc) {
+			return universe.getSystemPos(loc.id.system());
+		} else if (location instanceof Location.Station loc) {
+			return universe.getStation(loc.id).flatMap(station -> Option.fromNullable(station.getLocation().getPos()));
+		}
+		return Option.none();
 	}
 
 	private void drawSky(Camera srcCamera, RenderTarget target, float partialTick) {
@@ -145,18 +143,23 @@ public class NewSkyRenderDispatcher {
 		target.setClearColor(0, 0, 0, 0);
 		target.clear(false);
 
-		final var pos = Vec3.ZERO;
+		final var galaxyOffset = Vec3.ZERO;
+		final var location = EntityAccessor.getLocation(this.client.player);
 
-		final var camera = createCamera(srcCamera, Vec3.ZERO, partialTick);
+		//
 
-		// profiler.push("galaxy");
-		// drawGalaxyFromVertexBuffer(RenderSystem.getModelViewMatrix(),
-		// starSphereProj);
-		// profiler.popPush("stars");
-		// drawStarsFromVertexBuffer(RenderSystem.getModelViewMatrix(), starSphereProj);
-		profiler.push("system");
-		// drawSystem(camera, pos, nodeId, time);
-		profiler.pop();
+		posForLocation(location).ifSome(pos -> {
+			final var camera = createCamera(srcCamera, pos, partialTick);
+
+			// profiler.push("galaxy");
+			// drawGalaxyFromVertexBuffer(RenderSystem.getModelViewMatrix(),
+			// starSphereProj);
+			// profiler.popPush("stars");
+			// drawStarsFromVertexBuffer(RenderSystem.getModelViewMatrix(), starSphereProj);
+			profiler.push("system");
+			// drawSystem(camera, pos, world.id, time);
+			profiler.pop();
+		});
 	}
 
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float partialTick, Camera camera,
@@ -167,7 +170,7 @@ public class NewSkyRenderDispatcher {
 		if (this.useMultisampling) {
 			if (this.skyTarget == null) {
 				final var window = this.client.getWindow();
-				final var format = new FlexibleRenderTarget.FormatPair(this.useMultisampling, GL32.GL_RGBA32F,
+				final var format = new FlexibleRenderTarget.FramebufferFormat(this.useMultisampling, GL32.GL_RGBA32F,
 						OptionalInt.of(GL32.GL_DEPTH_COMPONENT32));
 				this.skyTarget = new FlexibleRenderTarget(window.getWidth(), window.getHeight(), format);
 			}

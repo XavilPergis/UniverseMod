@@ -34,5 +34,9 @@ public final class Util {
 				notifier.notifyAll();
 			}
 	}
+
+	public static String escapeMinus(int n) {
+		return n >= 0 ? "" + n : "m" + -n;
+	}
 	
 }

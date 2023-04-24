@@ -32,7 +32,7 @@ public abstract class LevelMixin implements LevelAccessor {
 	@Override
 	public void universal_setLocation(Location id) {
 		final var self = (Level) (Object) this;
-		if (id.equals(this.location))
+		if (id == null || id.equals(this.location))
 			return;
 		this.location = id;
 
@@ -40,8 +40,8 @@ public abstract class LevelMixin implements LevelAccessor {
 			// NOTE: all worlds posses a ticket that keeps themselves loaded.
 			Disposable.scope(disposer -> {
 				final var sysId = world.id.system();
-				final var galaxy = universe.loadGalaxy(disposer, sysId.galaxySector()).unwrap();
-				this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, sysId.systemSector());
+				final var galaxy = universe.loadGalaxy(disposer, sysId.universeSector()).unwrap();
+				this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, sysId.galaxySector());
 				galaxy.sectorManager.forceLoad(this.systemTicket);
 				Mod.LOGGER.info("loaded system ticket for Level with id of {}", world.id);
 			});

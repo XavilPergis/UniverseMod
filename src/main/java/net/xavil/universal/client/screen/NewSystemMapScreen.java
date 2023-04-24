@@ -8,6 +8,7 @@ import net.xavil.universal.client.screen.OrbitCamera.Cached;
 import net.xavil.universal.client.screen.layer.ScreenLayerBackground;
 import net.xavil.universal.client.screen.layer.ScreenLayerGalaxy;
 import net.xavil.universal.client.screen.layer.ScreenLayerGrid;
+import net.xavil.universal.client.screen.layer.ScreenLayerSystem;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.SystemTicket;
 import net.xavil.universal.common.universe.id.SystemId;
@@ -25,14 +26,15 @@ public class NewSystemMapScreen extends Universal3dScreen {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen,
 				new OrbitCamera(1e12, TM_PER_UNIT), 1e-6, 4e3);
 
-		this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId.systemSector());
+		this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId.galaxySector());
 		galaxy.sectorManager.forceLoad(this.systemTicket);
 
-		final var pos = galaxy.sectorManager.getInitial(systemId.systemSector()).unwrap().pos();
+		final var pos = galaxy.sectorManager.getInitial(systemId.galaxySector()).unwrap().pos();
 
 		this.layers.push(new ScreenLayerBackground(this, Color.BLACK));
 		this.layers.push(new ScreenLayerGrid(this));
 		this.layers.push(new ScreenLayerGalaxy(this, galaxy, pos));
+		this.layers.push(new ScreenLayerSystem(this, galaxy, systemId.galaxySector()));
 	}
 
 	public NewSystemMapScreen(@Nullable Screen previousScreen, Galaxy galaxy, SystemNodeId id, StarSystem system) {

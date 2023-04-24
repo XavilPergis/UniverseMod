@@ -1,9 +1,8 @@
 package net.xavil.universal.client.screen;
 
-import com.mojang.math.Matrix4f;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
+import net.xavil.util.math.Mat4;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.Vec3;
 
@@ -129,20 +128,18 @@ public class OrbitCamera {
 		return vec.rotateX(-this.pitch.get(partialTick)).rotateY(-this.yaw.get(partialTick));
 	}
 
-	private Matrix4f getProjectionMatrix() {
+	private Mat4 getProjectionMatrix(float partialTick) {
 		var window = Minecraft.getInstance().getWindow();
 		var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
-		return Matrix4f.perspective((float) this.fovDeg, aspectRatio, (float) (this.scale.get(0) * this.nearPlane),
-				(float) (this.scale.get(0) * this.farPlane));
+		return Mat4.perspectiveProjection(Math.toRadians(this.fovDeg), aspectRatio,
+				this.scale.get(partialTick) * this.nearPlane,
+				this.scale.get(partialTick) * this.farPlane);
 	}
 
 	private Quat getOrientationRaw(float partialTick) {
 		var xRotQuat = Quat.axisAngle(Vec3.XP, this.pitch.get(partialTick));
 		var yRotQuat = Quat.axisAngle(Vec3.YP, this.yaw.get(partialTick) + Math.PI);
 		return xRotQuat.hamiltonProduct(yRotQuat);
-		// var xRot = Quat.axisAngle(Vec3.XP, this.pitch.get(partialTick));
-		// var yRot = Quat.axisAngle(Vec3.YP, this.yaw.get(partialTick) + Mth.PI);
-		// return xRot.hamiltonProduct(yRot);
 	}
 
 	private Quat getOrientation(float partialTick) {
@@ -151,7 +148,8 @@ public class OrbitCamera {
 		final var vel = Vec3.lerp(partialTick, this.prevVelocity, this.velocity);
 		if (vel.length() > 0.000000001) {
 			final var vertYoinkAxis = vel.normalize().cross(Vec3.YP);
-			final var yoinkStrength = Mth.clamp(vel.length() / (15 * this.scale.get(partialTick)), -Math.PI / 8, Math.PI / 8);
+			final var yoinkStrength = Mth.clamp(vel.length() / (15 * this.scale.get(partialTick)), -Math.PI / 8,
+					Math.PI / 8);
 			return raw.hamiltonProduct(Quat.axisAngle(vertYoinkAxis, yoinkStrength));
 		}
 
@@ -169,11 +167,11 @@ public class OrbitCamera {
 		public Cached(OrbitCamera camera, float partialTick) {
 			this(camera, camera.focus.get(partialTick), camera.getPosRaw(partialTick),
 					camera.getOrientation(partialTick), camera.scale.get(partialTick), camera.metersPerUnit,
-					camera.getProjectionMatrix(), camera.renderScaleFactor);
+					camera.getProjectionMatrix(partialTick), camera.renderScaleFactor);
 		}
 
 		public Cached(OrbitCamera camera, Vec3 focus, Vec3 pos, Quat orientation, double scale,
-				double metersPerUnit, Matrix4f projectionMatrix, double renderScale) {
+				double metersPerUnit, Mat4 projectionMatrix, double renderScale) {
 			super(camera, pos, orientation, metersPerUnit, renderScale, projectionMatrix);
 			this.focus = focus;
 			this.scale = scale;

@@ -3,14 +3,20 @@ package net.xavil.universal.common.universe.id;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-public record SystemId(UniverseSectorId galaxySector, GalaxySectorId systemSector) {
+import net.xavil.util.Util;
+
+public record SystemId(UniverseSectorId universeSector, GalaxySectorId galaxySector) {
 	public static final Codec<SystemId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
-			UniverseSectorId.CODEC.fieldOf("galaxy").forGetter(SystemId::galaxySector),
-			GalaxySectorId.CODEC.fieldOf("system").forGetter(SystemId::systemSector))
+			UniverseSectorId.CODEC.fieldOf("universe").forGetter(SystemId::universeSector),
+			GalaxySectorId.CODEC.fieldOf("galaxy").forGetter(SystemId::galaxySector))
 			.apply(inst, SystemId::new));
+
+	public String uniqueName() {
+		return String.format("%s_%s", this.universeSector.uniqueName(), this.galaxySector.uniqueName());
+	}
 
 	@Override
 	public String toString() {
-		return this.galaxySector.toString() + "/" + this.systemSector.toString();
+		return this.universeSector.toString() + "/" + this.galaxySector.toString();
 	}
 }

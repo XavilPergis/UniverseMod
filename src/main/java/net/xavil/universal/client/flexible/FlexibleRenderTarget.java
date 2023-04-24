@@ -16,7 +16,7 @@ import net.xavil.universal.Mod;
 // a render that uses a custom internal texture format
 public class FlexibleRenderTarget extends RenderTarget {
 
-	public record FormatPair(boolean multisample, int colorFormat0, OptionalInt depthFormat) {
+	public record FramebufferFormat(boolean multisample, int colorFormat0, OptionalInt depthFormat) {
 		public boolean isDefault() {
 			return !this.multisample && this.colorFormat0 == GL31.GL_RGBA8
 					&& this.depthFormat.equals(OptionalInt.of(GL31.GL_DEPTH_COMPONENT));
@@ -27,9 +27,9 @@ public class FlexibleRenderTarget extends RenderTarget {
 		}
 	}
 
-	public final FormatPair format;
+	public final FramebufferFormat format;
 
-	public FlexibleRenderTarget(int width, int height, FormatPair formatPair) {
+	public FlexibleRenderTarget(int width, int height, FramebufferFormat formatPair) {
 		super(!formatPair.depthFormat.isEmpty());
 		this.format = formatPair;
 		RenderSystem.assertOnRenderThreadOrInit();
@@ -76,7 +76,7 @@ public class FlexibleRenderTarget extends RenderTarget {
 		this.filterMode = GL32.GL_NEAREST;
 		bindTexture(target, this.colorTextureId);
 		if (this.format.multisample) {
-			Mod.LOGGER.info("multisampled!");
+			Mod.LOGGER.debug("created multisampled framebuffer");
 			GL32.glTexImage2DMultisample(target, 4, this.format.colorFormat0, this.width, this.height,
 			true);
 		} else {

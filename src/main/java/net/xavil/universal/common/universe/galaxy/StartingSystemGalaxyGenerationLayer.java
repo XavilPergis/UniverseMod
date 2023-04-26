@@ -7,7 +7,6 @@ import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.system.StarSystem.Info;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.math.Interval;
 import net.xavil.util.math.Vec3;
@@ -18,10 +17,11 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public static final Interval STARTING_LOCATION_ACCEPTABLE_DENSITY = new Interval(0.01, 0.1);
 
 	public final int startingNodeId;
-	public final StarSystem startingSystem;
-	public final StarSystem.Info startingSystemInfo;
+	public StarSystem startingSystem;
+	public StarSystem.Info startingSystemInfo;
 
 	private boolean isLocationChosen = false;
+	private final CelestialNode startingNode;
 	private Vec3 startingSystemPos = Vec3.ZERO;
 	// private Vec3i startingSystemCoords = Vec3i.ZERO;
 	private SectorPos startingSystemSectorPos;
@@ -30,8 +30,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public StartingSystemGalaxyGenerationLayer(Galaxy parentGalaxy, CelestialNode startingNode, int startingNodeId) {
 		super(parentGalaxy, 1);
 		this.startingNodeId = startingNodeId;
-		this.startingSystem = new StarSystem(parentGalaxy, startingNode);
-		this.startingSystemInfo = StarSystem.Info.custom(4600, "Sol", this.startingSystem);
+		this.startingNode = startingNode;
 	}
 
 	private void chooseStartingLocation() {
@@ -46,7 +45,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 					Vec3.broadcast(-densityFields.galaxyRadius),
 					Vec3.broadcast(densityFields.galaxyRadius));
 			final var density = densityFields.stellarDensity.sample(samplePos);
-			if (new Interval(1e-14, 1e-15).contains(density)) {
+			if (STARTING_LOCATION_ACCEPTABLE_DENSITY.contains(density)) {
 				this.startingSystemPos = samplePos;
 				this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, samplePos);
 				Mod.LOGGER.info("placing starting system in sector at {} (in sector {})",
@@ -58,7 +57,8 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		Mod.LOGGER.error("could not find suitable starting system location!");
 		this.startingSystemPos = Vec3.ZERO;
 		this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, this.startingSystemPos);
-
+		this.startingSystem = new StarSystem(this.parentGalaxy, this.startingSystemPos, this.startingNode);
+		this.startingSystemInfo = StarSystem.Info.custom(4600, "Sol", this.startingSystem);
 	}
 
 	private void findElementIndex() {
@@ -84,7 +84,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public StarSystem generateFullSystem(Info systemInfo, long systemSeed) {
+	public StarSystem generateFullSystem(GalaxySector.InitialElement elem) {
 		return this.startingSystem;
 	}
 

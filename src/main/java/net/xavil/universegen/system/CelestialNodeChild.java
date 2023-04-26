@@ -23,6 +23,10 @@ public class CelestialNodeChild<T extends CelestialNode> {
 
 	public Ellipse getEllipse(OrbitalPlane referencePlane) {
 		var plane = this.orbitalPlane.withReferencePlane(referencePlane);
-		return Ellipse.fromOrbit(this.parentNode.position, plane, this.orbitalShape);
+		return Ellipse.fromOrbit(this.parentNode.position, plane, this.orbitalShape, false);
+	}
+
+	public Ellipse getEllipse() {
+		return getEllipse(this.parentNode.referencePlane);
 	}
 }

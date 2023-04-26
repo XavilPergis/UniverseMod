@@ -79,11 +79,8 @@ public abstract sealed class CelestialNode permits
 	 * This method may be called on any subtree.
 	 */
 	public final @Nullable CelestialNode lookup(int id) {
-		if (id < 0) {
-			Mod.LOGGER.error("Attempted to get celestial node with invalid id of " + id);
-			return null;
-		}
-		return lookupSubtree(id);
+		Assert.isNotEqual(this.id, UNASSINED_ID);
+		return (id < 0 || id > this.id) ? null : lookupSubtree(id);
 	}
 
 	public final int getId() {

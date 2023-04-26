@@ -8,6 +8,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
 import net.xavil.universal.client.ModRendering;
+import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.math.Vec3;

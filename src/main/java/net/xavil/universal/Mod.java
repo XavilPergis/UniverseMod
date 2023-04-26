@@ -3,6 +3,7 @@ package net.xavil.universal;
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
+import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
@@ -37,16 +38,19 @@ import net.xavil.universal.common.item.StarmapItem;
 import net.xavil.universal.common.level.EmptyChunkGenerator;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.id.SystemNodeId;
+import net.xavil.universal.common.universe.station.SpaceStation;
 import net.xavil.universal.common.universe.station.StationLocation;
 import net.xavil.universal.common.universe.station.StationLocation.OrbitingCelestialBody;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.ModNetworking;
 import net.xavil.universal.networking.ModPacket;
+import net.xavil.universal.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.universal.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.universal.networking.s2c.ClientboundSpaceStationInfoPacket;
+import net.xavil.universal.networking.s2c.ClientboundStationJumpBeginPacket;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 import net.xavil.universegen.system.CelestialNode;
@@ -82,16 +86,17 @@ public class Mod implements ModInitializer {
 				.execute(() -> handlePacket(player, packet));
 
 		ModNetworking.REGISTER_PACKETS_EVENT.register(acceptor -> {
+			// @formatter:off
 			acceptor.clientboundPlay.register(ClientboundUniverseInfoPacket.class, ClientboundUniverseInfoPacket::new);
 			acceptor.clientboundPlay.register(ClientboundOpenStarmapPacket.class, ClientboundOpenStarmapPacket::new);
 			acceptor.clientboundPlay.register(ClientboundChangeSystemPacket.class, ClientboundChangeSystemPacket::new);
-			acceptor.clientboundPlay.register(ClientboundSyncCelestialTimePacket.class,
-					ClientboundSyncCelestialTimePacket::new);
-			acceptor.clientboundPlay.register(ClientboundSpaceStationInfoPacket.class,
-					ClientboundSpaceStationInfoPacket::new);
+			acceptor.clientboundPlay.register(ClientboundSyncCelestialTimePacket.class, ClientboundSyncCelestialTimePacket::new);
+			acceptor.clientboundPlay.register(ClientboundSpaceStationInfoPacket.class, ClientboundSpaceStationInfoPacket::new);
+			acceptor.clientboundPlay.register(ClientboundStationJumpBeginPacket.class, ClientboundStationJumpBeginPacket::new);
 
-			acceptor.serverboundPlay.register(ServerboundTeleportToLocationPacket.class,
-					ServerboundTeleportToLocationPacket::new);
+			acceptor.serverboundPlay.register(ServerboundTeleportToLocationPacket.class, ServerboundTeleportToLocationPacket::new);
+			acceptor.serverboundPlay.register(ServerboundStationJumpPacket.class, ServerboundStationJumpPacket::new);
+			// @formatter:on
 		});
 
 		Registry.register(Registry.ITEM, namespaced("starmap"), STARMAP_ITEM);
@@ -286,21 +291,22 @@ public class Mod implements ModInitializer {
 
 	public static void handlePacket(ServerPlayer sender, ModPacket<?> packetUntyped) {
 		final var server = sender.server;
+		final var info = new PacketInfo(sender);
+		final var universe = MinecraftServerAccessor.getUniverse(server);
+
 		if (packetUntyped instanceof ServerboundTeleportToLocationPacket packet) {
-			final var playerName = sender.getGameProfile().getName();
-			final var playerUuid = sender.getStringUUID();
 
 			var opLevel = server.getOperatorUserPermissionLevel();
 			if (!sender.hasPermissions(opLevel))
 				return;
 
 			if (packet.location == null) {
-				Mod.LOGGER.warn("{} ({}) tried to teleport to null location!", playerName, playerUuid);
+				info.warn("tried to teleport to null location!");
 				return;
 			}
 
 			if (packet.location instanceof Location.Unknown) {
-				Mod.LOGGER.warn("{} ({}) tried to teleport to an unknown location!", playerName, playerUuid);
+				info.warn("tried to teleport to an unknown location!");
 				return;
 			} else if (packet.location instanceof Location.World world) {
 				teleportToWorld(sender, world.id);
@@ -311,7 +317,54 @@ public class Mod implements ModInitializer {
 			var changeSystemPacket = new ClientboundChangeSystemPacket(packet.location);
 			sender.connection.send(changeSystemPacket);
 
-			Mod.LOGGER.info("teleport to celestial location! " + packet.location);
+			info.info("teleport to celestial location! {}", packet.location);
+		} else if (packetUntyped instanceof ServerboundStationJumpPacket packet) {
+			var opLevel = server.getOperatorUserPermissionLevel();
+			if (packet.isJumpInstant && !sender.hasPermissions(opLevel))
+				return;
+
+			if (packet.target == null) {
+				info.warn("tried to jump to null target!");
+				return;
+			}
+
+			final SpaceStation station = universe.getStation(packet.stationId).unwrapOrNull();
+			if (station == null) {
+				info.warn("cannot jump, station {} does not exist.", packet.stationId);
+				return;
+			}
+
+			station.prepareForJump(packet.target.system());
 		}
 	}
+
+	private static class PacketInfo {
+		public final ServerPlayer sender;
+		private String prefix;
+
+		public PacketInfo(ServerPlayer sender) {
+			this.sender = sender;
+			final var playerName = sender.getGameProfile().getName();
+			final var playerUuid = sender.getStringUUID();
+			this.prefix = "[" + playerUuid + " | " + playerName + "]";
+		}
+
+		public void warn(String message, Object... args) {
+			log(Mod.LOGGER::warn, message, args);
+		}
+
+		public void info(String message, Object... args) {
+			log(Mod.LOGGER::info, message, args);
+		}
+
+		private void log(BiConsumer<String, Object[]> logger, String message, Object... args) {
+			final var args2 = new Object[args.length + 1];
+			args2[0] = this.prefix;
+			for (int i = 0; i < args.length; ++i)
+				args2[i + 1] = args[i];
+			logger.accept("{} " + message, args2);
+		}
+
+	}
+
 }

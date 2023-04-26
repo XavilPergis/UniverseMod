@@ -13,6 +13,8 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
+import net.xavil.universal.client.camera.CachedCamera;
+import net.xavil.universal.client.camera.OrbitCamera;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universegen.system.CelestialNode;
@@ -59,7 +61,7 @@ public final class RenderHelper {
 			CelestialNode node) {
 		double d = 1 * (1e12 / camera.metersPerUnit)
 				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
-		addBillboard(builder, camera, poseStack, node, d, node.position);
+		addBillboard(builder, camera, poseStack, node, d, node.position.div(camera.renderScale));
 	}
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
@@ -80,11 +82,12 @@ public final class RenderHelper {
 		// correct size. if the billboard texture were a circle with a diameter of the
 		// size of the image, then this would be 1. if the diameter were 1/2 the size,
 		// then this would be 2.
-		final double billboardFactor = 3.5;
+		final double billboardFactor = 2.0;
 
 		double radius = 0;
 		if (node instanceof StellarCelestialNode starNode) {
-			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
+			// radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
+			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
 			if (radius > 3) radius = 3;
 		} else if (node instanceof PlanetaryCelestialNode planetNode) {
 			radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;

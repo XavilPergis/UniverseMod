@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
+import javax.annotation.Nullable;
+
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
@@ -19,8 +21,9 @@ import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
+import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
-import net.xavil.universal.client.screen.CachedCamera;
+import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
@@ -66,13 +69,21 @@ public final class PlanetRenderingContext {
 
 	public final List<PointLight> pointLights = new ArrayList<>();
 	private final Minecraft client = Minecraft.getInstance();
-	private final double celestialTime;
+	private double celestialTime = 0;
 	private Vec3 origin = Vec3.ZERO;
 	private int renderedPlanetCount = 0;
 	private int renderedStarCount = 0;
 
-	public PlanetRenderingContext(double celestialTime) {
+	public PlanetRenderingContext() {
+	}
+
+	public void begin(double celestialTime) {
 		this.celestialTime = celestialTime;
+		this.renderedPlanetCount = 0;
+		this.renderedStarCount = 0;
+	}
+
+	public void end() {
 	}
 
 	public void setSystemOrigin(Vec3 origin) {
@@ -85,6 +96,10 @@ public final class PlanetRenderingContext {
 
 	public int getRenderedStarCount() {
 		return this.renderedStarCount;
+	}
+
+	public void render(FlexibleBufferBuilder builder, CachedCamera<?> camera, CelestialNode node, boolean skip) {
+		render(builder, camera, node, new PoseStack(), Color.WHITE, skip);
 	}
 
 	public void render(FlexibleBufferBuilder builder, CachedCamera<?> camera, CelestialNode node, PoseStack poseStack,
@@ -100,46 +115,12 @@ public final class PlanetRenderingContext {
 		RenderSystem.depthMask(true);
 		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
-		// RenderSystem.setShader(GameRenderer::getPositionColorTexShader);
-		// builder.begin(VertexFormat.Mode.QUADS,
-		// DefaultVertexFormat.POSITION_COLOR_TEX);
 		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		// addBillboard(builder, camera, node, center, tmPerUnit, partialTick);
-		// double d = RenderHelper.getCelestialBodySize(camera, node);
-
-		poseStack.pushPose();
-		// var rotationalSpeed = 2 * Math.PI / node.rotationalPeriod;
-		// poseStack.mulPose(Vector3f.YP.rotationDegrees((float) (rotationalSpeed *
-		// this.celestialTime)));
 
 		// TODO: tint
 		RenderHelper.renderStarBillboard(builder, camera, poseStack, node);
-
-		poseStack.popPose();
-
-		// var aaa = new PoseStack();
-		// aaa.last().pose().multiply(RenderSystem.getModelViewMatrix());
-		// aaa.last().pose().multiply(poseStack.last().pose());
-		// // var aaa = RenderSystem.getModelViewMatrix().copy();
-		// // RenderHelper.addBillboard(builder, Vec3.YP, Vec3.XP, node, pos, d);
-
-		// builder.end();
-		// this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true,
-		// false);
-		// RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
-		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA,
-		// GlStateManager.DestFactor.ONE);
-		// RenderSystem.depthMask(true);
-		// RenderSystem.enableDepthTest();
-		// BufferUploader.end(builder);
-
 		this.renderedStarCount += 1;
-		// var planetNode = new PlanetNode(PlanetNode.Type.EARTH_LIKE_WORLD,
-		// node.massYg,
-		// Units.METERS_PER_RSOL * node.radiusRsol / Units.METERS_PER_REARTH,
-		// node.temperatureK);
-		// renderPlanet(planetNode, poseStack, pos, scale, tintColor);
 	}
 
 	private void setupShaderCommon(CachedCamera<?> camera, PoseStack poseStack, Vec3 sortOrigin,
@@ -195,6 +176,15 @@ public final class PlanetRenderingContext {
 	public void renderPlanet(FlexibleBufferBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,
 			PoseStack poseStack, Color tintColor, boolean skip) {
 
+		RenderSystem.depthMask(true);
+		RenderSystem.enableDepthTest();
+		RenderSystem.disableCull();
+		RenderSystem.enableBlend();
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+
+		// TODO: tint
+		RenderHelper.renderStarBillboard(builder, camera, poseStack, node);
+
 		poseStack.pushPose();
 		var rotationalSpeed = 2.0 * Math.PI / node.rotationalPeriod;
 		poseStack.mulPose(Vector3f.YP.rotation((float) (rotationalSpeed * this.celestialTime)));
@@ -213,7 +203,6 @@ public final class PlanetRenderingContext {
 		setupShaderCommon(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.PLANET_SHADER));
 		setupShaderCommon(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.RING_SHADER));
 		setupPlanetShader(node, ModRendering.getShader(ModRendering.PLANET_SHADER));
-
 
 		RenderSystem.defaultBlendFunc();
 		RenderSystem.disableCull();
@@ -234,35 +223,17 @@ public final class PlanetRenderingContext {
 			}
 		}
 
-		// RenderSystem.setShader(() -> GameRenderer.getPositionTexColorNormalShader());
-		// RenderSystem.setShader(() ->
-		// ModRendering.getShader(ModRendering.RING_SHADER));
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 		for (var ring : node.rings()) {
 			poseStack.pushPose();
 			poseStack.mulPose(ring.orbitalPlane.rotationFromReference().toMinecraft());
-			addRing(builder.asVanilla(), camera, poseStack, nodePosUnits, ring.interval.lower(), ring.interval.higher(),
-					tintColor);
+			addRing(builder, camera, poseStack, nodePosUnits, ring.interval.lower(), ring.interval.higher(), tintColor);
 			poseStack.popPose();
 		}
-		// poseStack.pushPose();
-		// // poseStack.mulPose(Quat.axisAngle(Vec3.XP, 3.0 *
-		// this.celestialTime).toMinecraft());
-		// // poseStack.mulPose(Quat.axisAngle(Vec3.YP, 4.0 *
-		// this.celestialTime).toMinecraft());
-		// // poseStack.mulPose(Quat.axisAngle(Vec3.ZP, 5.0 *
-		// this.celestialTime).toMinecraft());
-		// addRing(builder, camera, poseStack, nodePosUnits, 2.0 * node.radiusRearth *
-		// (Units.m_PER_Rearth / Units.TERA),
-		// 4.0 * node.radiusRearth * (Units.m_PER_Rearth / Units.TERA), tintColor);
-		// poseStack.popPose();
-
 		builder.end();
 		RenderSystem.setShaderTexture(0, BASE_ROCKY_LOCATION);
 		RenderSystem.enableCull();
 		builder.draw(ModRendering.getShader(ModRendering.RING_SHADER));
-		// RenderSystem.disableDepthTest();
-		// BufferUploader.end(builder);
 
 		poseStack.popPose();
 
@@ -270,8 +241,7 @@ public final class PlanetRenderingContext {
 	}
 
 	private static void renderPlanetLayer(FlexibleBufferBuilder builder, CachedCamera<?> camera,
-			ResourceLocation texture,
-			PoseStack poseStack, Vec3 center, double radius, Color tintColor) {
+			ResourceLocation texture, @Nullable PoseStack poseStack, Vec3 center, double radius, Color tintColor) {
 		builder.begin(VertexFormat.Mode.QUADS, ModRendering.PLANET_VERTEX_FORMAT);
 		addNormSphere(builder, camera, poseStack, center, radius, tintColor);
 		builder.end();
@@ -281,9 +251,9 @@ public final class PlanetRenderingContext {
 		builder.draw(ModRendering.getShader(ModRendering.PLANET_SHADER));
 	}
 
-	private static void addRing(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
-			double innerRadius, double outerRadius, Color tintColor) {
-		final var pose = poseStack.last();
+	private static void addRing(FlexibleVertexConsumer builder, CachedCamera<?> camera, @Nullable PoseStack poseStack,
+			Vec3 center, double innerRadius, double outerRadius, Color tintColor) {
+		final var pose = poseStack == null ? null : poseStack.last();
 		int segmentCount = 60;
 		for (var i = 0; i < segmentCount; ++i) {
 			double percentL = i / (double) segmentCount;
@@ -313,18 +283,13 @@ public final class PlanetRenderingContext {
 		}
 	}
 
-	private static void addNormSphere(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
-			Vec3 center, double radius, Color tintColor) {
+	private static void addNormSphere(FlexibleBufferBuilder builder, CachedCamera<?> camera,
+			@Nullable PoseStack poseStack, Vec3 center, double radius, Color tintColor) {
 
-		// final var atlas =
-		// UniversalTextureManager.INSTANCE.getAtlas(PLANET_ATLAS_LOCATION);
-
-		// atlas.getSprite(BASE_GAS_GIANT_LOCATION);
-
-		poseStack.pushPose();
-		// poseStack.translate(center.x, center.y, center.z);
-		final var pose = poseStack.last();
-		final var subdivisions = 32;
+		if (poseStack != null)
+			poseStack.pushPose();
+		final var pose = poseStack == null ? null : poseStack.last();
+		final int subdivisions = 32;
 
 		// -X
 		double nxlu = 0.00f, nxlv = 0.5f, nxhu = 0.25f, nxhv = 0.25f;
@@ -464,7 +429,8 @@ public final class PlanetRenderingContext {
 			}
 		}
 
-		poseStack.popPose();
+		if (poseStack != null)
+			poseStack.popPose();
 	}
 
 	private static void addCube(VertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack, Vec3 center,
@@ -514,25 +480,23 @@ public final class PlanetRenderingContext {
 		cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
 	}
 
-	private static void ringVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose,
+	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera, @Nullable PoseStack.Pose pose,
 			Vec3 center, Color color, double x, double y, double z, float u, float v) {
-		final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
 		var pos = Vec3.from(x, 0, z);
-		// var n = pos.transformBy(pose);
-		// var p = camera.toCameraSpace(n.mul(radius));
-		var norm = (y > 0 ? Vec3.YN : Vec3.YP).transformBy(pose).normalize();
-		var p = camera.toCameraSpace(pos.transformBy(pose)).add(center);
-		builder.vertex((float) p.x, (float) p.y, (float) p.z)
-				.uv(u, v)
-				.color(r, g, b, a)
-				.normal((float) norm.x, (float) norm.y, (float) norm.z)
-				.endVertex();
+		pos = pose != null ? pos.transformBy(pose) : pos;
+		var norm = y > 0 ? Vec3.YN : Vec3.YP;
+		norm = pose != null ? norm.transformBy(pose) : norm;
+		norm = norm.normalize();
+		var p = camera.toCameraSpace(pos).add(center);
+		builder.vertex(p).uv0(u, v).color(color).normal(norm).endVertex();
 	}
 
-	private static void normSphereVertex(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack.Pose pose,
+	private static void normSphereVertex(FlexibleBufferBuilder builder, CachedCamera<?> camera,
+			@Nullable PoseStack.Pose pose,
 			Vec3 center, Color color, double radius, double x, double y, double z, float u, float v) {
 		var pos = Vec3.from(x, y, z);
-		var n = pos.normalize().transformBy(pose);
+		var n = pos.normalize();
+		n = pose != null ? n.transformBy(pose) : n;
 		// var p = camera.toCameraSpace(n.mul(radius));
 		var p = camera.toCameraSpace(n.mul(radius)).add(center);
 		builder.vertex(p).uv0(u, v).color(color).normal(n).endVertex();

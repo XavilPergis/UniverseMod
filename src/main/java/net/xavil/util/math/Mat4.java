@@ -202,8 +202,11 @@ public final class Mat4 implements Hashable {
 		final var d3r012c013 = r0c0 * d2r12c13 - r0c1 * d2r12c03 + r0c3 * d2r12c01;
 		final var d3r012c012 = r0c0 * d2r12c12 - r0c1 * d2r12c02 + r0c2 * d2r12c01;
 
+		// final var m = asMinecraft();
+		// return m.invert() ? Option.some(fromMinecraft(m)) : Option.none();
+
 		final var det = r0c0 * d3r123c123 - r0c1 * d3r123c023 + r0c2 * d3r123c013 - r0c3 * d3r123c012;
-		if (Math.abs(det) < 1e-6)
+		if (Math.abs(det) < 1e-8)
 			return Option.none();
 
 		final var invdet = 1.0 / det;

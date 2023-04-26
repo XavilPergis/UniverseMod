@@ -1,4 +1,4 @@
-package net.xavil.universal.client.screen;
+package net.xavil.universal.client.camera;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Matrix3f;

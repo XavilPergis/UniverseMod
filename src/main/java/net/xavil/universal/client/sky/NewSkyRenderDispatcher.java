@@ -15,9 +15,9 @@ import net.minecraft.client.Minecraft;
 import net.xavil.universal.client.GalaxyRenderingContext;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
+import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
-import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.galaxy.SectorTicket;
 import net.xavil.universal.common.universe.id.SystemNodeId;
@@ -92,15 +92,16 @@ public class NewSkyRenderDispatcher {
 		if (system != null) {
 			profiler.popPush("planet_context_setup");
 			final var builder = BufferRenderer.immediateBuilder();
-			final var ctx = new PlanetRenderingContext(time);
+			final var ctx = new PlanetRenderingContext();
 			system.rootNode.visit(node -> {
 				if (node instanceof StellarCelestialNode starNode) {
 					var light = PlanetRenderingContext.PointLight.fromStar(starNode);
 					ctx.pointLights.add(light);
 				}
 			});
-
+			
 			profiler.popPush("visit");
+			ctx.begin(time);
 			system.rootNode.visit(node -> {
 				final var profiler2 = Minecraft.getInstance().getProfiler();
 				profiler2.push("id:" + node.getId());
@@ -108,6 +109,7 @@ public class NewSkyRenderDispatcher {
 						node.getId() == currentNodeId.nodeId());
 				profiler2.pop();
 			});
+			ctx.end();
 		}
 		profiler.pop();
 	}

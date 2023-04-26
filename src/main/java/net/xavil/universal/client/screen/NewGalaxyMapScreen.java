@@ -3,7 +3,9 @@ package net.xavil.universal.client.screen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.xavil.universal.Mod;
-import net.xavil.universal.client.screen.OrbitCamera.Cached;
+import net.xavil.universal.client.camera.CameraConfig;
+import net.xavil.universal.client.camera.OrbitCamera;
+import net.xavil.universal.client.camera.OrbitCamera.Cached;
 import net.xavil.universal.client.screen.layer.ScreenLayerBackground;
 import net.xavil.universal.client.screen.layer.ScreenLayerGalaxy;
 import net.xavil.universal.client.screen.layer.ScreenLayerGrid;
@@ -51,8 +53,8 @@ public class NewGalaxyMapScreen extends Universal3dScreen {
 	}
 
 	@Override
-	public Cached setupCamera(float partialTick) {
-		return this.camera.cached(partialTick);
+	public Cached setupCamera(CameraConfig config, float partialTick) {
+		return this.camera.cached(config, partialTick);
 	}
 
 }

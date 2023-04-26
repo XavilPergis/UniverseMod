@@ -22,10 +22,12 @@ import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.universal.client.ClientDebugFeatures;
 import net.xavil.universal.client.PlanetRenderingContext;
+import net.xavil.universal.client.camera.CameraConfig;
+import net.xavil.universal.client.camera.OrbitCamera;
+import net.xavil.universal.client.camera.OrbitCamera.Cached;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
-import net.xavil.universal.client.screen.OrbitCamera.Cached;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
@@ -110,7 +112,7 @@ public class SystemMapScreen extends Universal3dScreen {
 		final var partialTick = this.client.getFrameTime();
 
 		if (keyCode == GLFW.GLFW_KEY_F) {
-			this.selectedId = getClosestNode(this.camera.cached(partialTick)).getId();
+			this.selectedId = getClosestNode(this.camera.cached(null, partialTick)).getId();
 			this.followingId = selectedId;
 		} else if (keyCode == GLFW.GLFW_KEY_R) {
 			this.followingId = selectedId;
@@ -211,9 +213,6 @@ public class SystemMapScreen extends Universal3dScreen {
 		}
 	}
 
-	private static final Color[] ORBIT_PATH_DEBUG_COLORS = { Color.RED, Color.GREEN, Color.BLUE, Color.CYAN,
-			Color.MAGENTA, Color.YELLOW, };
-
 	private static void addEllipseArc(FlexibleVertexConsumer builder, OrbitCamera.Cached camera, Ellipse ellipse, Color color,
 			double endpointAngleL, double endpointAngleH, int maxDepth, boolean fadeOut) {
 
@@ -233,7 +232,7 @@ public class SystemMapScreen extends Universal3dScreen {
 		// var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
 
 		if (ClientDebugFeatures.SHOW_ORBIT_PATH_SUBDIVISIONS.isEnabled()) {
-			color = ORBIT_PATH_DEBUG_COLORS[maxDepth % ORBIT_PATH_DEBUG_COLORS.length];
+			color = ClientDebugFeatures.getDebugColor(maxDepth);
 		}
 
 		var isSegmentVisible = !fadeOut || midpointSegment.distanceTo(camera.pos) < segmentLength / 2 + maxDistance;
@@ -532,7 +531,7 @@ public class SystemMapScreen extends Universal3dScreen {
 	}
 
 	@Override
-	public Cached setupCamera(float partialTick) {
+	public Cached setupCamera(CameraConfig config, float partialTick) {
 		
 		if (this.system != null) {
 			final var universe = MinecraftClientAccessor.getUniverse(this.client);	
@@ -548,7 +547,7 @@ public class SystemMapScreen extends Universal3dScreen {
 				}
 			}
 		}
-		return this.camera.cached(partialTick);
+		return this.camera.cached(config, partialTick);
 	}
 
 	@Override

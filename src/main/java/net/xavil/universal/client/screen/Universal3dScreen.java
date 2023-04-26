@@ -1,5 +1,7 @@
 package net.xavil.universal.client.screen;
 
+import java.util.function.Consumer;
+
 import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -13,9 +15,11 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.xavil.universal.client.camera.CameraConfig;
+import net.xavil.universal.client.camera.OrbitCamera;
 import net.xavil.universal.client.flexible.BufferRenderer;
-import net.xavil.util.Option;
 import net.xavil.util.math.Color;
+import net.xavil.util.math.Vec2;
 import net.xavil.util.math.Vec2i;
 import net.xavil.util.math.Vec3;
 
@@ -29,18 +33,19 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public double scrollMin, scrollMax;
 
 	public final OrbitCamera camera;
-	private OrbitCamera.Cached lastCamera = null;
-
-	// debug info
-	private Vec3[] frustumPoints = null;
-	private Vec3[] cullingFrustumPoints = null;
-	private OrbitCamera.Cached cullingCamera = null;
 
 	public static abstract class Layer3d extends Layer2d {
-		private OrbitCamera.Cached camera;
+		protected CameraConfig cameraConfig;
+		protected OrbitCamera.Cached lastCamera;
+		protected OrbitCamera.Cached camera;
 
-		public Layer3d(Universal3dScreen attachedScreen) {
+		private Vec3[] frustumPoints = null;
+		private Vec3[] cullingFrustumPoints = null;
+		private OrbitCamera.Cached cullingCamera = null;
+
+		public Layer3d(Universal3dScreen attachedScreen, CameraConfig cameraConfig) {
 			super(attachedScreen);
+			this.cameraConfig = cameraConfig;
 		}
 
 		@Override
@@ -50,7 +55,17 @@ public abstract class Universal3dScreen extends UniversalScreen {
 			prevMatrices.restore();
 		}
 
+		public void setup3d(OrbitCamera camera, float partialTick) {
+		}
+
 		public abstract void render3d(OrbitCamera.Cached camera, float partialTick);
+
+		public void onMoved(Vec3 displacement) {
+		}
+
+		public OrbitCamera.Cached getCullingCamera() {
+			return this.cullingCamera != null ? this.cullingCamera : this.camera;
+		}
 	}
 
 	protected Universal3dScreen(Component component, Screen previousScreen, OrbitCamera camera,
@@ -63,71 +78,89 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		this.camera.pitch.set(Math.PI / 8);
 		this.camera.yaw.set(Math.PI / 8);
 		this.camera.scale.set((scrollMin + scrollMax) / 2.0);
-		this.camera.scale.setTarget((scrollMin + scrollMax) / 2.0);
+		this.camera.scale.target = (scrollMin + scrollMax) / 2.0;
 	}
 
 	@Override
-	public boolean mouseClicked(double mouseX, double mouseY, int button) {
-		if (super.mouseClicked(mouseX, mouseY, button))
-			return true;
-		return false;
-	}
-
-	@Override
-	public boolean mouseReleased(double mouseX, double mouseY, int button) {
-		if (super.mouseReleased(mouseX, mouseY, button))
-			return true;
-		// GLFW.glfwSetInputMode(this.client.getWindow().getWindow(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_NORMAL);
-		return false;
-	}
-
-	@Override
-	public boolean mouseDragged(double mouseX, double mouseY, int button, double dx, double dy) {
-		if (super.mouseDragged(mouseX, mouseY, button, dx, dy))
-			return true;
-
-		// if (!isDragging())
-			// GLFW.glfwSetInputMode(this.client.getWindow().getWindow(), GLFW.GLFW_CURSOR, GLFW.GLFW_CURSOR_HIDDEN);
+	public boolean mouseDragged(Vec2 mousePos, Vec2 delta, int button) {
 		this.setDragging(true);
 
-		final var partialTick = this.client.getFrameTime();
-		final var dragScale = this.camera.scale.get(partialTick) * this.camera.renderScaleFactor * 0.0035;
-
 		if (button == 2) {
-			var realDy = this.camera.pitch.get(partialTick) < 0 ? -dy : dy;
-			var offset = Vec3.from(dx, 0, realDy).rotateY(-this.camera.yaw.get(partialTick)).mul(dragScale);
-			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
-			onMoved(offset);
+			moveCamera(delta, 0 , true);
 		} else if (button == 1) {
-			var offset = Vec3.from(0, dragScale * dy, 0);
-			this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
-			onMoved(offset);
+			moveCamera(Vec2.ZERO, delta.y, true);
 		} else if (button == 0) {
-			this.camera.yaw.setTarget(this.camera.yaw.getTarget() + dx * 0.005);
-			var desiredPitch = this.camera.pitch.getTarget() + dy * 0.005;
-			var actualPitch = Mth.clamp(desiredPitch, -Math.PI / 2, Math.PI / 2);
-			this.camera.pitch.setTarget(actualPitch);
+			rotateCamera(delta);
 		}
 
 		return true;
 	}
 
-	@Override
-	public boolean mouseScrolled(double mouseX, double mouseY, double scrollDelta) {
-		if (super.mouseScrolled(mouseX, mouseY, scrollDelta))
-			return true;
+	public void rotateCamera(Vec2 horiz) {
+		this.camera.yaw.target = this.camera.yaw.target + horiz.x * 0.005;
+		var desiredPitch = this.camera.pitch.target + horiz.y * 0.005;
+		var actualPitch = Mth.clamp(desiredPitch, -Math.PI / 2, Math.PI / 2);
+		this.camera.pitch.target = actualPitch;
+	}
 
+	public void moveCamera(Vec2 horiz, double vert, boolean invert) {
+		final var partialTick = this.client.getFrameTime();
+		final var dragScale = this.camera.scale.get(partialTick) * this.camera.renderScale * 0.0035;
+
+		vert = this.camera.pitch.get(partialTick) < 0 ? -vert : vert;
+		final var offset = Vec3.from(horiz.x, 0, horiz.y)
+				.rotateY(-this.camera.yaw.get(partialTick))
+				.add(0, vert, 0).mul(dragScale);
+		if (offset.length() > 0) {
+			this.camera.focus.target = this.camera.focus.target.add(offset);
+			onMoved(offset);
+		}
+	}
+
+	@Override
+	public boolean mouseScrolled(Vec2 mousePos, double scrollDelta) {
 		if (scrollDelta > 0) {
-			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.max(prevTarget / scrollMultiplier, this.scrollMin));
+			var prevTarget = this.camera.scale.target;
+			this.camera.scale.target = Math.max(prevTarget / scrollMultiplier, this.scrollMin);
 			return true;
 		} else if (scrollDelta < 0) {
-			var prevTarget = this.camera.scale.getTarget();
-			this.camera.scale.setTarget(Math.min(prevTarget * scrollMultiplier, this.scrollMax));
+			var prevTarget = this.camera.scale.target;
+			this.camera.scale.target = Math.min(prevTarget * scrollMultiplier, this.scrollMax);
 			return true;
 		}
-
 		return false;
+	}
+
+	private void forEach3dLayer(Consumer<Layer3d> consumer) {
+		this.layers.forEach(layer -> {
+			if (layer instanceof Layer3d layer3d)
+				consumer.accept(layer3d);
+		});
+	}
+
+	private void debugCameraFrustum() {
+		forEach3dLayer(layer -> {
+			if (layer.lastCamera == null)
+				return;
+			layer.frustumPoints = captureCameraFrustum(layer.lastCamera);
+		});
+	}
+
+	private void debugCullingCamera() {
+		forEach3dLayer(layer -> {
+			if (layer.lastCamera == null)
+				return;
+			layer.cullingCamera = layer.lastCamera;
+			layer.cullingFrustumPoints = captureCameraFrustum(layer.lastCamera);
+		});
+	}
+
+	private void clearDebug() {
+		forEach3dLayer(layer -> {
+			layer.frustumPoints = null;
+			layer.cullingFrustumPoints = null;
+			layer.cullingCamera = null;
+		});
 	}
 
 	@Override
@@ -142,25 +175,13 @@ public abstract class Universal3dScreen extends UniversalScreen {
 
 		if (((modifiers & GLFW.GLFW_MOD_SHIFT) != 0) && ((modifiers & GLFW.GLFW_MOD_ALT) != 0)) {
 			if (keyCode == GLFW.GLFW_KEY_F) {
-				// capture/hide camera frustum
-				if (this.frustumPoints != null) {
-					this.frustumPoints = null;
-				} else {
-					getLastCamera().ifSome(camera -> this.frustumPoints = captureCameraFrustum(camera));
-				}
+				debugCameraFrustum();
 				return true;
-			}
-			if (keyCode == GLFW.GLFW_KEY_C) {
-				// debug culling
-				if (this.cullingCamera != null) {
-					this.cullingCamera = null;
-					this.cullingFrustumPoints = null;
-				} else {
-					getLastCamera().ifSome(camera -> {
-						this.cullingCamera = camera;
-						this.cullingFrustumPoints = captureCameraFrustum(camera);
-					});
-				}
+			} else if (keyCode == GLFW.GLFW_KEY_C) {
+				debugCullingCamera();
+				return true;
+			} else if (keyCode == GLFW.GLFW_KEY_V) {
+				clearDebug();
 				return true;
 			}
 		}
@@ -193,10 +214,6 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		}
 
 		return false;
-	}
-
-	public final OrbitCamera.Cached getCullingCamera(OrbitCamera.Cached camera) {
-		return this.cullingCamera != null ? this.cullingCamera : camera;
 	}
 
 	private Vec3[] captureCameraFrustum(OrbitCamera.Cached camera) {
@@ -307,56 +324,45 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		right += this.isRightPressed ? -speed : 0;
 		up += this.isUpPressed ? speed : 0;
 		up += this.isDownPressed ? -speed : 0;
+		moveCamera(Vec2.from(right, forward), up, false);
 
 		double rotate = 0;
 		rotate += this.isRotateCWPressed ? rotateSpeed : 0;
 		rotate += this.isRotateCCWPressed ? -rotateSpeed : 0;
-
-		// TODO: consolidate with the logic in mouseDragged()?
-		final var partialTick = this.client.getFrameTime();
-		final var dragScale = this.camera.scale.get(partialTick) * this.camera.renderScaleFactor * 0.0035;
-
-		var offset = Vec3.from(right, 0, forward).rotateY(-this.camera.yaw.get(partialTick)).add(0, up, 0)
-				.mul(dragScale);
-		this.camera.focus.setTarget(this.camera.focus.getTarget().add(offset));
-		this.camera.yaw.setTarget(this.camera.yaw.getTarget() + rotate);
-
-		if (forward != 0 || right != 0 || up != 0) {
-			onMoved(offset);
-		}
+		rotateCamera(Vec2.from(rotate, 0));
 
 		this.camera.tick();
 	}
 
-	public abstract OrbitCamera.Cached setupCamera(float partialTick);
+	public abstract OrbitCamera.Cached setupCamera(CameraConfig config, float partialTick);
 
 	public void onMoved(Vec3 displacement) {
+		forEach3dLayer(layer -> layer.onMoved(displacement));
 	}
 
-	// public void render3d(OrbitCamera.Cached camera, float partialTick) {
-	// }
-
-	// public void render2d(PoseStack poseStack, float partialTick) {
-	// }
-
-	public Option<OrbitCamera.Cached> getLastCamera() {
-		return Option.fromNullable(this.lastCamera);
+	private static CameraConfig getDebugCameraConfig() {
+		return new CameraConfig(0.01, 1e6, 1, 1);
 	}
 
 	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
 		final var partialTick = this.client.getFrameTime();
-		final var camera = setupCamera(partialTick);
-		this.lastCamera = camera;
-		this.layers.forEach(layer -> {
-			if (layer instanceof Layer3d layer3d)
-				layer3d.camera = camera;
+		forEach3dLayer(layer -> {
+			layer.setup3d(this.camera, partialTick);
+			layer.lastCamera = layer.camera;
+			layer.camera = setupCamera(layer.cameraConfig, partialTick);
+			if (layer.lastCamera == null)
+				layer.lastCamera = layer.camera;
 		});
 		super.render(poseStack, mouseX, mouseY, tickDelta);
 
-		final var prevMatrices = camera.setupRenderMatrices();
-		renderCameraFrustum(camera, this.frustumPoints, Color.YELLOW);
-		renderCameraFrustum(camera, this.cullingFrustumPoints, Color.CYAN);
+		final var debugCamera = setupCamera(getDebugCameraConfig(), partialTick);
+
+		final var prevMatrices = debugCamera.setupRenderMatrices();
+		forEach3dLayer(layer -> {
+			renderCameraFrustum(debugCamera, layer.frustumPoints, Color.YELLOW);
+			renderCameraFrustum(debugCamera, layer.cullingFrustumPoints, Color.CYAN);
+		});
 		prevMatrices.restore();
 	}
 

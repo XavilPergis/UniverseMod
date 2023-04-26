@@ -6,13 +6,14 @@ import com.mojang.blaze3d.vertex.PoseStack;
 
 import net.minecraft.client.renderer.GameRenderer;
 import net.xavil.universal.client.ClientDebugFeatures;
+import net.xavil.universal.client.camera.CameraConfig;
+import net.xavil.universal.client.camera.OrbitCamera;
+import net.xavil.universal.client.camera.OrbitCamera.Cached;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.screen.BillboardBatcher;
 import net.xavil.universal.client.screen.BlackboardKeys;
 import net.xavil.universal.client.screen.NewGalaxyMapScreen;
 import net.xavil.universal.client.screen.NewSystemMapScreen;
-import net.xavil.universal.client.screen.OrbitCamera;
-import net.xavil.universal.client.screen.OrbitCamera.Cached;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -36,7 +37,7 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 	private Vec3 selectedPos;
 
 	public ScreenLayerStars(NewGalaxyMapScreen attachedScreen, Galaxy galaxy, SectorTicketInfo ticketInfo) {
-		super(attachedScreen);
+		super(attachedScreen, new CameraConfig(0.01, 1e6, 1e12, 1000));
 		this.screen = attachedScreen;
 		this.galaxy = galaxy;
 		this.cameraTicket = galaxy.sectorManager.createSectorTicket(this.disposer, ticketInfo);
@@ -55,15 +56,13 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 			return true;
 
 		if (button == 0) {
-			this.screen.getLastCamera().ifSome(camera -> {
-				final var ray = camera.rayForPicking(this.client.getWindow(), mousePos);
-				final var selected = pickElement(camera, ray);
-				insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM, selected.unwrapOrNull());
-				this.selectedPos = selected
-						.flatMap(this.galaxy.sectorManager::getInitial)
-						.map(elem -> elem.pos())
-						.unwrapOrNull();
-			});
+			final var ray = this.lastCamera.rayForPicking(this.client.getWindow(), mousePos);
+			final var selected = pickElement(this.lastCamera, ray);
+			insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM, selected.unwrapOrNull());
+			this.selectedPos = selected
+					.flatMap(this.galaxy.sectorManager::getInitial)
+					.map(elem -> elem.pos())
+					.unwrapOrNull();
 			return true;
 		}
 
@@ -94,8 +93,8 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 				this.galaxy.sectorManager.getSystem(selected).ifSome(system -> {
 					final var id = new SystemId(this.galaxy.galaxyId, selected);
 					final var screen = new NewSystemMapScreen(this.screen, this.galaxy, id, system);
-					screen.camera.pitch.set(this.screen.camera.pitch.getTarget());
-					screen.camera.yaw.set(this.screen.camera.yaw.getTarget());
+					screen.camera.pitch.set(this.screen.camera.pitch.target);
+					screen.camera.yaw.set(this.screen.camera.yaw.target);
 					this.client.setScreen(screen);
 				});
 				disposer.dispose();
@@ -125,12 +124,19 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 			sector.initialElements.iter().enumerate().forEach(elem -> {
 				if (elem.item.pos().distanceTo(viewCenter) > levelSize)
 					return;
+
 				final var elemPos = elem.item.pos().div(camera.renderScale);
 				final var distance = ray.origin().distanceTo(elemPos);
-				if (!ray.intersectsSphere(elemPos, 0.05 * distance))
+
+				// final var distance = ray.origin().distanceTo(elemPos);
+				if (!ray.intersectsSphere(elemPos, 0.02 * distance))
 					return;
-				if (distance < closest.distance) {
-					closest.distance = distance;
+
+				final var elemPosRayRel = elemPos.sub(ray.origin());
+				final var proj = elemPosRayRel.projectOnto(ray.dir());
+				final var projDist = elemPosRayRel.distanceTo(proj);
+				if (projDist < closest.distance) {
+					closest.distance = projDist;
 					closest.sectorPos = sector.pos();
 					closest.sectorIndex = elem.index;
 				}
@@ -147,7 +153,7 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 		final var builder = BufferRenderer.immediateBuilder();
 		final var batcher = new BillboardBatcher(builder, 10000);
 
-		final var cullingCamera = this.screen.getCullingCamera(camera);
+		final var cullingCamera = getCullingCamera();
 		if (cameraTicket.info instanceof SectorTicketInfo.Multi multi) {
 			multi.centerPos = getStarViewCenterPos(cullingCamera);
 			multi.multiplicitaveFactor = 2.0;

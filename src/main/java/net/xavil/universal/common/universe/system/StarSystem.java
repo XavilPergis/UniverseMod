@@ -4,14 +4,17 @@ import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Assert;
+import net.xavil.util.math.Vec3;
 
 public class StarSystem {
 
 	public final Galaxy parentGalaxy;
+	public final Vec3 pos;
 	public CelestialNode rootNode;
 
-	public StarSystem(Galaxy parentGalaxy, CelestialNode rootNode) {
+	public StarSystem(Galaxy parentGalaxy, Vec3 pos, CelestialNode rootNode) {
 		this.parentGalaxy = parentGalaxy;
+		this.pos = pos;
 		this.rootNode = rootNode;
 	}
 

@@ -7,13 +7,18 @@ public final class Blackboard {
 
 	public static final class Key<T> {
 		public final String name;
+		public final T defaultValue;
 
-		private Key(String name) {
+		private Key(String name, T defaultValue) {
 			this.name = name;
+			this.defaultValue = defaultValue;
 		}
 
 		public static <T> Key<T> create(String name) {
-			return new Key<>(name);
+			return new Key<>(name, null);
+		}
+		public static <T> Key<T> create(String name, T defaultValue) {
+			return new Key<>(name, defaultValue);
 		}
 
 		public boolean exists(Blackboard blackboard) {
@@ -27,6 +32,10 @@ public final class Blackboard {
 		}
 		public Option<T> remove(Blackboard blackboard) {
 			return blackboard.remove(this);
+		}
+
+		public T getOrDefault(Blackboard blackboard) {
+			return blackboard.get(this).unwrapOr(this.defaultValue);
 		}
 	}
 

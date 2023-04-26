@@ -26,9 +26,10 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
+import net.xavil.universal.client.camera.CameraConfig;
+import net.xavil.universal.client.camera.OrbitCamera;
+import net.xavil.universal.client.camera.OrbitCamera.Cached;
 import net.xavil.universal.client.flexible.BufferRenderer;
-import net.xavil.universal.client.screen.OrbitCamera;
-import net.xavil.universal.client.screen.OrbitCamera.Cached;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.system.gen.AccreteContext;
@@ -92,8 +93,8 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 	}
 
 	@Override
-	public Cached setupCamera(float partialTick) {
-		return this.camera.cached(partialTick);
+	public Cached setupCamera(CameraConfig config, float partialTick) {
+		return this.camera.cached(config, partialTick);
 	}
 
 	@Override

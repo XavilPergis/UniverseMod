@@ -2,6 +2,8 @@ package net.xavil.util.math;
 
 import java.util.Random;
 
+import javax.annotation.Nonnull;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector3f;
@@ -165,25 +167,25 @@ public final class Vec3 implements Hashable {
 		return b.mul(this.dot(b));
 	}
 
-	public Vec3 transformBy(PoseStack.Pose pose) {
+	public Vec3 transformBy(@Nonnull PoseStack.Pose pose) {
 		return transformBy(pose.pose());
 	}
 
-	public Vec3 transformBy(Matrix4f matrix) {
+	public Vec3 transformBy(@Nonnull Matrix4f matrix) {
 		return transformBy(matrix, 1);
 	}
 
-	public Vec3 transformBy(Matrix4f matrix, double w) {
+	public Vec3 transformBy(@Nonnull Matrix4f matrix, double w) {
 		final var vec = new Vector4f((float) this.x, (float) this.y, (float) this.z, (float) w);
 		vec.transform(matrix);
 		return new Vec3(vec.x() / vec.w(), vec.y() / vec.w(), vec.z() / vec.w());
 	}
 
-	public Vec3 transformBy(Mat4 matrix) {
+	public Vec3 transformBy(@Nonnull Mat4 matrix) {
 		return transformBy(matrix, 1);
 	}
 
-	public Vec3 transformBy(Mat4 matrix, double w) {
+	public Vec3 transformBy(@Nonnull Mat4 matrix, double w) {
 		return matrix.mul(withW(w)).perspectiveDivision();
 	}
 

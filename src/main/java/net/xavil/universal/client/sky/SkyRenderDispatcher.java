@@ -25,12 +25,12 @@ import net.xavil.universal.client.GalaxyRenderingContext;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
 import net.xavil.universal.client.PlanetRenderingContext.PointLight;
+import net.xavil.universal.client.camera.CachedCamera;
+import net.xavil.universal.client.camera.RenderMatricesSnapshot;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
-import net.xavil.universal.client.screen.CachedCamera;
 import net.xavil.universal.client.screen.RenderHelper;
-import net.xavil.universal.client.screen.RenderMatricesSnapshot;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.GalaxySector;
@@ -397,7 +397,7 @@ public class SkyRenderDispatcher {
 
 		profiler.popPush("planet_context_setup");
 		var builder = BufferRenderer.immediateBuilder();
-		var ctx = new PlanetRenderingContext(time);
+		var ctx = new PlanetRenderingContext();
 		system.rootNode.visit(node -> {
 			if (node instanceof StellarCelestialNode starNode) {
 				var light = PlanetRenderingContext.PointLight.fromStar(starNode);
@@ -413,6 +413,7 @@ public class SkyRenderDispatcher {
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
 		profiler.popPush("visit");
+		ctx.begin(time);
 		system.rootNode.visit(node -> {
 			final var profiler2 = Minecraft.getInstance().getProfiler();
 			profiler2.push("id:" + node.getId());
@@ -435,6 +436,7 @@ public class SkyRenderDispatcher {
 			}
 			profiler2.pop();
 		});
+		ctx.end();
 		profiler.pop();
 	}
 

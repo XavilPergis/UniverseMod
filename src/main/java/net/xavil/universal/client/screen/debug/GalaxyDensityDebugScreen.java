@@ -4,24 +4,15 @@ import java.util.Random;
 
 import org.lwjgl.glfw.GLFW;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexFormat;
-
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.xavil.universal.Mod;
-import net.xavil.universal.client.ModRendering;
-import net.xavil.universal.client.flexible.BufferRenderer;
-import net.xavil.universal.client.screen.OrbitCamera;
-import net.xavil.universal.client.screen.RenderHelper;
+import net.xavil.universal.client.camera.CameraConfig;
+import net.xavil.universal.client.camera.OrbitCamera;
 import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.util.Units;
-import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
 
 public class GalaxyDensityDebugScreen extends Universal3dScreen {
@@ -52,8 +43,8 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 	}
 
 	@Override
-	public OrbitCamera.Cached setupCamera(float partialTick) {
-		return this.camera.cached(partialTick);
+	public OrbitCamera.Cached setupCamera(CameraConfig config, float partialTick) {
+		return this.camera.cached(config, partialTick);
 	}
 
 	private static double aabbVolume(Vec3 a, Vec3 b) {

@@ -8,8 +8,9 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.xavil.universal.client.GalaxyRenderingContext;
 import net.xavil.universal.client.ModRendering;
+import net.xavil.universal.client.camera.CameraConfig;
+import net.xavil.universal.client.camera.OrbitCamera;
 import net.xavil.universal.client.flexible.BufferRenderer;
-import net.xavil.universal.client.screen.OrbitCamera;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -21,7 +22,7 @@ public class ScreenLayerGalaxy extends Universal3dScreen.Layer3d {
 	private final Vec3 originOffset;
 	
 	public ScreenLayerGalaxy(Universal3dScreen screen, Galaxy galaxy, Vec3 originOffset) {
-		super(screen);
+		super(screen, new CameraConfig(0.01, 1e6, 1e12, 1000));
 		this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy);
 		this.originOffset = originOffset;
 	}

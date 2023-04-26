@@ -51,6 +51,6 @@ public abstract class GalaxyGenerationLayer {
 
 	public abstract void generateInto(Context ctx, Sink sink);
 
-	public abstract StarSystem generateFullSystem(StarSystem.Info systemInfo, long systemSeed);
+	public abstract StarSystem generateFullSystem(GalaxySector.InitialElement elem);
 
 }

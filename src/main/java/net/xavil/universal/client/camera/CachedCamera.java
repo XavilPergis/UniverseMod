@@ -1,4 +1,4 @@
-package net.xavil.universal.client.screen;
+package net.xavil.universal.client.camera;
 
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -17,6 +17,7 @@ public class CachedCamera<T> {
 	public final Vec3 pos, up, right, forward;
 	public final Quat orientation;
 	public final double metersPerUnit;
+	// multiply by this to go from render units -> camera units
 	public final double renderScale;
 
 	public final Mat4 viewMatrix;
@@ -44,7 +45,7 @@ public class CachedCamera<T> {
 
 		this.projectionMatrix = projectionMatrix;
 		this.inverseProjectionMatrix = this.projectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
-		this.viewMatrix = Mat4.fromBases(right, up, forward.neg(), pos).inverse().unwrapOr(Mat4.IDENTITY);
+		this.viewMatrix = Mat4.fromBases(up, right, forward.neg(), pos).inverse().unwrapOr(Mat4.IDENTITY);
 
 		this.viewProjectionMatrix = this.viewMatrix.applyBefore(this.projectionMatrix);
 		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);

@@ -7,7 +7,6 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.common.NameTemplate;
 import net.xavil.universal.common.universe.DensityFields;
 import net.xavil.universal.common.universe.system.StarSystem;
-import net.xavil.universal.common.universe.system.StarSystem.Info;
 import net.xavil.universal.common.universe.system.StarSystemGeneratorImpl;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.FastHasher;
@@ -129,14 +128,14 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public StarSystem generateFullSystem(Info systemInfo, long systemSeed) {
-		var rng = Rng.wrap(new Random(systemSeed));
+	public StarSystem generateFullSystem(GalaxySector.InitialElement elem) {
+		var rng = Rng.wrap(new Random(elem.seed()));
 	
-		var systemGenerator = new StarSystemGeneratorImpl(rng, this.parentGalaxy, systemInfo);
+		var systemGenerator = new StarSystemGeneratorImpl(rng, this.parentGalaxy, elem.info());
 		var rootNode = systemGenerator.generate();
 		rootNode.assignIds();
 	
-		return new StarSystem(this.parentGalaxy, rootNode);	
+		return new StarSystem(this.parentGalaxy, elem.pos(), rootNode);	
 	}
 
 }

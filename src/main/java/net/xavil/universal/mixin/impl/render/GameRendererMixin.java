@@ -26,10 +26,9 @@ import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.entity.player.Player;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
-import net.xavil.universal.client.sky.SkyRenderDispatcher;
+import net.xavil.universal.client.sky.NewSkyRenderDispatcher;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 import net.xavil.util.math.Mat4;
 
@@ -62,7 +61,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	@Inject(method = "resize", at = @At("HEAD"))
 	private void onResize(int width, int height, CallbackInfo info) {
 		this.modPostChains.values().forEach(chain -> chain.resize(width, height));
-		SkyRenderDispatcher.INSTANCE.resize(width, height);
+		NewSkyRenderDispatcher.INSTANCE.resize(width, height);
 	}
 
 	@Inject(method = "reloadShaders", at = @At("HEAD"))

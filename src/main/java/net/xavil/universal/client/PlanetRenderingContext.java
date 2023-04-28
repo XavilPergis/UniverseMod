@@ -49,7 +49,7 @@ public final class PlanetRenderingContext {
 			.namespaced("textures/misc/celestialbodies/earth_like.png");
 
 	private static ResourceLocation getBaseLayer(PlanetaryCelestialNode node) {
-		var missing = MissingTextureAtlasSprite.getLocation();
+		final var missing = MissingTextureAtlasSprite.getLocation();
 		return switch (node.type) {
 			case EARTH_LIKE_WORLD -> BASE_WATER_LOCATION;
 			case GAS_GIANT -> BASE_GAS_GIANT_LOCATION;
@@ -157,7 +157,7 @@ public final class PlanetRenderingContext {
 			lightColor.set(new Vector4f(r, g, b, luminosity));
 			// lightColor.set(new Vector4f(r, g, b, luminosity * 0.2f));
 
-			var pos = camera.toCameraSpace(light.pos);
+			var pos = camera.toCameraSpace(light.pos.add(this.origin));
 			var shaderPos = new Vector4f((float) pos.x, (float) pos.y, (float) pos.z, 1);
 			// shaderPos.transform(poseStack.last().pose());
 			// poseStack
@@ -193,12 +193,14 @@ public final class PlanetRenderingContext {
 		// var radiusM = 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// final var metersPerUnit = 1 / unitsPerMeter;
 
-		var distanceFromCamera = camera.pos.mul(camera.metersPerUnit).distanceTo(node.position.mul(1e12));
-		var distanceRatio = radiusM / distanceFromCamera;
-		if (distanceRatio < 0.0001)
-			return;
+		final var partialTick = this.client.getFrameTime();
 
-		var nodePosUnits = node.position.mul(1e12 / camera.metersPerUnit);
+		var nodePosUnits = node.getPosition(partialTick).mul(1e12 / camera.metersPerUnit).add(this.origin.div(1e12 / camera.metersPerUnit));
+
+		var distanceFromCamera = camera.pos.mul(1e12 / camera.metersPerUnit).distanceTo(nodePosUnits);
+		var distanceRatio = radiusM / (distanceFromCamera * camera.metersPerUnit);
+		// if (distanceRatio < 0.0001)
+		// 	return;
 
 		setupShaderCommon(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.PLANET_SHADER));
 		setupShaderCommon(camera, poseStack, nodePosUnits, ModRendering.getShader(ModRendering.RING_SHADER));
@@ -216,11 +218,11 @@ public final class PlanetRenderingContext {
 			var radiusUnits = radiusM / camera.metersPerUnit;
 			// var radiusUnits = 1000 * 1000;
 			// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
-			renderPlanetLayer(builder, camera, baseTexture, poseStack, nodePosUnits, radiusUnits, tintColor);
-			if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
-				renderPlanetLayer(builder, camera, BASE_ROCKY_LOCATION, poseStack, nodePosUnits, radiusUnits,
-						tintColor);
-			}
+			// renderPlanetLayer(builder, camera, baseTexture, poseStack, nodePosUnits, radiusUnits, tintColor);
+			// if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
+			// }
+			renderPlanetLayer(builder, camera, BASE_ROCKY_LOCATION, poseStack, nodePosUnits, radiusUnits,
+					tintColor);
 		}
 
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
@@ -289,7 +291,7 @@ public final class PlanetRenderingContext {
 		if (poseStack != null)
 			poseStack.pushPose();
 		final var pose = poseStack == null ? null : poseStack.last();
-		final int subdivisions = 32;
+		final int subdivisions = 10;
 
 		// -X
 		double nxlu = 0.00f, nxlv = 0.5f, nxhu = 0.25f, nxhv = 0.25f;
@@ -480,7 +482,8 @@ public final class PlanetRenderingContext {
 		cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
 	}
 
-	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera, @Nullable PoseStack.Pose pose,
+	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera,
+			@Nullable PoseStack.Pose pose,
 			Vec3 center, Color color, double x, double y, double z, float u, float v) {
 		var pos = Vec3.from(x, 0, z);
 		pos = pose != null ? pos.transformBy(pose) : pos;
@@ -492,8 +495,8 @@ public final class PlanetRenderingContext {
 	}
 
 	private static void normSphereVertex(FlexibleBufferBuilder builder, CachedCamera<?> camera,
-			@Nullable PoseStack.Pose pose,
-			Vec3 center, Color color, double radius, double x, double y, double z, float u, float v) {
+			@Nullable PoseStack.Pose pose, Vec3 center, Color color, double radius, double x, double y, double z,
+			float u, float v) {
 		var pos = Vec3.from(x, y, z);
 		var n = pos.normalize();
 		n = pose != null ? n.transformBy(pose) : n;

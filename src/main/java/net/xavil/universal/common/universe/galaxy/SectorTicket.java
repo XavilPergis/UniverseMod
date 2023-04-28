@@ -2,13 +2,13 @@ package net.xavil.universal.common.universe.galaxy;
 
 import net.xavil.util.Disposable;
 
-public final class SectorTicket implements Disposable {
+public final class SectorTicket<T extends SectorTicketInfo> implements Disposable {
 	public final SectorManager attachedManager;
-	public final SectorTicketInfo info;
+	public T info;
 
-	public SectorTicket(SectorManager attachedManager, SectorTicketInfo ticket) {
+	public SectorTicket(SectorManager attachedManager, T info) {
 		this.attachedManager = attachedManager;
-		this.info = ticket;
+		this.info = info;
 	}
 
 	public void remove() {

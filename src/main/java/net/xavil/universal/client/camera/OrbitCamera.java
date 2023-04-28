@@ -49,7 +49,6 @@ public class OrbitCamera {
 	// `focus`, or the result from `getPos()` by this factor to get those quantities
 	// in meters.
 	public final double metersPerUnit;
-	public final double renderScale;
 
 	// TODO: focus is in camera units, unlike everything else, which are in render
 	// units!
@@ -65,9 +64,8 @@ public class OrbitCamera {
 	public double nearPlane = 0.01;
 	public double farPlane = 1e6;
 
-	public OrbitCamera(double metersPerUnit, double renderScale) {
+	public OrbitCamera(double metersPerUnit) {
 		this.metersPerUnit = metersPerUnit;
-		this.renderScale = renderScale;
 	}
 
 	public void tick() {
@@ -88,20 +86,20 @@ public class OrbitCamera {
 		final var backwards = Vec3.YP.rotateX(-this.pitch.previous).rotateY(-this.yaw.previous)
 				.cross(Vec3.XP.rotateX(-this.pitch.previous).rotateY(-this.yaw.previous));
 		var backwardsTranslation = backwards.mul(this.scale.previous);
-		return this.focus.previous.div(this.renderScale).add(backwardsTranslation);
+		return this.focus.previous.mul(1e12 / this.metersPerUnit).add(backwardsTranslation);
 	}
 
 	private Vec3 getCurPos() {
 		final var backwards = Vec3.YP.rotateX(-this.pitch.current).rotateY(-this.yaw.current)
 				.cross(Vec3.XP.rotateX(-this.pitch.current).rotateY(-this.yaw.current));
 		var backwardsTranslation = backwards.mul(this.scale.current);
-		return this.focus.current.div(this.renderScale).add(backwardsTranslation);
+		return this.focus.current.mul(1e12 / this.metersPerUnit).add(backwardsTranslation);
 	}
 
 	private Vec3 getPosRaw(float partialTick) {
 		var backwards = applyRotationRaw(Vec3.YP, partialTick).cross(applyRotationRaw(Vec3.XP, partialTick));
 		var backwardsTranslation = backwards.mul(this.scale.get(partialTick));
-		var cameraPos = this.focus.get(partialTick).div(this.renderScale).add(backwardsTranslation);
+		var cameraPos = this.focus.get(partialTick).mul(1e12 / this.metersPerUnit).add(backwardsTranslation);
 		return cameraPos;
 	}
 
@@ -151,13 +149,14 @@ public class OrbitCamera {
 
 		public Cached(OrbitCamera camera, CameraConfig config, float partialTick) {
 			this(camera, camera.focus.get(partialTick), camera.getPosRaw(partialTick),
-					camera.getOrientation(partialTick), camera.scale.get(partialTick), camera.metersPerUnit,
-					camera.getProjectionMatrix(config, partialTick), camera.renderScale);
+					camera.getOrientation(partialTick), camera.scale.get(partialTick),
+					camera.metersPerUnit,
+					camera.getProjectionMatrix(config, partialTick));
 		}
 
 		public Cached(OrbitCamera camera, Vec3 focus, Vec3 pos, Quat orientation, double scale,
-				double metersPerUnit, Mat4 projectionMatrix, double renderScale) {
-			super(camera, pos, orientation, metersPerUnit, renderScale, projectionMatrix);
+				double metersPerUnit, Mat4 projectionMatrix) {
+			super(camera, pos, orientation, metersPerUnit, projectionMatrix);
 			this.focus = focus;
 			this.scale = scale;
 		}

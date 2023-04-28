@@ -14,6 +14,7 @@ import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
+import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
 
@@ -22,7 +23,8 @@ public class ScreenLayerGalaxy extends Universal3dScreen.Layer3d {
 	private final Vec3 originOffset;
 	
 	public ScreenLayerGalaxy(Universal3dScreen screen, Galaxy galaxy, Vec3 originOffset) {
-		super(screen, new CameraConfig(0.01, 1e6, 1e12, 1000));
+		// m/ly = 1e12 m/Tm * Tm/ly = m/ly
+		super(screen, new CameraConfig(0.01, 1e6));
 		this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy);
 		this.originOffset = originOffset;
 	}
@@ -35,8 +37,8 @@ public class ScreenLayerGalaxy extends Universal3dScreen.Layer3d {
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
 			RenderHelper.addBillboard(builder, camera, new PoseStack(),
-					pos.sub(this.originOffset).div(camera.renderScale),
-					size / camera.renderScale,
+					pos.sub(this.originOffset).mul(1e12 / camera.metersPerUnit),
+					size * (1e12 / camera.metersPerUnit),
 					Color.WHITE.withA(0.07));
 		});
 		builder.end();

@@ -34,7 +34,7 @@ public abstract sealed class CelestialNode permits
 	protected final List<CelestialNodeChild<?>> childNodes = new ArrayList<>();
 	protected final List<CelestialRing> rings = new ArrayList<>();
 
-	public Vec3 position = Vec3.ZERO;
+	public Vec3 position = Vec3.ZERO, lastPosition = Vec3.ZERO;
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
 
 	public double massYg; // Yg
@@ -251,6 +251,8 @@ public abstract sealed class CelestialNode permits
 	protected void updatePositions(OrbitalPlane referencePlane, double time) {
 		this.referencePlane = referencePlane;
 
+		this.lastPosition = this.position;
+
 		if (this instanceof BinaryCelestialNode binaryNode) {
 			final var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
 			binaryNode.getA().position = getOrbitalPosition(newPlane, binaryNode.orbitalShapeA, false, time);
@@ -264,6 +266,10 @@ public abstract sealed class CelestialNode permits
 			childOrbit.node.position = getOrbitalPosition(newPlane, childOrbit.orbitalShape, false, time);
 			childOrbit.node.updatePositions(newPlane, time);
 		}
+	}
+
+	public Vec3 getPosition(float partialTick) {
+		return Vec3.lerp(partialTick, this.lastPosition, this.position);
 	}
 
 	public Vec3 getOrbitalPosition(OrbitalPlane plane, OrbitalShape shape, boolean reverse, double time) {

@@ -93,7 +93,18 @@ public interface Iterator<T> extends IntoIterator<T> {
 	 * @return {@code true} if this iterator is definitely fused.
 	 */
 	default boolean isFused() {
-		return false;
+		return hasProperties(PROPERTY_FUSED);
+	}
+
+	static final int PROPERTY_FUSED = 1 << 0;
+	static final int PROPERTY_NONNULL = 1 << 1;
+
+	default boolean hasProperties(int propertyMask) {
+		return (properties() & propertyMask) == propertyMask;
+	}
+
+	default int properties() {
+		return 0;
 	}
 
 	/**
@@ -291,8 +302,8 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return this.source.isFused();
+		public int properties() {
+			return this.source.properties();
 		}
 
 		@Override
@@ -347,8 +358,8 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return this.source.isFused();
+		public int properties() {
+			return this.source.properties();
 		}
 
 		@Override
@@ -408,8 +419,8 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return this.source.isFused();
+		public int properties() {
+			return this.source.properties();
 		}
 	}
 
@@ -421,7 +432,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		private final Iterator<T> source;
 		private final Function<? super T, ? extends U> mapper;
 
-		public Map(Iterator<T> source, Function<? super T, ? extends U> mapper) {
+		private Map(Iterator<T> source, Function<? super T, ? extends U> mapper) {
 			this.source = source;
 			this.mapper = mapper;
 		}
@@ -447,8 +458,8 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return this.source.isFused();
+		public int properties() {
+			return this.source.properties() & ~PROPERTY_NONNULL;
 		}
 
 		@Override
@@ -498,8 +509,8 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return this.source.isFused();
+		public int properties() {
+			return this.source.properties() & ~PROPERTY_NONNULL;
 		}
 
 		@Override
@@ -592,8 +603,14 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return true;
+		public int properties() {
+			int props = PROPERTY_FUSED | PROPERTY_NONNULL;
+			for (final var source : this.sources) {
+				final var childProps = source.properties();
+				if ((childProps & PROPERTY_NONNULL) == 0)
+					props = props & ~PROPERTY_NONNULL;
+			}
+			return props;
 		}
 
 		@Override
@@ -646,8 +663,8 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return this.source.isFused();
+		public int properties() {
+			return this.source.properties();
 		}
 	}
 
@@ -706,8 +723,8 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return this.source.isFused();
+		public int properties() {
+			return this.source.properties();
 		}
 
 		@Override
@@ -753,8 +770,72 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return true;
+		public int properties() {
+			return this.source.properties() | PROPERTY_FUSED;
+		}
+
+		@Override
+		public int count() {
+			return this.source.count();
+		}
+	}
+
+	default Iterator<T> filterNull() {
+		if (hasProperties(PROPERTY_NONNULL))
+			return this;
+		return new FilterNull<>(this);
+	}
+
+	final class FilterNull<T> implements Iterator<T> {
+		private final Iterator<T> source;
+		private boolean hasNext = false;
+		private T current = null;
+
+		public FilterNull(Iterator<T> source) {
+			this.source = source;
+		}
+
+		@Override
+		public SizeHint sizeHint() {
+			return this.source.sizeHint().withLowerBound(0);
+		}
+
+		@Override
+		public boolean hasNext() {
+			if (this.hasNext)
+				return true;
+			while (this.source.hasNext()) {
+				this.current = this.source.next();
+				if (this.current != null) {
+					this.hasNext = true;
+					break;
+				}
+			}
+			return this.hasNext;
+		}
+
+		@Override
+		public T next() {
+			this.hasNext = false;
+			return this.current;
+		}
+
+		@Override
+		public void forEach(Consumer<? super T> consumer) {
+			this.source.forEach(value -> {
+				if (value != null)
+					consumer.accept(value);
+			});
+		}
+
+		@Override
+		public int properties() {
+			return this.source.properties() | PROPERTY_NONNULL;
+		}
+
+		@Override
+		public Iterator<T> filterNull() {
+			return this;
 		}
 
 		@Override

@@ -22,26 +22,28 @@ import net.xavil.util.math.Vec3i;
 public final class SectorManager {
 
 	public final class SectorTicketTracker {
-		public final SectorTicket loanedTicket;
-		private Option<SectorTicketInfo> prevInfo = Option.none();
+		public final SectorTicket<?> loanedTicket;
+		private Option<? extends SectorTicketInfo> prevInfo = Option.none();
 
-		public SectorTicketTracker(SectorTicket loanedTicket) {
+		public SectorTicketTracker(SectorTicket<?> loanedTicket) {
 			this.loanedTicket = loanedTicket;
 		}
 
 		public void update(MutableSet<SectorPos> toLoad, MutableSet<SectorPos> toUnload) {
 			final var prev = this.prevInfo;
-			final var cur = this.loanedTicket.info;
-			if (prev.innerEquals(cur))
+			final var cur = Option.fromNullable(this.loanedTicket.info);
+			if (prev.equals(cur))
 				return;
-			if (this.prevInfo.isNone()) {
+			if (prev.isNone() && cur.isSome()) {
 				toLoad.extend(this.loanedTicket.info.affectedSectors());
+			} else if (prev.isSome() && cur.isNone()) {
+				toUnload.extend(this.loanedTicket.info.affectedSectors());
 			} else {
-				final var diff = this.loanedTicket.info.diff(this.prevInfo.unwrap());
+				final var diff = this.loanedTicket.info.diff(prev.unwrap());
 				toLoad.extend(diff.added());
 				toUnload.extend(diff.removed());
 			}
-			this.prevInfo = Option.some(cur.copy());
+			this.prevInfo = cur.isSome() ? Option.some(cur.unwrap().copy()) : Option.none();
 		}
 	}
 
@@ -158,11 +160,11 @@ public final class SectorManager {
 		return this.trackedTickets.size() + this.trackedSystemTickets.size();
 	}
 
-	public void forceLoad(SectorTicket sectorTicket) {
+	public void forceLoad(SectorTicket<?> sectorTicket) {
 		forceLoad(InactiveProfiler.INSTANCE, sectorTicket);
 	}
 
-	public void forceLoad(ProfilerFiller profiler, SectorTicket sectorTicket) {
+	public void forceLoad(ProfilerFiller profiler, SectorTicket<?> sectorTicket) {
 		sectorTicket.info.affectedSectors().forEach(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
 			slot.waitingFutures.get(pos).ifSome(future -> future.join());
 		}));
@@ -174,6 +176,8 @@ public final class SectorManager {
 	}
 
 	public Option<StarSystem> forceLoad(ProfilerFiller profiler, SystemTicket systemTicket) {
+		if (systemTicket.id == null)
+			return Option.none();
 		final var systemSlot = this.systemMap.get(systemTicket.id).unwrap();
 		if (systemSlot.system != null)
 			return Option.some(systemSlot.system);
@@ -194,8 +198,8 @@ public final class SectorManager {
 
 	public void tick(ProfilerFiller profiler) {
 		tickGeneration(profiler);
-		// final var time = this.galaxy.parentUniverse.getCelestialTime(0);
-		// this.systemMap.values().forEach(slot -> slot.system.rootNode.updatePositions(time));
+		final var time = this.galaxy.parentUniverse.getCelestialTime();
+		this.systemMap.values().forEach(slot -> slot.system.rootNode.updatePositions(time));
 	}
 
 	public void applyTickets(ProfilerFiller profiler) {
@@ -225,7 +229,7 @@ public final class SectorManager {
 
 		// system tickets force the sectors they reside within to be loaded
 		sectorsToLoad.extend(systemsToLoad.iter().map(GalaxySectorId::sectorPos));
-		sectorsToUnload.extend(systemsToUnload.iter().map(GalaxySectorId::sectorPos));
+		sectorsToUnload.extend(systemsToUnload.iter().filterNull().map(GalaxySectorId::sectorPos));
 
 		profiler.popPush("load");
 		sectorsToLoad.forEach(pos -> this.sectorMap.entry(pos.rootCoords()).orInsertWith(SectorSlot::new).load(pos));
@@ -293,20 +297,21 @@ public final class SectorManager {
 		return sector == null ? false : sector.isComplete();
 	}
 
-	public SectorTicket createSectorTicket(Disposable.Multi disposer, SectorTicketInfo info) {
+	public <T extends SectorTicketInfo> SectorTicket<T> createSectorTicket(Disposable.Multi disposer, T info) {
 		return disposer.attach(createSectorTicketManual(info));
 	}
 
-	public SectorTicket createSectorTicketManual(SectorTicketInfo info) {
-		final var ticket = new SectorTicket(this, info.copy());
+	public <T extends SectorTicketInfo> SectorTicket<T> createSectorTicketManual(T info) {
+		final var ticket = new SectorTicket<>(this, info == null ? null : info.copy());
 		this.trackedTickets.push(new SectorTicketTracker(ticket));
 		applyTickets(InactiveProfiler.INSTANCE);
-		return ticket;
+		return (SectorTicket<T>) ticket;
 	}
 
-	public void removeSectorTicket(SectorTicket ticket) {
+	public void removeSectorTicket(SectorTicket<?> ticket) {
 		this.trackedTickets.retain(tracker -> tracker.loanedTicket != ticket);
-		this.removedTickets.push(ticket.info);
+		if (ticket.info != null)
+			this.removedTickets.push(ticket.info);
 		applyTickets(InactiveProfiler.INSTANCE);
 	}
 
@@ -349,11 +354,14 @@ public final class SectorManager {
 
 	public boolean isSystemLoaded(GalaxySectorId id) {
 		final var slot = this.systemMap.get(id).unwrapOrNull();
-		if (slot == null) return false;
+		if (slot == null)
+			return false;
 		return slot.isLoaded;
 	}
 
-	public void enumerate(SectorTicket ticket, Consumer<GalaxySector> sectorConsumer) {
+	public void enumerate(SectorTicket<?> ticket, Consumer<GalaxySector> sectorConsumer) {
+		if (ticket.info == null)
+			return;
 		ticket.info.enumerateAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
 			final var sector = slot.sector.lookupSubtree(pos);
 			if (sector != null && sector.isComplete())

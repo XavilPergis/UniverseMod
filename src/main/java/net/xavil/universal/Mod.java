@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
+import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
@@ -112,7 +113,7 @@ public class Mod implements ModInitializer {
 									.then(argument("name", StringArgumentType.string())
 											.executes(this::executeStationRemove)))
 							.then(literal("tp")
-									.then(argument("entity", EntityArgument.entity())
+									.then(argument("entities", EntityArgument.entities())
 											.then(argument("name", StringArgumentType.string())
 													.executes(this::executeStationTp))))
 							.then(literal("move")
@@ -159,12 +160,18 @@ public class Mod implements ModInitializer {
 		final var name = StringArgumentType.getString(ctx, "name");
 		final var stationOpt = universe.getStationByName(name);
 		stationOpt.ifSome(station -> {
-			final var entity = ctx.getSource().getEntity();
-			if (entity != null && station.level instanceof ServerLevel newLevel) {
-				final var spawnPos = Vec3.from(0, 128, 0);
-				teleportEntityToWorld(entity, newLevel, spawnPos, 0, 0);
+			// final var entity = ctx.getSource().getEntity();
+			try {
+				final var entities = EntityArgument.getEntities(ctx, "entities");
+				if (station.level instanceof ServerLevel newLevel) {
+					for (final var entity : entities) {
+						final var spawnPos = Vec3.from(0, 128, 0);
+						teleportEntityToWorld(entity, newLevel, spawnPos, 0, 0);
+					}
+				}
+				ctx.getSource().sendSuccess(new TextComponent("teleported to station '" + station.name + "'"), true);
+			} catch (CommandSyntaxException ex) {
 			}
-			ctx.getSource().sendSuccess(new TextComponent("teleported to station '" + station.name + "'"), true);
 		});
 		if (stationOpt.isNone()) {
 			ctx.getSource()

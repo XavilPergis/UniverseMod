@@ -207,6 +207,8 @@ public final class UniverseSectorManager {
 	}
 
 	public Option<Galaxy> forceLoad(ProfilerFiller profiler, GalaxyTicket galaxyTicket) {
+		if (galaxyTicket.id == null)
+			return Option.none();
 		final var galaxySlot = this.galaxyMap.get(galaxyTicket.id).unwrap();
 		if (galaxySlot.galaxy != null)
 			return Option.some(galaxySlot.galaxy);
@@ -366,7 +368,7 @@ public final class UniverseSectorManager {
 		return this.galaxyMap.get(id).flatMap(slot -> Option.fromNullable(slot.galaxy));
 	}
 
-	public void enumerate(SectorTicket ticket, Consumer<UniverseSector> sectorConsumer) {
+	public void enumerate(SectorTicket<?> ticket, Consumer<UniverseSector> sectorConsumer) {
 		ticket.info.enumerateAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords())
 				.ifSome(slot -> sectorConsumer.accept(slot.sector)));
 	}

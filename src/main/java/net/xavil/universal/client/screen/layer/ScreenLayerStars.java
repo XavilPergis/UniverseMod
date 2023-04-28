@@ -25,6 +25,7 @@ import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.util.Disposable;
 import net.xavil.util.Option;
+import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Ray;
 import net.xavil.util.math.Vec2;
@@ -33,11 +34,11 @@ import net.xavil.util.math.Vec3;
 public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 	private final NewGalaxyMapScreen screen;
 	public final Galaxy galaxy;
-	private final SectorTicket cameraTicket;
+	private final SectorTicket<SectorTicketInfo.Multi> cameraTicket;
 	private Vec3 selectedPos;
 
-	public ScreenLayerStars(NewGalaxyMapScreen attachedScreen, Galaxy galaxy, SectorTicketInfo ticketInfo) {
-		super(attachedScreen, new CameraConfig(0.01, 1e6, 1e12, 1000));
+	public ScreenLayerStars(NewGalaxyMapScreen attachedScreen, Galaxy galaxy, SectorTicketInfo.Multi ticketInfo) {
+		super(attachedScreen, new CameraConfig(0.01, 1e6));
 		this.screen = attachedScreen;
 		this.galaxy = galaxy;
 		this.cameraTicket = galaxy.sectorManager.createSectorTicket(this.disposer, ticketInfo);
@@ -46,8 +47,8 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
 		if (ClientDebugFeatures.SECTOR_TICKET_AROUND_FOCUS.isEnabled())
 			return camera.focus;
-		// return camera.pos.mul(camera.renderScale).add(camera.forward.mul(GalaxySector.BASE_SIZE_Tm));
-		return camera.pos.mul(camera.renderScale);
+		// return camera.pos.mul(camera.metersPerUnit / 1e12).add(camera.forward.mul(GalaxySector.BASE_SIZE_Tm));
+		return camera.pos.mul(camera.metersPerUnit / 1e12);
 	}
 
 	@Override
@@ -115,8 +116,8 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 		// @formatter:on
 		final var viewCenter = getStarViewCenterPos(camera);
 		this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
-			final var min = sector.pos().minBound();
-			final var max = sector.pos().maxBound();
+			final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
+			final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
 			if (!ray.intersectAABB(min, max))
 				return;
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
@@ -125,7 +126,7 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 				if (elem.item.pos().distanceTo(viewCenter) > levelSize)
 					return;
 
-				final var elemPos = elem.item.pos().div(camera.renderScale);
+				final var elemPos = elem.item.pos().mul(1e12 / camera.metersPerUnit);
 				final var distance = ray.origin().distanceTo(elemPos);
 
 				// final var distance = ray.origin().distanceTo(elemPos);
@@ -154,22 +155,20 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 		final var batcher = new BillboardBatcher(builder, 10000);
 
 		final var cullingCamera = getCullingCamera();
-		if (cameraTicket.info instanceof SectorTicketInfo.Multi multi) {
-			multi.centerPos = getStarViewCenterPos(cullingCamera);
-			multi.multiplicitaveFactor = 2.0;
-		}
-
 		final var viewCenter = getStarViewCenterPos(cullingCamera);
+		cameraTicket.info.centerPos = viewCenter;
+		cameraTicket.info.multiplicitaveFactor = 2.0;
+
 		batcher.begin(camera);
 		this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
 			// if (sector.pos().level() != 0) return;
-			final var min = sector.pos().minBound().div(cullingCamera.renderScale);
-			final var max = sector.pos().maxBound().div(cullingCamera.renderScale);
+			final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
+			final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
 			if (!cullingCamera.isAabbInFrustum(min, max))
 				return;
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
 			// final var levelSize = GalaxySector.sizeForLevel(0);
-			final var camPos = cullingCamera.pos.mul(cullingCamera.renderScale);
+			final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
 			sector.initialElements.forEach(elem -> {
 				if (elem.pos().distanceTo(viewCenter) > levelSize)
 					return;
@@ -182,7 +181,7 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 		batcher.end();
 
 		if (this.selectedPos != null) {
-			final var pos = this.selectedPos.div(camera.renderScale);
+			final var pos = this.selectedPos.mul(1e12 / camera.metersPerUnit);
 			RenderHelper.renderBillboard(builder, camera, new PoseStack(), pos,
 					0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION,
 					GameRenderer.getPositionColorTexShader());

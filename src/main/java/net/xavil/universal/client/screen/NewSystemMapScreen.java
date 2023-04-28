@@ -26,7 +26,7 @@ public class NewSystemMapScreen extends Universal3dScreen {
 
 	public NewSystemMapScreen(@Nullable Screen previousScreen, Galaxy galaxy, SystemId systemId, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen,
-				new OrbitCamera(1e12, TM_PER_UNIT), 1e-6, 4e3);
+				new OrbitCamera(1e12), 1e-6, 4e3);
 
 		this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId.galaxySector());
 		galaxy.sectorManager.forceLoad(this.systemTicket);

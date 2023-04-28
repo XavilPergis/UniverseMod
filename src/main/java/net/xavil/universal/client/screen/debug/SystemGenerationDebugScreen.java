@@ -89,7 +89,7 @@ public class SystemGenerationDebugScreen extends Universal3dScreen {
 
 	public SystemGenerationDebugScreen(Screen previousScreen) {
 		super(new TranslatableComponent("narrator.screen.debug.system_generation"), previousScreen,
-				new OrbitCamera(1e12, 1), 1e-4, 4e3);
+				new OrbitCamera(1e12), 1e-4, 4e3);
 	}
 
 	@Override

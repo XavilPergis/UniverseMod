@@ -4,13 +4,9 @@ package net.xavil.universal.client.camera;
 public final class CameraConfig {
 	public final double nearPlane;
 	public final double farPlane;
-	public final double metersPerUnit;
-	public final double renderScaleFactor;
 
-	public CameraConfig(double nearPlane, double farPlane, double metersPerUnit, double renderScaleFactor) {
+	public CameraConfig(double nearPlane, double farPlane) {
 		this.nearPlane = nearPlane;
 		this.farPlane = farPlane;
-		this.metersPerUnit = metersPerUnit;
-		this.renderScaleFactor = renderScaleFactor;
 	}
 }

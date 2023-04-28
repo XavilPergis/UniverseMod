@@ -105,7 +105,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 
 	public void moveCamera(Vec2 horiz, double vert, boolean invert) {
 		final var partialTick = this.client.getFrameTime();
-		final var dragScale = this.camera.scale.get(partialTick) * this.camera.renderScale * 0.0035;
+		final var dragScale = this.camera.scale.get(partialTick) * (this.camera.metersPerUnit / 1e12) * 0.0035;
 
 		vert = this.camera.pitch.get(partialTick) < 0 ? -vert : vert;
 		final var offset = Vec3.from(horiz.x, 0, horiz.y)
@@ -341,7 +341,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	}
 
 	private static CameraConfig getDebugCameraConfig() {
-		return new CameraConfig(0.01, 1e6, 1, 1);
+		return new CameraConfig(0.01, 1e6);
 	}
 
 	@Override

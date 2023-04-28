@@ -17,8 +17,6 @@ public class CachedCamera<T> {
 	public final Vec3 pos, up, right, forward;
 	public final Quat orientation;
 	public final double metersPerUnit;
-	// multiply by this to go from render units -> camera units
-	public final double renderScale;
 
 	public final Mat4 viewMatrix;
 	public final Mat4 projectionMatrix;
@@ -31,8 +29,7 @@ public class CachedCamera<T> {
 	// public final Matrix4f viewProjectionMatrix;
 	// public final Matrix4f inverseViewProjectionMatrix;
 
-	public CachedCamera(T camera, Vec3 pos, Quat orientation, double metersPerUnit,
-			double renderScale, Mat4 projectionMatrix) {
+	public CachedCamera(T camera, Vec3 pos, Quat orientation, double metersPerUnit, Mat4 projectionMatrix) {
 		this.camera = camera;
 		this.pos = pos;
 		this.up = orientation.inverse().transform(Vec3.XP);
@@ -40,7 +37,6 @@ public class CachedCamera<T> {
 		// this.forward = orientation.transform(Vec3.ZN);
 		this.orientation = orientation;
 		this.metersPerUnit = metersPerUnit;
-		this.renderScale = renderScale;
 		this.forward = right.cross(up).normalize();
 
 		this.projectionMatrix = projectionMatrix;
@@ -146,8 +142,8 @@ public class CachedCamera<T> {
 	}
 
 	public static <T> CachedCamera<T> create(T camera, Vec3 pos, Quat orientation, double metersPerUnit,
-			double renderScale, Mat4 projectionMatrix) {
-		return new CachedCamera<T>(camera, pos, orientation, metersPerUnit, renderScale, projectionMatrix);
+			Mat4 projectionMatrix) {
+		return new CachedCamera<T>(camera, pos, orientation, metersPerUnit, projectionMatrix);
 	}
 
 	public static Quat orientationFromMinecraftCamera(Camera camera) {

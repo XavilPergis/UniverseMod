@@ -2,7 +2,6 @@ package net.xavil.universal.client.sky;
 
 import java.util.OptionalInt;
 import java.util.Random;
-import java.util.concurrent.CompletableFuture;
 
 import org.lwjgl.opengl.GL32;
 
@@ -24,7 +23,6 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.client.GalaxyRenderingContext;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
-import net.xavil.universal.client.PlanetRenderingContext.PointLight;
 import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.camera.RenderMatricesSnapshot;
 import net.xavil.universal.client.flexible.BufferRenderer;
@@ -32,8 +30,8 @@ import net.xavil.universal.client.flexible.FlexibleRenderTarget;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.Location;
-import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.GalaxySector;
+import net.xavil.universal.common.universe.galaxy.SectorTicket;
 import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.station.StationLocation;
@@ -53,7 +51,7 @@ import net.xavil.util.math.Vec3;
 
 public class SkyRenderDispatcher {
 
-	public static final SkyRenderDispatcher INSTANCE = new SkyRenderDispatcher();
+	// public static final SkyRenderDispatcher INSTANCE = new SkyRenderDispatcher();
 
 	private final Minecraft client = Minecraft.getInstance();
 	public FlexibleRenderTarget skyTargetMultisampled = null;
@@ -67,6 +65,8 @@ public class SkyRenderDispatcher {
 	private VertexBuffer galaxyParticlesBuffer = new VertexBuffer();
 	private boolean shouldRebuildStarBuffer = true;
 	private boolean shouldRebuildGalaxyBuffer = true;
+
+	private SectorTicket sectorTicket;
 
 	public boolean useMultisampling = false;
 
@@ -106,8 +106,7 @@ public class SkyRenderDispatcher {
 		// Color.WHITE.withA(0.2));
 	}
 
-	private void addBillboard(FlexibleVertexConsumer builder, PoseStack poseStack, Vec3 selfPos, Vec3 pos, double s,
-			CelestialNode node) {
+	private void addBillboard(FlexibleVertexConsumer builder, Vec3 selfPos, Vec3 pos, double s, CelestialNode node) {
 
 		var offset = pos.sub(selfPos);
 		var forward = offset.normalize();
@@ -155,7 +154,7 @@ public class SkyRenderDispatcher {
 		// the spread will be much less prominent and will look much smaller.
 
 		var up = forward.cross(right).neg();
-		RenderHelper.addBillboardCamspace(builder, poseStack, up, right, forward.mul(100),
+		RenderHelper.addBillboardCamspace(builder, up, right, forward.mul(100),
 				s, 0, color.withA(alpha));
 
 	}
@@ -293,6 +292,15 @@ public class SkyRenderDispatcher {
 		this.shouldRebuildGalaxyBuffer = false;
 	}
 
+	private void addStars(FlexibleVertexConsumer builder, CachedCamera<?> camera, SectorTicket ticket) {
+		final var camPos = camera.pos.mul(camera.metersPerUnit / 1e12);
+		ticket.attachedManager.enumerate(ticket, sector -> {
+			sector.initialElements.forEach(elem -> {
+				addBillboard(builder, camPos, elem.pos(), 1, elem.info().primaryStar);
+			});
+		});
+	}
+
 	private void buildStars(SystemNodeId id) {
 		Mod.LOGGER.info("rebuilding background stars");
 		// final var currentId = LevelAccessor.getLocation(this.client.level);
@@ -336,7 +344,7 @@ public class SkyRenderDispatcher {
 					if (elem.pos().distanceTo(selfPos) > levelSize)
 						return;
 					// batcher.add(elem.info().primaryStar, elem.pos());
-					addBillboard(wrappedBuilder, new PoseStack(), selfPos, elem.pos(), 1, elem.info().primaryStar);
+					addBillboard(wrappedBuilder, selfPos, elem.pos(), 1, elem.info().primaryStar);
 				});
 			});
 
@@ -419,7 +427,7 @@ public class SkyRenderDispatcher {
 			profiler2.push("id:" + node.getId());
 			if (node instanceof StellarCelestialNode starNode) {
 				builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-				addBillboard(builder, new PoseStack(), currentNode.position, starNode.position, 1, starNode);
+				addBillboard(builder, currentNode.position, starNode.position, 1, starNode);
 				builder.end();
 				this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
 				RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
@@ -502,7 +510,7 @@ public class SkyRenderDispatcher {
 		// xRot, yRot, planetViewRotation, systemProj);
 		final var celestialCamera = CachedCamera.create(camera,
 				currentNode.position.mul(Units.TERA).add(planetSurfaceOffset),
-				orientation, 1, 1e12, systemProj);
+				orientation, 1, systemProj);
 		final var matrixSnapshot = celestialCamera.setupRenderMatrices();
 		poseStack.pushPose();
 
@@ -622,14 +630,14 @@ public class SkyRenderDispatcher {
 			final var galaxyProj = GameRendererAccessor.makeProjectionMatrix(
 					this.client.gameRenderer, 0.01f, 1e8f, false, partialTick);
 			final var galaxyCamera = CachedCamera.create(
-					camera, pos, orientation, 1e12, 1000, galaxyProj);
+					camera, pos, orientation, 1e12, galaxyProj);
 			final var matrixSnapshot = galaxyCamera.setupRenderMatrices();
 			final var builder = BufferRenderer.immediateBuilder();
 			builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 			this.galaxyRenderingContext.enumerate((particlePos, size) -> {
 				RenderHelper.addBillboard(builder, galaxyCamera, new PoseStack(),
-						particlePos.div(galaxyCamera.renderScale),
-						0.25 * size / galaxyCamera.renderScale,
+						particlePos.mul(1e12 / galaxyCamera.metersPerUnit),
+						0.25 * size / (1e12 / galaxyCamera.metersPerUnit),
 						Color.WHITE.withA(0.1));
 			});
 			builder.end();
@@ -658,21 +666,55 @@ public class SkyRenderDispatcher {
 		profiler.popPush("system");
 		{
 			if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
+
 				// final var galaxyProj = GameRendererAccessor.makeProjectionMatrix(
 				// 		this.client.gameRenderer, 0.01f, 1e8f, false, partialTick);
 				final var galaxyProj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 5e4f, 1e13f, false,
 				partialTick);
 				final var sysPos = universe.getSystemPos(sloc.id.system()).unwrap();
 				final var galaxyCamera = CachedCamera.create(
-						camera, pos.sub(sysPos).mul(Units.TERA), orientation, 1, 1e12, galaxyProj);
+						camera, pos.sub(sysPos).mul(Units.TERA), orientation, 1, galaxyProj);
 				// final var celestialCamera = CachedCamera.create(camera,
 				// 	currentNode.position.mul(Units.TERA).add(planetSurfaceOffset),
 				// 	orientation, 1, 1e12, systemProj);
 				// final var galaxyCamera = CachedCamera.create(
 				// camera, pos, orientation, 1e12, 1000, galaxyProj);
 				final var matrixSnapshot = galaxyCamera.setupRenderMatrices();
+				profiler.push("galaxy");
+				profiler.popPush("stars");
+				// addStars(builder, galaxyCamera, ticket);
+				profiler.popPush("system");
 				drawSystem(galaxyCamera, sloc.id, time, false, partialTick);
+				profiler.pop();
 				matrixSnapshot.restore();
+
+				// profiler.push("galaxy");
+				// drawGalaxyFromVertexBuffer(RenderSystem.getModelViewMatrix(), starSphereProj.asMinecraft());
+				// profiler.popPush("stars");
+				// drawStarsFromVertexBuffer(RenderSystem.getModelViewMatrix(), starSphereProj.asMinecraft());
+				// profiler.popPush("system");
+				// drawSystem(celestialCamera, id, time, true, partialTick);
+				// profiler.pop();
+			} else if (station.getLocation() instanceof StationLocation.JumpingSystem sloc) {
+				if (this.sectorTicket == null) {
+					// this.sectorTicket = this.
+				}
+				// // final var galaxyProj = GameRendererAccessor.makeProjectionMatrix(
+				// // 		this.client.gameRenderer, 0.01f, 1e8f, false, partialTick);
+				// final var galaxyProj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 5e4f, 1e13f, false,
+				// partialTick);
+
+				// final var sysPos = universe.getSystemPos(sloc.id.system()).unwrap();
+				// final var galaxyCamera = CachedCamera.create(
+				// 		camera, pos.sub(sysPos).mul(Units.TERA), orientation, 1, 1e12, galaxyProj);
+				// // final var celestialCamera = CachedCamera.create(camera,
+				// // 	currentNode.position.mul(Units.TERA).add(planetSurfaceOffset),
+				// // 	orientation, 1, 1e12, systemProj);
+				// // final var galaxyCamera = CachedCamera.create(
+				// // camera, pos, orientation, 1e12, 1000, galaxyProj);
+				// final var matrixSnapshot = galaxyCamera.setupRenderMatrices();
+				// drawSystem(galaxyCamera, sloc.id, time, false, partialTick);
+				// matrixSnapshot.restore();
 			}
 
 		}

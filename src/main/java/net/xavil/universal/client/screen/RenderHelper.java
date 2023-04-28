@@ -61,13 +61,13 @@ public final class RenderHelper {
 			CelestialNode node) {
 		double d = 1 * (1e12 / camera.metersPerUnit)
 				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
-		addBillboard(builder, camera, poseStack, node, d, node.position.div(camera.renderScale));
+		addBillboard(builder, camera, poseStack, node, d, node.position.mul(1e12 / camera.metersPerUnit));
 	}
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
 			CelestialNode node, Vec3 pos) {
 		double d = 1 * (1e12 / camera.metersPerUnit)
-				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos);
+				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos.mul(camera.metersPerUnit / 1e12));
 		addBillboard(builder, camera, poseStack, node, d, pos);
 	}
 
@@ -88,7 +88,7 @@ public final class RenderHelper {
 		if (node instanceof StellarCelestialNode starNode) {
 			// radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
 			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
-			if (radius > 3) radius = 3;
+			if (radius > 1) radius = 1;
 		} else if (node instanceof PlanetaryCelestialNode planetNode) {
 			radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
 		}

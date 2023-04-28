@@ -22,7 +22,7 @@ public class GalaxyDensityDebugScreen extends Universal3dScreen {
 
 	public GalaxyDensityDebugScreen(Screen previousScreen, Galaxy galaxy) {
 		super(new TranslatableComponent("narrator.screen.debug.galaxy_density"), previousScreen,
-				new OrbitCamera(1e12, 1), 3e3, 1e9);
+				new OrbitCamera(1e12), 3e3, 1e9);
 		this.galaxy = galaxy;
 	}
 

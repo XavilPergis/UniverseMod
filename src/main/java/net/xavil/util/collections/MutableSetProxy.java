@@ -4,15 +4,17 @@ import java.util.Set;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
+import javax.annotation.Nonnull;
+
 import net.xavil.util.collections.interfaces.MutableSet;
 import net.xavil.util.iterator.IntoIterator;
 import net.xavil.util.iterator.Iterator;
 
 public class MutableSetProxy<T> implements MutableSet<T> {
 
-	public final Set<T> proxy;
+	public final @Nonnull Set<T> proxy;
 
-	public MutableSetProxy(Set<T> wrapped) {
+	public MutableSetProxy(@Nonnull Set<T> wrapped) {
 		this.proxy = wrapped;
 	}
 

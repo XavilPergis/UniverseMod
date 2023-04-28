@@ -42,7 +42,7 @@ public class GalaxyRenderingContext {
 		double lowestSeenDensity = Double.POSITIVE_INFINITY;
 		var maxDensity = 1e21 * attemptCount / aabbVolume(volumeMin, volumeMax);
 		for (var i = 0; i < attemptCount; ++i) {
-			if (successfulPlacements > 5000)
+			if (successfulPlacements > 2500)
 				break;
 
 			var pos = Vec3.random(random, volumeMin, volumeMax);

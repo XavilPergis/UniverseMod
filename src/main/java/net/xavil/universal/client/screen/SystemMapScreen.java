@@ -68,7 +68,7 @@ public class SystemMapScreen extends Universal3dScreen {
 
 	public SystemMapScreen(@Nullable Screen previousScreen, SystemId systemId, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen,
-				new OrbitCamera(1e12, TM_PER_UNIT), 1e-6, 4e3);
+				new OrbitCamera(1e12), 1e-6, 4e3);
 		this.systemId = systemId;
 		this.system = system;
 

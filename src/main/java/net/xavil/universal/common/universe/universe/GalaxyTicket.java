@@ -1,7 +1,9 @@
 package net.xavil.universal.common.universe.universe;
 
+import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.util.Disposable;
+import net.xavil.util.Option;
 import net.xavil.util.ThreadSignal;
 
 public final class GalaxyTicket implements Disposable {
@@ -22,6 +24,10 @@ public final class GalaxyTicket implements Disposable {
 	@Override
 	public void dispose() {
 		remove();
+	}
+
+	public Option<Galaxy> forceLoad() {
+		return this.attachedManager.forceLoad(this);
 	}
 	
 }

@@ -50,7 +50,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 	private PlanetRenderingContext renderContext = new PlanetRenderingContext();
 
 	public ScreenLayerSystem(Universal3dScreen attachedScreen, Galaxy galaxy, GalaxySectorId systemId) {
-		super(attachedScreen, new CameraConfig(0.01, 1e6, 1e12, Units.Tm_PER_au));
+		super(attachedScreen, new CameraConfig(0.01, 1e6));
 		this.galaxy = galaxy;
 		this.ticket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId);
 	}
@@ -108,7 +108,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 			double closestDistance = Double.POSITIVE_INFINITY;
 			int closestId = -1;
 			for (final var node : nodes.iterable()) {
-				final var elemPos = node.position.div(camera.renderScale);
+				final var elemPos = node.position.mul(1e12 / camera.metersPerUnit);
 				final var distance = ray.origin().distanceTo(elemPos);
 				if (!ray.intersectsSphere(elemPos, 0.1 * distance))
 					continue;
@@ -144,7 +144,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 			final var followingId = getBlackboard(BlackboardKeys.FOLLOWING_STAR_SYSTEM_NODE).unwrapOr(-1);
 			final var followingNode = system.rootNode.lookup(followingId);
 			if (followingNode != null) {
-				final var pos = followingNode.position.div(camera.renderScale);
+				final var pos = followingNode.position.mul(1e12 / camera.metersPerUnit);
 				camera.focus.set(pos);
 			}
 		});
@@ -156,14 +156,15 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 		final var cullingCamera = getCullingCamera();
 		this.galaxy.getSystem(this.ticket.id).ifSome(system -> {
 			final var universe = this.galaxy.parentUniverse;
-			system.rootNode.updatePositions(universe.getCelestialTime(partialTick));
+			final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
+			system.rootNode.updatePositions(time);
 
 			if (!this.isPlanetRendererSetup)
 				setupPlanetRenderer(system);
 
 			final var nodes = system.rootNode.selfAndChildren();
-			this.renderContext.setSystemOrigin(system.pos.mul(camera.renderScale));
-			this.renderContext.begin(universe.getCelestialTime(partialTick));
+			this.renderContext.setSystemOrigin(system.pos.mul(1e12 / camera.metersPerUnit));
+			this.renderContext.begin(time);
 			for (final var node : nodes.iterable()) {
 				this.renderContext.render(builder, camera, node, false);
 				if (this.showGuides)
@@ -174,7 +175,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 			final var selectedNode = system.rootNode.lookup(selectedId);
 			if (selectedNode != null) {
-				final var pos = selectedNode.position.div(camera.renderScale);
+				final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
 				RenderHelper.renderBillboard(builder, camera, new PoseStack(), pos,
 						0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION,
 						GameRenderer.getPositionColorTexShader());
@@ -186,7 +187,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 			OrbitCamera.Cached cullingCamera, Ellipse ellipse, Color color, double endpointAngleL,
 			double endpointAngleH, int maxDepth, boolean fadeOut) {
 
-		final var camPos = cullingCamera.pos.mul(cullingCamera.renderScale);
+		final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
 		var subdivisionSegments = 2;
 
 		var endpointL = ellipse.pointFromTrueAnomaly(endpointAngleL);
@@ -222,8 +223,8 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 
 			if (ClientDebugFeatures.SHOW_ALL_ORBIT_PATH_LEVELS.isEnabled()) {
 				RenderHelper.addLine(builder, camera,
-						endpointL.div(cullingCamera.renderScale),
-						endpointH.div(cullingCamera.renderScale),
+						endpointL.mul(1e12 / cullingCamera.metersPerUnit),
+						endpointH.mul(1e12 / cullingCamera.metersPerUnit),
 						color.withA(0.1));
 			}
 		} else {
@@ -237,8 +238,8 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 			if (alphaH == 0 && alphaL == 0)
 				return;
 			RenderHelper.addLine(builder, 
-					camera.toCameraSpace(endpointL.div(cullingCamera.renderScale)),
-					camera.toCameraSpace(endpointH.div(cullingCamera.renderScale)),
+					camera.toCameraSpace(endpointL.mul(1e12 / cullingCamera.metersPerUnit)),
+					camera.toCameraSpace(endpointH.mul(1e12 / cullingCamera.metersPerUnit)),
 					color.withA(alphaL), color.withA(alphaH));
 		}
 

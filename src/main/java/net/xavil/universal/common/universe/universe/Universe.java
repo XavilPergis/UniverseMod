@@ -88,8 +88,8 @@ public abstract class Universe implements Disposable {
 
 	public double getCelestialTime(float partialTick) {
 		// return (this.celestialTimeTicks + partialTick) / 20.0;
-		return 60.0 * (this.celestialTimeTicks + partialTick) / 20.0;
-		// return 60.0 * 60.0 * (this.celestialTimeTicks + partialTick) / 20.0;
+		// return 60.0 * (this.celestialTimeTicks + partialTick) / 20.0;
+		return 60.0 * 60.0 * (this.celestialTimeTicks + partialTick) / 20.0;
 		// return 3.156e7 * 0.1 * (this.celestialTimeTicks + partialTick) / 20.0;
 	}
 

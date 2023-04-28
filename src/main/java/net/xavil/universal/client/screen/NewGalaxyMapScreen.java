@@ -15,16 +15,15 @@ import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.util.Disposable;
+import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
 
 public class NewGalaxyMapScreen extends Universal3dScreen {
-	public static final double TM_PER_UNIT = 1000;
-
 	private final Galaxy galaxy;
 
 	public NewGalaxyMapScreen(Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
-		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12, TM_PER_UNIT),
+		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1000 * 1e12),
 				1e0, 1e5);
 
 		BlackboardKeys.SELECTED_STAR_SYSTEM.insert(blackboard, systemToFocus);

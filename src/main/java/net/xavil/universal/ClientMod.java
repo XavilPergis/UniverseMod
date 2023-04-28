@@ -47,10 +47,13 @@ public class ClientMod implements ClientModInitializer {
 		ModNetworking.CLIENTBOUND_PLAY_HANDLER = packet -> client.execute(() -> handlePacket(packet));
 
 		ModRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
-			acceptor.accept(ModRendering.PLANET_SHADER, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-			acceptor.accept(ModRendering.RING_SHADER, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-			acceptor.accept(ModRendering.STAR_BILLBOARD_SHADER, DefaultVertexFormat.POSITION_COLOR_TEX);
+			// @formatter:off
+			acceptor.accept(ModRendering.STAR_SHADER,            DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+			acceptor.accept(ModRendering.STAR_BILLBOARD_SHADER,  DefaultVertexFormat.POSITION_COLOR_TEX);
+			acceptor.accept(ModRendering.PLANET_SHADER,          DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+			acceptor.accept(ModRendering.RING_SHADER,            DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 			acceptor.accept(ModRendering.GALAXY_PARTICLE_SHADER, DefaultVertexFormat.POSITION_COLOR_TEX);
+			// @formatter:off
 		});
 		ModRendering.LOAD_POST_PROCESS_SHADERS_EVENT.register(acceptor -> {
 			acceptor.accept(ModRendering.COMPOSITE_SKY_CHAIN);

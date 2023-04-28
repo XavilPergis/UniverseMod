@@ -3,6 +3,8 @@ package net.xavil.util.collections.interfaces;
 import java.util.Set;
 import java.util.function.Predicate;
 
+import javax.annotation.Nonnull;
+
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
 import net.xavil.util.collections.MutableSetProxy;
 import net.xavil.util.iterator.IntoIterator;
@@ -22,7 +24,7 @@ public interface MutableSet<T> extends MutableCollection, ImmutableSet<T> {
 		return this.iter().filter(item -> !other.contains(item));
 	}
 
-	static <T> MutableSetProxy<T> proxy(Set<T> set) {
+	static <T> MutableSetProxy<T> proxy(@Nonnull Set<T> set) {
 		return new MutableSetProxy<>(set);
 	}
 

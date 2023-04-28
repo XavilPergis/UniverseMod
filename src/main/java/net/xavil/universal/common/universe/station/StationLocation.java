@@ -164,6 +164,7 @@ public abstract sealed class StationLocation implements Disposable {
 		private StationLocation targetLocation;
 		private double distanceTravelled = 0.0;
 
+		public final SystemNodeId targetNode;
 		private Vec3 pos;
 
 		private JumpingSystem(Universe universe, SystemTicket ticket, StationLocation current, SystemId target) {
@@ -177,6 +178,7 @@ public abstract sealed class StationLocation implements Disposable {
 			final var dest = new StationLocation.OrbitingCelestialBody(universe, ticket, id);
 			dest.forceLoad(universe);
 			this.targetLocation = dest;
+			this.targetNode = id;
 		}
 
 		public static Option<JumpingSystem> create(Universe universe, StationLocation current, SystemId target) {
@@ -195,12 +197,14 @@ public abstract sealed class StationLocation implements Disposable {
 			this.sourcePos = decodeNbt(Vec3.CODEC, nbt.get("src_pos"));
 			this.targetLocation = fromNbt(universe, nbt.getCompound("target"));
 			this.distanceTravelled = nbt.getDouble("travelled");
+			this.targetNode = decodeNbt(SystemNodeId.CODEC, nbt.get("target_node"));
 		}
 
 		public void writeNbt(CompoundTag nbt) {
 			nbt.put("src_pos", encodeNbt(Vec3.CODEC, this.sourcePos));
 			nbt.put("target", toNbt(this.targetLocation));
 			nbt.putDouble("travelled", this.distanceTravelled);
+			nbt.put("target_node", encodeNbt(SystemNodeId.CODEC, this.targetNode));
 		}
 
 

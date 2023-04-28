@@ -39,8 +39,8 @@ public final class BillboardBatcher {
 		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.enableCull();
+		RenderSystem.disableDepthTest();
+		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
 		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 
@@ -48,7 +48,7 @@ public final class BillboardBatcher {
 	}
 
 	public void add(StellarCelestialNode node, Vec3 pos) {
-		RenderHelper.addBillboard(builder, this.camera, new PoseStack(), node, pos.div(this.camera.renderScale));
+		RenderHelper.addBillboard(builder, this.camera, new PoseStack(), node, pos.mul(1e12 / this.camera.metersPerUnit));
 		this.current += 1;
 		if (this.current > this.billboardsPerBatch) {
 			end();

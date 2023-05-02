@@ -5,9 +5,11 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.util.Mth;
-import net.xavil.util.FastHasher;
-import net.xavil.util.Hashable;
-import net.xavil.util.Hasher;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.hash.Hashable;
+import net.xavil.util.hash.Hasher;
+import net.xavil.util.math.matrices.Mat4;
+import net.xavil.util.math.matrices.Vec3;
 
 public final class Quat implements Hashable {
 
@@ -95,7 +97,8 @@ public final class Quat implements Hashable {
 	public Vec3 axisAngle() {
 		final var halfAngle = Math.acos(this.w);
 		final var h = 1 / Mth.fastInvSqrt(1 - this.w * this.w);
-		return Vec3.from(i, j, k).mul(h).mul(2 * halfAngle);
+		final var n = h * 2 * halfAngle;
+		return Vec3.from(n * i, n * j, n * k);
 	}
 
 	// returns a quaternion that applies `rhs` first, then `this`
@@ -128,10 +131,22 @@ public final class Quat implements Hashable {
 	}
 
 	public Vec3 transform(Vec3 vec) {
-		var norm = normalize();
-		return norm.hamiltonProduct(Quat.fromIjk(vec))
-				.hamiltonProduct(norm.conjugate())
-				.ijk();
+		final var f = Mth.fastInvSqrt(w * w + i * i + j * j + k * k);
+		final double normw = f * w, normi = f * i, normj = f * j, normk = f * k;
+
+		final double l00 = normw, l01 =  normi, l02 =  normj, l03 =  normk;
+		final double r00 =     0, r01 =  vec.x, r02 =  vec.y, r03 =  vec.z;
+		final double r10 = normw, r11 = -normi, r12 = -normj, r13 = -normk;
+
+		final double w0 = l00 * r00 - l01 * r01 - l02 * r02 - l03 * r03;
+		final double i0 = l00 * r01 + l01 * r00 + l02 * r03 - l03 * r02;
+		final double j0 = l00 * r02 - l01 * r03 + l02 * r00 + l03 * r01;
+		final double k0 = l00 * r03 + l01 * r02 - l02 * r01 + l03 * r00;
+		final double i1 =  w0 * r11 +  i0 * r10 +  j0 * r13 -  k0 * r12;
+		final double j1 =  w0 * r12 -  i0 * r13 +  j0 * r10 +  k0 * r11;
+		final double k1 =  w0 * r13 +  i0 * r12 -  j0 * r11 +  k0 * r10;
+
+		return new Vec3(i1, j1, k1);
 	}
 
 	@Override

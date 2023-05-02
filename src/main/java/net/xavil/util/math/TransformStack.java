@@ -4,9 +4,12 @@ import javax.annotation.Nonnull;
 
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
-import net.xavil.util.math.interfaces.Mat4Access;
-import net.xavil.util.math.interfaces.Vec3Access;
-import net.xavil.util.math.interfaces.Vec4Access;
+import net.xavil.util.math.matrices.interfaces.Mat4Access;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
+import net.xavil.util.math.matrices.interfaces.Vec4Access;
+import net.xavil.util.math.matrices.Mat4;
+import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.Vec4;
 
 public final class TransformStack {
 	private final MutableList<Mat4.Mutable> stack = new Vector<>(1);

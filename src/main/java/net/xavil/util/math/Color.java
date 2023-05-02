@@ -1,9 +1,9 @@
 package net.xavil.util.math;
 
 import net.minecraft.util.Mth;
-import net.xavil.util.FastHasher;
-import net.xavil.util.Hashable;
-import net.xavil.util.Hasher;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.hash.Hashable;
+import net.xavil.util.hash.Hasher;
 
 public record Color(float r, float g, float b, float a) implements Hashable {
 

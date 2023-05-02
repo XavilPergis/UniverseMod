@@ -1,8 +1,6 @@
-package net.xavil.util.math;
+package net.xavil.util.math.matrices;
 
 import java.util.Random;
-
-import javax.annotation.Nonnull;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
@@ -13,10 +11,10 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.Position;
 import net.minecraft.util.Mth;
-import net.xavil.util.FastHasher;
-import net.xavil.util.Hashable;
-import net.xavil.util.Hasher;
-import net.xavil.util.math.interfaces.Vec3Access;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.hash.Hashable;
+import net.xavil.util.hash.Hasher;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
 
 public final class Vec3 implements Hashable, Vec3Access {
 
@@ -78,7 +76,7 @@ public final class Vec3 implements Hashable, Vec3Access {
 
 	public static Vec3 broadcast(double n)                {return new Vec3(n, n, n);}
 	public static Vec3 from(double x, double y, double z) {return new Vec3(x, y, z);}
-	public static Vec3 fromMinecraft(Vector3f vec)        {return new Vec3(vec.x(), vec.y(), vec.z());}
+	public static Vec3 from(Vector3f vec)        {return new Vec3(vec.x(), vec.y(), vec.z());}
 	public static Vec3 from(Position vec)        {return new Vec3(vec.x(), vec.y(), vec.z());}
 
 	public Vec3 add  (Vec3Access rhs)               {return new Vec3(this.x + rhs.x(), this.y + rhs.y(), this.z + rhs.z());}
@@ -112,25 +110,25 @@ public final class Vec3 implements Hashable, Vec3Access {
 		return b.mul(this.dot(b));
 	}
 
-	public Vec3 transformBy(@Nonnull PoseStack.Pose pose) {
+	public Vec3 transformBy(PoseStack.Pose pose) {
 		return transformBy(pose.pose());
 	}
 
-	public Vec3 transformBy(@Nonnull Matrix4f matrix) {
+	public Vec3 transformBy(Matrix4f matrix) {
 		return transformBy(matrix, 1);
 	}
 
-	public Vec3 transformBy(@Nonnull Matrix4f matrix, double w) {
+	public Vec3 transformBy(Matrix4f matrix, double w) {
 		final var vec = new Vector4f((float) this.x, (float) this.y, (float) this.z, (float) w);
 		vec.transform(matrix);
 		return new Vec3(vec.x() / vec.w(), vec.y() / vec.w(), vec.z() / vec.w());
 	}
 
-	public Vec3 transformBy(@Nonnull Mat4 matrix) {
+	public Vec3 transformBy(Mat4 matrix) {
 		return transformBy(matrix, 1);
 	}
 
-	public Vec3 transformBy(@Nonnull Mat4 matrix, double w) {
+	public Vec3 transformBy(Mat4 matrix, double w) {
 		return matrix.mul(this, w);
 	}
 

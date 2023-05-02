@@ -3,6 +3,8 @@ package net.xavil.util.math;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import net.xavil.util.math.matrices.Vec3;
+
 public record OrbitalPlane(Quat rotationFromReference) {
 
 	public static final OrbitalPlane ZERO = new OrbitalPlane(Quat.IDENTITY);

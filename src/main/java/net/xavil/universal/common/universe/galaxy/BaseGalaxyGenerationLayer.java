@@ -9,10 +9,10 @@ import net.xavil.universal.common.universe.DensityFields;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.system.StarSystemGeneratorImpl;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.FastHasher;
 import net.xavil.util.Rng;
 import net.xavil.util.Units;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.math.matrices.Vec3;
 
 public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 

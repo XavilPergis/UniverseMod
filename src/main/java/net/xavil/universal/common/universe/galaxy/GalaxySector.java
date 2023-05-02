@@ -5,8 +5,8 @@ import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.util.Units;
 import net.xavil.util.Util;
 import net.xavil.util.collections.interfaces.ImmutableList;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.Vec3i;
+import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.Vec3i;
 
 public final class GalaxySector {
 

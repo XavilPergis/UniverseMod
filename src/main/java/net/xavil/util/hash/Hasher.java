@@ -1,4 +1,4 @@
-package net.xavil.util;
+package net.xavil.util.hash;
 
 public interface Hasher {
 

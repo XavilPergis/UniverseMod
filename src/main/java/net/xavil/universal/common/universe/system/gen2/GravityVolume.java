@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.xavil.util.Units;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class GravityVolume {
 

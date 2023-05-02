@@ -3,7 +3,7 @@ package net.xavil.universal.common.universe;
 import java.util.function.DoubleBinaryOperator;
 
 import net.minecraft.util.Mth;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public interface DoubleField3 {
 

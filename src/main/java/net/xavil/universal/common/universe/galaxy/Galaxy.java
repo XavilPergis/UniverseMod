@@ -12,13 +12,13 @@ import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universal.common.universe.universe.Universe;
 import net.xavil.universegen.system.CelestialNode;
-import net.xavil.util.FastHasher;
 import net.xavil.util.Option;
 import net.xavil.util.Disposable;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.ImmutableList;
+import net.xavil.util.hash.FastHasher;
 import net.xavil.util.math.Interval;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class Galaxy {
 

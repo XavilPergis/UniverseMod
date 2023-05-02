@@ -30,7 +30,7 @@ import net.xavil.universal.Mod;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.sky.NewSkyRenderDispatcher;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
-import net.xavil.util.math.Mat4;
+import net.xavil.util.math.matrices.Mat4;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin implements ResourceManagerReloadListener, AutoCloseable, GameRendererAccessor {

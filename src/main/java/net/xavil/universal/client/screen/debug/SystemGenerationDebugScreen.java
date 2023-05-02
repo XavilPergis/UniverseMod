@@ -43,7 +43,7 @@ import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Interval;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class SystemGenerationDebugScreen extends Universal3dScreen {
 

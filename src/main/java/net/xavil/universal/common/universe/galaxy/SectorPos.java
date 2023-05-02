@@ -1,10 +1,10 @@
 package net.xavil.universal.common.universe.galaxy;
 
-import net.xavil.util.FastHasher;
-import net.xavil.util.Hashable;
-import net.xavil.util.Hasher;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.Vec3i;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.hash.Hashable;
+import net.xavil.util.hash.Hasher;
+import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.Vec3i;
 
 public record SectorPos(int level, Vec3i levelCoords) implements Hashable {
 

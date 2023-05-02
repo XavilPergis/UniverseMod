@@ -1,6 +1,9 @@
 package net.xavil.util.math;
 
 import net.minecraft.util.Mth;
+import net.xavil.util.math.matrices.Vec2;
+import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.Vec4;
 
 public interface NumericOps<T> {
 

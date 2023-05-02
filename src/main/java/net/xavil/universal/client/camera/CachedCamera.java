@@ -2,15 +2,13 @@ package net.xavil.universal.client.camera;
 
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.math.Matrix3f;
-import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Camera;
-import net.xavil.util.math.Mat4;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.Ray;
-import net.xavil.util.math.Vec2;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Mat4;
+import net.xavil.util.math.matrices.Vec2;
+import net.xavil.util.math.matrices.Vec3;
 
 public class CachedCamera<T> {
 	public final T camera;
@@ -152,8 +150,8 @@ public class CachedCamera<T> {
 	}
 
 	public static Quat orientationFromMinecraftCamera(Camera camera) {
-		final var px = Vec3.fromMinecraft(camera.getLeftVector()).neg();
-		final var py = Vec3.fromMinecraft(camera.getUpVector());
+		final var px = Vec3.from(camera.getLeftVector()).neg();
+		final var py = Vec3.from(camera.getUpVector());
 		final var pz = px.cross(py);
 		return Quat.fromOrthonormalBasis(px, py, pz);
 	}

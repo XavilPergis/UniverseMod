@@ -4,7 +4,7 @@ import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Assert;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class StarSystem {
 

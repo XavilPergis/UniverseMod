@@ -4,8 +4,8 @@ import java.util.function.Consumer;
 
 import net.xavil.util.collections.interfaces.ImmutableSet;
 import net.xavil.util.collections.interfaces.MutableSet;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.Vec3i;
+import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.Vec3i;
 
 public abstract sealed class UniverseSectorTicketInfo {
 	

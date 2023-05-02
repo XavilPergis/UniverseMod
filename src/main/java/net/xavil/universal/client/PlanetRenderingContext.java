@@ -28,13 +28,13 @@ import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.FastHasher;
 import net.xavil.util.Units;
+import net.xavil.util.hash.FastHasher;
 import net.xavil.util.math.Color;
-import net.xavil.util.math.Mat4;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Mat4;
+import net.xavil.util.math.matrices.Vec3;
 
 public final class PlanetRenderingContext {
 

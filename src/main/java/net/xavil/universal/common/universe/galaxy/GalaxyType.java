@@ -5,7 +5,7 @@ import java.util.Random;
 import net.xavil.universal.common.universe.DensityFields;
 import net.xavil.universal.common.universe.DoubleField3;
 import net.xavil.util.Units;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public enum GalaxyType {
 

@@ -14,8 +14,8 @@ import net.xavil.util.Option;
 import net.xavil.util.collections.Blackboard;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
-import net.xavil.util.math.Vec2;
-import net.xavil.util.math.Vec2i;
+import net.xavil.util.math.matrices.Vec2;
+import net.xavil.util.math.matrices.Vec2i;
 
 public abstract class UniversalScreen extends Screen {
 

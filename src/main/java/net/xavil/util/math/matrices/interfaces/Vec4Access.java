@@ -1,10 +1,10 @@
-package net.xavil.util.math.interfaces;
+package net.xavil.util.math.matrices.interfaces;
 
 import com.mojang.math.Vector4f;
 
-import net.xavil.util.math.Vec2;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.Vec4;
+import net.xavil.util.math.matrices.Vec2;
+import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.Vec4;
 
 public interface Vec4Access {
 	// @formatter:off

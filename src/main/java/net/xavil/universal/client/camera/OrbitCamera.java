@@ -2,10 +2,10 @@ package net.xavil.universal.client.camera;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
-import net.xavil.util.math.Mat4;
 import net.xavil.util.math.NumericOps;
 import net.xavil.util.math.Quat;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Mat4;
+import net.xavil.util.math.matrices.Vec3;
 
 public class OrbitCamera {
 

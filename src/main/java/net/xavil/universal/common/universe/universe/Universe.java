@@ -15,14 +15,14 @@ import net.xavil.universal.common.universe.station.StationLocation;
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.Disposable;
-import net.xavil.util.FastHasher;
 import net.xavil.util.Option;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.ImmutableList;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.collections.interfaces.MutableMap;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.Vec3i;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.Vec3i;
 
 public abstract class Universe implements Disposable {
 

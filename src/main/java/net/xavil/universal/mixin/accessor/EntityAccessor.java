@@ -5,7 +5,7 @@ import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.universe.Universe;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.util.Option;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public interface EntityAccessor {
 

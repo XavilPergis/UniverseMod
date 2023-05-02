@@ -16,7 +16,7 @@ import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.collections.interfaces.MutableMap;
 import net.xavil.util.collections.interfaces.MutableSet;
-import net.xavil.util.math.Vec3i;
+import net.xavil.util.math.matrices.Vec3i;
 
 public final class UniverseSectorManager {
 

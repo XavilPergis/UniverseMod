@@ -1,14 +1,15 @@
-package net.xavil.util.math;
+package net.xavil.util.math.matrices;
 
 import com.mojang.math.Matrix4f;
 
-import net.xavil.util.FastHasher;
-import net.xavil.util.Hashable;
-import net.xavil.util.Hasher;
 import net.xavil.util.Option;
-import net.xavil.util.math.interfaces.Mat4Access;
-import net.xavil.util.math.interfaces.Vec3Access;
-import net.xavil.util.math.interfaces.Vec4Access;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.hash.Hashable;
+import net.xavil.util.hash.Hasher;
+import net.xavil.util.math.Quat;
+import net.xavil.util.math.matrices.interfaces.Mat4Access;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
+import net.xavil.util.math.matrices.interfaces.Vec4Access;
 
 public final class Mat4 implements Hashable, Mat4Access {
 

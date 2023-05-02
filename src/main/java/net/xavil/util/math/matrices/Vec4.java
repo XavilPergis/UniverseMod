@@ -1,4 +1,4 @@
-package net.xavil.util.math;
+package net.xavil.util.math.matrices;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
@@ -7,11 +7,11 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.util.Mth;
-import net.xavil.util.FastHasher;
-import net.xavil.util.Hashable;
-import net.xavil.util.Hasher;
-import net.xavil.util.math.interfaces.Vec3Access;
-import net.xavil.util.math.interfaces.Vec4Access;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.hash.Hashable;
+import net.xavil.util.hash.Hasher;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
+import net.xavil.util.math.matrices.interfaces.Vec4Access;
 
 public final class Vec4 implements Hashable, Vec4Access {
 

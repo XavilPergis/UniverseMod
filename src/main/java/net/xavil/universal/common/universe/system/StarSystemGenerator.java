@@ -5,8 +5,8 @@ import java.util.Random;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.GalaxySector;
 import net.xavil.universal.common.universe.system.StarSystem.Info;
-import net.xavil.util.FastHasher;
 import net.xavil.util.Rng;
+import net.xavil.util.hash.FastHasher;
 
 public interface StarSystemGenerator {
 

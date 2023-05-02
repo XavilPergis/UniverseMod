@@ -21,7 +21,7 @@ import net.xavil.util.math.Formulas;
 import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalPlane;
 import net.xavil.util.math.OrbitalShape;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public abstract sealed class CelestialNode permits
 		StellarCelestialNode, BinaryCelestialNode, PlanetaryCelestialNode, OtherCelestialNode {

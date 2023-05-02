@@ -49,8 +49,8 @@ import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.Vec2;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec2;
+import net.xavil.util.math.matrices.Vec3;
 
 public class NewSkyRenderDispatcher {
 

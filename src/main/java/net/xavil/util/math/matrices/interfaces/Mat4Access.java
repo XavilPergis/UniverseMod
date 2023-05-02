@@ -1,10 +1,8 @@
-package net.xavil.util.math.interfaces;
+package net.xavil.util.math.matrices.interfaces;
 
-import javax.annotation.Nonnull;
-
-import net.xavil.util.math.Mat4;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.Vec4;
+import net.xavil.util.math.matrices.Mat4;
+import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.Vec4;
 
 public interface Mat4Access {
 	double r0c0();
@@ -24,7 +22,7 @@ public interface Mat4Access {
 	double r3c2();
 	double r3c3();
 
-	default @Nonnull Mat4 asImmutable() {
+	default Mat4 asImmutable() {
 		// @formatter:off
 		return new Mat4(
 			r0c0(), r0c1(), r0c2(), r0c3(),
@@ -35,7 +33,7 @@ public interface Mat4Access {
 		// @formatteron
 	}
 
-	default @Nonnull Mat4.Mutable asMutable() {
+	default Mat4.Mutable asMutable() {
 		return new Mat4.Mutable().loadFrom(this);
 	}
 

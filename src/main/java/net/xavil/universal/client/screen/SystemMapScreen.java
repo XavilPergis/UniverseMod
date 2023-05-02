@@ -44,7 +44,7 @@ import net.xavil.util.math.Color;
 import net.xavil.util.math.Ellipse;
 import net.xavil.util.math.OrbitalPlane;
 import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class SystemMapScreen extends Universal3dScreen {
 

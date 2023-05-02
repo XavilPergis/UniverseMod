@@ -29,8 +29,8 @@ import net.xavil.util.Option;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Ray;
 import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.Vec2;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec2;
+import net.xavil.util.math.matrices.Vec3;
 
 public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 	private final NewGalaxyMapScreen screen;

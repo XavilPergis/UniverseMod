@@ -62,7 +62,7 @@ import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.util.Assert;
 import net.xavil.util.Disposable;
 import net.xavil.util.Option;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class Mod implements ModInitializer {
 

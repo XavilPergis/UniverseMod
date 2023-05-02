@@ -11,6 +11,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.xavil.universal.common.universe.id.GalaxySectorId;
+import net.xavil.util.hash.FastHasher;
+import net.xavil.util.hash.Hashable;
+import net.xavil.util.hash.Hasher;
 import net.xavil.util.iterator.IntoIterator;
 import net.xavil.util.iterator.Iterator;
 

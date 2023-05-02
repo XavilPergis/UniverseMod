@@ -11,7 +11,7 @@ import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public final class BillboardBatcher {
 	private final Minecraft client = Minecraft.getInstance();
@@ -49,7 +49,7 @@ public final class BillboardBatcher {
 
 	public void add(StellarCelestialNode node, Vec3 pos) {
 		// RenderHelper.addBillboard(builder, this.camera, new TransformStack(), node, pos.mul(1e12 / this.camera.metersPerUnit));
-		RenderHelper.addBillboard(builder, this.camera, new TransformStack(), node, pos);
+		RenderHelper.addBillboard(builder, this.camera, node, pos);
 
 		// var color = Color.WHITE;
 		// if (node instanceof StellarCelestialNode starNode) {

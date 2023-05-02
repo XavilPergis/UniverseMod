@@ -6,9 +6,9 @@ import net.minecraft.network.protocol.Packet;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
+import net.xavil.util.math.matrices.Vec3i;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
-import net.xavil.util.math.Vec3i;
 
 public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 

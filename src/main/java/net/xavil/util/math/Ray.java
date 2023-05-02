@@ -2,6 +2,8 @@ package net.xavil.util.math;
 
 import com.mojang.math.Matrix4f;
 
+import net.xavil.util.math.matrices.Vec3;
+
 public record Ray(Vec3 origin, Vec3 dir) {
 
 	public Vec3 stepBy(double t) {

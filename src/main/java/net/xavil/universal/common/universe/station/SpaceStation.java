@@ -5,11 +5,10 @@ import javax.annotation.Nullable;
 import net.minecraft.world.level.Level;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.universe.Universe;
-import net.xavil.util.Disposable;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.math.Quat;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public final class SpaceStation {
 

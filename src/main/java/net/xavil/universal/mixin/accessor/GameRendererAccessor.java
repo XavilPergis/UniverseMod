@@ -5,7 +5,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.xavil.util.math.Mat4;
+import net.xavil.util.math.matrices.Mat4;
 
 public interface GameRendererAccessor {
 

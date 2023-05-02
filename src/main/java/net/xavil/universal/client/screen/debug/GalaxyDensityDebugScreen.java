@@ -13,7 +13,7 @@ import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.util.Units;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class GalaxyDensityDebugScreen extends Universal3dScreen {
 

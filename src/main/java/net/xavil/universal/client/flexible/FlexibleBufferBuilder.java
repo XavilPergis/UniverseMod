@@ -19,8 +19,7 @@ import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.util.Assert;
 import net.xavil.util.math.Color;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.interfaces.Vec3Access;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
 
 public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 

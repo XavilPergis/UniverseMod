@@ -15,7 +15,7 @@ import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class ScreenLayerGalaxy extends Universal3dScreen.Layer3d {
 	private final GalaxyRenderingContext galaxyRenderingContext;

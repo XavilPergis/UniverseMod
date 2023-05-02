@@ -10,7 +10,7 @@ import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.galaxy.SystemTicket;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.math.Vec2i;
+import net.xavil.util.math.matrices.Vec2i;
 
 public class ScreenLayerSystemInfo extends UniversalScreen.Layer2d {
 

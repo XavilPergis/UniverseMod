@@ -1,5 +1,7 @@
 package net.xavil.util.math;
 
+import net.xavil.util.math.matrices.Vec3;
+
 public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 
 	public static Ellipse fromOrbit(Vec3 focus, OrbitalPlane plane, OrbitalShape shape) {

@@ -6,7 +6,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 
 import net.minecraft.world.entity.item.ItemEntity;
 import net.xavil.universal.mixin.accessor.EntityAccessor;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 @Mixin(ItemEntity.class)
 public abstract class ItemEntityMixin {

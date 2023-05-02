@@ -4,7 +4,7 @@ import java.util.Random;
 
 import net.xavil.universal.common.universe.system.StarSystem;
 import net.xavil.util.math.Interval;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public abstract class GalaxyGenerationLayer {
 

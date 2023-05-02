@@ -34,7 +34,7 @@ import net.xavil.util.Rng;
 import net.xavil.util.Units;
 import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalPlane;
-import net.xavil.util.math.Vec3i;
+import net.xavil.util.math.matrices.Vec3i;
 
 public final class ServerUniverse extends Universe {
 

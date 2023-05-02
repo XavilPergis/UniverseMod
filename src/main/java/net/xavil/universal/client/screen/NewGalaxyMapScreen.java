@@ -17,7 +17,7 @@ import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.util.Disposable;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public class NewGalaxyMapScreen extends Universal3dScreen {
 	private final Galaxy galaxy;

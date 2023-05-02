@@ -21,10 +21,10 @@ import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
-import net.xavil.util.math.Mat4;
 import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.interfaces.Vec3Access;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
+import net.xavil.util.math.matrices.Mat4;
+import net.xavil.util.math.matrices.Vec3;
 
 public final class RenderHelper {
 
@@ -70,8 +70,7 @@ public final class RenderHelper {
 		addBillboard(builder, camera, node, d, np);
 	}
 
-	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, TransformStack tfm,
-			CelestialNode node, Vec3 pos) {
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, CelestialNode node, Vec3 pos) {
 		final var distanceFromCameraTm = camera.posTm.distanceTo(pos);
 
 		double minAngularDiameterRad = Math.toRadians(0.15);
@@ -104,8 +103,6 @@ public final class RenderHelper {
 					/ (4 * Math.PI * distanceFromCameraTm * distanceFromCameraTm);
 			
 			if (apparentBrightness > brightnessThreshold && angularRadius > idealAngularRadius) {
-				// minAngularDiameterRad = Math.max(minAngularDiameterRad, Math.min(apparentBrightness, Math.toRadians(0.2)));
-				// angularRadius = Math.max(idealAngularRadius, minAngularDiameterRad / 2);
 				angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.1);
 				angularRadius = Math.min(angularRadius, Math.toRadians(0.1));
 			} else {
@@ -113,21 +110,14 @@ public final class RenderHelper {
 			}
 		}
 
-
-		// final var diff = idealAngularRadius - angularRadius;
 		final var d = billboardFactor * distanceFromCameraTm * (angularRadius / 2);
-		// double d = (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.posTm,
-		// node, pos);
 
 		var color = Color.WHITE;
 		if (node instanceof StellarCelestialNode starNode) {
-			// final var d2 = camera.pos.distanceToSquared(pos);
-			// final var m = Math.min(1.0, 1e12 * starNode.luminosityLsol / d2);
 			color = starNode.getColor().withA(k);
-			// color = starNode.getColor();
 		}
 
-		RenderHelper.addBillboardWorldspace(builder, camera.pos, tfm, camera.up, camera.left,
+		RenderHelper.addBillboardWorldspace(builder, camera.pos, camera.up, camera.left,
 				pos.mul(1e12 / camera.metersPerUnit), d, color);
 	}
 

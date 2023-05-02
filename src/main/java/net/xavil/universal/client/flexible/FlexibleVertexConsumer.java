@@ -4,50 +4,62 @@ import com.mojang.blaze3d.vertex.DefaultedVertexConsumer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import net.xavil.util.math.Color;
-import net.xavil.util.math.Vec3;
-import net.xavil.util.math.interfaces.Vec3Access;
+import net.xavil.util.math.matrices.interfaces.Vec2Access;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
 
 public interface FlexibleVertexConsumer {
 
+	void endVertex();
+
+	// ===== POSITION ===========================
 	FlexibleVertexConsumer vertex(float x, float y, float z);
 
 	default FlexibleVertexConsumer vertex(double x, double y, double z) {
-		this.vertex((float) x, (float) y, (float) z);
-		return this;
+		return this.vertex((float) x, (float) y, (float) z);
 	}
 
 	default FlexibleVertexConsumer vertex(Vec3Access pos) {
-		this.vertex((float) pos.x(), (float) pos.y(), (float) pos.z());
-		return this;
+		return this.vertex((float) pos.x(), (float) pos.y(), (float) pos.z());
 	}
 
+	// ===== COLOR ==============================
 	FlexibleVertexConsumer color(float r, float g, float b, float a);
 
 	default FlexibleVertexConsumer color(Color color) {
-		this.color(color.r(), color.g(), color.b(), color.a());
-		return this;
+		return this.color(color.r(), color.g(), color.b(), color.a());
 	}
 
+	// ===== UV =================================
 	FlexibleVertexConsumer uv0(float u, float v);
+
+	default FlexibleVertexConsumer uv0(Vec2Access uv) {
+		return this.uv0((float) uv.x(), (float) uv.y());
+	}
 
 	FlexibleVertexConsumer uv1(float u, float v);
 
+	default FlexibleVertexConsumer uv1(Vec2Access uv) {
+		return this.uv1((float) uv.x(), (float) uv.y());
+	}
+
 	FlexibleVertexConsumer uv2(float u, float v);
 
+	default FlexibleVertexConsumer uv2(Vec2Access uv) {
+		return this.uv2((float) uv.x(), (float) uv.y());
+	}
+
+	// ===== NORMAL =============================
 	FlexibleVertexConsumer normal(float x, float y, float z);
 
 	default FlexibleVertexConsumer normal(double x, double y, double z) {
-		this.normal((float) x, (float) y, (float) z);
-		return this;
+		return this.normal((float) x, (float) y, (float) z);
 	}
 
 	default FlexibleVertexConsumer normal(Vec3Access norm) {
-		this.normal((float) norm.x(), (float) norm.y(), (float) norm.z());
-		return this;
+		return this.normal((float) norm.x(), (float) norm.y(), (float) norm.z());
 	}
 
-	void endVertex();
-
+	// ===== WRAPPER ============================
 	static FlexibleVertexConsumer wrapVanilla(VertexConsumer consumer) {
 		return new FlexibleVertexConsumer() {
 			@Override

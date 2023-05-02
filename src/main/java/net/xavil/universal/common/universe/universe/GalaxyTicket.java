@@ -4,13 +4,11 @@ import net.xavil.universal.common.universe.galaxy.Galaxy;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.util.Disposable;
 import net.xavil.util.Option;
-import net.xavil.util.ThreadSignal;
 
 public final class GalaxyTicket implements Disposable {
 
 	public final UniverseSectorManager attachedManager;
 	public UniverseSectorId id;
-	public final ThreadSignal generationListener = new ThreadSignal();
 
 	public GalaxyTicket(UniverseSectorManager attachedManager, UniverseSectorId id) {
 		this.attachedManager = attachedManager;

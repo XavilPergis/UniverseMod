@@ -4,7 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.xavil.util.Util;
-import net.xavil.util.math.Vec3i;
+import net.xavil.util.math.matrices.Vec3i;
 
 public record UniverseSectorId(Vec3i sectorPos, int id) {
 	public static final Codec<UniverseSectorId> CODEC = RecordCodecBuilder.create(inst -> inst.group(

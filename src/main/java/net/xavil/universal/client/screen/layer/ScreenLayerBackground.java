@@ -11,8 +11,8 @@ import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universal.client.screen.UniversalScreen;
 import net.xavil.util.math.Color;
-import net.xavil.util.math.Vec2i;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec2i;
+import net.xavil.util.math.matrices.Vec3;
 
 public class ScreenLayerBackground extends UniversalScreen.Layer2d {
 

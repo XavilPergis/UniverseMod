@@ -14,7 +14,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
 import net.xavil.universal.mixin.accessor.EntityAccessor;
 import net.xavil.util.Assert;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {

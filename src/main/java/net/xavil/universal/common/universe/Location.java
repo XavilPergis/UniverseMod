@@ -4,7 +4,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.xavil.universal.Mod;
 import net.xavil.universal.common.universe.id.SystemNodeId;
-import net.xavil.util.math.Vec3;
+import net.xavil.util.math.matrices.Vec3;
 
 public abstract sealed class Location {
 

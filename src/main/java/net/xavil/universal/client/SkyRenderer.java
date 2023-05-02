@@ -1,4 +1,4 @@
-package net.xavil.universal.client.sky;
+package net.xavil.universal.client;
 
 import java.util.Objects;
 import java.util.OptionalInt;
@@ -17,9 +17,6 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
-import net.xavil.universal.client.GalaxyRenderingContext;
-import net.xavil.universal.client.ModRendering;
-import net.xavil.universal.client.PlanetRenderingContext;
 import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
@@ -52,9 +49,9 @@ import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.Vec2;
 import net.xavil.util.math.matrices.Vec3;
 
-public class NewSkyRenderDispatcher {
+public class SkyRenderer {
 
-	public static final NewSkyRenderDispatcher INSTANCE = new NewSkyRenderDispatcher();
+	public static final SkyRenderer INSTANCE = new SkyRenderer();
 
 	private final Minecraft client = Minecraft.getInstance();
 

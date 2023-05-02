@@ -190,6 +190,10 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 		this.finishedBuffers.add(finished);
 	}
 
+	public ByteBuffer backingBufferView() {
+		return this.buffer.asReadOnlyBuffer();
+	}
+
 	public void draw(ShaderInstance shader) {
 		Assert.isTrue(!isBuilding());
 		BufferRenderer.draw(shader, this);
@@ -215,29 +219,8 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 			reset();
 		}
 
-		final var bufferSlice = this.buffer.slice(finished.parentBufferOffset, finished.byteCount());
+		final var bufferSlice = this.buffer.slice(finished.parentBufferOffset(), finished.byteCount());
 		return Pair.of(finished, bufferSlice);
-	}
-
-	public record FinishedBuffer(
-			VertexFormat format,
-			VertexFormat.Mode mode,
-			VertexFormat.IndexType indexType,
-			int parentBufferOffset,
-			int vertexCount,
-			int indexCount,
-			boolean sequentialIndex) {
-		public int vertexBufferSize() {
-			return this.vertexCount * this.format.getVertexSize();
-		}
-
-		public int indexBufferSize() {
-			return this.sequentialIndex ? 0 : this.indexCount * this.indexType.bytes;
-		}
-
-		public int byteCount() {
-			return vertexBufferSize() + indexBufferSize();
-		}
 	}
 
 	@Override

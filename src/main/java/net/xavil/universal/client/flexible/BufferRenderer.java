@@ -4,20 +4,18 @@ import java.nio.ByteBuffer;
 
 import org.lwjgl.opengl.GL32;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.BufferBuilder;
 import com.mojang.blaze3d.vertex.BufferUploader;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
-import net.xavil.universal.client.flexible.FlexibleBufferBuilder.FinishedBuffer;
 
 public final class BufferRenderer {
 
 	private static final FlexibleBufferBuilder IMMEDIATE_BUILDER = new FlexibleBufferBuilder(0x200000);
+	private static final FlexibleVertexBuffer IMMEDIATE_BUFFER = new FlexibleVertexBuffer();
 
 	public static FlexibleBufferBuilder immediateBuilder() {
 		return IMMEDIATE_BUILDER;
@@ -37,51 +35,9 @@ public final class BufferRenderer {
 	}
 
 	public static void draw(ShaderInstance shader, ByteBuffer buffer, FinishedBuffer info) {
-
-		// TODO: is this even right?
-		buffer.clear();
-		if (info.vertexCount() <= 0)
-			return;
-
-		final var byteLimit = info.vertexCount() * info.format().getVertexSize();
-		buffer.position(0);
-		buffer.limit(byteLimit);
-		setupForFormat(info.format());
-		GlStateManager._glBufferData(GL32.GL_ARRAY_BUFFER, buffer, GL32.GL_DYNAMIC_DRAW);
-
-		int k = 0;
-		if (info.sequentialIndex()) {
-			final var sequentialIndexBuffer = RenderSystem.getSequentialBuffer(info.mode(), info.indexCount());
-			GlStateManager._glBindBuffer(GL32.GL_ELEMENT_ARRAY_BUFFER, sequentialIndexBuffer.name());
-			k = sequentialIndexBuffer.type().asGLType;
-		} else {
-			int indexBuffer = info.format().getOrCreateIndexBufferObject();
-			GlStateManager._glBindBuffer(GL32.GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
-			buffer.position(byteLimit);
-			buffer.limit(byteLimit + info.indexCount() * info.indexType().bytes);
-			GlStateManager._glBufferData(GL32.GL_ELEMENT_ARRAY_BUFFER, buffer, 35048);
-			k = info.indexType().asGLType;
-		}
-
+		IMMEDIATE_BUFFER.upload(buffer, info, GL32.GL_DYNAMIC_DRAW);
 		setupDefaultShaderUniforms(shader);
-		shader.apply();
-		GlStateManager._drawElements(info.mode().asGLMode, info.indexCount(), k, 0L);
-		shader.clear();
-		buffer.position(0);
-	}
-
-	private static VertexFormat lastFormat = null;
-
-	private static void setupForFormat(VertexFormat format) {
-		BufferUploader.reset();
-		if (lastFormat != null)
-			lastFormat.clearBufferState();
-		final var vao = format.getOrCreateVertexArrayObject();
-		final var vbo = format.getOrCreateVertexBufferObject();
-		GlStateManager._glBindVertexArray(vao);
-		GlStateManager._glBindBuffer(GL32.GL_ARRAY_BUFFER, vbo);
-		format.setupBufferState();
-		lastFormat = format;
+		IMMEDIATE_BUFFER.draw(shader);
 	}
 
 	public static void setupDefaultShaderUniforms(ShaderInstance shader) {

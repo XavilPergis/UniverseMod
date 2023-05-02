@@ -14,7 +14,9 @@ import net.xavil.util.math.Vec3;
 
 public class CachedCamera<T> {
 	public final T camera;
-	public final Vec3 pos, up, right, forward;
+	public final Vec3 pos, posTm;
+	public final Vec3 up, right, forward;
+	public final Vec3 down, left, backward;
 	public final Quat orientation;
 	public final double metersPerUnit;
 
@@ -32,51 +34,58 @@ public class CachedCamera<T> {
 	public CachedCamera(T camera, Vec3 pos, Quat orientation, double metersPerUnit, Mat4 projectionMatrix) {
 		this.camera = camera;
 		this.pos = pos;
+		this.posTm = pos.mul(metersPerUnit / 1e12);
 		this.up = orientation.inverse().transform(Vec3.XP);
+		this.down = this.up.neg();
 		this.right = orientation.inverse().transform(Vec3.YP);
+		this.left = this.right.neg();
 		// this.forward = orientation.transform(Vec3.ZN);
 		this.orientation = orientation;
 		this.metersPerUnit = metersPerUnit;
 		this.forward = right.cross(up).normalize();
+		this.backward = this.forward.neg();
 
 		this.projectionMatrix = projectionMatrix;
 		this.inverseProjectionMatrix = this.projectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
 		this.viewMatrix = Mat4.fromBases(up, right, forward.neg(), pos).inverse().unwrapOr(Mat4.IDENTITY);
 
-		this.viewProjectionMatrix = this.viewMatrix.applyBefore(this.projectionMatrix);
+		this.viewProjectionMatrix = this.viewMatrix.appendTransform(this.projectionMatrix);
 		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
 	}
 
-	public static Matrix4f matrixFromBases(Vec3 x, Vec3 y, Vec3 z, Vec3 pos) {
-		final var mat = new Matrix4f();
-		mat.m00 = (float) x.x;
-		mat.m10 = (float) x.y;
-		mat.m20 = (float) x.z;
-		mat.m30 = 0.0f;
-		mat.m01 = (float) y.x;
-		mat.m11 = (float) y.y;
-		mat.m21 = (float) y.z;
-		mat.m31 = 0.0f;
-		mat.m02 = (float) z.x;
-		mat.m12 = (float) z.y;
-		mat.m22 = (float) z.z;
-		mat.m32 = 0.0f;
-		mat.m03 = (float) pos.x;
-		mat.m13 = (float) pos.y;
-		mat.m23 = (float) pos.z;
-		mat.m33 = 1.0f;
-		return mat;
+	public CachedCamera(T camera, Mat4 viewMatrix, Mat4 projectionMatrix, double metersPerUnit) {
+		this.camera = camera;
+
+		this.viewMatrix = viewMatrix;
+
+		this.projectionMatrix = projectionMatrix;
+		this.inverseProjectionMatrix = this.projectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
+		this.viewProjectionMatrix = this.viewMatrix.appendTransform(this.projectionMatrix);
+		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
+
+		this.pos = viewMatrix.translation();
+		this.posTm = pos.mul(metersPerUnit / 1e12);
+		this.up = this.viewMatrix.basisX();
+		this.down = this.up.neg();
+		this.right = this.viewMatrix.basisY();
+		this.left = this.right.neg();
+		this.forward = this.viewMatrix.basisZ();
+		this.backward = this.forward.neg();
+
+		this.orientation = Quat.fromAffineMatrix(this.viewMatrix);
+		this.metersPerUnit = metersPerUnit;
+
 	}
 
 	public RenderMatricesSnapshot setupRenderMatrices() {
-		var snapshot = RenderMatricesSnapshot.capture();
+		final var snapshot = RenderMatricesSnapshot.capture();
 		RenderSystem.setProjectionMatrix(this.projectionMatrix.asMinecraft());
 
-		var poseStack = RenderSystem.getModelViewStack();
+		final var poseStack = RenderSystem.getModelViewStack();
 		poseStack.setIdentity();
 
 		poseStack.mulPose(this.orientation.toMinecraft());
-		Matrix3f inverseViewRotationMatrix = poseStack.last().normal().copy();
+		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
 		if (inverseViewRotationMatrix.invert()) {
 			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
 		}
@@ -85,8 +94,9 @@ public class CachedCamera<T> {
 		// here, but unfortunately, that can cause stuff to melt into floating point
 		// soup at the scales we're dealing with. So instead, vertices are specified in
 		// a space where the camera is at the origin (like in view space), but the
-		// camer'as rotation is not taken into account (like in world space).
-		// Essentially a weird hybrid between the two.
+		// camera's rotation is not taken into account (like in world space).
+		// Essentially a weird hybrid between the two. This is the same behavior as the
+		// vanilla camera.
 		RenderSystem.applyModelViewMatrix();
 		return snapshot;
 	}
@@ -139,11 +149,6 @@ public class CachedCamera<T> {
 		dir = dir.transformBy(this.inverseProjectionMatrix);
 		dir = this.orientation.inverse().transform(dir);
 		return new Ray(this.pos, dir);
-	}
-
-	public static <T> CachedCamera<T> create(T camera, Vec3 pos, Quat orientation, double metersPerUnit,
-			Mat4 projectionMatrix) {
-		return new CachedCamera<T>(camera, pos, orientation, metersPerUnit, projectionMatrix);
 	}
 
 	public static Quat orientationFromMinecraftCamera(Camera camera) {

@@ -52,10 +52,10 @@ public class OrbitCamera {
 
 	// TODO: focus is in camera units, unlike everything else, which are in render
 	// units!
-	public final MotionSmoother<Vec3> focus = new MotionSmoother<>(0.2, NumericOps.VEC3);
-	public final MotionSmoother<Double> yaw = new MotionSmoother<>(0.3, NumericOps.DOUBLE);
-	public final MotionSmoother<Double> pitch = new MotionSmoother<>(0.3, NumericOps.DOUBLE);
-	public final MotionSmoother<Double> scale = new MotionSmoother<>(0.2, NumericOps.DOUBLE);
+	public final MotionSmoother<Vec3> focus = new MotionSmoother<>(0.6, NumericOps.VEC3);
+	public final MotionSmoother<Double> yaw = new MotionSmoother<>(0.6, NumericOps.DOUBLE);
+	public final MotionSmoother<Double> pitch = new MotionSmoother<>(0.6, NumericOps.DOUBLE);
+	public final MotionSmoother<Double> scale = new MotionSmoother<>(0.4, NumericOps.DOUBLE);
 
 	private Vec3 velocity = Vec3.ZERO, prevVelocity = Vec3.ZERO;
 

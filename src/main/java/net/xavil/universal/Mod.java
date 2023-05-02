@@ -3,12 +3,14 @@ package net.xavil.universal;
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
 
+import java.lang.annotation.Target;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
@@ -42,6 +44,7 @@ import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.station.SpaceStation;
 import net.xavil.universal.common.universe.station.StationLocation;
 import net.xavil.universal.common.universe.station.StationLocation.OrbitingCelestialBody;
+import net.xavil.universal.common.universe.universe.ServerUniverse;
 import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.ModNetworking;
@@ -118,8 +121,21 @@ public class Mod implements ModInitializer {
 													.executes(this::executeStationTp))))
 							.then(literal("move")
 									.then(argument("name", StringArgumentType.string())
-											.executes(this::executeStationMove)))));
+											.executes(this::executeStationMove))))
+					.then(literal("timewarp")
+							.then(argument("rate", IntegerArgumentType.integer())
+									.executes(this::executeTimewarp))));
 		});
+	}
+
+	private int executeTimewarp(CommandContext<CommandSourceStack> ctx) {
+		final var level = ctx.getSource().getLevel();
+		final var rate = IntegerArgumentType.getInteger(ctx, "rate");
+		if (LevelAccessor.getUniverse(level) instanceof ServerUniverse universe) {
+			universe.celestialTimeRate = rate;
+			universe.syncTime();
+		}
+		return 1;
 	}
 
 	private int executeStationAdd(CommandContext<CommandSourceStack> ctx) {
@@ -341,7 +357,12 @@ public class Mod implements ModInitializer {
 				return;
 			}
 
-			station.prepareForJump(packet.target.system());
+			// FIXME: verify that the system we want to jump to actually exists
+
+			station.prepareForJump(packet.target.system(), packet.isJumpInstant);
+
+			final var beginPacket = new ClientboundStationJumpBeginPacket(packet.stationId, packet.target, packet.isJumpInstant);
+			server.getPlayerList().broadcastAll(beginPacket);
 		}
 	}
 

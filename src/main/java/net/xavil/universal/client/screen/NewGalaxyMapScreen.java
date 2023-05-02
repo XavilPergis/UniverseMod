@@ -23,8 +23,8 @@ public class NewGalaxyMapScreen extends Universal3dScreen {
 	private final Galaxy galaxy;
 
 	public NewGalaxyMapScreen(Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
-		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1000 * 1e12),
-				1e0, 1e5);
+		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12),
+				1e3, 1e8);
 
 		BlackboardKeys.SELECTED_STAR_SYSTEM.insert(blackboard, systemToFocus);
 

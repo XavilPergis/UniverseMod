@@ -52,6 +52,11 @@ public final class BinaryCelestialNode extends CelestialNode {
 		this.offset = offset;
 	}
 
+	public OrbitalShape getCombinedShape() {
+		return new OrbitalShape(this.orbitalShapeB.eccentricity(),
+				this.orbitalShapeA.semiMajor() + this.orbitalShapeB.semiMajor());
+	}
+
 	public Ellipse getEllipseA(OrbitalPlane referencePlane) {
 		final var plane = this.orbitalPlane.withReferencePlane(referencePlane);
 		return Ellipse.fromOrbit(this.position, plane, orbitalShapeA, false);

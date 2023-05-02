@@ -166,7 +166,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 			projectionStack.mulPose(rotationAxis.rotationDegrees(-rotationAngle));
 		}
 
-		return Mat4.fromMinecraft(projectionStack.last().pose());
+		return Mat4.from(projectionStack.last().pose());
 	}
 
 }

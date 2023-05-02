@@ -16,6 +16,7 @@ import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 import net.xavil.universal.client.GalaxyRenderingContext;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.PlanetRenderingContext;
@@ -39,11 +40,16 @@ import net.xavil.universal.common.universe.universe.Universe;
 import net.xavil.universal.mixin.accessor.EntityAccessor;
 import net.xavil.universal.mixin.accessor.GameRendererAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftClientAccessor;
+import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Option;
 import net.xavil.util.Rng;
+import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Quat;
+import net.xavil.util.math.TransformStack;
+import net.xavil.util.math.Vec2;
 import net.xavil.util.math.Vec3;
 
 public class NewSkyRenderDispatcher {
@@ -103,39 +109,81 @@ public class NewSkyRenderDispatcher {
 		final var du = forward.dot(Vec3.YP);
 		final var df = forward.dot(Vec3.ZN);
 		final var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
-		final var right = rotation.transform(v1.cross(forward));
+		final var right = rotation.transform(v1.cross(forward).neg());
 		final var up = forward.cross(right).neg();
 		// RenderHelper.addBillboardCamspace(builder, up, right, forward.mul(100), s, 0,
 		// Color.WHITE.withA(0.1));
-		RenderHelper.addBillboardCamspace(builder, up, right, offset, offset.length() * s, 0, Color.WHITE.withA(0.1));
+		RenderHelper.addBillboardCamspace(builder, up, right, offset, offset.length() * s, Color.WHITE.withA(0.1));
 	}
 
-	private CachedCamera<?> createCamera(Camera camera, Vec3 celestialPos, float partialTick) {
-		// final var quat =
-		// CachedCamera.orientationFromMinecraftCamera(camera).hamiltonProduct(planetViewRotation);
-		final var quat = CachedCamera.orientationFromMinecraftCamera(camera);
-
-		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, 0.0001f, 1e9f, false,
-				partialTick);
-
-		// final var n = ((System.nanoTime() / 100000) % 1000000) / 0.1;
-		// return CachedCamera.create(camera, celestialPos.add(n, 0.2 * n,
-		// 1e4).div(1e12), quat, 1e12, 1e12, proj);
-		return CachedCamera.create(camera, celestialPos, quat, 1e12, proj);
+	private CachedCamera<?> createCamera(Camera camera, TransformStack tfm, float partialTick) {
+		double n = 0;
+		var offset = Vec3.ZERO;
+		// n = ((System.nanoTime() / 100000) % 1000000) / 1e0;
+		// offset = Vec3.from(0, 10000000, 0);
+		tfm.push();
+		tfm.appendTranslation(Vec3.from(n, 0.01 * n, 0));
+		tfm.appendTranslation(offset);
+		tfm.prependRotation(CachedCamera.orientationFromMinecraftCamera(camera).inverse());
+		final var invView = tfm.get();
+		tfm.pop();
+		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
+				0.000000001f, 1e5f, false, partialTick);
+		return new CachedCamera<>(camera, invView, proj, 1e12);
 	}
 
-	private Option<Vec3> posForLocation(Location location, float partialTick) {
+	private void applyPlanetTransform(TransformStack tfm, CelestialNode node, double time, Vec2 coords, float partialTick) {
+ 		final var worldBorder = this.client.level.getWorldBorder();
+		final var tx = Mth.inverseLerp(coords.x, worldBorder.getMinX(), worldBorder.getMaxX());
+		final var tz = Mth.inverseLerp(coords.y, worldBorder.getMinZ(), worldBorder.getMaxZ());
+
+		if (node instanceof PlanetaryCelestialNode planetNode) {
+			final var planetRadius = 1.001 * planetNode.radiusRearth * (Units.m_PER_Rearth / Units.TERA);
+			tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
+			tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
+		}
+
+		final var halfPi = Math.PI / 2;
+		final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
+		final var longitudeOffset = Mth.clampedLerp(-halfPi, halfPi, tz);
+
+		final var rotationalSpeed = -2 * Math.PI / node.rotationalPeriod;
+
+		tfm.appendRotation(Quat.axisAngle(Vec3.YP, latitudeOffset));
+		tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
+		tfm.appendRotation(Quat.axisAngle(Vec3.YP, rotationalSpeed * time));
+		tfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+		
+		tfm.appendTranslation(node.getPosition(partialTick));
+
+	}
+
+	private Option<CachedCamera<?>> createCamera(Camera camera, Location location, float partialTick) {
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		final var time = universe.getCelestialTime(partialTick);
+		final var tfm = new TransformStack();
 		if (location instanceof Location.World loc) {
 			return universe.getSystem(loc.id.system()).flatMap(sys -> {
-				// sys.rootNode.updatePositions(galaxyRenderingSeed);
 				final var node = sys.rootNode.lookup(loc.id.nodeId());
 				if (node == null)
 					return Option.none();
-				return Option.some(sys.pos.add(node.getPosition(partialTick)));
+				final var srcCamPos = Vec3.from(camera.getPosition());
+				// var nodePos = sys.pos.add(node.getPosition(partialTick));
+				// final var quat = toCelestialWorldSpaceRotation(node, time, srcCamPos.xz());
+				// if (node instanceof PlanetaryCelestialNode planetNode) {
+				// 	nodePos = nodePos.add(getPlanetSurfaceOffset(planetNode, quat));
+				// }
+				applyPlanetTransform(tfm, node, time, srcCamPos.xz(), partialTick);
+				tfm.appendTranslation(sys.pos);
+				return Option.some(createCamera(camera, tfm, partialTick));
 			});
 		} else if (location instanceof Location.Station loc) {
-			return universe.getStation(loc.id).flatMap(station -> Option.fromNullable(station.getLocation().getPos()));
+			return universe.getStation(loc.id).flatMap(station -> {
+				final var p = station.getPos(partialTick);
+				tfm.appendRotation(station.orientation.inverse());
+				tfm.appendTranslation(p);
+				return Option.some(createCamera(camera, tfm, partialTick));
+			});
 		}
 		return Option.none();
 	}
@@ -177,7 +225,6 @@ public class NewSkyRenderDispatcher {
 	private void drawSky(Camera srcCamera, RenderTarget target, float partialTick) {
 		final var profiler = Minecraft.getInstance().getProfiler();
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
-		final var time = universe.getCelestialTime(partialTick);
 
 		target.bindWrite(false);
 		target.setClearColor(0, 0, 0, 0);
@@ -203,25 +250,19 @@ public class NewSkyRenderDispatcher {
 			createTickets(universe, loc.id.universeSector());
 			this.systemTicket.id = loc.id.galaxySector();
 		}
-		
-		if (this.galaxyTicket == null)
-		return;
 
-		// if (this.systemTicket != null)
-		// 	this.systemTicket.attachedManager.getSystem(this.systemTicket.id).ifSome(system -> {
-		// 		system.rootNode.updatePositions(time);
-		// 	});
+		if (this.galaxyTicket == null)
+			return;
 
 		// render
-		posForLocation(location, partialTick).ifSome(pos -> {
-			final var camera = createCamera(srcCamera, pos, partialTick);
+		createCamera(srcCamera, location, partialTick).ifSome(camera -> {
 			final var galaxy = this.galaxyTicket.forceLoad().unwrapOrNull();
 			final var snapshot = camera.setupRenderMatrices();
 			if (galaxy != null) {
 				profiler.push("galaxy");
 				drawGalaxy(camera, galaxy, partialTick);
 				profiler.popPush("stars");
-				// drawStars(camera, galaxy, partialTick);
+				drawStars(camera, galaxy, partialTick);
 				profiler.popPush("system");
 				drawSystem(camera, galaxy, partialTick);
 				profiler.pop();
@@ -239,8 +280,11 @@ public class NewSkyRenderDispatcher {
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 
 		this.galaxyRenderingContext.build();
-		this.galaxyRenderingContext.enumerate((pos, s) -> {
-			addBackgroundBillboard(builder, rng, camera.pos, pos.mul(1e12 / camera.metersPerUnit), 0.1 * s / 3e7);
+		this.galaxyRenderingContext.enumerate((pos, size) -> {
+			RenderHelper.addBillboard(builder, camera, new TransformStack(),
+					pos,
+					0.4 * size * (1e12 / camera.metersPerUnit),
+					Color.WHITE.withA(0.1));
 		});
 
 		builder.end();
@@ -249,8 +293,8 @@ public class NewSkyRenderDispatcher {
 		RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.enableCull();
+		RenderSystem.disableDepthTest();
+		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
 		builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
 
@@ -269,21 +313,20 @@ public class NewSkyRenderDispatcher {
 
 		batcher.begin(camera);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
-			// if (sector.pos().level() != 0) return;
 			final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
 			final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
 			// if (!camera.isAabbInFrustum(min, max))
-			// return;
+			// 	return;
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
 			sector.initialElements.forEach(elem -> {
 				if (elem.pos().distanceTo(camPos) > levelSize)
 					return;
 				final var toStar = elem.pos().sub(camPos);
-				if (toStar.dot(camera.forward) <= 0)
+				if (toStar.dot(camera.forward) >= 0)
 					return;
-				if (elem.info().primaryStar.luminosityLsol < 1)
-					return;
-				batcher.add(elem.info().primaryStar, toStar);
+				// if (elem.info().primaryStar.luminosityLsol < 1)
+				// return;
+				batcher.add(elem.info().primaryStar, elem.pos());
 			});
 		});
 		batcher.end();
@@ -321,9 +364,12 @@ public class NewSkyRenderDispatcher {
 		system.rootNode.visit(node -> {
 			final var profiler2 = Minecraft.getInstance().getProfiler();
 			profiler2.push("id:" + node.getId());
-			// ctx.render(builder, camera, node, new PoseStack(), Color.WHITE,
-			// node.getId() == currentNodeId.nodeId());
-			ctx.render(builder, camera, node, false);
+			if (EntityAccessor.getLocation(this.client.player) instanceof Location.World loc) {
+				final var skip = loc.id.nodeId() == node.getId();
+				ctx.render(builder, camera, node, false);
+			} else {
+				ctx.render(builder, camera, node, false);
+			}
 			profiler2.pop();
 		});
 
@@ -335,9 +381,10 @@ public class NewSkyRenderDispatcher {
 			boolean isSkyVisible) {
 		final var profiler = Minecraft.getInstance().getProfiler();
 
-		final var partialTick = this.client.getFrameTime();
+		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
 
 		final var compositeTarget = getSkyCompositeTarget();
+		useMultisampling = true;
 		if (this.useMultisampling) {
 			if (this.skyTarget == null) {
 				final var window = this.client.getWindow();

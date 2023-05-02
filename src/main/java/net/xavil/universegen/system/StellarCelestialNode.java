@@ -33,28 +33,56 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 			this.curveYIntercept = finalMass0 - this.curveSlope * initialMass0;
 		}
 
-		public double curveMass(Rng rng, double initialMass) {
-			var variance = Mth.lerp(rng.uniformDouble(), 0.0, -0.1 * initialMass);
-			return this.curveSlope * initialMass + this.curveYIntercept + variance;
+		private static final double C2_m2_PER_s2 = Units.SPEED_OF_LIGHT_m_PER_s * Units.SPEED_OF_LIGHT_m_PER_s;
+		private static final double SCHWARZSCHILD_FACTOR_m_PER_kg = 2.0 * Units.GRAVITATIONAL_CONSTANT_m3_PER_kg_s2
+				/ C2_m2_PER_s2;
+		private static final double SCHWARZSCHILD_FACTOR_Rsol_PER_Yg = SCHWARZSCHILD_FACTOR_m_PER_kg
+				* (Units.YOTTA / Units.KILO) / Units.m_PER_Rsol;
+
+		public void transformToFinalProperties(Rng rng, double ageMyr, double mainSequenceLifetimeMyr,
+				StellarCelestialNode node) {
+			node.massYg = curveMass(rng, node);
+
+			if (this == BLACK_HOLE) {
+				node.luminosityLsol = 0;
+				node.radiusRsol = node.massYg * SCHWARZSCHILD_FACTOR_Rsol_PER_Yg;
+				node.temperatureK = 0;
+			} else if (this == WHITE_DWARF) {
+				// TODO: conservation of angular momentum (fast spinny :3)
+				// no active heating, so they radiate their heat away over time.
+				// i have no idea how the fuck this actually works so im just gonna fudge
+				// something
+
+				final double coolingTime = ageMyr - mainSequenceLifetimeMyr;
+				final double Te = 2e-7;
+				final double coolingFactor = (1 - Te) * Math.exp(-0.004 * coolingTime) + Te;
+				node.temperatureK *= 1e3;
+				node.temperatureK *= coolingFactor;
+
+				node.radiusRsol *= 1e-2 + rng.uniformDouble(-2.5e-6, 2.5e-6);
+				final var temperatureTsol = node.temperatureK / Units.K_PER_Tsol;
+				node.luminosityLsol = Math.pow(node.radiusRsol, 2) * Math.pow(temperatureTsol, 4);
+			} else if (this == NEUTRON_STAR) {
+				final double coolingTime = ageMyr - mainSequenceLifetimeMyr;
+				final double Te = 2e-7;
+				final double coolingFactor = (1 - Te) * Math.exp(-0.004 * coolingTime) + Te;
+				node.temperatureK *= 1e4;
+				node.temperatureK *= coolingFactor;
+
+				node.radiusRsol *= 1e-5 + rng.uniformDouble(-2.5e-8, 2.5e-8);
+				final var temperatureTsol = node.temperatureK / Units.K_PER_Tsol;
+				node.luminosityLsol = Math.pow(node.radiusRsol, 2) * Math.pow(temperatureTsol, 4);
+			} else if (this == GIANT) {
+				// idk
+				node.radiusRsol *= rng.uniformDouble(100, 200);
+				node.temperatureK *= 0.1;
+				node.luminosityLsol *= 10;
+			}
 		}
 
-		public double curveLuminosity(Rng rng, double initialLuminosity) {
-			if (this == Type.BLACK_HOLE)
-				return 0;
-			return initialLuminosity;
-		}
-
-		public double curveRadius(Rng rng, double initialRadius) {
-			if (this == Type.WHITE_DWARF)
-				return initialRadius * 1e-5 + rng.uniformDouble(-2.5e-6, 2.5e-6);
-			if (this == Type.NEUTRON_STAR)
-				return initialRadius * 4e-6 + rng.uniformDouble(-4e-7, 4e-7);
-			if (this == Type.BLACK_HOLE)
-				return initialRadius * 3.5e-6 + rng.uniformDouble(-2.5e-7, 2.5e-7);
-			if (this == Type.GIANT)
-				return initialRadius * 100 + rng.uniformDouble(-0.05, 0.05);
-
-			return initialRadius;
+		private double curveMass(Rng rng, StellarCelestialNode node) {
+			var variance = Mth.lerp(rng.uniformDouble(), 0.0, -0.1 * node.massYg);
+			return this.curveSlope * node.massYg + this.curveYIntercept + variance;
 		}
 	}
 
@@ -81,7 +109,6 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public double luminosityLsol;
 	public double radiusRsol;
 	public double temperatureK;
-
 
 	public StellarCelestialNode(StellarCelestialNode.Type type, double massYg,
 			double luminosityLsol, double radiusRsol, double temperatureK) {
@@ -152,10 +179,14 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = Units.fromMsol(25);
 
 	public static StellarCelestialNode fromMassAndAge(Rng rng, double massYg, double ageMyr) {
-		final var starLifetime = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
+		final var mainSequenceLifetimeMyr = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
 
 		var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
-		if (ageMyr > starLifetime) {
+		if (ageMyr <= mainSequenceLifetimeMyr) {
+			targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
+		} else if (ageMyr <= mainSequenceLifetimeMyr * 2) {
+			targetType = StellarCelestialNode.Type.GIANT;
+		} else {
 			if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
 				targetType = StellarCelestialNode.Type.WHITE_DWARF;
 			} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
@@ -163,17 +194,17 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 			} else {
 				targetType = StellarCelestialNode.Type.BLACK_HOLE;
 			}
-		} else if (ageMyr > starLifetime * 0.8) {
-			targetType = StellarCelestialNode.Type.GIANT;
 		}
 
-		return StellarCelestialNode.fromMass(rng, targetType, massYg);
+		final var node = StellarCelestialNode.fromMass(rng, targetType, massYg);
+		targetType.transformToFinalProperties(rng, ageMyr, mainSequenceLifetimeMyr, node);
+		return node;
 	}
 
 	public static StellarCelestialNode fromMass(Rng rng, StellarCelestialNode.Type type, double massYg) {
-		var m = type.curveMass(rng, massYg);
-		var l = type.curveLuminosity(rng, mainSequenceLuminosityFromMass(massYg));
-		var r = type.curveRadius(rng, mainSequenceRadiusFromMass(massYg));
+		var m = massYg;
+		var l = mainSequenceLuminosityFromMass(massYg);
+		var r = mainSequenceRadiusFromMass(massYg);
 		return new StellarCelestialNode(type, m, l, r, temperature(r, l));
 	}
 

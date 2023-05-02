@@ -7,8 +7,10 @@ import net.xavil.universal.common.universe.galaxy.SystemTicket;
 import net.xavil.universal.common.universe.station.SpaceStation;
 import net.xavil.universal.common.universe.station.StationLocation;
 import net.xavil.universal.networking.s2c.ClientboundSpaceStationInfoPacket;
+import net.xavil.universal.networking.s2c.ClientboundStationJumpBeginPacket;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
+import net.xavil.universegen.system.CelestialNode;
 import net.xavil.util.Disposable;
 
 public final class ClientUniverse extends Universe {
@@ -55,8 +57,10 @@ public final class ClientUniverse extends Universe {
 			final var tempTicket = this.sectorManager.createGalaxyTicket(disposer, sectorPos);
 			final var galaxy = this.sectorManager.forceLoad(tempTicket).unwrap();
 
-			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, packet.startingSystem,
-					packet.startingId.nodeId());
+			final var node = CelestialNode.readNbt(packet.startingSystemNbt);
+			node.assignIds();
+			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy,
+					node, packet.startingId.nodeId());
 			galaxy.addGenerationLayer(this.startingGenerator);
 			final var startingId = this.startingGenerator.getStartingSystemId();
 
@@ -69,6 +73,15 @@ public final class ClientUniverse extends Universe {
 
 	public void applyPacket(ClientboundSyncCelestialTimePacket packet) {
 		this.celestialTimeTicks = packet.celestialTimeTicks;
+		this.celestialTimeRate = packet.celestialTimeRate;
+	}
+
+	public void applyPacket(ClientboundStationJumpBeginPacket packet) {
+		final var entry = this.spaceStations.entry(packet.stationId);
+		if (entry.exists()) {
+			final var station = entry.get().unwrap();
+			station.prepareForJump(packet.target.system(), packet.isJumpInstant);
+		}
 	}
 
 	public void applyPacket(ClientboundSpaceStationInfoPacket packet) {

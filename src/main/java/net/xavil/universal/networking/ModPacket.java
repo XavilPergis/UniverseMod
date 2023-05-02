@@ -4,7 +4,6 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
 import net.xavil.universal.common.universe.Location;
-import net.xavil.universal.common.universe.Octree;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.common.universe.id.SystemId;
@@ -12,6 +11,15 @@ import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.util.math.Vec3i;
 
 public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
+
+	// IMPORTANT: in local singleplayer worlds, neither `read` nor `write` are
+	// called, and the packet it copied directly between server and client. This
+	// means that all the fields of the packet MUST NOT BE SHARED.
+	//
+	// I ran into this issue by having a `CelestialNode` that was kept around
+	// server-side embedded into the packet directly, which was then happily
+	// accepted by the client, leading to some subtle race conditions when rendering
+	// the sky.
 
 	public abstract void read(FriendlyByteBuf buf);
 

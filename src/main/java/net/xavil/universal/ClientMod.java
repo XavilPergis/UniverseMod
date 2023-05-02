@@ -18,6 +18,7 @@ import net.xavil.universal.networking.ModPacket;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.universal.networking.s2c.ClientboundSpaceStationInfoPacket;
+import net.xavil.universal.networking.s2c.ClientboundStationJumpBeginPacket;
 import net.xavil.universal.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
 import net.xavil.util.Disposable;
@@ -88,6 +89,8 @@ public class ClientMod implements ClientModInitializer {
 		} else if (packetUntyped instanceof ClientboundSyncCelestialTimePacket packet) {
 			universe.applyPacket(packet);
 		} else if (packetUntyped instanceof ClientboundSpaceStationInfoPacket packet) {
+			universe.applyPacket(packet);
+		} else if (packetUntyped instanceof ClientboundStationJumpBeginPacket packet) {
 			universe.applyPacket(packet);
 		}
 	}

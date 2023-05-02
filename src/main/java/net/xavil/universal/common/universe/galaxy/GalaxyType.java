@@ -83,7 +83,7 @@ public enum GalaxyType {
 
 			// var densityCombined = spokes;
 			var densityCombined = galacticCoreDensity.add(galacticHalo).add(uniformDisc).add(spokes).mul(0.2);
-			var ageCombined = DoubleField3.uniform(0.5);
+			var ageCombined = DoubleField3.uniform(0.0);
 
 			var finalStellarDensity = densityCombined.mul(ly3_PER_Tm3);
 			var finalMinAge = ageCombined;

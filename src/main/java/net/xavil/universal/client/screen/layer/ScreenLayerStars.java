@@ -2,8 +2,6 @@ package net.xavil.universal.client.screen.layer;
 
 import org.lwjgl.glfw.GLFW;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import net.minecraft.client.renderer.GameRenderer;
 import net.xavil.universal.client.ClientDebugFeatures;
 import net.xavil.universal.client.camera.CameraConfig;
@@ -23,11 +21,14 @@ import net.xavil.universal.common.universe.galaxy.SectorTicket;
 import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.SystemId;
+import net.xavil.universal.common.universe.id.SystemNodeId;
+import net.xavil.universal.mixin.accessor.EntityAccessor;
+import net.xavil.universal.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.util.Disposable;
 import net.xavil.util.Option;
-import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Ray;
+import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.Vec2;
 import net.xavil.util.math.Vec3;
 
@@ -47,7 +48,8 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
 		if (ClientDebugFeatures.SECTOR_TICKET_AROUND_FOCUS.isEnabled())
 			return camera.focus;
-		// return camera.pos.mul(camera.metersPerUnit / 1e12).add(camera.forward.mul(GalaxySector.BASE_SIZE_Tm));
+		// return camera.pos.mul(camera.metersPerUnit /
+		// 1e12).add(camera.forward.mul(GalaxySector.BASE_SIZE_Tm));
 		return camera.pos.mul(camera.metersPerUnit / 1e12);
 	}
 
@@ -182,7 +184,7 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 
 		if (this.selectedPos != null) {
 			final var pos = this.selectedPos.mul(1e12 / camera.metersPerUnit);
-			RenderHelper.renderBillboard(builder, camera, new PoseStack(), pos,
+			RenderHelper.renderBillboard(builder, camera, new TransformStack(), pos,
 					0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION,
 					GameRenderer.getPositionColorTexShader());
 		}

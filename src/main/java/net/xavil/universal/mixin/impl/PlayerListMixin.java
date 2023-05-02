@@ -12,6 +12,7 @@ import net.xavil.universal.mixin.accessor.LevelAccessor;
 import net.xavil.universal.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.universal.networking.s2c.ClientboundChangeSystemPacket;
 import net.xavil.universal.networking.s2c.ClientboundUniverseInfoPacket;
+import net.xavil.universegen.system.CelestialNode;
 
 @Mixin(PlayerList.class)
 public abstract class PlayerListMixin {
@@ -24,7 +25,8 @@ public abstract class PlayerListMixin {
 		universeInfoPacket.commonSeed = universe.getCommonUniverseSeed();
 		universeInfoPacket.uniqueSeed = universe.getUniqueUniverseSeed();
 		universeInfoPacket.startingId = universe.getStartingSystemGenerator().getStartingSystemId();
-		universeInfoPacket.startingSystem = universe.getStartingSystemGenerator().startingSystem.rootNode;
+		universeInfoPacket.startingSystemNbt = CelestialNode
+				.writeNbt(universe.getStartingSystemGenerator().startingSystem.rootNode);
 		serverPlayer.connection.send(universeInfoPacket);
 
 		var changeSystemPacket = new ClientboundChangeSystemPacket(LevelAccessor.getLocation(serverPlayer.level));

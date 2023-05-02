@@ -111,10 +111,14 @@ public final class ServerUniverse extends Universe {
 	@Override
 	public void tick(ProfilerFiller profiler, boolean tickTime) {
 		super.tick(profiler, tickTime);
-		if (this.celestialTimeTicks % 200 == 0) {
-			var syncPacket = new ClientboundSyncCelestialTimePacket(this.celestialTimeTicks);
-			this.server.getPlayerList().broadcastAll(syncPacket);
-		}
+		if (this.celestialTimeTicks % 200 == 0)
+			syncTime();
+	}
+
+	public void syncTime() {
+		final var syncPacket = new ClientboundSyncCelestialTimePacket(this.celestialTimeTicks);
+		syncPacket.celestialTimeRate = this.celestialTimeRate;
+		this.server.getPlayerList().broadcastAll(syncPacket);
 	}
 
 	private record StartingSystem(double systemAgeMya, String name, CelestialNode rootNode,

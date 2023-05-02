@@ -5,6 +5,7 @@ import com.mojang.blaze3d.vertex.VertexConsumer;
 
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
+import net.xavil.util.math.interfaces.Vec3Access;
 
 public interface FlexibleVertexConsumer {
 
@@ -15,8 +16,8 @@ public interface FlexibleVertexConsumer {
 		return this;
 	}
 
-	default FlexibleVertexConsumer vertex(Vec3 pos) {
-		this.vertex((float) pos.x, (float) pos.y, (float) pos.z);
+	default FlexibleVertexConsumer vertex(Vec3Access pos) {
+		this.vertex((float) pos.x(), (float) pos.y(), (float) pos.z());
 		return this;
 	}
 
@@ -40,8 +41,8 @@ public interface FlexibleVertexConsumer {
 		return this;
 	}
 
-	default FlexibleVertexConsumer normal(Vec3 norm) {
-		this.normal((float) norm.x, (float) norm.y, (float) norm.z);
+	default FlexibleVertexConsumer normal(Vec3Access norm) {
+		this.normal((float) norm.x(), (float) norm.y(), (float) norm.z());
 		return this;
 	}
 

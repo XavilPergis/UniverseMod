@@ -158,7 +158,7 @@ public final class Vec2 implements Hashable {
 		return new Vec2(x, y);
 	}
 
-	public Vec2 withY(double Y) {
+	public Vec2 withY(double y) {
 		return new Vec2(x, y);
 	}
 

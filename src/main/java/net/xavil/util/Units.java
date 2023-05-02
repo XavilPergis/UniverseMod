@@ -19,6 +19,7 @@ public final class Units {
 	// W m^-2 K^-4
 	public static final double BOLTZMANN_CONSTANT_W_PER_m2K4 = 5.670373e-8;
 	public static final double GRAVITATIONAL_CONSTANT_m3_PER_kg_s2 = 6.6743e-11;
+	public static final double SPEED_OF_LIGHT_m_PER_s = 299792458;
 
 	// ----- known quantities -----
 	public static final double Yg_PER_Msol = 1.989e+9;

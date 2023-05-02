@@ -7,6 +7,7 @@ import net.xavil.universal.networking.ModPacket;
 public class ClientboundSyncCelestialTimePacket extends ModPacket<ClientGamePacketListener> {
 
 	public long celestialTimeTicks;
+	public double celestialTimeRate = 1;
 
 	public ClientboundSyncCelestialTimePacket() {
 	}
@@ -18,11 +19,13 @@ public class ClientboundSyncCelestialTimePacket extends ModPacket<ClientGamePack
 	@Override
 	public void read(FriendlyByteBuf buf) {
 		this.celestialTimeTicks = buf.readLong();
+		this.celestialTimeRate = buf.readDouble();
 	}
 
 	@Override
 	public void write(FriendlyByteBuf buf) {
 		buf.writeLong(this.celestialTimeTicks);
+		buf.writeDouble(this.celestialTimeRate);
 	}
 
 }

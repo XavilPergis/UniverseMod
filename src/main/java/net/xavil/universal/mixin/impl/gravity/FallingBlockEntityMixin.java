@@ -13,7 +13,7 @@ public abstract class FallingBlockEntityMixin {
 
 	@Redirect(method = "tick()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/FallingBlockEntity;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V", ordinal = 0))
 	private void modifyDeltaMovement(FallingBlockEntity entity, net.minecraft.world.phys.Vec3 motion) {
-		EntityAccessor.applyGravity(entity, Vec3.fromMinecraft(motion));
+		EntityAccessor.applyGravity(entity, Vec3.from(motion));
 	}
 
 }

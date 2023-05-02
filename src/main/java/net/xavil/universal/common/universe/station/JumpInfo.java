@@ -6,28 +6,23 @@ import net.xavil.util.Disposable;
 public final class JumpInfo implements Disposable {
 
 	private final SpaceStation station;
-	private final SystemTicket ticket;
+	private final StationLocation.JumpingSystem jump;
 
-	public JumpInfo(SpaceStation station, SystemTicket ticket) {
+	public JumpInfo(SpaceStation station, StationLocation.JumpingSystem jump) {
 		this.station = station;
-		this.ticket = ticket;
+		this.jump = jump;
 	}
 
 	public void tick() {
-		if (!ticket.isLoaded() || ticket.failedToLoad())
-			return;
-		// this.countdownToJumpTicks -= 1;
-		// if (this.countdownToJumpTicks < 0)
-		// 	startJump(this.jumpingSystem);
-	} 
+		this.jump.travel(100000);
+	}
 
-	public boolean failed() {
-		return ticket.failedToLoad();
+	public boolean complete() {
+		return this.jump.isComplete();
 	}
 
 	@Override
 	public void dispose() {
-		this.ticket.dispose();
 	}
 
 }

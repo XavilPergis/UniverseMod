@@ -16,9 +16,9 @@ import net.xavil.util.Assert;
 import net.xavil.util.Units;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.ImmutableList;
-import net.xavil.util.iterator.Iterator;
 import net.xavil.util.math.Ellipse;
 import net.xavil.util.math.Formulas;
+import net.xavil.util.math.Interval;
 import net.xavil.util.math.OrbitalPlane;
 import net.xavil.util.math.OrbitalShape;
 import net.xavil.util.math.Vec3;
@@ -153,7 +153,7 @@ public abstract sealed class CelestialNode permits
 	}
 
 	// public Iterator<CelestialNode> iter() {
-	// 	// return selfAndChildren();
+	// // return selfAndChildren();
 	// }
 
 	public int find(CelestialNode node) {
@@ -251,13 +251,14 @@ public abstract sealed class CelestialNode permits
 	protected void updatePositions(OrbitalPlane referencePlane, double time) {
 		this.referencePlane = referencePlane;
 
-		this.lastPosition = this.position;
-
 		if (this instanceof BinaryCelestialNode binaryNode) {
+			final var combinedShape = binaryNode.getCombinedShape();
+			final var ellipseA = binaryNode.getEllipseA(referencePlane);
+			final var ellipseB = binaryNode.getEllipseB(referencePlane);
+			binaryNode.getA().position = getOrbitalPosition(ellipseA, combinedShape, false, time);
+			binaryNode.getB().position = getOrbitalPosition(ellipseB, combinedShape, true, time);
 			final var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
-			binaryNode.getA().position = getOrbitalPosition(newPlane, binaryNode.orbitalShapeA, false, time);
 			binaryNode.getA().updatePositions(newPlane, time);
-			binaryNode.getB().position = getOrbitalPosition(newPlane, binaryNode.orbitalShapeB, true, time);
 			binaryNode.getB().updatePositions(newPlane, time);
 		}
 
@@ -274,13 +275,14 @@ public abstract sealed class CelestialNode permits
 
 	public Vec3 getOrbitalPosition(OrbitalPlane plane, OrbitalShape shape, boolean reverse, double time) {
 		final var ellipse = Ellipse.fromOrbit(this.position, plane, shape, reverse);
+		return getOrbitalPosition(ellipse, shape, reverse, time);
+	}
 
+	public Vec3 getOrbitalPosition(Ellipse ellipse, OrbitalShape shape, boolean reverse, double time) {
 		final var orbitalPeriod = Formulas.orbitalPeriod(shape.semiMajor(), this.massYg);
 		final var meanAnomaly = (2 * Math.PI / orbitalPeriod) * time;
 		final var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, shape.eccentricity());
-		final var pos = ellipse.pointFromTrueAnomaly(reverse ? -trueAnomaly : trueAnomaly);
-
-		return pos;
+		return ellipse.pointFromTrueAnomaly(reverse ? -trueAnomaly : trueAnomaly);
 	}
 
 	@FunctionalInterface
@@ -393,6 +395,20 @@ public abstract sealed class CelestialNode permits
 		node.obliquityAngle = obliquityAngle;
 		node.rotationalPeriod = rotationalPeriod;
 
+		final var rings = nbt.getList("rings", Tag.TAG_COMPOUND);
+		for (int i = 0; i < rings.size(); ++i) {
+			final var ringNbt = rings.getCompound(i);
+
+			final var plane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, ringNbt.getCompound("orbital_plane"))
+					.getOrThrow(false, Mod.LOGGER::error);
+			final var eccentricity = ringNbt.getDouble("eccentricity");
+			final var mass = ringNbt.getDouble("mass");
+			final var lower = ringNbt.getDouble("interval_lower");
+			final var higher = ringNbt.getDouble("interval_higher");
+			node.rings.add(new CelestialRing(plane, eccentricity, new Interval(lower, higher), mass));
+		}
+		nbt.put("rings", rings);
+
 		final var childList = nbt.getList("children", Tag.TAG_COMPOUND);
 		for (var i = 0; i < childList.size(); ++i) {
 			var childNbt = childList.getCompound(i);
@@ -405,7 +421,7 @@ public abstract sealed class CelestialNode permits
 					.getOrThrow(false, Mod.LOGGER::error);
 
 			var child = new CelestialNodeChild<>(node, childNode, orbitalShape, orbitalPlane, offset);
-			node.childNodes.add(child);
+			node.insertChild(child);
 		}
 
 		return node;
@@ -453,7 +469,21 @@ public abstract sealed class CelestialNode permits
 			nbt.putDouble("temperature", planetNode.temperatureK);
 		}
 
-		var children = new ListTag();
+		final var rings = new ListTag();
+		for (var ring : node.rings) {
+			final var ringNbt = new CompoundTag();
+			OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, ring.orbitalPlane)
+					.resultOrPartial(Mod.LOGGER::error)
+					.ifPresent(n -> ringNbt.put("orbital_plane", n));
+			ringNbt.putDouble("eccentricity", ring.eccentricity);
+			ringNbt.putDouble("mass", ring.mass);
+			ringNbt.putDouble("interval_lower", ring.interval.lower());
+			ringNbt.putDouble("interval_higher", ring.interval.higher());
+			rings.add(ringNbt);
+		}
+		nbt.put("rings", rings);
+
+		final var children = new ListTag();
 		for (var child : node.childNodes) {
 			var childNbt = new CompoundTag();
 
@@ -467,8 +497,8 @@ public abstract sealed class CelestialNode permits
 
 			children.add(childNbt);
 		}
-
 		nbt.put("children", children);
+
 		return nbt;
 	}
 

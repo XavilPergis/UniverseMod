@@ -17,6 +17,10 @@ public interface EntityAccessor {
 		return ((LevelAccessor) entity.level).universal_getLocation();
 	}
 
+	static int getStation(Entity entity) {
+		return ((LevelAccessor) entity.level).universal_getLocation() instanceof Location.Station loc ? loc.id : -1;
+	}
+
 	static Option<Vec3> getEntityGravity(Entity entity) {
 		final var location = EntityAccessor.getLocation(entity);
 		final var universe = EntityAccessor.getUniverse(entity);
@@ -27,7 +31,7 @@ public interface EntityAccessor {
 					return Option.some(Vec3.from(0, -planetNode.surfaceGravityEarthRelative(), 0));
 				}
 			} else if (location instanceof Location.Station loc) {
-				final var pos = Vec3.fromMinecraft(entity.position());
+				final var pos = Vec3.from(entity.position());
 				return universe.getStation(loc.id).map(st -> st.getGavityAt(pos));
 			}
 		}

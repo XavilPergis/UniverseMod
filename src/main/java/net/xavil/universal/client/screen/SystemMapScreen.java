@@ -43,6 +43,7 @@ import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Ellipse;
 import net.xavil.util.math.OrbitalPlane;
+import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.Vec3;
 
 public class SystemMapScreen extends Universal3dScreen {
@@ -332,9 +333,9 @@ public class SystemMapScreen extends Universal3dScreen {
 		if (node instanceof PlanetaryCelestialNode planetNode) {
 			RenderSystem.depthMask(true);
 			RenderSystem.enableDepthTest();
-			ctx.renderPlanet(builder, camera, planetNode, new PoseStack(), Color.WHITE, false);
+			ctx.renderPlanet(builder, camera, planetNode, new TransformStack(), Color.WHITE, false);
 		} else {
-			ctx.render(builder, camera, node, new PoseStack(), Color.WHITE, false);
+			ctx.render(builder, camera, node, new TransformStack(), Color.WHITE, false);
 		}
 
 		if (node instanceof BinaryCelestialNode binaryNode && this.showGuides) {

@@ -4,7 +4,6 @@ import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.renderer.GameRenderer;
@@ -27,16 +26,18 @@ import net.xavil.universal.common.universe.id.GalaxySectorId;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.id.SystemNodeId;
 import net.xavil.universal.common.universe.system.StarSystem;
+import net.xavil.universal.mixin.accessor.EntityAccessor;
+import net.xavil.universal.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.universal.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Units;
 import net.xavil.util.collections.Blackboard;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Ellipse;
 import net.xavil.util.math.Ray;
+import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.Vec2;
 import net.xavil.util.math.Vec3;
 
@@ -97,6 +98,18 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 			return true;
 		} else if (keyCode == GLFW.GLFW_KEY_G) {
 			this.showGuides = !this.showGuides;
+		} else if (keyCode == GLFW.GLFW_KEY_J) {
+			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOrNull();
+			if (selectedId != null) {
+				final var stationId = EntityAccessor.getStation(this.client.player);
+				if (stationId == -1)
+					return true;
+				final var systemId = new SystemId(this.galaxy.galaxyId, this.ticket.id);
+				final var id = new SystemNodeId(systemId, selectedId);
+				final var packet = new ServerboundStationJumpPacket(stationId, id, false);
+				this.client.player.connection.send(packet);
+			}
+			return true;
 		}
 
 		return false;
@@ -157,13 +170,14 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 		this.galaxy.getSystem(this.ticket.id).ifSome(system -> {
 			final var universe = this.galaxy.parentUniverse;
 			final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
-			system.rootNode.updatePositions(time);
+			// system.rootNode.updatePositions(time);
 
 			if (!this.isPlanetRendererSetup)
 				setupPlanetRenderer(system);
 
+			system.pos.mul(1e12 / camera.metersPerUnit);
 			final var nodes = system.rootNode.selfAndChildren();
-			this.renderContext.setSystemOrigin(system.pos.mul(1e12 / camera.metersPerUnit));
+			// this.renderContext.setSystemOrigin(system.pos);
 			this.renderContext.begin(time);
 			for (final var node : nodes.iterable()) {
 				this.renderContext.render(builder, camera, node, false);
@@ -176,7 +190,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 			final var selectedNode = system.rootNode.lookup(selectedId);
 			if (selectedNode != null) {
 				final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
-				RenderHelper.renderBillboard(builder, camera, new PoseStack(), pos,
+				RenderHelper.renderBillboard(builder, camera, new TransformStack(), pos,
 						0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION,
 						GameRenderer.getPositionColorTexShader());
 			}

@@ -3,7 +3,6 @@ package net.xavil.universal.client.screen;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
@@ -22,7 +21,10 @@ import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
+import net.xavil.util.math.Mat4;
+import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.Vec3;
+import net.xavil.util.math.interfaces.Vec3Access;
 
 public final class RenderHelper {
 
@@ -42,10 +44,10 @@ public final class RenderHelper {
 
 	private static final Minecraft CLIENT = Minecraft.getInstance();
 
-	public static void renderStarBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
+	public static void renderStarBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, TransformStack tfm,
 			CelestialNode node) {
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		addBillboard(builder, camera, poseStack, node);
+		addBillboard(builder, camera, tfm, node);
 		builder.end();
 		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
@@ -57,64 +59,132 @@ public final class RenderHelper {
 		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 	}
 
-	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, TransformStack tfm,
 			CelestialNode node) {
-		double d = 1 * (1e12 / camera.metersPerUnit)
-				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, node.position);
-		addBillboard(builder, camera, poseStack, node, d, node.position.mul(1e12 / camera.metersPerUnit));
+		final var partialTick = CLIENT.getFrameTime();
+		final var nodePos = node.getPosition(partialTick);
+		final var np = tfm.applyTransform(nodePos.mul(1e12 / camera.metersPerUnit), 1);
+		double d = (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.posTm, node, np);
+		// addBillboard(builder, camera, tfm, node, d, nodePos.mul(1e12 /
+		// camera.metersPerUnit));
+		addBillboard(builder, camera, node, d, np);
 	}
 
-	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, TransformStack tfm,
 			CelestialNode node, Vec3 pos) {
-		double d = 1 * (1e12 / camera.metersPerUnit)
-				* getCelestialBodySize(camera.pos.mul(camera.metersPerUnit / 1e12), node, pos.mul(camera.metersPerUnit / 1e12));
-		addBillboard(builder, camera, poseStack, node, d, pos);
+		final var distanceFromCameraTm = camera.posTm.distanceTo(pos);
+
+		double minAngularDiameterRad = Math.toRadians(0.15);
+
+		// how many times we need to scale the billboard by to render the star at the
+		// correct size. if the billboard texture were a circle with a diameter of the
+		// size of the image, then this would be 1. if the diameter were 1/2 the size,
+		// then this would be 2.
+		final double billboardFactor = 18.0;
+
+		double radius = 0;
+		if (node instanceof StellarCelestialNode starNode) {
+			// radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
+			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
+			// if (radius > 1) radius = 1;
+		} else if (node instanceof PlanetaryCelestialNode planetNode) {
+			radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
+			// if (planetNode.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
+			// radius *= 2e3;
+			// }
+		}
+
+		final var idealAngularRadius = (radius / distanceFromCameraTm);
+		var angularRadius = Math.max(idealAngularRadius, minAngularDiameterRad / 2);
+		double k = 1.0;
+
+		if (node instanceof StellarCelestialNode starNode) {
+			final var brightnessThreshold = 100;
+			final var apparentBrightness = 1e11 * starNode.luminosityLsol
+					/ (4 * Math.PI * distanceFromCameraTm * distanceFromCameraTm);
+			
+			if (apparentBrightness > brightnessThreshold && angularRadius > idealAngularRadius) {
+				// minAngularDiameterRad = Math.max(minAngularDiameterRad, Math.min(apparentBrightness, Math.toRadians(0.2)));
+				// angularRadius = Math.max(idealAngularRadius, minAngularDiameterRad / 2);
+				angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.1);
+				angularRadius = Math.min(angularRadius, Math.toRadians(0.1));
+			} else {
+				k *= Math.pow(apparentBrightness / brightnessThreshold, 0.08);
+			}
+		}
+
+
+		// final var diff = idealAngularRadius - angularRadius;
+		final var d = billboardFactor * distanceFromCameraTm * (angularRadius / 2);
+		// double d = (1e12 / camera.metersPerUnit) * getCelestialBodySize(camera.posTm,
+		// node, pos);
+
+		var color = Color.WHITE;
+		if (node instanceof StellarCelestialNode starNode) {
+			// final var d2 = camera.pos.distanceToSquared(pos);
+			// final var m = Math.min(1.0, 1e12 * starNode.luminosityLsol / d2);
+			color = starNode.getColor().withA(k);
+			// color = starNode.getColor();
+		}
+
+		RenderHelper.addBillboardWorldspace(builder, camera.pos, tfm, camera.up, camera.left,
+				pos.mul(1e12 / camera.metersPerUnit), d, color);
 	}
 
 	public static double getCelestialBodySize(Vec3 camPos, CelestialNode node, Vec3 pos) {
+		final var distanceFromCameraTm = camPos.distanceTo(pos);
 
-		double minAngularDiameterRad = Math.toRadians(0.5);
+		double minAngularDiameterRad = Math.toRadians(0.1);
 		if (node instanceof StellarCelestialNode starNode) {
-			minAngularDiameterRad = Math.toRadians(Mth.clamp(Math.log(starNode.luminosityLsol), 0.5, 0.7));
+			final var apparentBrightness = 1e4 * starNode.luminosityLsol
+					/ (4 * Math.PI * distanceFromCameraTm * distanceFromCameraTm);
+			final var s = apparentBrightness;
+			minAngularDiameterRad = Math.max(minAngularDiameterRad, Math.min(s, Math.toRadians(0.3)));
 		}
 
 		// how many times we need to scale the billboard by to render the star at the
 		// correct size. if the billboard texture were a circle with a diameter of the
 		// size of the image, then this would be 1. if the diameter were 1/2 the size,
 		// then this would be 2.
-		final double billboardFactor = 2.0;
+		final double billboardFactor = 16.0;
 
 		double radius = 0;
 		if (node instanceof StellarCelestialNode starNode) {
 			// radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
 			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
-			if (radius > 1) radius = 1;
+			// if (radius > 1) radius = 1;
 		} else if (node instanceof PlanetaryCelestialNode planetNode) {
 			radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
+			// if (planetNode.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
+			// radius *= 2e3;
+			// }
 		}
 
-		var distanceFromCameraTm = camPos.distanceTo(pos);
 		var angularRadius = (radius / distanceFromCameraTm);
 		angularRadius = Math.max(angularRadius, minAngularDiameterRad / 2);
 		return billboardFactor * distanceFromCameraTm * (angularRadius / 2);
 	}
 
-	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
-			CelestialNode node, double d, Vec3 pos) {
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, CelestialNode node,
+			double d, Vec3 pos) {
 
 		var color = Color.WHITE;
 		if (node instanceof StellarCelestialNode starNode) {
-			color = starNode.getColor();
+			final var d2 = camera.pos.distanceToSquared(pos);
+			final var m = Math.min(1.0, 1e12 * starNode.luminosityLsol / d2);
+			color = starNode.getColor().withA(m);
+			// color = starNode.getColor();
 		}
 
-		RenderHelper.addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
-				camera.toCameraSpace(pos), d, 0, color);
+		RenderHelper.addBillboardWorldspace(builder, camera.pos, camera.up, camera.left, pos, d, color);
+		// RenderHelper.addBillboardWorldspace(builder, camera.pos, tfm, camera.up,
+		// camera.left, pos, d, color);
 	}
 
-	public static void renderBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, PoseStack poseStack,
-		Vec3 center, double scale, Color color, ResourceLocation texture, ShaderInstance shader) {
+	public static void renderBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, TransformStack tfm,
+			Vec3 center, double scale, Color color, ResourceLocation texture, ShaderInstance shader) {
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		addBillboard(builder, camera, poseStack, center, scale, color);
+		addBillboard(builder, camera, tfm, center, scale, color);
 		builder.end();
 		CLIENT.getTextureManager().getTexture(texture).setFilter(true, false);
 		RenderSystem.setShaderTexture(0, texture);
@@ -126,55 +196,136 @@ public final class RenderHelper {
 		builder.draw(shader);
 	}
 
-	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, TransformStack tfm,
 			Vec3 center, double scale, Color color) {
-		addBillboardCamspace(builder, poseStack, camera.up, camera.right.neg(),
-				camera.toCameraSpace(center), scale, 0, color);
+		addBillboardWorldspace(builder, camera.pos, tfm, camera.up, camera.left, center, scale, color);
 	}
 
-	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, PoseStack poseStack,
-			Vec3 up, Vec3 right, Vec3 center, double scale, double zOffset, Color color) {
-		addBillboardCamspace(builder, poseStack, camera.toCameraSpace(up), camera.toCameraSpace(right),
-				camera.toCameraSpace(center), scale, zOffset, color);
+	public static void addBillboardCamspace(FlexibleVertexConsumer builder, TransformStack tfm, Vec3 up,
+			Vec3 right, Vec3 center, double scale, Color color) {
+		// final var bu = up.mul(scale);
+		// final var br = right.mul(scale);
+
+		final var p = tfm.get();
+		final var n = new Vec3.Mutable(0, 0, 0);
+
+		n.load(Vec3.ZERO).addAssign(right).subAssign(up);
+		n.mulAssign(scale).addAssign(center);
+		Mat4.transform(n, 1, p);
+		builder.vertex(n).color(color).uv0(1, 0).endVertex();
+		n.load(Vec3.ZERO).subAssign(right).subAssign(up);
+		n.mulAssign(scale).addAssign(center);
+		Mat4.transform(n, 1, p);
+		builder.vertex(n).color(color).uv0(0, 0).endVertex();
+		n.load(Vec3.ZERO).subAssign(right).addAssign(up);
+		n.mulAssign(scale).addAssign(center);
+		Mat4.transform(n, 1, p);
+		builder.vertex(n).color(color).uv0(0, 1).endVertex();
+		n.load(Vec3.ZERO).addAssign(right).addAssign(up);
+		n.mulAssign(scale).addAssign(center);
+		Mat4.transform(n, 1, p);
+		builder.vertex(n).color(color).uv0(1, 1).endVertex();
+
+		// v.load(up).addAssign(right).mulAssign(scale).addAssign(center);
+		// v.load(up).addAssign(right).negAssign().mulAssign(scale).addAssign(center);
+		// v.load(up).negAssign().addAssign(right).mulAssign(scale).addAssign(center);
+		// v.load(right).negAssign().addAssign(up).mulAssign(scale).addAssign(center);
+
+		// final var qhl = center.add(bu).sub(br).transformBy(p);
+		// final var qll = center.sub(bu).sub(br).transformBy(p);
+		// final var qlh = center.sub(bu).add(br).transformBy(p);
+		// final var qhh = center.add(bu).add(br).transformBy(p);
+		// builder.vertex(qhl).color(color).uv0(1, 0).endVertex();
+		// builder.vertex(qll).color(color).uv0(0, 0).endVertex();
+		// builder.vertex(qlh).color(color).uv0(0, 1).endVertex();
+		// builder.vertex(qhh).color(color).uv0(1, 1).endVertex();
 	}
 
-	public static void addBillboardCamspace(FlexibleVertexConsumer builder, PoseStack poseStack, Vec3 up,
-			Vec3 right, Vec3 center, double scale, double zOffset, Color color) {
-		var backwards = up.cross(right).mul(zOffset);
-		var bu = up.mul(scale);
-		var br = right.mul(scale);
-
-		var p = poseStack.last().pose();
-		var qll = center.sub(bu).sub(br).add(backwards).transformBy(p);
-		var qlh = center.sub(bu).add(br).add(backwards).transformBy(p);
-		var qhl = center.add(bu).sub(br).add(backwards).transformBy(p);
-		var qhh = center.add(bu).add(br).add(backwards).transformBy(p);
-		builder.vertex(qhl).color(color).uv0(1, 0).endVertex();
-		builder.vertex(qll).color(color).uv0(0, 0).endVertex();
-		builder.vertex(qlh).color(color).uv0(0, 1).endVertex();
-		builder.vertex(qhh).color(color).uv0(1, 1).endVertex();
+	public static void addBillboardCamspace(FlexibleVertexConsumer builder, Vec3 up,
+			Vec3 right, Vec3 center, double scale, Color color) {
+		final var n = new Vec3.Mutable(0, 0, 0);
+		n.load(Vec3.ZERO).addAssign(right).subAssign(up);
+		n.mulAssign(scale).addAssign(center);
+		builder.vertex(n).color(color).uv0(1, 0).endVertex();
+		n.load(Vec3.ZERO).subAssign(right).subAssign(up);
+		n.mulAssign(scale).addAssign(center);
+		builder.vertex(n).color(color).uv0(0, 0).endVertex();
+		n.load(Vec3.ZERO).subAssign(right).addAssign(up);
+		n.mulAssign(scale).addAssign(center);
+		builder.vertex(n).color(color).uv0(0, 1).endVertex();
+		n.load(Vec3.ZERO).addAssign(right).addAssign(up);
+		n.mulAssign(scale).addAssign(center);
+		builder.vertex(n).color(color).uv0(1, 1).endVertex();
 	}
 
-	public static void addBillboardCamspace(FlexibleVertexConsumer builder, Vec3 up, Vec3 right, Vec3 center,
-			double scale, double zOffset, Color color) {
-		var backwards = up.cross(right).mul(zOffset);
-		var bu = up.mul(scale);
-		var br = right.mul(scale);
+	public static void addBillboardWorldspace(FlexibleVertexConsumer builder, Vec3Access camPos,
+			TransformStack tfm, Vec3Access up, Vec3Access right, Vec3Access center, double scale, Color color) {
+		final var p = tfm.get();
+		final var n = new Vec3.Mutable(0, 0, 0);
 
-		var qll = center.sub(bu).sub(br).add(backwards);
-		var qlh = center.sub(bu).add(br).add(backwards);
-		var qhl = center.add(bu).sub(br).add(backwards);
-		var qhh = center.add(bu).add(br).add(backwards);
-		builder.vertex(qhl).color(color).uv0(1, 0).endVertex();
-		builder.vertex(qll).color(color).uv0(0, 0).endVertex();
-		builder.vertex(qlh).color(color).uv0(0, 1).endVertex();
-		builder.vertex(qhh).color(color).uv0(1, 1).endVertex();
+		n.load(Vec3.ZERO).addAssign(right).subAssign(up);
+		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		Mat4.transform(n, 1, p);
+		builder.vertex(n).color(color).uv0(1, 0).endVertex();
+
+		n.load(Vec3.ZERO).subAssign(right).subAssign(up);
+		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		Mat4.transform(n, 1, p);
+		builder.vertex(n).color(color).uv0(0, 0).endVertex();
+
+		n.load(Vec3.ZERO).subAssign(right).addAssign(up);
+		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		Mat4.transform(n, 1, p);
+		builder.vertex(n).color(color).uv0(0, 1).endVertex();
+
+		n.load(Vec3.ZERO).addAssign(right).addAssign(up);
+		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		Mat4.transform(n, 1, p);
+		builder.vertex(n).color(color).uv0(1, 1).endVertex();
 	}
+
+	public static void addBillboardWorldspace(FlexibleVertexConsumer builder, Vec3Access camPos, Vec3Access up,
+			Vec3Access right, Vec3Access center, double scale, Color color) {
+		final var n = new Vec3.Mutable(0, 0, 0);
+
+		n.load(Vec3.ZERO).addAssign(right).subAssign(up);
+		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		builder.vertex(n).color(color).uv0(1, 0).endVertex();
+
+		n.load(Vec3.ZERO).subAssign(right).subAssign(up);
+		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		builder.vertex(n).color(color).uv0(0, 0).endVertex();
+
+		n.load(Vec3.ZERO).subAssign(right).addAssign(up);
+		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		builder.vertex(n).color(color).uv0(0, 1).endVertex();
+
+		n.load(Vec3.ZERO).addAssign(right).addAssign(up);
+		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		builder.vertex(n).color(color).uv0(1, 1).endVertex();
+	}
+
+	// public static void addBillboardCamspace(FlexibleVertexConsumer builder, Vec3
+	// up, Vec3 right, Vec3 center,
+	// double scale, double zOffset, Color color) {
+	// var backwards = up.cross(right).mul(zOffset);
+	// var bu = up.mul(scale);
+	// var br = right.mul(scale);
+
+	// var qll = center.sub(bu).sub(br).add(backwards);
+	// var qlh = center.sub(bu).add(br).add(backwards);
+	// var qhl = center.add(bu).sub(br).add(backwards);
+	// var qhh = center.add(bu).add(br).add(backwards);
+	// builder.vertex(qhl).color(color).uv0(1, 0).endVertex();
+	// builder.vertex(qll).color(color).uv0(0, 0).endVertex();
+	// builder.vertex(qlh).color(color).uv0(0, 1).endVertex();
+	// builder.vertex(qhh).color(color).uv0(1, 1).endVertex();
+	// }
 
 	// public static void addBillboard(VertexConsumer builder, CachedCamera<?>
-	// camera, PoseStack poseStack, Vec3 center,
+	// camera, TransformStack tfm, Vec3 center,
 	// Vec3 up, Vec3 right, Vec3 forward, Color color) {
-	// var p = poseStack.last().pose();
+	// var p = tfm.last().pose();
 	// var qll = center.sub(up).sub(right).add(forward);
 	// var qlh = center.sub(up).add(right).add(forward);
 	// var qhl = center.add(up).sub(right).add(forward);
@@ -293,36 +444,6 @@ public final class RenderHelper {
 		}
 
 	}
-
-	// public static void renderLine(BufferBuilder builder, Vec3 start, Vec3 end,
-	// double lineWidth, Color color) {
-	// renderLine(builder, start, end, lineWidth, color, color);
-	// }
-
-	// public static void renderLine(BufferBuilder builder, Vec3 start, Vec3 end,
-	// double lineWidth, Color startColor,
-	// Color endColor) {
-	// RenderSystem.setShader(GameRenderer::getRendertypeLinesShader);
-	// builder.begin(VertexFormat.Mode.LINES,
-	// DefaultVertexFormat.POSITION_COLOR_NORMAL);
-	// var normal = end.sub(start).normalize();
-	// builder.vertex(start.x, start.y, start.z)
-	// .color(startColor.r(), startColor.g(), startColor.b(), startColor.a())
-	// .normal((float) normal.x, (float) normal.y, (float) normal.z)
-	// .endVertex();
-	// builder.vertex(end.x, end.y, end.z)
-	// .color(endColor.r(), endColor.g(), endColor.b(), endColor.a())
-	// .normal((float) normal.x, (float) normal.y, (float) normal.z)
-	// .endVertex();
-	// builder.end();
-	// RenderSystem.enableBlend();
-	// RenderSystem.disableTexture();
-	// RenderSystem.defaultBlendFunc();
-	// RenderSystem.disableCull();
-	// RenderSystem.depthMask(false);
-	// RenderSystem.lineWidth((float) lineWidth);
-	// BufferUploader.end(builder);
-	// }
 
 	public static void addLine(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end,
 			Color color) {

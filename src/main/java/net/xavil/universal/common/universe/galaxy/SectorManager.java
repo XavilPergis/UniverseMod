@@ -199,7 +199,12 @@ public final class SectorManager {
 	public void tick(ProfilerFiller profiler) {
 		tickGeneration(profiler);
 		final var time = this.galaxy.parentUniverse.getCelestialTime();
-		this.systemMap.values().forEach(slot -> slot.system.rootNode.updatePositions(time));
+		this.systemMap.values().forEach(slot -> {
+			if (slot.system != null) {
+				slot.system.rootNode.visit(node -> node.lastPosition = node.position);
+				slot.system.rootNode.updatePositions(time);
+			}
+		});
 	}
 
 	public void applyTickets(ProfilerFiller profiler) {

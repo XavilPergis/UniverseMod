@@ -20,6 +20,7 @@ import net.xavil.universal.Mod;
 import net.xavil.util.Assert;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Vec3;
+import net.xavil.util.math.interfaces.Vec3Access;
 
 public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 
@@ -257,10 +258,10 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 	}
 
 	@Override
-	public FlexibleBufferBuilder vertex(Vec3 pos) {
-		dispatch.positionHolder.c0 = (float) pos.x;
-		dispatch.positionHolder.c1 = (float) pos.y;
-		dispatch.positionHolder.c2 = (float) pos.z;
+	public FlexibleBufferBuilder vertex(Vec3Access pos) {
+		dispatch.positionHolder.c0 = (float) pos.x();
+		dispatch.positionHolder.c1 = (float) pos.y();
+		dispatch.positionHolder.c2 = (float) pos.z();
 		return this;
 	}
 
@@ -320,10 +321,10 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 	}
 
 	@Override
-	public FlexibleBufferBuilder normal(Vec3 norm) {
-		dispatch.normalHolder.c0 = (float) norm.x;
-		dispatch.normalHolder.c1 = (float) norm.y;
-		dispatch.normalHolder.c2 = (float) norm.z;
+	public FlexibleBufferBuilder normal(Vec3Access norm) {
+		dispatch.normalHolder.c0 = (float) norm.x();
+		dispatch.normalHolder.c1 = (float) norm.y();
+		dispatch.normalHolder.c2 = (float) norm.z();
 		return this;
 	}
 

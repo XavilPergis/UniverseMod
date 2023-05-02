@@ -32,6 +32,7 @@ public abstract class Universe implements Disposable {
 
 	public static final boolean IS_UNIVERSE_GEN_ASYNC = true;
 
+	public double celestialTimeRate = 1;
 	public long celestialTimeTicks = 0;
 	public final UniverseSectorManager sectorManager = new UniverseSectorManager(this);
 	public final Disposable.Multi disposer = new Disposable.Multi();
@@ -87,10 +88,7 @@ public abstract class Universe implements Disposable {
 	}
 
 	public double getCelestialTime(float partialTick) {
-		// return (this.celestialTimeTicks + partialTick) / 20.0;
-		// return 60.0 * (this.celestialTimeTicks + partialTick) / 20.0;
-		return 60.0 * 60.0 * (this.celestialTimeTicks + partialTick) / 20.0;
-		// return 3.156e7 * 0.1 * (this.celestialTimeTicks + partialTick) / 20.0;
+		return celestialTimeRate * (this.celestialTimeTicks + partialTick) / 20.0;
 	}
 
 	public Option<StarSystem> loadSystem(Disposable.Multi disposer, SystemId id) {

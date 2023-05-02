@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import net.minecraft.world.level.Level;
 import net.xavil.universal.common.universe.id.SystemId;
 import net.xavil.universal.common.universe.universe.Universe;
+import net.xavil.util.Disposable;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.math.Quat;
@@ -53,14 +54,15 @@ public final class SpaceStation {
 	}
 
 	public void tick() {
-		this.location.update(this.universe);
+		this.location = this.location.update(this.universe);
 		this.prevPos = pos;
 		this.pos = this.location.getPos();
 
 		if (this.jumpInfo != null) {
 			this.jumpInfo.tick();
-			if (this.jumpInfo.failed())
+			if (this.jumpInfo.complete()) {
 				setJumpInfo(null);
+			}
 		}
 	}
 
@@ -68,23 +70,22 @@ public final class SpaceStation {
 		return Vec3.lerp(partialTick, this.prevPos, this.pos);
 	}
 
-	// TODO: make this dynamic! this should require player-built infrastructure to control
+	// TODO: make this dynamic! this should require player-built infrastructure to
+	// control
 	public long getFsdAccumulatorChargeRate() {
 		return 100;
 	}
 
 	// prepare to jump to system; do countdown n stuff
-	public void prepareForJump(SystemId system) {
-		setJumpInfo(jumpInfo);
-	}
-
-	private void startJump(SystemId system) {
-		final var prevLoc = this.location;
-		final var newLoc = StationLocation.JumpingSystem.create(this.universe, prevLoc, system).unwrap();
-		setLocation(newLoc);
-
-		// this.jumpingSystem = null;
-		// this.countdownToJumpTicks = -1;
+	// TODO: instant jump
+	public void prepareForJump(SystemId system, boolean isJumpInstant) {
+		if (this.jumpInfo != null)
+			return;
+		final var jump = StationLocation.JumpingSystem.create(this.universe, this.location, system).unwrapOrNull();
+		if (jump != null) {
+			setJumpInfo(new JumpInfo(this, jump));
+			setLocation(jump);
+		}
 	}
 
 }

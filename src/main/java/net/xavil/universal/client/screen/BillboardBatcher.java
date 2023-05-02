@@ -3,7 +3,6 @@ package net.xavil.universal.client.screen;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
@@ -11,6 +10,7 @@ import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.Vec3;
 
 public final class BillboardBatcher {
@@ -48,7 +48,17 @@ public final class BillboardBatcher {
 	}
 
 	public void add(StellarCelestialNode node, Vec3 pos) {
-		RenderHelper.addBillboard(builder, this.camera, new PoseStack(), node, pos.mul(1e12 / this.camera.metersPerUnit));
+		// RenderHelper.addBillboard(builder, this.camera, new TransformStack(), node, pos.mul(1e12 / this.camera.metersPerUnit));
+		RenderHelper.addBillboard(builder, this.camera, new TransformStack(), node, pos);
+
+		// var color = Color.WHITE;
+		// if (node instanceof StellarCelestialNode starNode) {
+		// 	color = starNode.getColor();
+		// }
+		// RenderHelper.addBillboardWorldspace(builder, camera.pos, camera.up, camera.left,
+		// 		pos.mul(1e12 / camera.metersPerUnit), 1, color);
+
+
 		this.current += 1;
 		if (this.current > this.billboardsPerBatch) {
 			end();

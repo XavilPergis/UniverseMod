@@ -107,7 +107,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 		final var partialTick = this.client.getFrameTime();
 		final var dragScale = this.camera.scale.get(partialTick) * (this.camera.metersPerUnit / 1e12) * 0.0035;
 
-		vert = this.camera.pitch.get(partialTick) < 0 ? -vert : vert;
+		horiz = invert && this.camera.pitch.get(partialTick) < 0 ? horiz.withY(-horiz.y) : horiz;
 		final var offset = Vec3.from(horiz.x, 0, horiz.y)
 				.rotateY(-this.camera.yaw.get(partialTick))
 				.add(0, vert, 0).mul(dragScale);
@@ -315,7 +315,7 @@ public abstract class Universal3dScreen extends UniversalScreen {
 	public void tick() {
 		super.tick();
 
-		final double speed = 25, rotateSpeed = 0.05;
+		final double speed = 25, rotateSpeed = 10;
 
 		double forward = 0, right = 0, up = 0;
 		forward += this.isForwardPressed ? speed : 0;

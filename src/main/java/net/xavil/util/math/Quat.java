@@ -80,6 +80,10 @@ public final class Quat implements Hashable {
 		return new Quat(qw, qx, qy, qz);
 	}
 
+	public static Quat fromAffineMatrix(Mat4 m) {
+		return fromOrthonormalBasis(m.basisX(), m.basisY(), m.basisZ());
+	}
+
 	public static Quat axisAngle(Vec3 dir, double angle) {
 		var qx = dir.x * Math.sin(angle / 2);
 		var qy = dir.y * Math.sin(angle / 2);

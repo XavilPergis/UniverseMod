@@ -4,7 +4,6 @@ import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import net.xavil.util.Assert;
-import net.xavil.util.collections.interfaces.ImmutableList;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.iterator.IntoIterator;
 import net.xavil.util.iterator.Iterator;
@@ -16,6 +15,9 @@ public final class Vector<T> implements MutableList<T> {
 	private float growthFactor = 2.0f;
 
 	public Vector() {
+	}
+	public Vector(int initialCapacity) {
+		this.elements = makeArray(initialCapacity);
 	}
 
 	private Vector(T[] elements, int size, float growthFactor) {

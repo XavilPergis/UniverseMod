@@ -68,7 +68,7 @@ public abstract sealed class StationLocation implements Disposable {
 				this.plane = decodeNbt(OrbitalPlane.CODEC, nbt.get("plane"));
 			if (nbt.contains("shape"))
 				this.shape = decodeNbt(OrbitalShape.CODEC, nbt.get("shape"));
-			
+
 			this.ticket.forceLoad();
 			this.systemPos = universe.getSystemPos(id.system()).unwrap();
 			this.needsLoading = false;
@@ -127,7 +127,9 @@ public abstract sealed class StationLocation implements Disposable {
 
 			double semiMajor = 1.0;
 			if (node instanceof PlanetaryCelestialNode planetNode) {
-				semiMajor = 1.06 * planetNode.radiusRearth * (Units.m_PER_Rearth / Units.TERA);
+				// semiMajor = 1.06 * planetNode.radiusRearth * (Units.m_PER_Rearth /
+				// Units.TERA);
+				semiMajor = 3.5 * planetNode.radiusRearth * (Units.m_PER_Rearth / Units.TERA);
 			} else if (node instanceof StellarCelestialNode starNode) {
 				semiMajor = 1.5 * starNode.radiusRsol * (Units.m_PER_Rsol / Units.TERA);
 			} else if (node instanceof BinaryCelestialNode binaryNode) {
@@ -135,7 +137,7 @@ public abstract sealed class StationLocation implements Disposable {
 			}
 
 			this.plane = OrbitalPlane.ZERO.withReferencePlane(node.referencePlane);
-			this.shape = OrbitalShape.fromEccentricity(0.0, semiMajor);
+			this.shape = OrbitalShape.fromEccentricity(0.6, semiMajor);
 			this.needsLoading = false;
 		}
 
@@ -207,21 +209,32 @@ public abstract sealed class StationLocation implements Disposable {
 			nbt.put("target_node", encodeNbt(SystemNodeId.CODEC, this.targetNode));
 		}
 
-
 		@Override
 		public Vec3 getPos() {
 			return this.pos;
 		}
 
+		public void travel(double distance) {
+			this.distanceTravelled += distance;
+		}
+
+		public double getCompletion() {
+			final var target = this.targetLocation.getPos();
+			final var totalDistance = this.sourcePos.distanceTo(target);
+			return this.distanceTravelled / totalDistance;
+		}
+
+		public boolean isComplete() {
+			return getCompletion() >= 1;
+		}
+
 		@Override
 		public StationLocation update(Universe universe) {
 			this.targetLocation.update(universe);
-			final var target = this.targetLocation.getPos();
-			final var totalDistance = this.sourcePos.distanceTo(target);
-			final var completion = this.distanceTravelled / totalDistance;
+			final var completion = getCompletion();
 			if (completion >= 1.0)
 				return this.targetLocation;
-			this.pos = Vec3.lerp(completion, this.sourcePos, target);
+			this.pos = Vec3.lerp(completion, this.sourcePos, this.targetLocation.getPos());
 			return this;
 		}
 

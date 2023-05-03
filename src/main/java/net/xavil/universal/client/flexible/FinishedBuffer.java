@@ -4,7 +4,7 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 
 public record FinishedBuffer(
 		VertexFormat format,
-		VertexFormat.Mode mode,
+		FlexibleVertexMode mode,
 		VertexFormat.IndexType indexType,
 		int parentBufferOffset,
 		int vertexCount,

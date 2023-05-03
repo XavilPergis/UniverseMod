@@ -21,6 +21,7 @@ import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
+import net.xavil.util.math.Quat;
 import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.interfaces.Vec3Access;
 import net.xavil.util.math.matrices.Mat4;
@@ -120,6 +121,61 @@ public final class RenderHelper {
 		RenderHelper.addBillboardWorldspace(builder, camera.pos, camera.up, camera.left,
 				pos.mul(1e12 / camera.metersPerUnit), d, color);
 	}
+
+	// public static void addBillboard(FlexibleVertexConsumer builder, Vec3 viewPos, CelestialNode node, Vec3 pos) {
+	// 	final var distanceFromCameraTm = viewPos.distanceTo(pos);
+
+	// 	double minAngularDiameterRad = Math.toRadians(0.15);
+
+	// 	// how many times we need to scale the billboard by to render the star at the
+	// 	// correct size. if the billboard texture were a circle with a diameter of the
+	// 	// size of the image, then this would be 1. if the diameter were 1/2 the size,
+	// 	// then this would be 2.
+	// 	final double billboardFactor = 18.0;
+
+	// 	double radius = 0;
+	// 	if (node instanceof StellarCelestialNode starNode) {
+	// 		// radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
+	// 		radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
+	// 		// if (radius > 1) radius = 1;
+	// 	} else if (node instanceof PlanetaryCelestialNode planetNode) {
+	// 		radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
+	// 		// if (planetNode.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
+	// 		// radius *= 2e3;
+	// 		// }
+	// 	}
+
+	// 	final var idealAngularRadius = (radius / distanceFromCameraTm);
+	// 	var angularRadius = Math.max(idealAngularRadius, minAngularDiameterRad / 2);
+	// 	double k = 1.0;
+
+	// 	if (node instanceof StellarCelestialNode starNode) {
+	// 		final var brightnessThreshold = 100;
+	// 		final var apparentBrightness = 1e11 * starNode.luminosityLsol
+	// 				/ (4 * Math.PI * distanceFromCameraTm * distanceFromCameraTm);
+			
+	// 		if (apparentBrightness > brightnessThreshold && angularRadius > idealAngularRadius) {
+	// 			angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.1);
+	// 			angularRadius = Math.min(angularRadius, Math.toRadians(0.1));
+	// 		} else {
+	// 			k *= Math.pow(apparentBrightness / brightnessThreshold, 0.08);
+	// 		}
+	// 	}
+
+	// 	final var d = billboardFactor * distanceFromCameraTm * (angularRadius / 2);
+
+	// 	var color = Color.WHITE;
+	// 	if (node instanceof StellarCelestialNode starNode) {
+	// 		color = starNode.getColor().withA(k);
+	// 	}
+
+	// 	final var forward = 
+	// 	final var up = pos.sub(viewPos).cross(Vec3.XP);
+	// 	final var left = pos.sub(viewPos).cross(Vec3.XP);
+
+	// 	RenderHelper.addBillboardWorldspace(builder, viewPos, camera.up, camera.left,
+	// 			pos.mul(1e12 / camera.metersPerUnit), d, color);
+	// }
 
 	public static double getCelestialBodySize(Vec3 camPos, CelestialNode node, Vec3 pos) {
 		final var distanceFromCameraTm = camPos.distanceTo(pos);
@@ -295,40 +351,44 @@ public final class RenderHelper {
 		builder.vertex(n).color(color).uv0(1, 1).endVertex();
 	}
 
-	// public static void addBillboardCamspace(FlexibleVertexConsumer builder, Vec3
-	// up, Vec3 right, Vec3 center,
-	// double scale, double zOffset, Color color) {
-	// var backwards = up.cross(right).mul(zOffset);
-	// var bu = up.mul(scale);
-	// var br = right.mul(scale);
+	public static void addBillboardWorldspaceFacing(FlexibleVertexConsumer builder,
+			Vec3Access viewPos, Vec3Access center, double angle, Color color) {
+			}
+	// public static void addBillboardWorldspaceFacing(FlexibleVertexConsumer builder,
+	// 		Vec3Access viewPos, Vec3Access center, double angle, Color color) {
 
-	// var qll = center.sub(bu).sub(br).add(backwards);
-	// var qlh = center.sub(bu).add(br).add(backwards);
-	// var qhl = center.add(bu).sub(br).add(backwards);
-	// var qhh = center.add(bu).add(br).add(backwards);
-	// builder.vertex(qhl).color(color).uv0(1, 0).endVertex();
-	// builder.vertex(qll).color(color).uv0(0, 0).endVertex();
-	// builder.vertex(qlh).color(color).uv0(0, 1).endVertex();
-	// builder.vertex(qhh).color(color).uv0(1, 1).endVertex();
-	// }
+	// 	final var offset = center.sub(viewPos);
+	// 	final var forward = offset.normalize();
 
-	// public static void addBillboard(VertexConsumer builder, CachedCamera<?>
-	// camera, TransformStack tfm, Vec3 center,
-	// Vec3 up, Vec3 right, Vec3 forward, Color color) {
-	// var p = tfm.last().pose();
-	// var qll = center.sub(up).sub(right).add(forward);
-	// var qlh = center.sub(up).add(right).add(forward);
-	// var qhl = center.add(up).sub(right).add(forward);
-	// var qhh = center.add(up).add(right).add(forward);
-	// float r = color.r(), g = color.g(), b = color.b(), a = color.a();
-	// builder.vertex(p, (float) qhl.x, (float) qhl.y, (float) qhl.z).color(r, g, b,
-	// a).uv(1, 0).endVertex();
-	// builder.vertex(p, (float) qll.x, (float) qll.y, (float) qll.z).color(r, g, b,
-	// a).uv(0, 0).endVertex();
-	// builder.vertex(p, (float) qlh.x, (float) qlh.y, (float) qlh.z).color(r, g, b,
-	// a).uv(0, 1).endVertex();
-	// builder.vertex(p, (float) qhh.x, (float) qhh.y, (float) qhh.z).color(r, g, b,
-	// a).uv(1, 1).endVertex();
+	// 	final var rotationAngle = rng.uniformDouble(0, 2.0 * Math.PI);
+	// 	final var rotation = Quat.axisAngle(forward, rotationAngle);
+
+	// 	final var du = forward.dot(Vec3.YP);
+	// 	final var df = forward.dot(Vec3.ZN);
+	// 	final var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
+	// 	final var right = rotation.transform(v1.cross(forward).neg());
+	// 	final var up = forward.cross(right).neg();
+	// 	// RenderHelper.addBillboardCamspace(builder, up, right, forward.mul(100), s, 0,
+	// 	// Color.WHITE.withA(0.1));
+	// 	RenderHelper.addBillboardCamspace(builder, up, right, offset, offset.length() * s, Color.WHITE.withA(0.1));
+
+	// 	final var n = new Vec3.Mutable(0, 0, 0);
+
+	// 	n.load(Vec3.ZERO).addAssign(right).subAssign(up);
+	// 	n.mulAssign(scale).addAssign(center).subAssign(camPos);
+	// 	builder.vertex(n).color(color).uv0(1, 0).endVertex();
+
+	// 	n.load(Vec3.ZERO).subAssign(right).subAssign(up);
+	// 	n.mulAssign(scale).addAssign(center).subAssign(camPos);
+	// 	builder.vertex(n).color(color).uv0(0, 0).endVertex();
+
+	// 	n.load(Vec3.ZERO).subAssign(right).addAssign(up);
+	// 	n.mulAssign(scale).addAssign(center).subAssign(camPos);
+	// 	builder.vertex(n).color(color).uv0(0, 1).endVertex();
+
+	// 	n.load(Vec3.ZERO).addAssign(right).addAssign(up);
+	// 	n.mulAssign(scale).addAssign(center).subAssign(camPos);
+	// 	builder.vertex(n).color(color).uv0(1, 1).endVertex();
 	// }
 
 	public static double getGridScale(OrbitCamera.Cached camera, double tmPerUnit, double scaleFactor,

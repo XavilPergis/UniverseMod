@@ -18,6 +18,7 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.xavil.universal.client.SkyRenderer;
 import net.xavil.universal.client.UniversalTextureManager;
 import net.xavil.universal.client.screen.UniversalScreen;
 import net.xavil.universal.common.universe.universe.ClientUniverse;
@@ -50,8 +51,9 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 	@Inject(method = "tick", at = @At("TAIL"))
 	private void onTick(CallbackInfo info) {
 		if (this.universe != null) {
-			this.universe.tick(this.profiler, !this.pause);
+			this.universe.tick(this.profiler, this.pause);
 		}
+		SkyRenderer.INSTANCE.tick();
 	}
 
 	@ModifyArg(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"), index = 2)

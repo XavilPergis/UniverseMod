@@ -62,6 +62,12 @@ public interface FlexibleVertexConsumer {
 	// ===== WRAPPER ============================
 	static FlexibleVertexConsumer wrapVanilla(VertexConsumer consumer) {
 		return new FlexibleVertexConsumer() {
+
+			@Override
+			public void endVertex() {
+				consumer.endVertex();
+			}
+
 			@Override
 			public FlexibleVertexConsumer vertex(float x, float y, float z) {
 				consumer.vertex(x, y, z);
@@ -96,11 +102,6 @@ public interface FlexibleVertexConsumer {
 			public FlexibleVertexConsumer normal(float x, float y, float z) {
 				consumer.normal(x, y, z);
 				return this;
-			}
-
-			@Override
-			public void endVertex() {
-				consumer.endVertex();
 			}
 		};
 	}

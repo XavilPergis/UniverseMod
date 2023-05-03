@@ -49,7 +49,7 @@ public final class SpaceStation {
 	}
 
 	public Vec3 getGavityAt(Vec3 pos) {
-		return Vec3.YN.mul(0.5);
+		return Vec3.YN.mul(0.05);
 	}
 
 	public void tick() {

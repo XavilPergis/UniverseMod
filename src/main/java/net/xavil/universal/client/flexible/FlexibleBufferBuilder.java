@@ -29,7 +29,7 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 	private int vertexStartByteOffset = 0;
 	private int vertexByteOffset = 0;
 	private VertexFormat currentVertexFormat = null;
-	private VertexFormat.Mode currentMode = null;
+	private FlexibleVertexMode currentMode = null;
 	private ByteBuffer buffer;
 	private int vertexCount = 0;
 	private ElementDispatch dispatch = new ElementDispatch();
@@ -166,11 +166,15 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 		this.buffer = MemoryTracker.create(maxFaceCount * 6);
 	}
 
-	public void begin(VertexFormat.Mode mode, VertexFormat format) {
+	public void begin(FlexibleVertexMode mode, VertexFormat format) {
 		this.dispatch.setup(format, this.buffer);
 		this.currentVertexFormat = format;
 		this.currentMode = mode;
 		this.vertexStartByteOffset = Mth.roundToward(this.vertexByteOffset, 4);
+	}
+
+	public void begin(VertexFormat.Mode mode, VertexFormat format) {
+		begin(FlexibleVertexMode.from(mode), format);
 	}
 
 	public boolean isBuilding() {
@@ -198,6 +202,7 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 		Assert.isTrue(!isBuilding());
 		BufferRenderer.draw(shader, this);
 	}
+
 	public void draw(RenderTarget target, ShaderInstance shader) {
 		Assert.isTrue(!isBuilding());
 		target.bindWrite(false);
@@ -221,6 +226,28 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 
 		final var bufferSlice = this.buffer.slice(finished.parentBufferOffset(), finished.byteCount());
 		return Pair.of(finished, bufferSlice);
+	}
+
+	@Override
+	public void endVertex() {
+		if (this.currentVertexFormat == null)
+			throw new RuntimeException("cannot add vertices to FlexibleBufferBuilder; it is not currently building!");
+		try {
+			emitVertex();
+		} catch (Throwable t) {
+			var msg = "Buffer Builder Error";
+			msg += "Current Capacity: " + this.buffer.capacity();
+			throw new RuntimeException(msg, t);
+		}
+	}
+
+	private void emitVertex() {
+		ensureBufferCapacity(this.currentVertexFormat.getVertexSize() * this.currentMode.duplicationCount);
+		for (int i = 0; i < this.currentMode.duplicationCount; ++i) {
+			this.dispatch.emit(this.vertexByteOffset);
+			this.vertexByteOffset += this.currentVertexFormat.getVertexSize();
+		}
+		this.vertexCount += this.currentMode.duplicationCount;
 	}
 
 	@Override
@@ -308,30 +335,6 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 		dispatch.normalHolder.c1 = (float) norm.y();
 		dispatch.normalHolder.c2 = (float) norm.z();
 		return this;
-	}
-
-	@Override
-	public void endVertex() {
-		if (this.currentVertexFormat == null)
-			throw new RuntimeException("cannot add vertices to FlexibleBufferBuilder; it is not currently building!");
-		try {
-			ensureBufferCapacity(this.currentVertexFormat.getVertexSize());
-			this.dispatch.emit(this.vertexByteOffset);
-			this.vertexByteOffset += this.currentVertexFormat.getVertexSize();
-			this.vertexCount += 1;
-			
-			// duplicate the vertex if we're drawing lines
-			if (this.currentMode == VertexFormat.Mode.LINES || this.currentMode == VertexFormat.Mode.LINE_STRIP) {
-				ensureBufferCapacity(this.currentVertexFormat.getVertexSize());
-				this.dispatch.emit(this.vertexByteOffset);
-				this.vertexByteOffset += this.currentVertexFormat.getVertexSize();
-				this.vertexCount += 1;
-			}
-		} catch (Throwable t) {
-			Mod.LOGGER.error("Buffer Builder Error");
-			Mod.LOGGER.error("Current Capacity: {}", this.buffer.capacity());
-			throw t;
-		}
 	}
 
 	private static int roundUp(int bytesToGrow) {

@@ -20,7 +20,7 @@ public class FlexibleVertexBuffer implements Disposable {
 
 	private int bufferUsage = GL32.GL_STATIC_DRAW;
 
-	private VertexFormat.Mode mode;
+	private FlexibleVertexMode mode;
 	private VertexFormat format;
 
 	private VertexFormat.IndexType indexType;
@@ -34,7 +34,6 @@ public class FlexibleVertexBuffer implements Disposable {
 			RenderSystem.glGenBuffers(id -> this.indexBufferId = id);
 		if (this.vertexArrayId < 0)
 			RenderSystem.glGenVertexArrays(id -> this.vertexArrayId = id);
-		this.bufferUsage = usage;
 	}
 
 	public boolean isCreated() {
@@ -53,13 +52,12 @@ public class FlexibleVertexBuffer implements Disposable {
 			create(false, usage);
 
 		buffer.clear();
-		if (info.vertexCount() <= 0)
-			return;
 
 		this.mode = info.mode();
 		this.format = info.format();
 		this.sequentialIndices = info.sequentialIndex();
 		this.indexCount = info.indexCount();
+		this.bufferUsage = usage;
 
 		final var byteLimit = info.vertexCount() * info.format().getVertexSize();
 		buffer.position(0);
@@ -70,7 +68,7 @@ public class FlexibleVertexBuffer implements Disposable {
 		GlStateManager._glBufferData(GL32.GL_ARRAY_BUFFER, buffer, this.bufferUsage);
 
 		if (info.sequentialIndex()) {
-			final var sequentialIndexBuffer = RenderSystem.getSequentialBuffer(info.mode(), info.indexCount());
+			final var sequentialIndexBuffer = info.mode().getSequentialBuffer(info.indexCount());
 			this.indexBufferId = sequentialIndexBuffer.name();
 			this.indexType = sequentialIndexBuffer.type();
 			GlStateManager._glBindBuffer(GL32.GL_ELEMENT_ARRAY_BUFFER, this.indexBufferId);
@@ -88,9 +86,11 @@ public class FlexibleVertexBuffer implements Disposable {
 	}
 
 	public void draw(ShaderInstance shader) {
+		if (this.indexCount <= 0)
+			return;
 		shader.apply();
 		bind();
-		GlStateManager._drawElements(this.mode.asGLMode, this.indexCount, this.indexType.asGLType, 0L);
+		GlStateManager._drawElements(this.mode.gl, this.indexCount, this.indexType.asGLType, 0L);
 		unbind();
 		shader.clear();
 	}

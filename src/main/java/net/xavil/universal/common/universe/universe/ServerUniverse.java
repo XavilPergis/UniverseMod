@@ -109,9 +109,9 @@ public final class ServerUniverse extends Universe {
 	}
 
 	@Override
-	public void tick(ProfilerFiller profiler, boolean tickTime) {
-		super.tick(profiler, tickTime);
-		if (this.celestialTimeTicks % 200 == 0)
+	public void tick(ProfilerFiller profiler, boolean isPaused) {
+		super.tick(profiler, isPaused);
+		if (!isPaused && this.celestialTimeTicks % 200 == 0)
 			syncTime();
 	}
 

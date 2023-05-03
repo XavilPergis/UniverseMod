@@ -11,6 +11,7 @@ import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexBuffer;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 
@@ -20,6 +21,7 @@ import net.minecraft.util.Mth;
 import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
+import net.xavil.universal.client.flexible.FlexibleVertexBuffer;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.BillboardBatcher;
 import net.xavil.universal.client.screen.RenderHelper;
@@ -66,6 +68,17 @@ public class SkyRenderer {
 	private SectorTicket<SectorTicketInfo.Multi> sectorTicket = null;
 	private SystemTicket systemTicket = null;
 	private GalaxyTicket galaxyTicket = null;
+
+	private FlexibleVertexBuffer starsBuffer = new FlexibleVertexBuffer();
+	private Vec3 starSnapshotTakenAt = null;
+	private double starSnapshotThreshold = 10;
+	private double immediateStarsTimerTicks = 0;
+
+	public void tick() {
+		if (this.immediateStarsTimerTicks > 0) {
+			this.immediateStarsTimerTicks -= 1;
+		}
+	}
 
 	public void resize(int width, int height) {
 		if (this.skyTarget != null) {
@@ -129,8 +142,9 @@ public class SkyRenderer {
 		return new CachedCamera<>(camera, invView, proj, 1e12);
 	}
 
-	private void applyPlanetTransform(TransformStack tfm, CelestialNode node, double time, Vec2 coords, float partialTick) {
- 		final var worldBorder = this.client.level.getWorldBorder();
+	private void applyPlanetTransform(TransformStack tfm, CelestialNode node, double time, Vec2 coords,
+			float partialTick) {
+		final var worldBorder = this.client.level.getWorldBorder();
 		final var tx = Mth.inverseLerp(coords.x, worldBorder.getMinX(), worldBorder.getMaxX());
 		final var tz = Mth.inverseLerp(coords.y, worldBorder.getMinZ(), worldBorder.getMaxZ());
 
@@ -150,7 +164,7 @@ public class SkyRenderer {
 		tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
 		tfm.appendRotation(Quat.axisAngle(Vec3.YP, rotationalSpeed * time));
 		tfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
-		
+
 		tfm.appendTranslation(node.getPosition(partialTick));
 
 	}
@@ -168,7 +182,7 @@ public class SkyRenderer {
 				// var nodePos = sys.pos.add(node.getPosition(partialTick));
 				// final var quat = toCelestialWorldSpaceRotation(node, time, srcCamPos.xz());
 				// if (node instanceof PlanetaryCelestialNode planetNode) {
-				// 	nodePos = nodePos.add(getPlanetSurfaceOffset(planetNode, quat));
+				// nodePos = nodePos.add(getPlanetSurfaceOffset(planetNode, quat));
 				// }
 				applyPlanetTransform(tfm, node, time, srcCamPos.xz(), partialTick);
 				tfm.appendTranslation(sys.pos);
@@ -297,23 +311,38 @@ public class SkyRenderer {
 
 	}
 
-	private void drawStars(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
+	// private void buildStarsIfNeeded(Vec3 centerPos, Galaxy galaxy) {
+	// 	// stars are already built
+	// 	if (centerPos.distanceTo(this.starSnapshotTakenAt) < this.starSnapshotThreshold)
+	// 		return;
+	// 	// waiting until time runs out
+	// 	if (this.immediateStarsTimerTicks > 0)
+	// 		return;
+
+	// 	this.sectorTicket.attachedManager.forceLoad(this.sectorTicket);
+	// 	this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
+	// 		final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
+	// 		sector.initialElements.forEach(elem -> {
+	// 			if (elem.pos().distanceTo(centerPos) > levelSize)
+	// 				return;
+	// 			final var toStar = elem.pos().sub(centerPos);
+	// 			batcher.add(elem.info().primaryStar, elem.pos());
+	// 		});
+	// 	});
+	// }
+
+	private void drawStarsImmediate(CachedCamera<?> camera, Galaxy galaxy) {
 		final var builder = BufferRenderer.immediateBuilder();
 		final var batcher = new BillboardBatcher(builder, 10000);
 
 		final var camPos = camera.pos.mul(camera.metersPerUnit / 1e12);
-
-		if (this.sectorTicket.info == null)
-			this.sectorTicket.info = SectorTicketInfo.visual(camPos);
-		this.sectorTicket.info.centerPos = camPos;
-		this.sectorTicket.info.multiplicitaveFactor = 2.0;
 
 		batcher.begin(camera);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
 			final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
 			// if (!camera.isAabbInFrustum(min, max))
-			// 	return;
+			// return;
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
 			sector.initialElements.forEach(elem -> {
 				if (elem.pos().distanceTo(camPos) > levelSize)
@@ -321,12 +350,22 @@ public class SkyRenderer {
 				final var toStar = elem.pos().sub(camPos);
 				if (toStar.dot(camera.forward) >= 0)
 					return;
-				// if (elem.info().primaryStar.luminosityLsol < 1)
-				// return;
 				batcher.add(elem.info().primaryStar, elem.pos());
+				// RenderHelper.addBillboard(builder, this.camera, elem.info().primaryStar, elem.pos());
 			});
 		});
 		batcher.end();
+	}
+
+	private void drawStars(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
+		final var camPos = camera.pos.mul(camera.metersPerUnit / 1e12);
+
+		if (this.sectorTicket.info == null)
+			this.sectorTicket.info = SectorTicketInfo.visual(camPos);
+		this.sectorTicket.info.centerPos = camPos;
+		this.sectorTicket.info.multiplicitaveFactor = 2.0;
+
+		drawStarsImmediate(camera, galaxy);
 	}
 
 	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {

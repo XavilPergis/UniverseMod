@@ -58,7 +58,7 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 	@Inject(method = "tickChildren", at = @At("TAIL"))
 	private void onTick(BooleanSupplier hasTimeLeft, CallbackInfo info) {
 		if (this.universe != null)
-			this.universe.tick(this.profiler, true);
+			this.universe.tick(this.profiler, false);
 	}
 
 	@Inject(method = "createLevels", at = @At("HEAD"))

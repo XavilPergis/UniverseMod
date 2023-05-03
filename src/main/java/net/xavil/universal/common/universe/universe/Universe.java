@@ -76,11 +76,12 @@ public abstract class Universe implements Disposable {
 		return this.spaceStations.values().find(station -> station.name.equals(name));
 	}
 
-	public void tick(ProfilerFiller profiler, boolean tickTime) {
-		if (tickTime)
+	public void tick(ProfilerFiller profiler, boolean isPaused) {
+		if (!isPaused) {
 			this.celestialTimeTicks += 1;
+			this.spaceStations.values().forEach(station -> station.tick());
+		}
 		this.sectorManager.tick(profiler);
-		this.spaceStations.values().forEach(station -> station.tick());
 	}
 
 	public final double getCelestialTime() {

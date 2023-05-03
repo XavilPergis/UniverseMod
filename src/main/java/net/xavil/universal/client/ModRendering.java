@@ -39,6 +39,8 @@ public final class ModRendering {
 			VertexFormatElement.Usage.UV, 2);
 	public static final VertexFormatElement ELEMENT_NORMAL = new VertexFormatElement(0, VertexFormatElement.Type.FLOAT,
 			VertexFormatElement.Usage.NORMAL, 3);
+	public static final VertexFormatElement ELEMENT_BILLBOARD_ID = new VertexFormatElement(0, VertexFormatElement.Type.FLOAT,
+			VertexFormatElement.Usage.UV, 2);
 
 	public static final VertexFormat PLANET_VERTEX_FORMAT = new VertexFormat(
 			ImmutableMap.<String, VertexFormatElement>builder()
@@ -47,6 +49,13 @@ public final class ModRendering {
 					// .put("UV1", ELEMENT_UV1) // normal map
 					.put("Color", DefaultVertexFormat.ELEMENT_COLOR)
 					.put("Normal", ELEMENT_NORMAL)
+					.build());
+
+	public static final VertexFormat BILLBOARD_FORMAT = new VertexFormat(
+			ImmutableMap.<String, VertexFormatElement>builder()
+					.put("Position", DefaultVertexFormat.ELEMENT_POSITION)
+					.put("Color", DefaultVertexFormat.ELEMENT_COLOR)
+					.put("Id", ELEMENT_BILLBOARD_ID)
 					.build());
 
 	public static ShaderInstance getShader(String id) {

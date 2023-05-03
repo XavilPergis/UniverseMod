@@ -97,7 +97,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	private double generateAvailableMass(Rng rng) {
 		// maybe some sort of unbounded distribution would work best here. like maybe
 		// find a way to use an IMF
-		var t = Math.pow(rng.uniformDouble(), 20);
+		var t = Math.pow(rng.uniformDouble(), 3);
 		var massYg = Mth.lerp(t, Units.Yg_PER_Msol * 0.1, Units.Yg_PER_Msol * 200.0);
 		return massYg;
 	}

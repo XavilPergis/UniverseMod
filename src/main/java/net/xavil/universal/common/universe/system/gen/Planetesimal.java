@@ -248,6 +248,9 @@ public class Planetesimal {
 	}
 
 	public void convertToPlanetNode(CelestialNode parent) {
+		if (this.mass < 3.0 * this.ctx.params.initialPlanetesimalMass)
+			return;
+
 		var type = canSweepGas() ? PlanetaryCelestialNode.Type.GAS_GIANT : PlanetaryCelestialNode.Type.ROCKY_WORLD;
 		var radiusRearth = this.getRadius() * Units.KILO / Units.m_PER_Rearth;
 		var node = new PlanetaryCelestialNode(type, this.mass * Units.Yg_PER_Msol, radiusRearth, 300);
@@ -258,7 +261,8 @@ public class Planetesimal {
 			// Mod.LOGGER.info("RING!!!");
 			var intervalTm = new Interval(ring.interval.lower() * Units.Tm_PER_au,
 					ring.interval.higher() * Units.Tm_PER_au);
-			node.addRing(new CelestialRing(OrbitalPlane.ZERO, ring.eccentricity, intervalTm, ring.mass * Units.Yg_PER_Msol));
+			node.addRing(
+					new CelestialRing(OrbitalPlane.ZERO, ring.eccentricity, intervalTm, ring.mass * Units.Yg_PER_Msol));
 		}
 
 		var shape = new OrbitalShape(this.orbitalShape.eccentricity(), this.orbitalShape.semiMajor() * Units.Tm_PER_au);

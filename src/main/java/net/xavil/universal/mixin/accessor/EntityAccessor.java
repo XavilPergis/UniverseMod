@@ -1,11 +1,13 @@
 package net.xavil.universal.mixin.accessor;
 
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.level.Level;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.universe.Universe;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.util.Option;
 import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
 
 public interface EntityAccessor {
 
@@ -19,6 +21,22 @@ public interface EntityAccessor {
 
 	static int getStation(Entity entity) {
 		return ((LevelAccessor) entity.level).universal_getLocation() instanceof Location.Station loc ? loc.id : -1;
+	}
+
+	static Option<Vec3> getGravityAt(Level level, Vec3Access pos) {
+		final var location = ((LevelAccessor) level).universal_getLocation();
+		final var universe = ((LevelAccessor) level).universal_getUniverse();
+		if (universe != null && location != null) {
+			if (location instanceof Location.World loc) {
+				final var node = universe.getSystemNode(loc.id).unwrapOrNull();
+				if (node instanceof PlanetaryCelestialNode planetNode) {
+					return Option.some(Vec3.from(0, -planetNode.surfaceGravityEarthRelative(), 0));
+				}
+			} else if (location instanceof Location.Station loc) {
+				return universe.getStation(loc.id).map(st -> st.getGavityAt(pos));
+			}
+		}
+		return Option.none();
 	}
 
 	static Option<Vec3> getEntityGravity(Entity entity) {

@@ -9,6 +9,7 @@ import net.minecraft.client.Minecraft;
 import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
+import net.xavil.universal.client.flexible.FlexibleVertexMode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.Vec3;
@@ -28,18 +29,21 @@ public final class BillboardBatcher {
 	}
 
 	public void begin(CachedCamera<?> camera) {
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
+		// builder.begin(VertexFormat.Mode.QUADS, ModRendering.BILLBOARD_FORMAT);
+		// builder.begin(FlexibleVertexMode.POINTS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		this.camera = camera;
 	}
 
 	public void end() {
 		builder.end();
 
-		this.client.getTextureManager().getTexture(RenderHelper.STAR_ICON_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, RenderHelper.STAR_ICON_LOCATION);
+		this.client.getTextureManager().getTexture(RenderHelper.GALAXY_GLOW_LOCATION).setFilter(true, false);
+		RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
-		RenderSystem.disableDepthTest();
+		RenderSystem.enableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
 		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));

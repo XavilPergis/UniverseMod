@@ -10,6 +10,7 @@ import net.xavil.universal.client.ModRendering;
 import net.xavil.universal.client.camera.CameraConfig;
 import net.xavil.universal.client.camera.OrbitCamera;
 import net.xavil.universal.client.flexible.BufferRenderer;
+import net.xavil.universal.client.flexible.FlexibleVertexMode;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.client.screen.Universal3dScreen;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -33,7 +34,7 @@ public class ScreenLayerGalaxy extends Universal3dScreen.Layer3d {
 		final var builder = BufferRenderer.immediateBuilder();
 
 		this.galaxyRenderingContext.build();
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
 			RenderHelper.addBillboard(builder, camera, new TransformStack(),
 					pos.sub(this.originOffset),

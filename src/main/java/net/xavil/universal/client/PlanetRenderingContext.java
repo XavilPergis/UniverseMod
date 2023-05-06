@@ -115,14 +115,99 @@ public final class PlanetRenderingContext {
 
 	public void renderStar(FlexibleBufferBuilder builder, CachedCamera<?> camera, StellarCelestialNode node,
 			TransformStack tfm, Color tintColor, boolean skip) {
-		RenderSystem.depthMask(true);
+		// RenderSystem.depthMask(true);
+		// RenderSystem.enableDepthTest();
+		// RenderSystem.disableCull();
+		// RenderSystem.enableBlend();
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+
+		// // TODO: tint
+		// RenderHelper.renderStarBillboard(builder, camera, tfm, node);
+
+
+		var radiusM = Units.m_PER_Rsol * node.radiusRsol;
+		// var radiusM = 200 * Units.METERS_PER_REARTH * node.radiusRearth;
+		// final var metersPerUnit = 1 / unitsPerMeter;
+
+		final var partialTick = this.client.getFrameTime();
+
+		var nodePosUnits = node.getPosition(partialTick).mul(1e12 / camera.metersPerUnit)
+				.add(this.origin.mul(1e12 / camera.metersPerUnit));
+
+		var distanceFromCamera = camera.pos.mul(1e12 / camera.metersPerUnit).distanceTo(nodePosUnits);
+		var distanceRatio = radiusM / (distanceFromCamera * camera.metersPerUnit);
+
+		// if (distanceRatio < 0.0001)
+		// 	return;
+
+		tfm.push();
+		// var rotationalSpeed = -2.0 * Math.PI / node.rotationalPeriod;
+		// tfm.prependRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+		// tfm.prependRotation(Quat.axisAngle(Vec3.YP, rotationalSpeed * this.celestialTime));
+
+		// setupShaderCommon(camera, tfm, nodePosUnits, ModRendering.getShader(ModRendering.PLANET_SHADER));
+		// setupShaderCommon(camera, tfm, nodePosUnits, ModRendering.getShader(ModRendering.RING_SHADER));
+		// setupPlanetShader(node, ModRendering.getShader(ModRendering.PLANET_SHADER));
+
+		RenderSystem.defaultBlendFunc();
+		RenderSystem.disableCull();
 		RenderSystem.enableDepthTest();
+		RenderSystem.depthMask(true);
+
+		if (!skip) {
+			// var baseTexture = getBaseLayer(node);
+			// Minecraft.getInstance().getTextureManager().getTexture(baseTexture).setFilter(false, false);
+
+			var radiusUnits = radiusM / camera.metersPerUnit;
+			// var radiusUnits = 1000 * 1000;
+			// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
+			// renderPlanetLayer(builder, camera, baseTexture, tfm, nodePosUnits,
+			// radiusUnits, tintColor);
+			// if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
+			// }
+			builder.begin(VertexFormat.Mode.QUADS, ModRendering.PLANET_VERTEX_FORMAT);
+			addNormSphere(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits, tintColor);
+			builder.end();
+			Minecraft.getInstance().getTextureManager().getTexture(BASE_ROCKY_LOCATION).setFilter(true, false);
+			RenderSystem.setShaderTexture(0, BASE_ROCKY_LOCATION);
+			RenderSystem.disableCull();
+			final var shader = ModRendering.getShader(ModRendering.STAR_SHADER);
+			final var c = node.getColor();
+			shader.safeGetUniform("StarColor").set((float) c.r(), (float) c.g(), (float) c.b());
+			builder.draw(shader);
+	
+			// renderPlanetLayer(builder, camera, BASE_ROCKY_LOCATION, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits,
+			// 		tintColor);
+		}
+
+		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+		// for (var ring : node.rings()) {
+		// 	tfm.push();
+		// 	tfm.prependRotation(ring.orbitalPlane.rotationFromReference());
+		// 	addRing(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), ring.interval.lower(), ring.interval.higher(), tintColor);
+		// 	tfm.pop();
+		// }
+		// builder.end();
+		// RenderSystem.setShaderTexture(0, BASE_ROCKY_LOCATION);
+		// RenderSystem.enableCull();
+		// builder.draw(ModRendering.getShader(ModRendering.RING_SHADER));
+
+		tfm.pop();
+
+		// if (distanceRatio < 0.00) {
+		// }
+		RenderSystem.depthMask(true);
+		RenderSystem.disableDepthTest();
 		RenderSystem.disableCull();
 		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
 		// TODO: tint
+		tfm.push();
+		tfm.prependTranslation(this.origin);
 		RenderHelper.renderStarBillboard(builder, camera, tfm, node);
+		tfm.pop();
+
 		this.renderedStarCount += 1;
 	}
 

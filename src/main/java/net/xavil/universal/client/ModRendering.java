@@ -31,6 +31,7 @@ public final class ModRendering {
 	public static final String STAR_BILLBOARD_SHADER = "universal_star_billboard";
 	public static final String STAR_SHADER = "universal_star";
 	public static final String GALAXY_PARTICLE_SHADER = "universal_galaxy_particle";
+	public static final String SKYBOX_SHADER = "universal_skybox";
 
 	public static final String COMPOSITE_SKY_CHAIN = "shaders/post/universal_composite_sky.json";
 
@@ -39,7 +40,7 @@ public final class ModRendering {
 			VertexFormatElement.Usage.UV, 2);
 	public static final VertexFormatElement ELEMENT_NORMAL = new VertexFormatElement(0, VertexFormatElement.Type.FLOAT,
 			VertexFormatElement.Usage.NORMAL, 3);
-	public static final VertexFormatElement ELEMENT_BILLBOARD_ID = new VertexFormatElement(0, VertexFormatElement.Type.FLOAT,
+	public static final VertexFormatElement ELEMENT_BILLBOARD_SIZE_INFO = new VertexFormatElement(0, VertexFormatElement.Type.FLOAT,
 			VertexFormatElement.Usage.UV, 2);
 
 	public static final VertexFormat PLANET_VERTEX_FORMAT = new VertexFormat(
@@ -55,7 +56,7 @@ public final class ModRendering {
 			ImmutableMap.<String, VertexFormatElement>builder()
 					.put("Position", DefaultVertexFormat.ELEMENT_POSITION)
 					.put("Color", DefaultVertexFormat.ELEMENT_COLOR)
-					.put("Id", ELEMENT_BILLBOARD_ID)
+					.put("SizeInfo", ELEMENT_BILLBOARD_SIZE_INFO)
 					.build());
 
 	public static ShaderInstance getShader(String id) {

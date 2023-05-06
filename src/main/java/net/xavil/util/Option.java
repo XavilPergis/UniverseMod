@@ -28,7 +28,7 @@ public abstract sealed class Option<T> implements IntoIterator<T>, Hashable {
 		return new Option.Some<>(value);
 	}
 
-	public static <T> Option<@Nonnull T> fromNullable(@Nullable T value) {
+	public static <T> Option<T> fromNullable(@Nullable T value) {
 		return value == null ? none() : new Option.Some<>(value);
 	}
 

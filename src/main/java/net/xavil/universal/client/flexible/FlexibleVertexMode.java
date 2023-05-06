@@ -59,7 +59,7 @@ public enum FlexibleVertexMode {
 	public int indexCount(int vertices) {
 		return switch (this) {
 			case LINE_STRIP, DEBUG_LINES, DEBUG_LINE_STRIP, TRIANGLES, TRIANGLE_STRIP, TRIANGLE_FAN -> vertices;
-			case LINES, QUADS -> vertices / 4 * 6;
+			case LINES, QUADS, POINTS -> vertices / 4 * 6;
 			default -> 0;
 		};
 	}

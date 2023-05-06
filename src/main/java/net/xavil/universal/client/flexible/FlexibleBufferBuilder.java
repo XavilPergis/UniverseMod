@@ -47,30 +47,30 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 	private static final float   UINT_MAX = 2f * (float) Integer.MAX_VALUE;
 	// @formatter:on
 
-	private static ElementConsumer writerForType(VertexFormatElement elem, ByteBuffer buf, int elementOffset) {
+	private static ElementConsumer writerForType(VertexFormatElement elem, ByteBuffer buf) {
 		final var normalized = switch (elem.getUsage()) {
 			case NORMAL, COLOR, UV -> true;
 			default -> false;
 		};
 		// @formatter:off
 		if (!normalized) return switch (elem.getType()) {
-			case BYTE   -> (off, n) -> buf.put     (off + elementOffset,  (byte) n);
-			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset,  (byte) n);
-			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, (short) n);
-			case USHORT -> (off, n) -> buf.putShort(off + elementOffset, (short) n);
-			case INT    -> (off, n) -> buf.putInt  (off + elementOffset,   (int) n);
-			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset,   (int) n);
-			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset,         n);
+			case BYTE   -> (off, n) -> buf.put     (off,  (byte) n);
+			case UBYTE  -> (off, n) -> buf.put     (off,  (byte) n);
+			case SHORT  -> (off, n) -> buf.putShort(off, (short) n);
+			case USHORT -> (off, n) -> buf.putShort(off, (short) n);
+			case INT    -> (off, n) -> buf.putInt  (off,   (int) n);
+			case UINT   -> (off, n) -> buf.putInt  (off,   (int) n);
+			case FLOAT  -> (off, n) -> buf.putFloat(off,         n);
 			default     -> (k, n) -> {};
 		};
 		return switch (elem.getType()) {
-			case BYTE   -> (off, n) -> buf.put     (off + elementOffset,  (byte) (n *   BYTE_MAX));
-			case UBYTE  -> (off, n) -> buf.put     (off + elementOffset,  (byte) (n *  UBYTE_MAX));
-			case SHORT  -> (off, n) -> buf.putShort(off + elementOffset, (short) (n *  SHORT_MAX));
-			case USHORT -> (off, n) -> buf.putShort(off + elementOffset, (short) (n * USHORT_MAX));
-			case INT    -> (off, n) -> buf.putInt  (off + elementOffset,   (int) (n *    INT_MAX));
-			case UINT   -> (off, n) -> buf.putInt  (off + elementOffset,   (int) (n *   UINT_MAX));
-			case FLOAT  -> (off, n) -> buf.putFloat(off + elementOffset,         (n             ));
+			case BYTE   -> (off, n) -> buf.put     (off,  (byte) (n *   BYTE_MAX));
+			case UBYTE  -> (off, n) -> buf.put     (off,  (byte) (n *  UBYTE_MAX));
+			case SHORT  -> (off, n) -> buf.putShort(off, (short) (n *  SHORT_MAX));
+			case USHORT -> (off, n) -> buf.putShort(off, (short) (n * USHORT_MAX));
+			case INT    -> (off, n) -> buf.putInt  (off,   (int) (n *    INT_MAX));
+			case UINT   -> (off, n) -> buf.putInt  (off,   (int) (n *   UINT_MAX));
+			case FLOAT  -> (off, n) -> buf.putFloat(off,         (n             ));
 			default     -> (k, n) -> {};
 		};
 		// @formatter:on
@@ -83,18 +83,20 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 	private static class ElementHolder {
 		public final ElementConsumer consumer;
 		public final VertexFormatElement element;
+		public final int elementOffset;
 		public float c0, c1, c2, c3;
 		public final int c0o, c1o, c2o, c3o;
 
-		public ElementHolder(ElementConsumer consumer, VertexFormatElement element) {
+		public ElementHolder(ElementConsumer consumer, VertexFormatElement element, int elementOffset) {
 			this.consumer = consumer;
 			this.element = element;
+			this.elementOffset = elementOffset;
 
 			final var elementSize = element.getType().getSize();
-			this.c0o = 0 * elementSize;
-			this.c1o = 1 * elementSize;
-			this.c2o = 2 * elementSize;
-			this.c3o = 3 * elementSize;
+			this.c0o = (0 * elementSize) + elementOffset;
+			this.c1o = (1 * elementSize) + elementOffset;
+			this.c2o = (2 * elementSize) + elementOffset;
+			this.c3o = (3 * elementSize) + elementOffset;
 		}
 
 		public void emit(int vertexBase) {
@@ -140,25 +142,30 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 			// @formatter:on
 		}
 
+		public void resetHolders() {
+			this.activeHolders = null;
+			this.positionHolder = this.colorHolder = this.normalHolder = this.uv0Holder = this.uv1Holder = this.uv2Holder = null;
+		}
+
 		public void setup(VertexFormat format, ByteBuffer buf) {
+			resetHolders();
 			final var holdersList = new ArrayList<ElementHolder>();
 			int elementOffset = 0;
 			for (final var element : format.getElements()) {
-				final var writer = writerForType(element, buf, elementOffset);
-				elementOffset += element.getByteSize();
+				final var writer = writerForType(element, buf);
 				if (element.getUsage() != VertexFormatElement.Usage.PADDING) {
-					final var holder = new ElementHolder(writer, element);
+					final var holder = new ElementHolder(writer, element, elementOffset);
 					holdersList.add(holder);
 					addHolder(element, holder);
 				}
+				elementOffset += element.getByteSize();
 			}
 			this.activeHolders = holdersList.toArray(ElementHolder[]::new);
 		}
 
 		public void emit(int vertexBase) {
-			for (final var holder : this.activeHolders) {
+			for (final var holder : this.activeHolders)
 				holder.emit(vertexBase);
-			}
 		}
 	}
 

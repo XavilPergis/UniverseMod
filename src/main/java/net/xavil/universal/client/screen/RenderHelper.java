@@ -16,6 +16,7 @@ import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.camera.OrbitCamera;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
+import net.xavil.universal.client.flexible.FlexibleVertexMode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
@@ -47,7 +48,8 @@ public final class RenderHelper {
 
 	public static void renderStarBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, TransformStack tfm,
 			CelestialNode node) {
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
 		addBillboard(builder, camera, tfm, node);
 		builder.end();
 		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
@@ -55,7 +57,7 @@ public final class RenderHelper {
 		RenderSystem.enableBlend();
 		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
+		RenderSystem.disableDepthTest();
 		RenderSystem.disableCull();
 		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
 	}
@@ -80,7 +82,7 @@ public final class RenderHelper {
 		// correct size. if the billboard texture were a circle with a diameter of the
 		// size of the image, then this would be 1. if the diameter were 1/2 the size,
 		// then this would be 2.
-		final double billboardFactor = 18.0;
+		final double billboardFactor = 9.0;
 
 		double radius = 0;
 		if (node instanceof StellarCelestialNode starNode) {
@@ -106,7 +108,7 @@ public final class RenderHelper {
 			if (apparentBrightness > brightnessThreshold && angularRadius > idealAngularRadius) {
 				angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.1);
 				angularRadius = Math.min(angularRadius, Math.toRadians(0.1));
-			} else {
+			} else if (angularRadius > idealAngularRadius) {
 				k *= Math.pow(apparentBrightness / brightnessThreshold, 0.08);
 			}
 		}
@@ -216,10 +218,7 @@ public final class RenderHelper {
 
 		var color = Color.WHITE;
 		if (node instanceof StellarCelestialNode starNode) {
-			final var d2 = camera.pos.distanceToSquared(pos);
-			final var m = Math.min(1.0, 1e12 * starNode.luminosityLsol / d2);
-			color = starNode.getColor().withA(m);
-			// color = starNode.getColor();
+			color = starNode.getColor();
 		}
 
 		RenderHelper.addBillboardWorldspace(builder, camera.pos, camera.up, camera.left, pos, d, color);
@@ -309,46 +308,56 @@ public final class RenderHelper {
 		final var p = tfm.get();
 		final var n = new Vec3.Mutable(0, 0, 0);
 
-		n.load(Vec3.ZERO).addAssign(right).subAssign(up);
-		n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		n.load(Vec3.ZERO).addAssign(center).subAssign(camPos);
 		Mat4.transform(n, 1, p);
-		builder.vertex(n).color(color).uv0(1, 0).endVertex();
+		builder.vertex(n).color(color).uv0((float) scale, 0).endVertex();
 
-		n.load(Vec3.ZERO).subAssign(right).subAssign(up);
-		n.mulAssign(scale).addAssign(center).subAssign(camPos);
-		Mat4.transform(n, 1, p);
-		builder.vertex(n).color(color).uv0(0, 0).endVertex();
+		// n.load(Vec3.ZERO).addAssign(right).subAssign(up);
+		// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		// Mat4.transform(n, 1, p);
+		// builder.vertex(n).color(color).uv0(1, 0).endVertex();
 
-		n.load(Vec3.ZERO).subAssign(right).addAssign(up);
-		n.mulAssign(scale).addAssign(center).subAssign(camPos);
-		Mat4.transform(n, 1, p);
-		builder.vertex(n).color(color).uv0(0, 1).endVertex();
+		// n.load(Vec3.ZERO).subAssign(right).subAssign(up);
+		// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		// Mat4.transform(n, 1, p);
+		// builder.vertex(n).color(color).uv0(0, 0).endVertex();
 
-		n.load(Vec3.ZERO).addAssign(right).addAssign(up);
-		n.mulAssign(scale).addAssign(center).subAssign(camPos);
-		Mat4.transform(n, 1, p);
-		builder.vertex(n).color(color).uv0(1, 1).endVertex();
+		// n.load(Vec3.ZERO).subAssign(right).addAssign(up);
+		// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		// Mat4.transform(n, 1, p);
+		// builder.vertex(n).color(color).uv0(0, 1).endVertex();
+
+		// n.load(Vec3.ZERO).addAssign(right).addAssign(up);
+		// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		// Mat4.transform(n, 1, p);
+		// builder.vertex(n).color(color).uv0(1, 1).endVertex();
 	}
 
 	public static void addBillboardWorldspace(FlexibleVertexConsumer builder, Vec3Access camPos, Vec3Access up,
 			Vec3Access right, Vec3Access center, double scale, Color color) {
 		final var n = new Vec3.Mutable(0, 0, 0);
 
-		n.load(Vec3.ZERO).addAssign(right).subAssign(up);
-		n.mulAssign(scale).addAssign(center).subAssign(camPos);
-		builder.vertex(n).color(color).uv0(1, 0).endVertex();
+		n.load(Vec3.ZERO).addAssign(center).subAssign(camPos);
+		builder.vertex(n).color(color).uv0((float) scale, 0).endVertex();
+		// builder.vertex(n).color(color).uv0(1, 0).endVertex();
+		// builder.vertex(n).color(color).uv0(1, 0).endVertex();
+		// builder.vertex(n).color(color).uv0(1, 0).endVertex();
 
-		n.load(Vec3.ZERO).subAssign(right).subAssign(up);
-		n.mulAssign(scale).addAssign(center).subAssign(camPos);
-		builder.vertex(n).color(color).uv0(0, 0).endVertex();
+		// n.load(Vec3.ZERO).addAssign(right).subAssign(up);
+		// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		// builder.vertex(n).color(color).uv0(1, 0).endVertex();
 
-		n.load(Vec3.ZERO).subAssign(right).addAssign(up);
-		n.mulAssign(scale).addAssign(center).subAssign(camPos);
-		builder.vertex(n).color(color).uv0(0, 1).endVertex();
+		// n.load(Vec3.ZERO).subAssign(right).subAssign(up);
+		// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		// builder.vertex(n).color(color).uv0(0, 0).endVertex();
 
-		n.load(Vec3.ZERO).addAssign(right).addAssign(up);
-		n.mulAssign(scale).addAssign(center).subAssign(camPos);
-		builder.vertex(n).color(color).uv0(1, 1).endVertex();
+		// n.load(Vec3.ZERO).subAssign(right).addAssign(up);
+		// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		// builder.vertex(n).color(color).uv0(0, 1).endVertex();
+
+		// n.load(Vec3.ZERO).addAssign(right).addAssign(up);
+		// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+		// builder.vertex(n).color(color).uv0(1, 1).endVertex();
 	}
 
 	public static void addBillboardWorldspaceFacing(FlexibleVertexConsumer builder,

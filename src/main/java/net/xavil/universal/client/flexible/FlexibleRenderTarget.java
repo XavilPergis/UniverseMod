@@ -56,7 +56,7 @@ public class FlexibleRenderTarget extends RenderTarget {
 
 		if (this.useDepth) {
 			this.depthBufferId = TextureUtil.generateTextureId();
-			bindTexture(target, this.depthBufferId);
+			Texture2d.bindTexture(target, this.depthBufferId);
 			
 			final var depthFormat = this.format.depthFormat.getAsInt();
 			if (this.format.multisample) {
@@ -74,7 +74,7 @@ public class FlexibleRenderTarget extends RenderTarget {
 		}
 
 		this.filterMode = GL32.GL_NEAREST;
-		bindTexture(target, this.colorTextureId);
+		Texture2d.bindTexture(target, this.colorTextureId);
 		if (this.format.multisample) {
 			Mod.LOGGER.debug("created multisampled framebuffer");
 			GL32.glTexImage2DMultisample(target, 4, this.format.colorFormat0, this.width, this.height,
@@ -116,21 +116,13 @@ public class FlexibleRenderTarget extends RenderTarget {
 	@Override
 	public void bindRead() {
 		RenderSystem.assertOnRenderThread();
-		bindTexture(this.format.textureTarget(), this.colorTextureId);
+		Texture2d.bindTexture(this.format.textureTarget(), this.colorTextureId);
 	}
 
 	@Override
 	public void unbindRead() {
 		RenderSystem.assertOnRenderThreadOrInit();
-		bindTexture(this.format.textureTarget(), 0);
-	}
-
-	public static void bindTexture(int target, int id) {
-		RenderSystem.assertOnRenderThreadOrInit();
-		if (id != GlStateManager.TEXTURES[GlStateManager.activeTexture].binding) {
-			GlStateManager.TEXTURES[GlStateManager.activeTexture].binding = id;
-			GL32.glBindTexture(target, id);
-		}
+		Texture2d.bindTexture(this.format.textureTarget(), 0);
 	}
 
 }

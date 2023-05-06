@@ -11,6 +11,7 @@ import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
+import net.xavil.universal.client.camera.CachedCamera;
 
 public final class BufferRenderer {
 
@@ -42,6 +43,11 @@ public final class BufferRenderer {
 
 	public static void setupDefaultShaderUniforms(ShaderInstance shader) {
 		setupDefaultShaderUniforms(shader, RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix());
+	}
+
+	public static void setupCameraUniforms(ShaderInstance shader, CachedCamera<?> camera) {
+		shader.safeGetUniform("MetersPerUnit").set((float) camera.metersPerUnit);
+		shader.safeGetUniform("CameraPos").set((float) camera.pos.x, (float) camera.pos.y, (float) camera.pos.z);
 	}
 
 	public static void setupDefaultShaderUniforms(ShaderInstance shader,

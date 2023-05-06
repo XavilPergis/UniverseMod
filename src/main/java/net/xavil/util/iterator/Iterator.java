@@ -473,7 +473,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 	}
 
-	default <U> Iterator<U> flatMap(Function<? super T, @Nonnull ? extends IntoIterator<? extends U>> mapper) {
+	default <U> Iterator<U> flatMap(Function<? super T, ? extends IntoIterator<? extends U>> mapper) {
 		return new FlatMap<>(this, mapper);
 	}
 
@@ -483,7 +483,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 
 		private Iterator<? extends U> current;
 
-		public FlatMap(Iterator<T> source, Function<? super T, @Nonnull ? extends IntoIterator<? extends U>> mapper) {
+		public FlatMap(Iterator<T> source, Function<? super T, ? extends IntoIterator<? extends U>> mapper) {
 			this.source = source;
 			this.mapper = mapper;
 		}

@@ -9,6 +9,7 @@ import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
 
 public final class SpaceStation {
 
@@ -48,7 +49,7 @@ public final class SpaceStation {
 		this.jumpInfo = info;
 	}
 
-	public Vec3 getGavityAt(Vec3 pos) {
+	public Vec3 getGavityAt(Vec3Access pos) {
 		return Vec3.YN.mul(0.05);
 	}
 

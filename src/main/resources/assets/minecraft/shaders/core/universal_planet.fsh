@@ -38,12 +38,12 @@ vec3 contribution(vec4 color, vec4 pos) {
 		float starDistanceMeters = distance(vertexPos.xyz, starPos) * MetersPerUnit;
 		float fragDistanceMeters = length(vertexPos.xyz) * MetersPerUnit;
 
-		// float receivedIntensity = (color.a * 3.827e26) / (4 * PI * pow(starDistanceMeters, 2.0));
-		float receivedIntensity = (color.a * 3.827e13) / (4 * PI * pow(starDistanceMeters, 1.0));
+		float receivedIntensity = (color.a * 3.827e26) / (4 * PI * pow(starDistanceMeters, 2.0));
+		// float receivedIntensity = (color.a * 3.827e13) / (4 * PI * pow(starDistanceMeters, 1.0));
 		receivedIntensity *= max(0.0, dot(toStar, normal.xyz));
 		// float reflectedIntensity = receivedIntensity / (4 * PI * pow(fragDistanceMeters, 2.0));
 
-		return 0.1 * color.rgb * receivedIntensity;
+		return max(0.1 * (color.rgb + 0.1) * receivedIntensity, 0.05 * (color.rgb + 0.1));
 	}
 	return vec3(0);
 }
@@ -200,6 +200,7 @@ void main() {
 	res += contribution(LightColor2, LightPos2);
 	res += contribution(LightColor3, LightPos3);
 	vec3 finalColor = res * baseColor.rgb;
+	finalColor = finalColor / (1.0 + finalColor);
 
 	// finalColor = acesTonemap(finalColor);
 

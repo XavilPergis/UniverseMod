@@ -11,8 +11,6 @@ import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexBuffer;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Camera;
@@ -20,9 +18,11 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.xavil.universal.client.camera.CachedCamera;
 import net.xavil.universal.client.flexible.BufferRenderer;
+import net.xavil.universal.client.flexible.CubemapTexture;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
 import net.xavil.universal.client.flexible.FlexibleVertexBuffer;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
+import net.xavil.universal.client.flexible.FlexibleVertexMode;
 import net.xavil.universal.client.screen.BillboardBatcher;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.Location;
@@ -48,6 +48,7 @@ import net.xavil.util.Units;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Quat;
 import net.xavil.util.math.TransformStack;
+import net.xavil.util.math.matrices.Mat4;
 import net.xavil.util.math.matrices.Vec2;
 import net.xavil.util.math.matrices.Vec3;
 
@@ -70,9 +71,16 @@ public class SkyRenderer {
 	private GalaxyTicket galaxyTicket = null;
 
 	private FlexibleVertexBuffer starsBuffer = new FlexibleVertexBuffer();
-	private Vec3 starSnapshotTakenAt = null;
+	private Vec3 starSnapshotOrigin = null;
 	private double starSnapshotThreshold = 10;
-	private double immediateStarsTimerTicks = 0;
+	private double immediateStarsTimerTicks = -1;
+
+	private CubemapTexture galaxyCubemap = new CubemapTexture();
+	private boolean shouldRenderGalaxyToCubemap = true;
+
+	private SkyRenderer() {
+		this.galaxyCubemap.createStorage(GL32.GL_RGBA32F, 1024);
+	}
 
 	public void tick() {
 		if (this.immediateStarsTimerTicks > 0) {
@@ -138,7 +146,13 @@ public class SkyRenderer {
 		final var invView = tfm.get();
 		tfm.pop();
 		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
-				0.000000001f, 1e5f, false, partialTick);
+				0.00000000001f, 1e5f, false, partialTick);
+		return new CachedCamera<>(camera, invView, proj, 1e12);
+	}
+
+	private CachedCamera<?> createCubemapCamera(Object camera, TransformStack tfm, float partialTick) {
+		final var invView = tfm.get();
+		final var proj = Mat4.perspectiveProjection(Math.PI, 1, 1e-5, 1e5);
 		return new CachedCamera<>(camera, invView, proj, 1e12);
 	}
 
@@ -166,7 +180,69 @@ public class SkyRenderer {
 		tfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
 
 		tfm.appendTranslation(node.getPosition(partialTick));
+	}
 
+	private void applyFaceDir(TransformStack tfm, Vec3 faceDir) {
+		if (faceDir == Vec3.ZN)
+			tfm.prependRotation(Quat.axisAngle(Vec3.YP, 0));
+		if (faceDir == Vec3.ZP)
+			tfm.prependRotation(Quat.axisAngle(Vec3.YP, Math.PI));
+		if (faceDir == Vec3.XN)
+			tfm.prependRotation(Quat.axisAngle(Vec3.YP, Math.PI / 2));
+		if (faceDir == Vec3.XP)
+			tfm.prependRotation(Quat.axisAngle(Vec3.YP, -Math.PI / 2));
+		if (faceDir == Vec3.YN)
+			tfm.prependRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2));
+		if (faceDir == Vec3.YP)
+			tfm.prependRotation(Quat.axisAngle(Vec3.XP, -Math.PI / 2));
+	}
+
+	private boolean applyGalaxyTranslation(TransformStack tfm, Location location, float partialTick) {
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		if (location instanceof Location.World loc) {
+			final var sys = universe.getSystem(loc.id.system()).unwrapOrNull();
+			if (sys == null)
+				return false;
+			final var node = sys.rootNode.lookup(loc.id.nodeId());
+			if (node == null)
+				return false;
+			tfm.appendTranslation(node.getPosition(partialTick));
+			tfm.appendTranslation(sys.pos);
+			return true;
+		} else if (location instanceof Location.Station loc) {
+			final var station = universe.getStation(loc.id).unwrapOrNull();
+			if (station == null)
+				return false;
+			final var p = station.getPos(partialTick);
+			tfm.appendTranslation(p);
+			return true;
+		}
+		return false;
+	}
+
+	private Option<CachedCamera<?>> createCubemapCamera(CachedCamera<?> srcCamera, Location location, Vec3 faceDir,
+			float partialTick) {
+		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		final var time = universe.getCelestialTime(partialTick);
+		final var tfm = new TransformStack();
+		if (location instanceof Location.World loc) {
+			return universe.getSystem(loc.id.system()).flatMap(sys -> {
+				final var node = sys.rootNode.lookup(loc.id.nodeId());
+				if (node == null)
+					return Option.none();
+				tfm.appendTranslation(node.getPosition(partialTick));
+				tfm.appendTranslation(sys.pos);
+				return Option.some(createCubemapCamera(srcCamera.camera, tfm, partialTick));
+			});
+		} else if (location instanceof Location.Station loc) {
+			return universe.getStation(loc.id).flatMap(station -> {
+				final var p = station.getPos(partialTick);
+				tfm.appendTranslation(p);
+				applyFaceDir(tfm, faceDir);
+				return Option.some(createCubemapCamera(srcCamera.camera, tfm, partialTick));
+			});
+		}
+		return Option.none();
 	}
 
 	private Option<CachedCamera<?>> createCamera(Camera camera, Location location, float partialTick) {
@@ -271,7 +347,8 @@ public class SkyRenderer {
 			final var snapshot = camera.setupRenderMatrices();
 			if (galaxy != null) {
 				profiler.push("galaxy");
-				drawGalaxy(camera, galaxy, partialTick);
+				drawGalaxyCubemap(camera, galaxy, partialTick);
+				// drawGalaxy(camera, galaxy, partialTick);
 				profiler.popPush("stars");
 				drawStars(camera, galaxy, partialTick);
 				profiler.popPush("system");
@@ -284,11 +361,98 @@ public class SkyRenderer {
 		this.previousLocation = location;
 	}
 
+	private void renderGalaxyToCubemap(Galaxy galaxy, float partialTick) {
+		final var builder = BufferRenderer.immediateBuilder();
+
+		final var tfm = new TransformStack();
+		final var location = EntityAccessor.getLocation(this.client.player);
+		applyGalaxyTranslation(tfm, location, partialTick);
+
+		this.galaxyCubemap.renderToCubemap(faceDir -> {
+			tfm.push();
+			applyFaceDir(tfm, faceDir);
+			final var camera = createCubemapCamera(null, tfm, partialTick);
+
+			RenderSystem.clearColor(1, 0, 1, 1);
+			RenderSystem.clear(GL32.GL_COLOR_BUFFER_BIT, false);
+
+			if (this.shouldRenderGalaxyToCubemap) return;
+
+			builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
+			this.galaxyRenderingContext.build();
+			this.galaxyRenderingContext.enumerate((pos, size) -> {
+				RenderHelper.addBillboard(builder, camera, new TransformStack(),
+						pos,
+						0.4 * size * (1e12 / camera.metersPerUnit),
+						Color.WHITE.withA(1.0));
+			});
+			builder.end();
+
+			this.client.getTextureManager().getTexture(RenderHelper.GALAXY_GLOW_LOCATION).setFilter(true, false);
+			RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
+			RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+			RenderSystem.depthMask(false);
+			RenderSystem.disableDepthTest();
+			RenderSystem.disableCull();
+			RenderSystem.enableBlend();
+			builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
+			tfm.pop();
+		});
+
+		this.shouldRenderGalaxyToCubemap = false;
+	}
+
+	private void drawGalaxyCubemap(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
+		if (this.shouldRenderGalaxyToCubemap)
+		renderGalaxyToCubemap(galaxy, partialTick);
+		final var builder = BufferRenderer.immediateBuilder();
+
+		builder.begin(FlexibleVertexMode.QUADS, DefaultVertexFormat.POSITION);
+		// -Y
+		builder.vertex(1, -1, 1).endVertex();
+		builder.vertex(-1, -1, 1).endVertex();
+		builder.vertex(-1, -1, -1).endVertex();
+		builder.vertex(1, -1, -1).endVertex();
+		// +Y
+		builder.vertex(-1, 1, -1).endVertex();
+		builder.vertex(1, 1, -1).endVertex();
+		builder.vertex(1, 1, 1).endVertex();
+		builder.vertex(-1, 1, 1).endVertex();
+		// -X
+		builder.vertex(-1, 1, 1).endVertex();
+		builder.vertex(-1, -1, 1).endVertex();
+		builder.vertex(-1, -1, -1).endVertex();
+		builder.vertex(-1, 1, -1).endVertex();
+		// +X
+		builder.vertex(1, -1, -1).endVertex();
+		builder.vertex(1, 1, -1).endVertex();
+		builder.vertex(1, 1, 1).endVertex();
+		builder.vertex(1, -1, 1).endVertex();
+		// -Z
+		builder.vertex(1, 1, -1).endVertex();
+		builder.vertex(-1, 1, -1).endVertex();
+		builder.vertex(-1, -1, -1).endVertex();
+		builder.vertex(1, -1, -1).endVertex();
+		// +Z
+		builder.vertex(-1, -1, 1).endVertex();
+		builder.vertex(1, -1, 1).endVertex();
+		builder.vertex(1, 1, 1).endVertex();
+		builder.vertex(-1, 1, 1).endVertex();
+		builder.end();
+
+		final var shader = ModRendering.getShader(ModRendering.SKYBOX_SHADER);
+		shader.setSampler("SkyboxSampler", this.galaxyCubemap);
+		RenderSystem.depthMask(false);
+		RenderSystem.disableDepthTest();
+		RenderSystem.disableCull();
+		builder.draw(shader);
+	}
+
 	private void drawGalaxy(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
 		final var builder = BufferRenderer.immediateBuilder();
 		final var rng = Rng.wrap(new Random(1337));
 
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
 
 		this.galaxyRenderingContext.build();
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
@@ -311,25 +475,35 @@ public class SkyRenderer {
 
 	}
 
-	// private void buildStarsIfNeeded(Vec3 centerPos, Galaxy galaxy) {
-	// 	// stars are already built
-	// 	if (centerPos.distanceTo(this.starSnapshotTakenAt) < this.starSnapshotThreshold)
-	// 		return;
-	// 	// waiting until time runs out
-	// 	if (this.immediateStarsTimerTicks > 0)
-	// 		return;
+	private void buildStarsIfNeeded(CachedCamera<?> camera, Galaxy galaxy) {
+		if (this.starSnapshotOrigin != null
+				&& camera.posTm.distanceTo(this.starSnapshotOrigin) < this.starSnapshotThreshold) {
+			this.immediateStarsTimerTicks = -1;
+			return;
+		}
+		if (this.immediateStarsTimerTicks == -1)
+			this.immediateStarsTimerTicks = 20;
+		if (this.immediateStarsTimerTicks > 0)
+			return;
 
-	// 	this.sectorTicket.attachedManager.forceLoad(this.sectorTicket);
-	// 	this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
-	// 		final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
-	// 		sector.initialElements.forEach(elem -> {
-	// 			if (elem.pos().distanceTo(centerPos) > levelSize)
-	// 				return;
-	// 			final var toStar = elem.pos().sub(centerPos);
-	// 			batcher.add(elem.info().primaryStar, elem.pos());
-	// 		});
-	// 	});
-	// }
+		this.immediateStarsTimerTicks = -1;
+		this.starSnapshotOrigin = camera.posTm;
+
+		final var builder = BufferRenderer.immediateBuilder();
+		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
+		this.sectorTicket.attachedManager.forceLoad(this.sectorTicket);
+		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
+			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
+			sector.initialElements.forEach(elem -> {
+				if (elem.pos().distanceTo(camera.posTm) > levelSize)
+					return;
+				RenderHelper.addBillboard(builder, camera, elem.info().primaryStar, elem.pos());
+			});
+		});
+		builder.end();
+
+		this.starsBuffer.upload(builder);
+	}
 
 	private void drawStarsImmediate(CachedCamera<?> camera, Galaxy galaxy) {
 		final var builder = BufferRenderer.immediateBuilder();
@@ -351,10 +525,52 @@ public class SkyRenderer {
 				if (toStar.dot(camera.forward) >= 0)
 					return;
 				batcher.add(elem.info().primaryStar, elem.pos());
-				// RenderHelper.addBillboard(builder, this.camera, elem.info().primaryStar, elem.pos());
+				// RenderHelper.addBillboard(builder, this.camera, elem.info().primaryStar,
+				// elem.pos());
 			});
 		});
 		batcher.end();
+	}
+
+	private void drawStarsFromBuffer(CachedCamera<?> camera) {
+		final var shader = ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER);
+		this.client.getTextureManager().getTexture(RenderHelper.GALAXY_GLOW_LOCATION).setFilter(true, false);
+		RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
+
+		{
+			final var poseStack = RenderSystem.getModelViewStack();
+			poseStack.setIdentity();
+
+			final var offset = this.starSnapshotOrigin.mul(1e12 / camera.metersPerUnit).sub(camera.pos);
+			poseStack.mulPose(camera.orientation.toMinecraft());
+			poseStack.translate(offset.x, offset.y, offset.z);
+			final var inverseViewRotationMatrix = poseStack.last().normal().copy();
+			if (inverseViewRotationMatrix.invert()) {
+				RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
+			}
+
+			// it would be very nice for simplicity's sake to apply the camera's translation
+			// here, but unfortunately, that can cause stuff to melt into floating point
+			// soup at the scales we're dealing with. So instead, vertices are specified in
+			// a space where the camera is at the origin (like in view space), but the
+			// camera's rotation is not taken into account (like in world space).
+			// Essentially a weird hybrid between the two. This is the same behavior as the
+			// vanilla camera.
+			RenderSystem.applyModelViewMatrix();
+		}
+
+		// BufferRenderer.setupCameraUniforms(shader, camera);
+		// final var modelView = camera.viewMatrix.asMutable();
+		// camera.setupRenderMatrices();
+		// modelView.appendTranslation(this.starSnapshotOrigin.mul(1e12 / camera.metersPerUnit).sub(camera.pos));
+		// BufferRenderer.setupDefaultShaderUniforms(shader, modelView.asImmutable().asMinecraft(), camera.projectionMatrix.asMinecraft());
+		BufferRenderer.setupDefaultShaderUniforms(shader);
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
+		RenderSystem.depthMask(false);
+		RenderSystem.disableDepthTest();
+		RenderSystem.disableCull();
+		RenderSystem.enableBlend();
+		this.starsBuffer.draw(shader);
 	}
 
 	private void drawStars(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
@@ -365,7 +581,12 @@ public class SkyRenderer {
 		this.sectorTicket.info.centerPos = camPos;
 		this.sectorTicket.info.multiplicitaveFactor = 2.0;
 
-		drawStarsImmediate(camera, galaxy);
+		buildStarsIfNeeded(camera, galaxy);
+		if (this.immediateStarsTimerTicks != -1) {
+			drawStarsImmediate(camera, galaxy);
+		} else {
+			drawStarsFromBuffer(camera);
+		}
 	}
 
 	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {

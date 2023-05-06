@@ -11,28 +11,28 @@ public class PreLaunchMod implements PreLaunchEntrypoint {
 
 	@Override
 	public void onPreLaunch() {
-		var javaLibPath = System.getProperty("java.library.path");
-		LOGGER.info("Attempting to load RenderDoc from " + javaLibPath);
-
-		boolean success = false;
-		success |= tryLoadLibary("renderdoc");
-		success |= tryLoadLibary("renderdoc.so");
-		success |= tryLoadLibary("renderdoc.dll");
-		success |= tryLoadLibary("/usr/lib/librenderdoc.so");
-
-		if (success) {
-			LOGGER.info("Loaded RenderDoc!");
-		} else {
-			LOGGER.info("Failed to load RenderDoc");
-		}
+//		var javaLibPath = System.getProperty("java.library.path");
+//		LOGGER.info("Attempting to load RenderDoc from " + javaLibPath);
+//
+//		boolean success = false;
+//		success |= tryLoadLibary("renderdoc");
+//		success |= tryLoadLibary("renderdoc.so");
+//		success |= tryLoadLibary("renderdoc.dll");
+//		success |= tryLoadLibary("/usr/lib/librenderdoc.so");
+//
+//		if (success) {
+//			LOGGER.info("Loaded RenderDoc!");
+//		} else {
+//			LOGGER.info("Failed to load RenderDoc");
+//		}
 	}
 
 	private static boolean tryLoadLibary(String lib) {
-		try {
-			System.loadLibrary(lib);
-			return true;
-		} catch (Throwable t) {
-		}
+//		try {
+//			System.loadLibrary(lib);
+//			return true;
+//		} catch (Throwable t) {
+//		}
 		return false;
 	} 
 

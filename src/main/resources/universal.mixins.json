@@ -25,7 +25,9 @@
 		"render.LevelRendererMixin",
 		"render.PostChainMixin",
 		"render.RenderSystemMixin",
-		"render.WindowMixin"
+		"render.ShaderInstanceMixin",
+		"render.WindowMixin",
+		"gravity.ParticleMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

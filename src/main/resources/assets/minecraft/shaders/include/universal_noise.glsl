@@ -219,3 +219,31 @@ float rand(vec2 co){
 }
 
 float rand(float n){return fract(sin(n) * 43758.5453123);}
+
+
+struct FbmInfo {
+    int octaves;
+    float baseAmplitude;
+    float baseFrequency;
+    float amplitudeScale;
+    float frequencyScale;
+};
+
+#ifndef FBM_FUNC
+#define FBM_FUNC noiseSimplex
+#endif
+#define DEFAULT_FBM FbmInfo(4, 1.0, 1.0, 0.7, 2.5)
+
+float fbm(FbmInfo info, vec3 pos) {
+    float n = 0.;
+    float a = info.baseAmplitude;
+    float am = 0.;
+    float f = info.baseFrequency;
+    for (int i = 0; i < info.octaves; ++i) {
+        n += a * FBM_FUNC(f * pos);
+        am += a;
+        a *= info.amplitudeScale;
+        f *= info.frequencyScale;
+    }
+    return n / am;
+}

@@ -146,7 +146,7 @@ public class SkyRenderer {
 		final var invView = tfm.get();
 		tfm.pop();
 		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
-				0.00000000001f, 1e5f, false, partialTick);
+				0.000001f, 1e5f, false, partialTick);
 		return new CachedCamera<>(camera, invView, proj, 1e12);
 	}
 
@@ -170,7 +170,7 @@ public class SkyRenderer {
 
 		final var halfPi = Math.PI / 2;
 		final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
-		final var longitudeOffset = Mth.clampedLerp(-halfPi, halfPi, tz);
+		final var longitudeOffset = Mth.clampedLerp(-Math.PI, Math.PI, tz);
 
 		final var rotationalSpeed = -2 * Math.PI / node.rotationalPeriod;
 

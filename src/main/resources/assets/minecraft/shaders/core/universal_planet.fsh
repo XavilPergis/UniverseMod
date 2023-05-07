@@ -3,6 +3,8 @@
 #moj_import <universal_noise.glsl>
 #moj_import <universal_util.glsl>
 #moj_import <universal_misc.glsl>
+#moj_import <universal_lighting.glsl>
+#moj_import <universal_common_uniforms.glsl>
 
 uniform sampler2D Sampler0;
 
@@ -20,7 +22,7 @@ uniform vec4 LightPos3;
 uniform vec4 LightColor3;
 uniform float MetersPerUnit;
 
-uniform int IsGasGiant;
+uniform int PlanetType;
 uniform float RenderingSeed;
 uniform float Time;
 
@@ -31,22 +33,29 @@ in vec4 normal;
 
 out vec4 fragColor;
 
-vec3 contribution(vec4 color, vec4 pos) {
-	if (color.a >= 0) {
-		vec3 starPos = (ModelViewMat * vec4(pos.xyz, 1.0)).xyz;
-		vec3 toStar = normalize(starPos - vertexPos.xyz);
-		float starDistanceMeters = distance(vertexPos.xyz, starPos) * MetersPerUnit;
-		float fragDistanceMeters = length(vertexPos.xyz) * MetersPerUnit;
+#define PLANET_TYPE_EARTH_LIKE_WORLD 0
+#define PLANET_TYPE_GAS_GIANT 1
+#define PLANET_TYPE_ICE_WORLD 2
+#define PLANET_TYPE_ROCKY_ICE_WORLD 3
+#define PLANET_TYPE_ROCKY_WORLD 4
+#define PLANET_TYPE_WATER_WORLD 5
 
-		float receivedIntensity = (color.a * 3.827e26) / (4 * PI * pow(starDistanceMeters, 2.0));
-		// float receivedIntensity = (color.a * 3.827e13) / (4 * PI * pow(starDistanceMeters, 1.0));
-		receivedIntensity *= max(0.0, dot(toStar, normal.xyz));
-		// float reflectedIntensity = receivedIntensity / (4 * PI * pow(fragDistanceMeters, 2.0));
+// vec3 contribution(vec4 color, vec4 pos) {
+// 	if (color.a >= 0) {
+// 		vec3 starPos = (ModelViewMat * vec4(pos.xyz, 1.0)).xyz;
+// 		vec3 toStar = normalize(starPos - vertexPos.xyz);
+// 		float starDistanceMeters = distance(vertexPos.xyz, starPos) * MetersPerUnit;
+// 		float fragDistanceMeters = length(vertexPos.xyz) * MetersPerUnit;
 
-		return max(0.1 * (color.rgb + 0.1) * receivedIntensity, 0.05 * (color.rgb + 0.1));
-	}
-	return vec3(0);
-}
+// 		float receivedIntensity = (color.a * 3.827e26) / (4 * PI * pow(starDistanceMeters, 2.0));
+// 		// float receivedIntensity = (color.a * 3.827e13) / (4 * PI * pow(starDistanceMeters, 1.0));
+// 		receivedIntensity *= max(0.0, dot(toStar, normal.xyz));
+// 		// float reflectedIntensity = receivedIntensity / (4 * PI * pow(fragDistanceMeters, 2.0));
+
+// 		return max(0.1 * (color.rgb + 0.1) * receivedIntensity, 0.05 * (color.rgb + 0.1));
+// 	}
+// 	return vec3(0);
+// }
 
 // =============== GAS GIANT SHADING ===============
 
@@ -56,7 +65,7 @@ float fbm(in vec3 pos) {
     
     float currentAmplitude = 1.0;
     float currentFrequency = 1.0;
-    for (int i = 0; i < 8; ++i) {
+    for (int i = 0; i < 4; ++i) {
         maxValue += currentAmplitude;
         vec3 offset = 10.0 * vec3(rand(float(i)));
         currentValue += currentAmplitude * noiseSimplex(currentFrequency * pos + offset);
@@ -174,7 +183,7 @@ vec3 field(in vec3 pos, in float seed) {
 vec2 uvFromNormal(vec4 norm) {
 	vec3 normCam = (inverse(ModelViewMat) * norm).xyz;
 	float pole = normCam.y;
-	float equator = atan(normCam.z / normCam.x) / PI_2;
+	float equator = atan(normCam.z / normCam.x) / HALF_PI;
 	equator = normCam.x >= 0 ? equator * 0.5 - 0.5 : equator * 0.5 + 0.5;
 	return vec2(equator, pole);
 }
@@ -183,24 +192,80 @@ vec3 gasGiantBaseColor(vec3 pos) {
 	return field(pos, RenderingSeed / 1000.0);
 }
 
-void main() {
-	vec4 baseColor = vec4(0);
-	if (IsGasGiant != 0) {
-		vec3 norm = (inverse(ModelViewMat) * normalize(normal)).xyz;
-		// baseColor = vec4(gasGiantBaseColor(uvFromNormal(normalize(normal))), 1.0);
-		baseColor = vec4(gasGiantBaseColor(norm), 1.0);
-	} else {
-    	baseColor = texture(Sampler0, texCoord0);
-	}
-	baseColor *= vertexColor;
+Light makeStarLight(in vec3 posWorld, in vec4 color) {
+	// return makePointLight(posWorld, color.rgb * color.a * 3.827e26);
+	// return makePointLight(posWorld, color.rgb * color.a);
+	return makePointLight(posWorld, color.rgb * color.a * 3.827e26);
+	// return makePointLight(posWorld, vec3(1.0e3));
+}
 
-	vec3 res = vec3(0);
-	res += contribution(LightColor0, LightPos0);
-	res += contribution(LightColor1, LightPos1);
-	res += contribution(LightColor2, LightPos2);
-	res += contribution(LightColor3, LightPos3);
-	vec3 finalColor = res * baseColor.rgb;
-	finalColor = finalColor / (1.0 + finalColor);
+Material shadeElw(vec3 fragPosWorld, vec3 normWorld) {
+	float landValue = 0.0;
+	landValue += noiseSimplex(1.0 * normWorld);
+	landValue += 0.5 * noiseSimplex(2.5 * normWorld);
+	landValue += 0.3 * noiseSimplex(5.0 * normWorld);
+	landValue += 0.1 * noiseSimplex(20.0 * normWorld);
+	if (landValue >= 0.0) {
+		float colnoise = noiseSimplex(normWorld + 10.0) * 0.5 + 0.5;
+		vec3 col = mix(vec3(0.4, 1.0, 0.35), vec3(0.6, 0.4, 0.4), colnoise);
+		// return Material(vec3(0.0), vec3(0.3, 1.0, 0.3), 1.0, 0.0);
+		return Material(vec3(0.0), col, 1.0, 0.0);
+	}
+	return Material(vec3(0.0), vec3(0.1, 0.2, 1.0), 0.1, 0.0);
+}
+Material shadeGasGiant(vec3 fragPosWorld, vec3 normWorld) {
+	vec3 color = gasGiantBaseColor(normWorld);
+	return Material(vec3(0.0), color, 1.0, 0.0);
+}
+Material shadeIceWorld(vec3 fragPosWorld, vec3 normWorld) {
+	return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
+}
+Material shadeRockyIceWorld(vec3 fragPosWorld, vec3 normWorld) {
+	return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
+}
+Material shadeRocky(vec3 fragPosWorld, vec3 normWorld) {
+	float colnoise = noiseSimplex(normWorld) * 0.5 + 0.5;
+	vec3 col = mix(vec3(0.2), vec3(0.8), smoothstep(0.2, 0.3, colnoise));
+	// return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
+	return Material(vec3(0.0), col, 1.0, 0.0);
+}
+Material shadeWater(vec3 fragPosWorld, vec3 normWorld) {
+	return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
+}
+
+Material shadePlanet(vec3 fragPosWorld, vec3 normWorld) {
+	if (PlanetType == PLANET_TYPE_EARTH_LIKE_WORLD) return shadeElw(fragPosWorld, normWorld);
+	else if (PlanetType == PLANET_TYPE_GAS_GIANT) return shadeGasGiant(fragPosWorld, normWorld);
+	else if (PlanetType == PLANET_TYPE_ICE_WORLD) return shadeIceWorld(fragPosWorld, normWorld);
+	else if (PlanetType == PLANET_TYPE_ROCKY_ICE_WORLD) return shadeRockyIceWorld(fragPosWorld, normWorld);
+	else if (PlanetType == PLANET_TYPE_ROCKY_WORLD) return shadeRocky(fragPosWorld, normWorld);
+	else if (PlanetType == PLANET_TYPE_WATER_WORLD) return shadeWater(fragPosWorld, normWorld);
+}
+
+void main() {
+	vec3 normWorld = (inverse(ModelViewMat) * normalize(normal)).xyz;
+	vec3 posWorld = (inverse(ModelViewMat) * normalize(vertexPos)).xyz;
+
+	Material material = shadePlanet(posWorld, normWorld);
+	LightingContext ctx = makeLightingContext(material, uMetersPerUnit, uCameraPos, posWorld, normWorld);
+
+	vec3 res = vec3(0.0);
+	Light l0 = makeStarLight(LightPos0.xyz, LightColor0);
+	res += lightContribution(ctx, l0);
+	// res += lightContribution(ctx, makeStarLight(LightPos1.xyz, LightColor1));
+	// res += lightContribution(ctx, makeStarLight(LightPos2.xyz, LightColor2));
+	// res += lightContribution(ctx, makeStarLight(LightPos3.xyz, LightColor3));
+
+	// res += contribution(LightColor0, LightPos0);
+	// res += contribution(LightColor1, LightPos1);
+	// res += contribution(LightColor2, LightPos2);
+	// res += contribution(LightColor3, LightPos3);
+	vec3 finalColor = res;
+	// vec3 finalColor = l0.radiantFlux;
+
+	float exposure = 5e-26;
+	finalColor = 1.0 - exp(-finalColor * exposure);
+	// finalColor = finalColor / (1.0 + finalColor);
 
 	// finalColor = acesTonemap(finalColor);
 

@@ -1,3 +1,5 @@
+#ifndef UNIVERSAL_MISC_H_
+#define UNIVERSAL_MISC_H_
 
 // Based on http://www.oscars.org/science-technology/sci-tech-projects/aces
 vec3 acesTonemap(vec3 color){	
@@ -16,3 +18,5 @@ vec3 acesTonemap(vec3 color){
 	vec3 b = v * (0.983729 * v + 0.4329510) + 0.238081;
 	return pow(clamp(m2 * (a / b), 0.0, 1.0), vec3(1.0 / 2.2));	
 }
+
+#endif

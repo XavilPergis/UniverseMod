@@ -1,3 +1,5 @@
+#ifndef UNIVERSAL_NOISE_H_
+#define UNIVERSAL_NOISE_H_
 
 // Simplex 2D noise
 //
@@ -247,3 +249,5 @@ float fbm(FbmInfo info, vec3 pos) {
     }
     return n / am;
 }
+
+#endif

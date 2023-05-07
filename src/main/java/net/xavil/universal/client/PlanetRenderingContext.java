@@ -9,10 +9,7 @@ import javax.annotation.Nullable;
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Vector3f;
 import com.mojang.math.Vector4f;
 
 import net.minecraft.client.Minecraft;
@@ -22,6 +19,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.universal.Mod;
 import net.xavil.universal.client.camera.CachedCamera;
+import net.xavil.universal.client.flexible.BufferRenderer;
 import net.xavil.universal.client.flexible.FlexibleBufferBuilder;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.screen.RenderHelper;
@@ -252,11 +250,19 @@ public final class PlanetRenderingContext {
 			lightPos.set(shaderPos);
 		}
 
+		BufferRenderer.setupCameraUniforms(shader, camera);
 	}
 
 	private void setupPlanetShader(PlanetaryCelestialNode node, ShaderInstance shader) {
-		final var isGasGiant = shader.safeGetUniform("IsGasGiant");
-		isGasGiant.set(node.type == PlanetaryCelestialNode.Type.GAS_GIANT ? 1 : 0);
+		final var planetType = shader.safeGetUniform("PlanetType");
+		planetType.set(switch (node.type) {
+			case EARTH_LIKE_WORLD -> 0;
+			case GAS_GIANT -> 1;
+			case ICE_WORLD -> 2;
+			case ROCKY_ICE_WORLD -> 3;
+			case ROCKY_WORLD -> 4;
+			case WATER_WORLD -> 5;
+		});
 		final var renderingSeed = shader.safeGetUniform("RenderingSeed");
 		renderingSeed.set((float) (FastHasher.hashInt(node.getId()) % 1000000L));
 	}

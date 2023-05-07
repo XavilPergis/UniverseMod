@@ -1,26 +1,25 @@
 #version 150
 
 #moj_import <fog.glsl>
+#moj_import <universal_common_uniforms.glsl>
 
 in vec3 Position;
 in vec2 UV0;
 in vec4 Color;
 in vec3 Normal;
 
-// uniform mat4 ModelMat;
-uniform mat4 ModelViewMat;
-uniform mat4 ProjMat;
-
-out vec2 texCoord0;
-out vec4 vertexColor;
-out vec4 vertexPos;
-out vec4 normal;
+out VertexOut {
+	vec2 uv0;
+	vec4 color;
+	vec4 posView;
+	vec4 normalView;
+} output;
 
 void main() {
-    gl_Position = ProjMat * ModelViewMat * vec4(Position, 1.0);
-	vertexPos = ModelViewMat * vec4(Position, 1.0);
-
-    texCoord0 = UV0;
-    vertexColor = Color;
-    normal = ModelViewMat * vec4(Normal, 0.0);
+	vec4 posView = uViewMatrix * vec4(Position, 1.0);
+	output.posView = posView;
+    gl_Position = uProjectionMatrix * posView;
+    output.uv0 = UV0;
+    output.color = Color;
+    output.normalView = uViewMatrix * vec4(Normal, 0.0);
 }

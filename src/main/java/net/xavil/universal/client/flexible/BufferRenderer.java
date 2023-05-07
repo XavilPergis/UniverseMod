@@ -12,6 +12,8 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.xavil.universal.client.camera.CachedCamera;
+import net.xavil.util.math.matrices.interfaces.Mat4Access;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
 
 public final class BufferRenderer {
 
@@ -46,20 +48,44 @@ public final class BufferRenderer {
 	}
 
 	public static void setupCameraUniforms(ShaderInstance shader, CachedCamera<?> camera) {
-		shader.safeGetUniform("MetersPerUnit").set((float) camera.metersPerUnit);
-		shader.safeGetUniform("CameraPos").set((float) camera.pos.x, (float) camera.pos.y, (float) camera.pos.z);
+		setUniform(shader, "uCameraPos", camera.pos);
+		setUniform(shader, "uCameraNear", 0.0);
+		setUniform(shader, "uCameraFar", 0.0);
+		setUniform(shader, "uCameraFov", 0.0);
+		setUniform(shader, "uMetersPerUnit", camera.metersPerUnit);
+		setUniform(shader, "uViewMatrix", camera.viewMatrix);
+		setUniform(shader, "uProjectionMatrix", camera.projectionMatrix);
+		setUniform(shader, "uViewProjectionMatrix", camera.viewProjectionMatrix);
+	}
+
+	public static void setUniform(ShaderInstance shader, String uniformName, double value) {
+		shader.safeGetUniform(uniformName).set((float) value);
+	}
+
+	public static void setUniform(ShaderInstance shader, String uniformName, Vec3Access value) {
+		shader.safeGetUniform(uniformName).set((float) value.x(), (float) value.y(), (float) value.z());
+	}
+
+	public static void setUniform(ShaderInstance shader, String uniformName, Mat4Access value) {
+		shader.safeGetUniform(uniformName).setMat4x4(
+				(float) value.r0c0(), (float) value.r0c1(), (float) value.r0c2(), (float) value.r0c3(),
+				(float) value.r1c0(), (float) value.r1c1(), (float) value.r1c2(), (float) value.r1c3(),
+				(float) value.r2c0(), (float) value.r2c1(), (float) value.r2c2(), (float) value.r2c3(),
+				(float) value.r3c0(), (float) value.r3c1(), (float) value.r3c2(), (float) value.r3c3());
 	}
 
 	public static void setupDefaultShaderUniforms(ShaderInstance shader,
 			Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
-		final var window = Minecraft.getInstance().getWindow();
 		for (var i = 0; i < 8; ++i) {
 			shader.setSampler("Sampler" + i, RenderSystem.getShaderTexture(i));
 		}
+
 		if (shader.MODEL_VIEW_MATRIX != null)
 			shader.MODEL_VIEW_MATRIX.set(modelViewMatrix);
+		shader.safeGetUniform("uViewMatrix").set(modelViewMatrix); // setUniform(shader, "uViewMatrix", modelViewMatrix);
 		if (shader.PROJECTION_MATRIX != null)
 			shader.PROJECTION_MATRIX.set(projectionMatrix);
+		shader.safeGetUniform("uProjectionMatrix").set(projectionMatrix); // setUniform(shader, "uProjectionMatrix", projectionMatrix);
 		if (shader.INVERSE_VIEW_ROTATION_MATRIX != null)
 			shader.INVERSE_VIEW_ROTATION_MATRIX.set(RenderSystem.getInverseViewRotationMatrix());
 		if (shader.COLOR_MODULATOR != null)
@@ -76,6 +102,7 @@ public final class BufferRenderer {
 			shader.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
 		if (shader.GAME_TIME != null)
 			shader.GAME_TIME.set(RenderSystem.getShaderGameTime());
+		final var window = Minecraft.getInstance().getWindow();
 		if (shader.SCREEN_SIZE != null)
 			shader.SCREEN_SIZE.set((float) window.getWidth(), (float) window.getHeight());
 		if (shader.LINE_WIDTH != null)

@@ -23,7 +23,7 @@ out vec4 fragColor;
 vec2 uvFromNormal(vec4 norm) {
 	vec3 normCam = (inverse(ModelViewMat) * norm).xyz;
 	float pole = normCam.y;
-	float equator = atan(normCam.z / normCam.x) / PI_2;
+	float equator = atan(normCam.z / normCam.x) / HALF_PI;
 	equator = normCam.x >= 0 ? equator * 0.5 - 0.5 : equator * 0.5 + 0.5;
 	return vec2(equator, pole);
 }

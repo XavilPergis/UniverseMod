@@ -18,16 +18,13 @@ public class CachedCamera<T> {
 	public final Quat orientation;
 	public final double metersPerUnit;
 
+	// public final double nearPlane, farPlane;
+
 	public final Mat4 viewMatrix;
 	public final Mat4 projectionMatrix;
 	public final Mat4 inverseProjectionMatrix;
 	public final Mat4 viewProjectionMatrix;
 	public final Mat4 inverseViewProjectionMatrix;
-	// public final Matrix4f viewMatrix;
-	// public final Matrix4f projectionMatrix;
-	// public final Matrix4f inverseProjectionMatrix;
-	// public final Matrix4f viewProjectionMatrix;
-	// public final Matrix4f inverseViewProjectionMatrix;
 
 	public CachedCamera(T camera, Vec3 pos, Quat orientation, double metersPerUnit, Mat4 projectionMatrix) {
 		this.camera = camera;
@@ -37,7 +34,6 @@ public class CachedCamera<T> {
 		this.down = this.up.neg();
 		this.right = orientation.inverse().transform(Vec3.YP);
 		this.left = this.right.neg();
-		// this.forward = orientation.transform(Vec3.ZN);
 		this.orientation = orientation;
 		this.metersPerUnit = metersPerUnit;
 		this.forward = right.cross(up).normalize();
@@ -49,6 +45,9 @@ public class CachedCamera<T> {
 
 		this.viewProjectionMatrix = this.viewMatrix.appendTransform(this.projectionMatrix);
 		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
+
+		// this.nearPlane = this.projectionMatrix.mul(Vec3.ZP, 1).z;
+		// this.farPlane = this.projectionMatrix.mul(Vec3.ZN, 1).z;
 	}
 
 	public CachedCamera(T camera, Mat4 viewMatrix, Mat4 projectionMatrix, double metersPerUnit) {

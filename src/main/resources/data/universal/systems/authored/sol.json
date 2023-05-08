@@ -6,6 +6,9 @@
 		"luminosity": 1,
 		"obliquity": 7.25,
 		"rotation_period": 2114208,
+		"radius": 1.5,
+		"temperature": 5772,
+		"star_type": "main_sequence",
 		"children": [
 			{
 				"orbit": {

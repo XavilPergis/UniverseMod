@@ -22,7 +22,7 @@ public abstract class UniversalScreen extends Screen {
 	protected final Minecraft client = Minecraft.getInstance();
 	protected final @Nullable Screen previousScreen;
 	protected final Disposable.Multi disposer = new Disposable.Multi();
-	public final Blackboard blackboard = new Blackboard();
+	public final Blackboard<String> blackboard = new Blackboard<>();
 
 	protected final MutableList<Layer2d> layers = new Vector<>();
 
@@ -61,19 +61,19 @@ public abstract class UniversalScreen extends Screen {
 			return false;
 		}
 
-		public final <T> T getBlackboardOrDefault(Blackboard.Key<T> key) {
+		public final <T> T getBlackboardOrDefault(Blackboard.Key<String, T> key) {
 			return key.getOrDefault(this.attachedScreen.blackboard);
 		}
 
-		public final <T> Option<T> getBlackboard(Blackboard.Key<T> key) {
+		public final <T> Option<T> getBlackboard(Blackboard.Key<String, T> key) {
 			return this.attachedScreen.blackboard.get(key);
 		}
 
-		public final <T> Option<T> insertBlackboard(Blackboard.Key<T> key, T value) {
+		public final <T> Option<T> insertBlackboard(Blackboard.Key<String, T> key, T value) {
 			return this.attachedScreen.blackboard.insert(key, value);
 		}
 
-		public final <T> Option<T> removeBlackboard(Blackboard.Key<T> key) {
+		public final <T> Option<T> removeBlackboard(Blackboard.Key<String, T> key) {
 			return this.attachedScreen.blackboard.remove(key);
 		}
 	}

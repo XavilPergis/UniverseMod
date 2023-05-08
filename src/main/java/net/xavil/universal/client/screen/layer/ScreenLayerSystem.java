@@ -44,6 +44,7 @@ import net.xavil.util.math.matrices.Vec3;
 public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 	public final Galaxy galaxy;
 	private final SystemTicket ticket;
+	// private CelestialNode systemRoot;
 
 	public boolean showGuides = true;
 
@@ -54,6 +55,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 		super(attachedScreen, new CameraConfig(0.01, 1e6));
 		this.galaxy = galaxy;
 		this.ticket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId);
+		// this.systemRoot = this.ticket.forceLoad().unwrapOrNull();
 	}
 
 	@Override
@@ -116,22 +118,24 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 	}
 
 	private int pickNode(OrbitCamera.Cached camera, Ray ray) {
-		return this.galaxy.getSystem(this.ticket.id).map(system -> {
-			final var nodes = system.rootNode.selfAndChildren();
-			double closestDistance = Double.POSITIVE_INFINITY;
-			int closestId = -1;
-			for (final var node : nodes.iterable()) {
-				final var elemPos = node.position.mul(1e12 / camera.metersPerUnit);
-				final var distance = ray.origin().distanceTo(elemPos);
-				if (!ray.intersectsSphere(elemPos, 0.1 * distance))
-					continue;
-				if (distance < closestDistance) {
-					closestDistance = distance;
-					closestId = node.getId();
-				}
+		return this.galaxy.getSystem(this.ticket.id).map(system -> pickNode(camera, ray, system.rootNode)).unwrapOr(-1);
+	}
+
+	private int pickNode(OrbitCamera.Cached camera, Ray ray, CelestialNode rootNode) {
+		final var nodes = rootNode.selfAndChildren();
+		double closestDistance = Double.POSITIVE_INFINITY;
+		int closestId = -1;
+		for (final var node : nodes.iterable()) {
+			final var elemPos = node.position.mul(1e12 / camera.metersPerUnit);
+			final var distance = ray.origin().distanceTo(elemPos);
+			if (!ray.intersectsSphere(elemPos, 0.1 * distance))
+				continue;
+			if (distance < closestDistance) {
+				closestDistance = distance;
+				closestId = node.getId();
 			}
-			return closestId;
-		}).unwrapOr(-1);
+		}
+		return closestId;
 	}
 
 	private void setupPlanetRenderer(StarSystem system) {
@@ -251,7 +255,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 			}
 			if (alphaH == 0 && alphaL == 0)
 				return;
-			RenderHelper.addLine(builder, 
+			RenderHelper.addLine(builder,
 					camera.toCameraSpace(endpointL.mul(1e12 / cullingCamera.metersPerUnit)),
 					camera.toCameraSpace(endpointH.mul(1e12 / cullingCamera.metersPerUnit)),
 					color.withA(alphaL), color.withA(alphaH));
@@ -270,7 +274,7 @@ public class ScreenLayerSystem extends Universal3dScreen.Layer3d {
 		}
 	}
 
-	private Color getPathColor(Blackboard.Key<Color> key, boolean selected) {
+	private Color getPathColor(Blackboard.Key<String, Color> key, boolean selected) {
 		return selected ? getBlackboardOrDefault(key) : getBlackboardOrDefault(BlackboardKeys.SELECTED_PATH_COLOR);
 	}
 

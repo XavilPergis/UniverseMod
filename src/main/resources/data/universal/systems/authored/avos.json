@@ -1,0 +1,493 @@
+{
+	"root": {
+		"type": "binary",
+		"distance": 9,
+		"a": {
+			"type": "binary",
+			"distance": 0.05,
+			"a": {
+				"type": "star",
+				"star_type": "main_sequence",
+				"id": "Avos A",
+				"mass": 1.3,
+				"obliquity": 0.03,
+				"rotation_period": 3418666,
+				"children": []
+			},
+			"b": {
+				"type": "star",
+				"star_type": "main_sequence",
+				"id": "Avos C",
+				"mass": 0.1,
+				"obliquity": 0.03,
+				"rotation_period": 736395,
+				"children": []
+			},
+			"children": [
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.25,
+						"semi_major_axis": 0.2,
+						"inclination": 5,
+						"ascending_node": 50,
+						"arg_of_periapsis": 10
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "rocky_world",
+						"id": "Avos AC.1",
+						"mass": 0.04,
+						"radius": 0.2,
+						"obliquity": 0.001,
+						"rotation_period": {
+							"type": "resonance",
+							"ratio": 1
+						},
+						"children": []
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.02,
+						"semi_major_axis": 0.45,
+						"inclination": 1.25,
+						"ascending_node": 110,
+						"arg_of_periapsis": 80
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "rocky_world",
+						"id": "Avos AC.2",
+						"mass": 0.06,
+						"radius": 0.25,
+						"obliquity": 0.002,
+						"rotation_period": {
+							"type": "resonance",
+							"ratio": 1.33333333
+						},
+						"children": []
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.08,
+						"semi_major_axis": 1.5,
+						"inclination": 3.24,
+						"ascending_node": 58,
+						"arg_of_periapsis": 147
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "earth_like_world",
+						"id": "Avos AC.3",
+						"mass": 1,
+						"radius": 1,
+						"obliquity": 35,
+						"rotation_period": 86164.1004,
+						"rings": [
+							{
+								"frame": "parent",
+								"inclination": 0,
+								"inner": 1.3,
+								"outer": 2.1
+							}
+						],
+						"children": [
+							{
+								"orbit": {
+									"frame": "parent",
+									"eccentricity": 0.0001,
+									"semi_major_axis": 0.0004,
+									"inclination": 3,
+									"ascending_node": 58,
+									"arg_of_periapsis": 147
+								},
+								"node": {
+									"type": "planet",
+									"planet_type": "rocky",
+									"id": "Avos AC.3.a",
+									"mass": 0.015,
+									"radius": 0.3,
+									"obliquity": 0.01,
+									"rotation_period": {
+										"type": "resonance",
+										"ratio": 1
+									},
+									"children": []
+								}
+							},
+							{
+								"orbit": {
+									"frame": "parent",
+									"eccentricity": 0.001,
+									"semi_major_axis": 0.0009,
+									"inclination": 3.24,
+									"ascending_node": 58,
+									"arg_of_periapsis": 147
+								},
+								"node": {
+									"type": "planet",
+									"planet_type": "rocky",
+									"id": "Avos AC.3.b",
+									"mass": 0.008,
+									"radius": 0.1,
+									"obliquity": 35,
+									"rotation_period": {
+										"type": "resonance",
+										"ratio": 1
+									},
+									"children": []
+								}
+							}
+						]
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.20563593,
+						"semi_major_axis": 0.38709927,
+						"inclination": 7.00497902,
+						"ascending_node": 48.33076593,
+						"arg_of_periapsis": 29.1270303
+					},
+					"node": {
+						"type": "binary",
+						"distance": 0.1,
+						"a": {
+							"type": "planet",
+							"planet_type": "rocky_world",
+							"id": "Avos AC.4a",
+							"mass": 0.055,
+							"radius": 0.3829,
+							"obliquity": 0.034,
+							"rotation_period": {
+								"type": "resonance",
+								"ratio": 1
+							},
+							"children": []
+						},
+						"b": {
+							"type": "planet",
+							"planet_type": "rocky_world",
+							"id": "Avos AC.4b",
+							"mass": 0.09,
+							"radius": 0.45,
+							"obliquity": 0.034,
+							"rotation_period": {
+								"type": "resonance",
+								"ratio": 1
+							},
+							"children": []
+						}
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.05,
+						"semi_major_axis": 3.5,
+						"inclination": 1.524,
+						"ascending_node": 20,
+						"arg_of_periapsis": 10
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "rocky_ice_world",
+						"id": "Avos AC.5",
+						"mass": 2.4,
+						"radius": 3.63,
+						"obliquity": 8,
+						"rotation_period": 7600530.24,
+						"children": []
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.01,
+						"semi_major_axis": 7,
+						"inclination": 3,
+						"ascending_node": 95,
+						"arg_of_periapsis": 34
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "gas_giant",
+						"id": "Avos AC.6",
+						"mass": 942,
+						"radius": 20,
+						"obliquity": 0.02,
+						"rotation_period": 7600530.24,
+						"rings": [
+							{
+								"frame": "parent",
+								"inclination": 0,
+								"inner": 22,
+								"outer": 24
+							},
+							{
+								"frame": "parent",
+								"inclination": 0,
+								"inner": 25,
+								"outer": 30
+							}
+						],
+						"children": [
+							{
+								"orbit": {
+									"frame": "system",
+									"eccentricity": 0.20563593,
+									"semi_major_axis": 0.38709927,
+									"inclination": 7.00497902,
+									"ascending_node": 48.33076593,
+									"arg_of_periapsis": 29.1270303
+								},
+								"node": {
+									"type": "planet",
+									"planet_type": "rocky_world",
+									"id": "Avos AC.6.a",
+									"mass": 0.015,
+									"radius": 0.25,
+									"obliquity": 0.01,
+									"rotation_period": {
+										"type": "resonance",
+										"ratio": 1
+									},
+									"children": []
+								}
+							},
+							{
+								"orbit": {
+									"frame": "system",
+									"eccentricity": 0.20563593,
+									"semi_major_axis": 0.38709927,
+									"inclination": 7.00497902,
+									"ascending_node": 48.33076593,
+									"arg_of_periapsis": 29.1270303
+								},
+								"node": {
+									"type": "planet",
+									"planet_type": "rocky_world",
+									"id": "Avos AC.6.b",
+									"mass": 0.055,
+									"radius": 0.3829,
+									"obliquity": 0.034,
+									"rotation_period": {
+										"type": "resonance",
+										"ratio": 1
+									},
+									"children": []
+								}
+							},
+							{
+								"orbit": {
+									"frame": "system",
+									"eccentricity": 0.20563593,
+									"semi_major_axis": 0.38709927,
+									"inclination": 7.00497902,
+									"ascending_node": 48.33076593,
+									"arg_of_periapsis": 29.1270303
+								},
+								"node": {
+									"type": "planet",
+									"planet_type": "rocky_world",
+									"id": "Avos AC.6.c",
+									"mass": 0.055,
+									"radius": 0.3829,
+									"obliquity": 0.034,
+									"rotation_period": {
+										"type": "resonance",
+										"ratio": 1
+									},
+									"children": []
+								}
+							},
+							{
+								"orbit": {
+									"frame": "system",
+									"eccentricity": 0.20563593,
+									"semi_major_axis": 0.38709927,
+									"inclination": 7.00497902,
+									"ascending_node": 48.33076593,
+									"arg_of_periapsis": 29.1270303
+								},
+								"node": {
+									"type": "planet",
+									"planet_type": "rocky_world",
+									"id": "Avos AC.6.d",
+									"mass": 0.055,
+									"radius": 0.3829,
+									"obliquity": 0.034,
+									"rotation_period": {
+										"type": "resonance",
+										"ratio": 1
+									},
+									"children": []
+								}
+							},
+							{
+								"orbit": {
+									"frame": "system",
+									"eccentricity": 0.20563593,
+									"semi_major_axis": 0.38709927,
+									"inclination": 7.00497902,
+									"ascending_node": 48.33076593,
+									"arg_of_periapsis": 29.1270303
+								},
+								"node": {
+									"type": "planet",
+									"planet_type": "rocky_world",
+									"id": "Avos AC.6.e",
+									"mass": 0.055,
+									"radius": 0.3829,
+									"obliquity": 0.034,
+									"rotation_period": {
+										"type": "resonance",
+										"ratio": 1
+									},
+									"children": []
+								}
+							}
+						]
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.20563593,
+						"semi_major_axis": 0.38709927,
+						"inclination": 7.00497902,
+						"ascending_node": 48.33076593,
+						"arg_of_periapsis": 29.1270303
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "rocky_world",
+						"id": "Avos AC.7",
+						"mass": 0.055,
+						"radius": 0.3829,
+						"obliquity": 0.034,
+						"rotation_period": 7600530.24,
+						"children": []
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.20563593,
+						"semi_major_axis": 0.38709927,
+						"inclination": 7.00497902,
+						"ascending_node": 48.33076593,
+						"arg_of_periapsis": 29.1270303
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "rocky_world",
+						"id": "Avos AC.8",
+						"mass": 0.055,
+						"radius": 0.3829,
+						"obliquity": 0.034,
+						"rotation_period": 7600530.24,
+						"children": []
+					}
+				}
+			]
+		},
+		"b": {
+			"type": "star",
+			"star_type": "main_sequence",
+			"id": "Avos B",
+			"mass": 0.5,
+			"obliquity": 5.4,
+			"rotation_period": 2201472,
+			"children": [
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.20563593,
+						"semi_major_axis": 0.38709927,
+						"inclination": 7.00497902,
+						"ascending_node": 48.33076593,
+						"arg_of_periapsis": 29.1270303
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "rocky_world",
+						"id": "Avos AC.8",
+						"mass": 0.055,
+						"radius": 0.3829,
+						"obliquity": 0.034,
+						"rotation_period": 7600530.24,
+						"children": []
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.20563593,
+						"semi_major_axis": 0.38709927,
+						"inclination": 7.00497902,
+						"ascending_node": 48.33076593,
+						"arg_of_periapsis": 29.1270303
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "rocky_world",
+						"id": "Avos AC.8",
+						"mass": 0.055,
+						"radius": 0.3829,
+						"obliquity": 0.034,
+						"rotation_period": 7600530.24,
+						"children": []
+					}
+				},
+				{
+					"orbit": {
+						"frame": "system",
+						"eccentricity": 0.20563593,
+						"semi_major_axis": 0.38709927,
+						"inclination": 7.00497902,
+						"ascending_node": 48.33076593,
+						"arg_of_periapsis": 29.1270303
+					},
+					"node": {
+						"type": "planet",
+						"planet_type": "rocky_world",
+						"id": "Avos AC.8",
+						"mass": 0.055,
+						"radius": 0.3829,
+						"obliquity": 0.034,
+						"rotation_period": 7600530.24,
+						"children": []
+					}
+				}
+			]
+		},
+		"children": [
+			{
+				"orbit": {
+					"frame": "system",
+					"eccentricity": 0.20563593,
+					"semi_major_axis": 0.38709927,
+					"inclination": 7.00497902,
+					"ascending_node": 48.33076593,
+					"arg_of_periapsis": 29.1270303
+				},
+				"node": {
+					"type": "planet",
+					"planet_type": "rocky_world",
+					"id": "Avos AC.8",
+					"mass": 0.055,
+					"radius": 0.3829,
+					"obliquity": 0.034,
+					"rotation_period": 7600530.24,
+					"children": []
+				}
+			}
+		]
+	}
+}

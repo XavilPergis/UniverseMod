@@ -72,7 +72,9 @@ public final class ClientUniverse extends Universe {
 	}
 
 	public void applyPacket(ClientboundSyncCelestialTimePacket packet) {
-		this.celestialTimeTicks = packet.celestialTimeTicks;
+		this.celestialTime = packet.celestialTime;
+		if (packet.isDiscontinuous)
+			this.lastCelestialTime = this.celestialTime;
 		this.celestialTimeRate = packet.celestialTimeRate;
 	}
 

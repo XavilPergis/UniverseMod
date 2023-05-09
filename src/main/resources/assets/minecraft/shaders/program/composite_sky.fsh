@@ -27,7 +27,8 @@ in vec2 oneTexel;
 out vec4 fragColor;
 
 vec3 skyColor() {
-	return vec3(0.3, 0.6, 1.0);
+	// return vec3(0.3, 0.6, 1.0);
+	return vec3(0.753, 0.847, 1.0);
 }
 
 void main(){
@@ -36,25 +37,21 @@ void main(){
 
 	vec3 skyColor = skyColor();
 	float skyIntensity = 0.0;
-	float exposure = 1.5;
 
 	vec3 lightOut = vec3(0.0);
 	lightOut += imageLight;
 	lightOut += skyIntensity * skyColor;
+	vec3 tonemapped = lightOut;
 
-	// vec3 tonemapped = tonemap(lightOut);
-	// tonemapped *= exposure;
+	float exposure = 1.5;
+	// tonemapped = tonemap(tonemapped * exposure);
+	// tonemapped = 1.0 - exp(-tonemapped * exposure);
+	tonemapped *= exposure;
+	
 	// float gamma = 2.2;
-	// tonemapped = pow(tonemapped, vec3(1.0 / gamma));
-	// lightOut *= 0.4;
-
-	// vec3 outColor = vec3(0.0);
-
-
-	// float blendFactor = min(0.0, length(light) - skyIntensity);
-
-	// outColor = mix(light, skyColor, blendFactor);
-
-    // fragColor = vec4(tonemapped, 1.0);
-    fragColor = vec4(lightOut, 1.0);
+	// wtf? gamma correction is supposed to go the other way! but from testing, this produces
+	// perceptually linear results, so im not gonna question it too much i think...
+	// tonemapped = pow(tonemapped, vec3(gamma));
+	
+    fragColor = vec4(tonemapped, 1.0);
 }

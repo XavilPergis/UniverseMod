@@ -1,19 +1,11 @@
 package net.xavil.universal;
 
-import static net.minecraft.commands.Commands.argument;
-import static net.minecraft.commands.Commands.literal;
-
 import java.lang.annotation.Target;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import com.mojang.brigadier.arguments.IntegerArgumentType;
-import com.mojang.brigadier.arguments.StringArgumentType;
-import com.mojang.brigadier.context.CommandContext;
-import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
@@ -106,99 +98,8 @@ public class Mod implements ModInitializer {
 		Registry.register(Registry.ITEM, namespaced("starmap"), STARMAP_ITEM);
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
-			dispatcher.register(literal("universal")
-					.requires(src -> src.hasPermission(2))
-					.then(literal("station")
-							.then(literal("add")
-									.then(argument("name", StringArgumentType.string())
-											.executes(this::executeStationAdd)))
-							.then(literal("remove")
-									.then(argument("name", StringArgumentType.string())
-											.executes(this::executeStationRemove)))
-							.then(literal("tp")
-									.then(argument("entities", EntityArgument.entities())
-											.then(argument("name", StringArgumentType.string())
-													.executes(this::executeStationTp))))
-							.then(literal("move")
-									.then(argument("name", StringArgumentType.string())
-											.executes(this::executeStationMove))))
-					.then(literal("timewarp")
-							.then(argument("rate", IntegerArgumentType.integer())
-									.executes(this::executeTimewarp))));
+			ModDebugCommand.register(dispatcher, dedicated);
 		});
-	}
-
-	private int executeTimewarp(CommandContext<CommandSourceStack> ctx) {
-		final var level = ctx.getSource().getLevel();
-		final var rate = IntegerArgumentType.getInteger(ctx, "rate");
-		if (LevelAccessor.getUniverse(level) instanceof ServerUniverse universe) {
-			universe.celestialTimeRate = rate;
-			universe.syncTime();
-		}
-		return 1;
-	}
-
-	private int executeStationAdd(CommandContext<CommandSourceStack> ctx) {
-		final var level = ctx.getSource().getLevel();
-		final var universe = LevelAccessor.getUniverse(level);
-		final var location = LevelAccessor.getLocation(level);
-		final var name = StringArgumentType.getString(ctx, "name");
-		if (location instanceof Location.World loc) {
-			final var sloc = OrbitingCelestialBody.createDefault(universe, loc.id);
-			if (sloc.isSome()) {
-				universe.createStation(name, sloc.unwrap());
-				ctx.getSource().sendSuccess(new TextComponent("created station around node " + loc.id), true);
-			}
-		} else if (location instanceof Location.Station loc) {
-			universe.getStation(loc.id).ifSome(station -> {
-				if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
-					final var newSloc = OrbitingCelestialBody.createDefault(universe, sloc.id);
-					if (newSloc.isSome()) {
-						universe.createStation(name, newSloc.unwrap());
-						ctx.getSource().sendSuccess(new TextComponent("created station around node " + sloc.id), true);
-					}
-				}
-			});
-		} else {
-			ctx.getSource().sendFailure(new TextComponent("connot create station: location invalid"));
-		}
-		return 1;
-	}
-
-	private int executeStationRemove(CommandContext<CommandSourceStack> ctx) {
-		ctx.getSource().sendFailure(new TextComponent("station removal is unimplemented."));
-		return 1;
-	}
-
-	private int executeStationTp(CommandContext<CommandSourceStack> ctx) {
-		final var level = ctx.getSource().getLevel();
-		final var universe = LevelAccessor.getUniverse(level);
-		final var name = StringArgumentType.getString(ctx, "name");
-		final var stationOpt = universe.getStationByName(name);
-		stationOpt.ifSome(station -> {
-			// final var entity = ctx.getSource().getEntity();
-			try {
-				final var entities = EntityArgument.getEntities(ctx, "entities");
-				if (station.level instanceof ServerLevel newLevel) {
-					for (final var entity : entities) {
-						final var spawnPos = Vec3.from(0, 128, 0);
-						teleportEntityToWorld(entity, newLevel, spawnPos, 0, 0);
-					}
-				}
-				ctx.getSource().sendSuccess(new TextComponent("teleported to station '" + station.name + "'"), true);
-			} catch (CommandSyntaxException ex) {
-			}
-		});
-		if (stationOpt.isNone()) {
-			ctx.getSource()
-					.sendFailure(new TextComponent("cannot teleport to station: '" + name + "' could not be found"));
-		}
-		return 1;
-	}
-
-	private int executeStationMove(CommandContext<CommandSourceStack> ctx) {
-		ctx.getSource().sendFailure(new TextComponent("station movement is unimplemented."));
-		return 1;
 	}
 
 	private static void teleportToStation(ServerPlayer sender, int id) {
@@ -254,48 +155,6 @@ public class Mod implements ModInitializer {
 					.flatMap(node -> getDimProperties(server, node))
 					.map(props -> createWorld(server, id, props));
 		});
-	}
-
-	// /universal station tp @p foo
-	private static void teleportEntityToWorld(Entity entity, ServerLevel level, Vec3 pos, float yaw, float pitch) {
-		double x = pos.x, y = pos.y, z = pos.z;
-		yaw = Mth.wrapDegrees(yaw);
-		pitch = Mth.wrapDegrees(pitch);
-
-		if (entity instanceof ServerPlayer player) {
-			final var chunkPos = new ChunkPos(new BlockPos(x, y, z));
-			level.getChunkSource().addRegionTicket(TicketType.POST_TELEPORT, chunkPos, 1, player.getId());
-			player.stopRiding();
-			if (player.isSleeping())
-				player.stopSleepInBed(true, true);
-			player.teleportTo(level, x, y, z, yaw, pitch);
-			player.setYHeadRot(yaw);
-		} else {
-			pitch = Mth.clamp(pitch, -90.0f, 90.0f);
-			if (level == entity.level) {
-				entity.moveTo(x, y, z, yaw, pitch);
-				entity.setYHeadRot(yaw);
-			} else {
-				final var originalEntity = entity;
-				entity = originalEntity.getType().create(level);
-				if (entity == null)
-					return;
-				originalEntity.unRide();
-				entity.restoreFrom(originalEntity);
-				entity.moveTo(x, y, z, yaw, pitch);
-				entity.setYHeadRot(yaw);
-				originalEntity.setRemoved(Entity.RemovalReason.CHANGED_DIMENSION);
-				level.addDuringTeleport(entity);
-			}
-		}
-
-		if (!(entity instanceof LivingEntity) || !((LivingEntity) entity).isFallFlying()) {
-			entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, 0.0, 1.0));
-			entity.setOnGround(true);
-		}
-		if (entity instanceof PathfinderMob mob) {
-			mob.getNavigation().stop();
-		}
 	}
 
 	private static void teleportToWorld(ServerPlayer sender, SystemNodeId id) {
@@ -361,7 +220,8 @@ public class Mod implements ModInitializer {
 
 			station.prepareForJump(packet.target.system(), packet.isJumpInstant);
 
-			final var beginPacket = new ClientboundStationJumpBeginPacket(packet.stationId, packet.target, packet.isJumpInstant);
+			final var beginPacket = new ClientboundStationJumpBeginPacket(packet.stationId, packet.target,
+					packet.isJumpInstant);
 			server.getPlayerList().broadcastAll(beginPacket);
 		}
 	}
@@ -393,6 +253,47 @@ public class Mod implements ModInitializer {
 			logger.accept("{} " + message, args2);
 		}
 
+	}
+
+	public static void teleportEntityToWorld(Entity entity, ServerLevel level, Vec3 pos, float yaw, float pitch) {
+		double x = pos.x, y = pos.y, z = pos.z;
+		yaw = Mth.wrapDegrees(yaw);
+		pitch = Mth.wrapDegrees(pitch);
+
+		if (entity instanceof ServerPlayer player) {
+			final var chunkPos = new ChunkPos(new BlockPos(x, y, z));
+			level.getChunkSource().addRegionTicket(TicketType.POST_TELEPORT, chunkPos, 1, player.getId());
+			player.stopRiding();
+			if (player.isSleeping())
+				player.stopSleepInBed(true, true);
+			player.teleportTo(level, x, y, z, yaw, pitch);
+			player.setYHeadRot(yaw);
+		} else {
+			pitch = Mth.clamp(pitch, -90.0f, 90.0f);
+			if (level == entity.level) {
+				entity.moveTo(x, y, z, yaw, pitch);
+				entity.setYHeadRot(yaw);
+			} else {
+				final var originalEntity = entity;
+				entity = originalEntity.getType().create(level);
+				if (entity == null)
+					return;
+				originalEntity.unRide();
+				entity.restoreFrom(originalEntity);
+				entity.moveTo(x, y, z, yaw, pitch);
+				entity.setYHeadRot(yaw);
+				originalEntity.setRemoved(Entity.RemovalReason.CHANGED_DIMENSION);
+				level.addDuringTeleport(entity);
+			}
+		}
+
+		if (!(entity instanceof LivingEntity) || !((LivingEntity) entity).isFallFlying()) {
+			entity.setDeltaMovement(entity.getDeltaMovement().multiply(1.0, 0.0, 1.0));
+			entity.setOnGround(true);
+		}
+		if (entity instanceof PathfinderMob mob) {
+			mob.getNavigation().stop();
+		}
 	}
 
 }

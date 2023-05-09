@@ -2,6 +2,7 @@ package net.xavil.universal.common.universe.universe;
 
 import java.util.Random;
 
+import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
@@ -33,7 +34,7 @@ public abstract class Universe implements Disposable {
 	public static final boolean IS_UNIVERSE_GEN_ASYNC = true;
 
 	public double celestialTimeRate = 1;
-	public long celestialTimeTicks = 0;
+	public double celestialTime = 0, lastCelestialTime = 0;
 	public final UniverseSectorManager sectorManager = new UniverseSectorManager(this);
 	public final Disposable.Multi disposer = new Disposable.Multi();
 	protected final MutableMap<Integer, SpaceStation> spaceStations = MutableMap.hashMap();
@@ -78,7 +79,8 @@ public abstract class Universe implements Disposable {
 
 	public void tick(ProfilerFiller profiler, boolean isPaused) {
 		if (!isPaused) {
-			this.celestialTimeTicks += 1;
+			this.lastCelestialTime = this.celestialTime;
+			this.celestialTime += this.celestialTimeRate / 20.0;
 			this.spaceStations.values().forEach(station -> station.tick());
 		}
 		this.sectorManager.tick(profiler);
@@ -89,7 +91,7 @@ public abstract class Universe implements Disposable {
 	}
 
 	public double getCelestialTime(float partialTick) {
-		return celestialTimeRate * (this.celestialTimeTicks + partialTick) / 20.0;
+		return Mth.lerp(partialTick, this.lastCelestialTime, this.celestialTime); 
 	}
 
 	public Option<StarSystem> loadSystem(Disposable.Multi disposer, SystemId id) {

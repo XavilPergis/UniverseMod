@@ -1,5 +1,7 @@
 package net.xavil.universal.common.components;
 
+import java.util.Objects;
+
 import dev.onyxstudios.cca.api.v3.component.sync.AutoSyncedComponent;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
@@ -25,6 +27,11 @@ public class SystemNodeIdComponent implements AutoSyncedComponent {
 			var id = SystemNodeId.CODEC.encodeStart(NbtOps.INSTANCE, this.id).getOrThrow(true, Mod.LOGGER::error);
 			tag.put("system_node_id", id);
 		}
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		return obj instanceof SystemNodeIdComponent other ? Objects.equals(other.id, this.id) : false;
 	}
 
 }

@@ -175,7 +175,8 @@ vec3 warped(in vec3 uv) {
 }
 
 vec3 field(in vec3 pos, in float seed) {
-    return smoothedField(warped(pos), seed);
+    // return smoothedField(warped(pos), seed);
+    return smoothedField(pos, seed);
 }
 
 // =============== === ===== ======= ===============
@@ -193,19 +194,25 @@ vec3 gasGiantBaseColor(vec3 pos) {
 }
 
 Light makeStarLight(in vec3 posWorld, in vec4 color) {
-	// return makePointLight(posWorld, color.rgb * color.a * 3.827e26);
-	// return makePointLight(posWorld, color.rgb * color.a);
 	return makePointLight(posWorld, color.rgb * color.a * 3.827e26);
+	// return makePointLight(posWorld, color.rgb * color.a);
+	// return makePointLight(posWorld, color.rgb * color.a * 100.0);
 	// return makePointLight(posWorld, vec3(1.0e3));
 }
 
+float sampleHeight(vec3 normWorld) {
+	float height = 0.0;
+	height += noiseSimplex(1.0 * normWorld);
+	height += 0.5 * noiseSimplex(2.5 * normWorld);
+	height += 0.3 * noiseSimplex(5.0 * normWorld);
+	height += 0.1 * noiseSimplex(20.0 * normWorld);
+	return height;
+}
+
 Material shadeElw(vec3 fragPosWorld, vec3 normWorld) {
-	float landValue = 0.0;
-	landValue += noiseSimplex(1.0 * normWorld);
-	landValue += 0.5 * noiseSimplex(2.5 * normWorld);
-	landValue += 0.3 * noiseSimplex(5.0 * normWorld);
-	landValue += 0.1 * noiseSimplex(20.0 * normWorld);
-	if (landValue >= 0.0) {
+	float height = sampleHeight(normWorld);
+
+	if (height >= 0.0) {
 		float colnoise = noiseSimplex(normWorld + 10.0) * 0.5 + 0.5;
 		vec3 col = mix(vec3(0.4, 1.0, 0.35), vec3(0.6, 0.4, 0.4), colnoise);
 		// return Material(vec3(0.0), vec3(0.3, 1.0, 0.3), 1.0, 0.0);
@@ -226,7 +233,6 @@ Material shadeRockyIceWorld(vec3 fragPosWorld, vec3 normWorld) {
 Material shadeRocky(vec3 fragPosWorld, vec3 normWorld) {
 	float colnoise = noiseSimplex(normWorld) * 0.5 + 0.5;
 	vec3 col = mix(vec3(0.2), vec3(0.8), smoothstep(0.2, 0.3, colnoise));
-	// return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
 	return Material(vec3(0.0), col, 1.0, 0.0);
 }
 Material shadeWater(vec3 fragPosWorld, vec3 normWorld) {
@@ -255,13 +261,7 @@ void main() {
 	// res += lightContribution(ctx, makeStarLight(LightPos1.xyz, LightColor1));
 	// res += lightContribution(ctx, makeStarLight(LightPos2.xyz, LightColor2));
 	// res += lightContribution(ctx, makeStarLight(LightPos3.xyz, LightColor3));
-
-	// res += contribution(LightColor0, LightPos0);
-	// res += contribution(LightColor1, LightPos1);
-	// res += contribution(LightColor2, LightPos2);
-	// res += contribution(LightColor3, LightPos3);
 	vec3 finalColor = res;
-	// vec3 finalColor = l0.radiantFlux;
 
 	float exposure = 5e-26;
 	finalColor = 1.0 - exp(-finalColor * exposure);

@@ -41,6 +41,8 @@ public final class ServerUniverse extends Universe {
 	protected final MinecraftServer server;
 	protected StartingSystemGalaxyGenerationLayer startingGenerator;
 	protected int overworldNodeId = -1;
+	private int timeSyncIntervalTicks = 200;
+	private int ticksUntilTimeSync = timeSyncIntervalTicks;
 
 	protected SystemTicket startingSystemTicket = null;
 
@@ -111,13 +113,19 @@ public final class ServerUniverse extends Universe {
 	@Override
 	public void tick(ProfilerFiller profiler, boolean isPaused) {
 		super.tick(profiler, isPaused);
-		if (!isPaused && this.celestialTimeTicks % 200 == 0)
-			syncTime();
+		if (!isPaused) {
+			this.ticksUntilTimeSync -= 1;
+			if (this.ticksUntilTimeSync <= 0) {
+				syncTime(false);
+				this.ticksUntilTimeSync = this.timeSyncIntervalTicks;
+			}
+		}
 	}
 
-	public void syncTime() {
-		final var syncPacket = new ClientboundSyncCelestialTimePacket(this.celestialTimeTicks);
+	public void syncTime(boolean isDiscontinuous) {
+		final var syncPacket = new ClientboundSyncCelestialTimePacket(this.celestialTime);
 		syncPacket.celestialTimeRate = this.celestialTimeRate;
+		syncPacket.isDiscontinuous = isDiscontinuous;
 		this.server.getPlayerList().broadcastAll(syncPacket);
 	}
 

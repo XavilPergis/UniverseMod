@@ -41,8 +41,8 @@ public abstract class Universe implements Disposable {
 	private int nextStationId = 0;
 
 	@Override
-	public void dispose() {
-		this.disposer.dispose();
+	public void close() {
+		this.disposer.close();
 	}
 
 	public abstract long getCommonUniverseSeed();

@@ -20,7 +20,7 @@ public final class GalaxyTicket implements Disposable {
 	}
 
 	@Override
-	public void dispose() {
+	public void close() {
 		remove();
 	}
 

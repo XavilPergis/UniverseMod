@@ -59,10 +59,11 @@ public abstract sealed class StationLocation implements Disposable {
 		private OrbitingCelestialBody(Universe universe, CompoundTag nbt) {
 			this.id = decodeNbt(SystemNodeId.CODEC, nbt.get("id"));
 
-			this.ticket = Disposable.scope(disposer -> {
-				return universe.loadGalaxy(disposer, id.universeSector())
-						.map(galaxy -> galaxy.sectorManager.createSystemTicketManual(id.galaxySector()));
-			}).unwrap();
+			try (final var disposer = Disposable.scope()) {
+				this.ticket = universe.loadGalaxy(disposer, id.universeSector())
+						.map(galaxy -> galaxy.sectorManager.createSystemTicketManual(id.galaxySector()))
+						.unwrap();
+			}
 
 			if (nbt.contains("plane"))
 				this.plane = decodeNbt(OrbitalPlane.CODEC, nbt.get("plane"));
@@ -85,7 +86,7 @@ public abstract sealed class StationLocation implements Disposable {
 		}
 
 		public static Option<OrbitingCelestialBody> createDefault(Universe universe, SystemNodeId id) {
-			return Disposable.scope(disposer -> {
+			try (final var disposer = Disposable.scope()) {
 				final var galaxy = universe.loadGalaxy(disposer, id.universeSector()).unwrapOrNull();
 				if (galaxy == null)
 					return Option.none();
@@ -93,7 +94,7 @@ public abstract sealed class StationLocation implements Disposable {
 				if (ticket.forceLoad().isNone())
 					return Option.none();
 				return Option.some(new OrbitingCelestialBody(universe, ticket, id));
-			});
+			}
 		}
 
 		@Override
@@ -155,8 +156,8 @@ public abstract sealed class StationLocation implements Disposable {
 		}
 
 		@Override
-		public void dispose() {
-			this.ticket.dispose();
+		public void close() {
+			this.ticket.close();
 		}
 	}
 
@@ -186,7 +187,7 @@ public abstract sealed class StationLocation implements Disposable {
 		}
 
 		public static Option<JumpingSystem> create(Universe universe, StationLocation current, SystemId target) {
-			return Disposable.scope(disposer -> {
+			try (final var disposer = Disposable.scope()) {
 				final var galaxy = universe.loadGalaxy(disposer, target.universeSector()).unwrapOrNull();
 				if (galaxy == null)
 					return Option.none();
@@ -194,7 +195,7 @@ public abstract sealed class StationLocation implements Disposable {
 				if (ticket.forceLoad().isNone())
 					return Option.none();
 				return Option.some(new JumpingSystem(universe, ticket, current, target));
-			});
+			}
 		}
 
 		private JumpingSystem(Universe universe, CompoundTag nbt) {
@@ -241,7 +242,7 @@ public abstract sealed class StationLocation implements Disposable {
 		}
 
 		@Override
-		public void dispose() {
+		public void close() {
 		}
 	}
 

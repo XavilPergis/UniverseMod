@@ -15,7 +15,7 @@ public final class PlanetGeometryManager implements Disposable {
 	private Node zn, zp;
 
 	@Override
-	public void dispose() {
+	public void close() {
 		// TODO Auto-generated method stub
 	}
 

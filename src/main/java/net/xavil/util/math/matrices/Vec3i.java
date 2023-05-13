@@ -27,7 +27,7 @@ public final class Vec3i implements Hashable {
 
 	public final int x, y, z;
 
-	private Vec3i(int x, int y, int z) {
+	public Vec3i(int x, int y, int z) {
 		this.x = x;
 		this.y = y;
 		this.z = z;

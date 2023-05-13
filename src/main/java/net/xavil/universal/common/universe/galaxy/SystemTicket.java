@@ -32,7 +32,7 @@ public final class SystemTicket implements Disposable {
 	}
 
 	@Override
-	public void dispose() {
+	public void close() {
 		remove();
 	}
 

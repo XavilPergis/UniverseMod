@@ -149,12 +149,12 @@ public class Mod implements ModInitializer {
 			return Option.some(server.overworld());
 		}
 
-		return Disposable.scope(disposer -> {
+		try (final var disposer = Disposable.scope()) {
 			return universe.loadSystem(disposer, id.system())
 					.flatMap(system -> Option.fromNullable(system.rootNode.lookup(id.nodeId())))
 					.flatMap(node -> getDimProperties(server, node))
 					.map(props -> createWorld(server, id, props));
-		});
+		}
 	}
 
 	private static void teleportToWorld(ServerPlayer sender, SystemNodeId id) {

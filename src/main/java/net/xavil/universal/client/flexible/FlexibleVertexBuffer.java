@@ -121,7 +121,7 @@ public class FlexibleVertexBuffer implements Disposable {
 	}
 
 	@Override
-	public void dispose() {
+	public void close() {
 		if (this.vertexBufferId >= 0) {
 			RenderSystem.glDeleteBuffers(this.vertexBufferId);
 		}

@@ -39,13 +39,13 @@ public final class SpaceStation {
 
 	public void setLocation(StationLocation location) {
 		if (this.location != null)
-			this.location.dispose();
+			this.location.close();
 		this.location = location;
 	}
 
 	private void setJumpInfo(@Nullable JumpInfo info) {
 		if (this.jumpInfo != null)
-			this.jumpInfo.dispose();
+			this.jumpInfo.close();
 		this.jumpInfo = info;
 	}
 

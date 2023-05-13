@@ -17,7 +17,7 @@ public final class UniverseSectorTicket implements Disposable {
 	}
 
 	@Override
-	public void dispose() {
+	public void close() {
 		this.remove();
 	}
 

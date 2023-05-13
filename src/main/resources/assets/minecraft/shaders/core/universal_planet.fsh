@@ -264,7 +264,8 @@ void main() {
 	vec3 finalColor = res;
 
 	float exposure = 5e-26;
-	finalColor = 1.0 - exp(-finalColor * exposure);
+	// finalColor = 1.0 - exp(-finalColor * exposure);
+	finalColor *= exposure;
 	// finalColor = finalColor / (1.0 + finalColor);
 
 	// finalColor = acesTonemap(finalColor);

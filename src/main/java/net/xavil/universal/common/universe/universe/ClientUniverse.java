@@ -52,7 +52,7 @@ public final class ClientUniverse extends Universe {
 		this.commonUniverseSeed = packet.commonSeed;
 		this.uniqueUniverseSeed = packet.uniqueSeed;
 
-		Disposable.scope(disposer -> {
+		try (final var disposer = Disposable.scope()) {
 			final var sectorPos = packet.startingId.system().universeSector();
 			final var tempTicket = this.sectorManager.createGalaxyTicket(disposer, sectorPos);
 			final var galaxy = this.sectorManager.forceLoad(tempTicket).unwrap();
@@ -67,8 +67,7 @@ public final class ClientUniverse extends Universe {
 			this.startingSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer,
 					startingId.system().galaxySector());
 			galaxy.sectorManager.forceLoad(this.startingSystemTicket);
-		});
-
+		}
 	}
 
 	public void applyPacket(ClientboundSyncCelestialTimePacket packet) {

@@ -289,11 +289,11 @@ public final class PlanetRenderingContext {
 			RenderSystem.enableBlend();
 			RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 	
-			// TODO: tint
-			tfm.push();
-			tfm.prependTranslation(this.origin);
-			RenderHelper.renderStarBillboard(builder, camera, tfm, node);
-			tfm.pop();
+			// // TODO: tint
+			// tfm.push();
+			// tfm.prependTranslation(this.origin);
+			// RenderHelper.renderStarBillboard(builder, camera, tfm, node);
+			// tfm.pop();
 		}
 
 		if (distanceRatio < 0.0001)

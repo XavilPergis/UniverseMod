@@ -16,7 +16,7 @@ public final class SectorTicket<T extends SectorTicketInfo> implements Disposabl
 	}
 
 	@Override
-	public void dispose() {
+	public void close() {
 		this.remove();
 	}
 }

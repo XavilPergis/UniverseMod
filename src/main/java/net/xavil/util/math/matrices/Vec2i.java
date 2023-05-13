@@ -24,7 +24,7 @@ public class Vec2i implements Hashable {
 
 	public final int x, y;
 
-	private Vec2i(int x, int y) {
+	public Vec2i(int x, int y) {
 		this.x = x;
 		this.y = y;
 	}
@@ -93,6 +93,13 @@ public class Vec2i implements Hashable {
 		return new Vec2i(-x, -y);
 	}
 
+	public static Vec2i min(Vec2i a, Vec2i b) {
+		return new Vec2i(Math.min(a.x, b.x), Math.min(a.y, b.y));
+	}
+	public static Vec2i max(Vec2i a, Vec2i b) {
+		return new Vec2i(Math.max(a.x, b.x), Math.max(a.y, b.y));
+	}
+
 	@Override
 	public String toString() {
 		return "Vec2i[" + x + ", " + y + "]";
@@ -120,6 +127,10 @@ public class Vec2i implements Hashable {
 		for (var x = min.x; x <= max.x; ++x)
 			for (var y = min.y; y <= max.y; ++y)
 				consumer.accept(new Vec2i(x, y));
+	}
+
+	public static Vec2i broadcast(int n) {
+		return new Vec2i(n, n);
 	}
 
 }

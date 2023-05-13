@@ -22,11 +22,10 @@ import net.xavil.universal.client.flexible.CubemapTexture;
 import net.xavil.universal.client.flexible.FlexibleRenderTarget;
 import net.xavil.universal.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universal.client.flexible.FlexibleVertexMode;
+import net.xavil.universal.client.flexible.Texture2d;
 import net.xavil.universal.client.screen.RenderHelper;
 import net.xavil.universal.common.universe.Location;
 import net.xavil.universal.common.universe.galaxy.Galaxy;
-import net.xavil.universal.common.universe.galaxy.SectorTicket;
-import net.xavil.universal.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.universal.common.universe.galaxy.SystemTicket;
 import net.xavil.universal.common.universe.id.UniverseSectorId;
 import net.xavil.universal.common.universe.station.StationLocation;
@@ -47,6 +46,7 @@ import net.xavil.util.math.Quat;
 import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.Mat4;
 import net.xavil.util.math.matrices.Vec2;
+import net.xavil.util.math.matrices.Vec2i;
 import net.xavil.util.math.matrices.Vec3;
 
 public class SkyRenderer {
@@ -55,6 +55,7 @@ public class SkyRenderer {
 	private final Minecraft client = Minecraft.getInstance();
 
 	public FlexibleRenderTarget skyTarget = null;
+	public BloomRenderer bloomRenderer = null;
 	public boolean useMultisampling = false;
 
 	private Location previousLocation = null;
@@ -80,6 +81,9 @@ public class SkyRenderer {
 	public void resize(int width, int height) {
 		if (this.skyTarget != null) {
 			this.skyTarget.resize(width, height, false);
+		}
+		if (this.bloomRenderer != null) {
+			this.bloomRenderer.resize(new Vec2i(width, height));
 		}
 	}
 
@@ -269,15 +273,15 @@ public class SkyRenderer {
 
 	private void disposeTickets() {
 		if (this.galaxyTicket != null) {
-			this.galaxyTicket.dispose();
+			this.galaxyTicket.close();
 			this.galaxyTicket = null;
 		}
 		if (this.systemTicket != null) {
-			this.systemTicket.dispose();
+			this.systemTicket.close();
 			this.systemTicket = null;
 		}
 		if (this.starRenderer != null) {
-			this.starRenderer.dispose();
+			this.starRenderer.close();
 			this.starRenderer = null;
 		}
 
@@ -505,6 +509,12 @@ public class SkyRenderer {
 
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
 
+		if (this.bloomRenderer == null) {
+			final var window = this.client.getWindow();
+			final var size = new Vec2i(window.getWidth(), window.getHeight());
+			this.bloomRenderer = new BloomRenderer(size);
+		}
+
 		final var compositeTarget = getSkyCompositeTarget();
 		if (this.useMultisampling) {
 			if (this.skyTarget == null) {
@@ -521,13 +531,35 @@ public class SkyRenderer {
 			drawSky(camera, compositeTarget, partialTick);
 		}
 
+		final var imported = Texture2d.importFromRenderTarget(compositeTarget);
+		this.bloomRenderer.render(imported);
+
+		// compositeTarget.bindWrite(true);
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
+		// RenderSystem.disableBlend();
+		// BufferRenderer.drawFullscreen(this.bloomRenderer.getOutputTexture());
+
 		final var mainTarget = this.client.getMainRenderTarget();
+
+		compositeTarget.bindWrite(true);
+		RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
+		RenderSystem.enableBlend();
+		// RenderSystem.disableBlend();
+		BufferRenderer.drawFullscreen(this.bloomRenderer.getOutputTexture());
 
 		profiler.push("composite");
 		mainTarget.setClearColor(0f, 0f, 0f, 1.0f);
 		ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).process(partialTick);
-		mainTarget.bindWrite(false);
+		mainTarget.bindWrite(true);
 		profiler.pop();
+
+		// compositeTarget.blitToScreen(client.getWindow().getWidth(), client.getWindow().getHeight());
+		
+		// final var holders = this.bloomRenderer.getHolders();
+		// final var holder = holders.get((int) ((System.currentTimeMillis() / 480) % holders.size()));
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
+		// RenderSystem.enableBlend();
+		// BufferRenderer.drawFullscreen(holder.texture);
 
 		// a bit scuffed...
 		GlStateManager._clearDepth(1.0);

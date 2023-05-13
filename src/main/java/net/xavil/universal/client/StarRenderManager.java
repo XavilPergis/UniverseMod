@@ -146,10 +146,10 @@ public final class StarRenderManager implements Disposable {
 	}
 
 	@Override
-	public void dispose() {
-		this.galaxyTicket.dispose();
-		this.sectorTicket.dispose();
-		this.starsBuffer.dispose();
+	public void close() {
+		this.galaxyTicket.close();
+		this.sectorTicket.close();
+		this.starsBuffer.close();
 	}
 
 }

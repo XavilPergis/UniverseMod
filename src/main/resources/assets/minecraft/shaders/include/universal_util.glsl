@@ -10,6 +10,10 @@ vec2  saturate(in  vec2 n) { return vec2(saturate(n.x), saturate(n.y)); }
 vec3  saturate(in  vec3 n) { return vec3(saturate(n.x), saturate(n.y), saturate(n.z)); }
 vec4  saturate(in  vec4 n) { return vec4(saturate(n.x), saturate(n.y), saturate(n.z), saturate(n.w)); }
 
+float luma(vec3 color) {
+	return dot(color, vec3(0.299, 0.587, 0.114));
+}
+
 // The dot product of a and b, clamped between [0,inf)
 float pdot(vec3 a, vec3 b) {
 	return max(dot(a, b), 0.0);

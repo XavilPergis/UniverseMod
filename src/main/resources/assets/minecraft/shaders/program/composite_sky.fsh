@@ -47,11 +47,13 @@ void main(){
 	// tonemapped = tonemap(tonemapped * exposure);
 	// tonemapped = 1.0 - exp(-tonemapped * exposure);
 	tonemapped *= exposure;
+
+	tonemapped = tonemap(tonemapped);
 	
-	// float gamma = 2.2;
+	float gamma = 2.2;
 	// wtf? gamma correction is supposed to go the other way! but from testing, this produces
 	// perceptually linear results, so im not gonna question it too much i think...
-	// tonemapped = pow(tonemapped, vec3(gamma));
+	tonemapped = pow(tonemapped, vec3(gamma));
 	
     fragColor = vec4(tonemapped, 1.0);
 }

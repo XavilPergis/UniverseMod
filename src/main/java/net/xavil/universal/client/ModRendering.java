@@ -32,6 +32,10 @@ public final class ModRendering {
 	public static final String STAR_SHADER = "universal_star";
 	public static final String GALAXY_PARTICLE_SHADER = "universal_galaxy_particle";
 	public static final String SKYBOX_SHADER = "universal_skybox";
+	public static final String BLOOM_DOWNSAMPLE_SHADER = "universal_bloom_downsample";
+	public static final String BLOOM_UPSAMPLE_SHADER = "universal_bloom_upsample";
+	public static final String BLOOM_PREFILTER_SHADER = "universal_bloom_prefilter";
+	public static final String BLIT_SHADER = "universal_blit";
 
 	public static final String COMPOSITE_SKY_CHAIN = "shaders/post/universal_composite_sky.json";
 

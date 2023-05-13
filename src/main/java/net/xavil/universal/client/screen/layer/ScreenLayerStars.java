@@ -97,7 +97,7 @@ public class ScreenLayerStars extends Universal3dScreen.Layer3d {
 					screen.camera.yaw.set(this.screen.camera.yaw.target);
 					this.client.setScreen(screen);
 				});
-				disposer.dispose();
+				disposer.close();
 			}
 			return true;
 		}

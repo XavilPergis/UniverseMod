@@ -247,7 +247,7 @@ public final class ServerUniverse extends Universe {
 		var rootNode = startingSystem.rootNode;
 		var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);
 
-		Disposable.scope(disposer -> {
+		try (final var disposer = Disposable.scope()) {
 			final var sectorPos = Vec3i.ZERO;
 			final var tempTicket = this.sectorManager.createSectorTicket(disposer,
 					UniverseSectorTicketInfo.single(sectorPos));
@@ -269,7 +269,7 @@ public final class ServerUniverse extends Universe {
 			this.startingSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer,
 					startingId.system().galaxySector());
 			galaxy.sectorManager.forceLoad(this.startingSystemTicket);
-		});
+		}
 	}
 
 }

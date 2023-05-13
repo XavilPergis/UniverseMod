@@ -38,13 +38,13 @@ public abstract class LevelMixin implements LevelAccessor {
 
 		if (this.location instanceof Location.World world) {
 			// NOTE: all worlds posses a ticket that keeps themselves loaded.
-			Disposable.scope(disposer -> {
+			try (final var disposer = Disposable.scope()) {
 				final var sysId = world.id.system();
 				final var galaxy = universe.loadGalaxy(disposer, sysId.universeSector()).unwrap();
 				this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, sysId.galaxySector());
 				galaxy.sectorManager.forceLoad(this.systemTicket);
 				Mod.LOGGER.info("loaded system ticket for Level with id of {}", world.id);
-			});
+			}
 		}
 		if (self instanceof ServerLevel serverLevel) {
 			final var savedData = serverLevel.getDataStorage()
@@ -68,7 +68,7 @@ public abstract class LevelMixin implements LevelAccessor {
 
 	@Inject(method = "close", at = @At("TAIL"))
 	private void onClose(CallbackInfo info) {
-		this.disposer.dispose();
+		this.disposer.close();
 	}
 
 }

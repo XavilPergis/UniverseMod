@@ -49,12 +49,16 @@ public class ClientMod implements ClientModInitializer {
 
 		ModRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
 			// @formatter:off
-			acceptor.accept(ModRendering.STAR_SHADER,            DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-			acceptor.accept(ModRendering.STAR_BILLBOARD_SHADER,  DefaultVertexFormat.POSITION_COLOR_TEX);
-			acceptor.accept(ModRendering.PLANET_SHADER,          DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-			acceptor.accept(ModRendering.RING_SHADER,            DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-			acceptor.accept(ModRendering.GALAXY_PARTICLE_SHADER, DefaultVertexFormat.POSITION_COLOR_TEX);
-			acceptor.accept(ModRendering.SKYBOX_SHADER,          DefaultVertexFormat.POSITION);
+			acceptor.accept(ModRendering.STAR_SHADER,             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+			acceptor.accept(ModRendering.STAR_BILLBOARD_SHADER,   DefaultVertexFormat.POSITION_COLOR_TEX);
+			acceptor.accept(ModRendering.PLANET_SHADER,           DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+			acceptor.accept(ModRendering.RING_SHADER,             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
+			acceptor.accept(ModRendering.GALAXY_PARTICLE_SHADER,  DefaultVertexFormat.POSITION_COLOR_TEX);
+			acceptor.accept(ModRendering.SKYBOX_SHADER,           DefaultVertexFormat.POSITION);
+			acceptor.accept(ModRendering.BLOOM_DOWNSAMPLE_SHADER, DefaultVertexFormat.POSITION_TEX);
+			acceptor.accept(ModRendering.BLOOM_UPSAMPLE_SHADER,   DefaultVertexFormat.POSITION_TEX);
+			acceptor.accept(ModRendering.BLOOM_PREFILTER_SHADER,  DefaultVertexFormat.POSITION_TEX);
+			acceptor.accept(ModRendering.BLIT_SHADER,             DefaultVertexFormat.POSITION_TEX);
 			// @formatter:off
 		});
 		ModRendering.LOAD_POST_PROCESS_SHADERS_EVENT.register(acceptor -> {
@@ -72,17 +76,17 @@ public class ClientMod implements ClientModInitializer {
 		final var universe = MinecraftClientAccessor.getUniverse(client);
 
 		if (packetUntyped instanceof ClientboundOpenStarmapPacket packet) {
-			Disposable.scope(disposer -> {
+			try (final var disposer = Disposable.scope()) {
 				final var systemId = packet.toOpen.system();
 				final var galaxyTicket = universe.sectorManager.createGalaxyTicket(disposer, systemId.universeSector());
 				final var galaxy = universe.sectorManager.forceLoad(galaxyTicket).unwrap();
 				final var systemTicket = galaxy.sectorManager.createSystemTicket(disposer, systemId.galaxySector());
 				final var system = galaxy.sectorManager.forceLoad(systemTicket).unwrap();
-
+	
 				final var galaxyMap = new NewGalaxyMapScreen(client.screen, galaxy, systemId.galaxySector());
 				final var systemMap = new NewSystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
 				client.setScreen(systemMap);
-			});
+			}
 		} else if (packetUntyped instanceof ClientboundUniverseInfoPacket packet) {
 			universe.updateFromInfoPacket(packet);
 		} else if (packetUntyped instanceof ClientboundChangeSystemPacket packet) {

@@ -82,8 +82,12 @@ void main() {
 	vec4 baseColor = shadeRing(texCoord0.y);
 	vec3 finalColor = res * baseColor.rgb;
 
+	float exposure = 0.1;
+	// finalColor = 1.0 - exp(-finalColor * exposure);
+	finalColor *= exposure;
+
     // finalColor = pow(finalColor, vec3(1.0 / gamma));
-	finalColor = acesTonemap(finalColor);
+	// finalColor = acesTonemap(finalColor);
 
     fragColor = vec4(finalColor, baseColor.a);
 }

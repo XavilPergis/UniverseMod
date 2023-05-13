@@ -1,31 +1,17 @@
 package net.xavil.util;
 
 import java.util.function.Consumer;
-import java.util.function.Function;
 
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
 
-public interface Disposable {
+public interface Disposable extends AutoCloseable {
 
-	void dispose();
+	@Override
+	void close();
 
-	static void scope(Consumer<Multi> consumer) {
-		final var multi = new Multi();
-		try {
-			consumer.accept(multi);
-		} finally {
-			multi.dispose();
-		}
-	}
-
-	static <T> T scope(Function<Multi, T> func) {
-		final var multi = new Multi();
-		try {
-			return func.apply(multi);
-		} finally {
-			multi.dispose();
-		}
+	static Multi scope() {
+		return new Multi();
 	}
 
 	static <T> Wrapped<T> wrapped(T value, Consumer<T> disposer) {
@@ -43,7 +29,7 @@ public interface Disposable {
 		}
 
 		@Override
-		public void dispose() {
+		public void close() {
 			this.disposer.accept(this.value);
 		}
 	}
@@ -57,8 +43,8 @@ public interface Disposable {
 		}
 
 		@Override
-		public void dispose() {
-			this.children.forEach(Disposable::dispose);
+		public void close() {
+			this.children.forEach(Disposable::close);
 			this.children.clear();
 		}
 	}

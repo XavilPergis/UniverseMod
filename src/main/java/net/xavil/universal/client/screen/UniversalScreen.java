@@ -36,8 +36,8 @@ public abstract class UniversalScreen extends Screen {
 		}
 
 		@Override
-		public void dispose() {
-			this.disposer.dispose();
+		public void close() {
+			this.disposer.close();
 		}
 
 		public abstract void render(PoseStack poseStack, Vec2i mousePos, float partialTick);
@@ -169,8 +169,8 @@ public abstract class UniversalScreen extends Screen {
 		// NOTE: explicitly not calling super's onClose because we want to set the
 		// screen to the previous screen instead of always setting it to null.
 		this.client.setScreen(previousScreen);
-		this.layers.forEach(layer -> layer.dispose());
-		this.disposer.dispose();
+		this.layers.forEach(layer -> layer.close());
+		this.disposer.close();
 	}
 
 }

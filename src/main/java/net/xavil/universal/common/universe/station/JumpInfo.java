@@ -22,7 +22,7 @@ public final class JumpInfo implements Disposable {
 	}
 
 	@Override
-	public void dispose() {
+	public void close() {
 	}
 
 }

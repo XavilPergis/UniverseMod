@@ -21,5 +21,5 @@ void main() {
 	hdrColor = (1.0 * hdrColor) + (1.0 * s2.a * s2);
 
 	float alpha = max(0.0, pow(input.color.a, 1.0));
-    fragColor = hdrColor * alpha;
+    fragColor = 0.9 * hdrColor * alpha;
 }

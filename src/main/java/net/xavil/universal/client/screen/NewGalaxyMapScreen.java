@@ -33,7 +33,7 @@ public class NewGalaxyMapScreen extends Universal3dScreen {
 		this.layers.push(new ScreenLayerGalaxy(this, galaxy, Vec3.ZERO));
 
 		this.galaxy = galaxy;
-		Disposable.scope(tempDisposer -> {
+		try (final var tempDisposer = Disposable.scope()) {
 			final var tempTicket = galaxy.sectorManager.createSectorTicket(tempDisposer,
 					SectorTicketInfo.single(systemToFocus.sectorPos()));
 			galaxy.sectorManager.forceLoad(tempTicket);
@@ -41,12 +41,12 @@ public class NewGalaxyMapScreen extends Universal3dScreen {
 			if (initial.isNone()) {
 				Mod.LOGGER.error("Tried to open starmap to nonexistent id {}", systemToFocus);
 			}
-
+	
 			final var initialPos = initial.map(i -> i.pos()).unwrapOr(Vec3.ZERO);
 			this.camera.focus.set(initialPos);
-
+	
 			this.layers.push(new ScreenLayerStars(this, galaxy, SectorTicketInfo.visual(initialPos)));
-		});
+		}
 
 		this.layers.push(new ScreenLayerSystemInfo(this, galaxy));
 	}

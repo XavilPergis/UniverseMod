@@ -27,7 +27,7 @@ repositories {
 }
 
 loom {
-	accessWidenerPath = file("src/main/resources/universal.accesswidener")
+	accessWidenerPath = file("src/main/resources/ultraviolet.accesswidener")
 }
 
 dependencies {

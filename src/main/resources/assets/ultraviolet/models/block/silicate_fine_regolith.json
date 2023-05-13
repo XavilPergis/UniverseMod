@@ -1,0 +1,6 @@
+{
+	"parent": "block/cube_all",
+	"textures": {
+		"all": "ultraviolet:block/silicate_fine_regolith"
+	}
+}

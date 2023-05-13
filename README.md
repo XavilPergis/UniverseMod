@@ -3,7 +3,7 @@
 ## Code Overview
 - A ton of the client-side rendering stuff is done via custom implementations of vanilla structures, like `BufferBuilder` and `RenderTarget`
 - Custom math types that dont sucks so much to use: `Vec3`, `Vec3i`, `Quat`, `Color`, etc. These are located currently in `net/xavil/util/math`
-- Procedural star system generate is split between `net/xavil/universal/common/universe/system/StarSystemGenerator` and the classes in `net/xavil/universal/common/universe/system/gen`. Currently, it is _horribly_, _horribly_ broken. It started as a half-baked implementation of the ancient Accrete algorithm (aka Starform or Stargen) which I tried to modify to be more flexible, but I don't know astrophysics!
+- Procedural star system generate is split between `net/xavil/ultraviolet/common/universe/system/StarSystemGenerator` and the classes in `net/xavil/ultraviolet/common/universe/system/gen`. Currently, it is _horribly_, _horribly_ broken. It started as a half-baked implementation of the ancient Accrete algorithm (aka Starform or Stargen) which I tried to modify to be more flexible, but I don't know astrophysics!
 
 ### `CelestialNode`
 `CelestialNode` in `net/xavil/universegen/system` and its related classes are representations of celestial bodies and their children. Orbits are defined per-child, instead of per-node, meaning you have to use `CelestialNodeChild` to get orbital information about a celestial body.

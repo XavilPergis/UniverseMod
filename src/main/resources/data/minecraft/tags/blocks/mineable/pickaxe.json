@@ -1,8 +1,8 @@
 {
 	"replace": false,
 	"values": [
-		"universal:silicate_rock",
-		"universal:silicate_fine_regolith",
-		"universal:silicate_loose_regolith"
+		"ultraviolet:silicate_rock",
+		"ultraviolet:silicate_fine_regolith",
+		"ultraviolet:silicate_loose_regolith"
 	]
 }

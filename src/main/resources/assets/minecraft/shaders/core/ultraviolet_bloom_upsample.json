@@ -1,0 +1,22 @@
+{
+    "blend": {
+        "func": "add",
+        "srcrgb": "srcalpha",
+        "dstrgb": "one"
+    },
+    "vertex": "ultraviolet_blit",
+    "fragment": "ultraviolet_bloom_upsample",
+    "attributes": [
+        "Position",
+        "UV0"
+    ],
+    "samplers": [
+        { "name": "uPreviousSampler" }
+    ],
+    "uniforms": [
+		{ "name": "uSrcSize", "type": "int", "count": 2, "values": [ 0, 0 ] },
+		{ "name": "uDstSize", "type": "int", "count": 2, "values": [ 0, 0 ] },
+		{ "name": "uLevel",   "type": "int", "count": 1, "values": [ 0 ] },
+		{ "name": "uQuality", "type": "int", "count": 1, "values": [ 1 ] }
+    ]
+}

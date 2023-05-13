@@ -11,7 +11,7 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
-import net.xavil.universal.Mod;
+import net.xavil.ultraviolet.Mod;
 import net.xavil.util.Assert;
 import net.xavil.util.Units;
 import net.xavil.util.collections.Vector;

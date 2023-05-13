@@ -10,7 +10,7 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import net.xavil.universal.common.universe.id.GalaxySectorId;
+import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.util.hash.FastHasher;
 import net.xavil.util.hash.Hashable;
 import net.xavil.util.hash.Hasher;

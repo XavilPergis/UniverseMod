@@ -1,8 +1,8 @@
 {
 	"schemaVersion": 1,
-	"id": "universal",
+	"id": "ultraviolet",
 	"version": "${version}",
-	"name": "Universal",
+	"name": "Ultraviolet",
 	"description": "Explore the whole Universe!",
 	"authors": [
 		"Avi"
@@ -15,13 +15,13 @@
 	"icon": "assets/modid/icon.png",
 	"environment": "*",
 	"entrypoints": {
-		"preLaunch": ["net.xavil.universal.PreLaunchMod"],
-		"main": ["net.xavil.universal.Mod"],
-		"client": ["net.xavil.universal.ClientMod"],
-		"cardinal-components": ["net.xavil.universal.ModComponents"]
+		"preLaunch": ["net.xavil.ultraviolet.PreLaunchMod"],
+		"main": ["net.xavil.ultraviolet.Mod"],
+		"client": ["net.xavil.ultraviolet.ClientMod"],
+		"cardinal-components": ["net.xavil.ultraviolet.ModComponents"]
 	},
 	"mixins": [
-		"universal.mixins.json"
+		"ultraviolet.mixins.json"
 	],
 	"depends": {
 		"fabricloader": ">=0.14.6",
@@ -32,7 +32,7 @@
 	"suggests": {},
 	"custom": {
 		"cardinal-components": [
-			"universal:system_node_id"
+			"ultraviolet:system_node_id"
 		]
 	}
 }

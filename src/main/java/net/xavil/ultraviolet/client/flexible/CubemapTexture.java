@@ -33,14 +33,14 @@ public final class CubemapTexture extends Texture {
 		super(Type.CUBEMAP);
 	}
 
-	public void createStorage(int textureFormat, int size) {
+	public void createStorage(Texture.Format textureFormat, int size) {
 		this.textureFormat = textureFormat;
 		this.size = new Size(size, size, 1, 1);
 		for (int i = 0; i < 6; ++i) {
 			final var binding = GL32.GL_TEXTURE_CUBE_MAP_POSITIVE_X + i;
 			GlStateManager._texImage2D(
 					binding, 0,
-					this.textureFormat,
+					this.textureFormat.id,
 					size, size, 0,
 					// format + type are bogus values, and are ignored as we aren't actually doing
 					// any data transfer here.
@@ -53,7 +53,7 @@ public final class CubemapTexture extends Texture {
 	}
 
 	public void renderToCubemap(Consumer<Vec3> consumer) {
-		createStorage(GL32.GL_RGBA32F, 1024);
+		createStorage(Texture.Format.R32G32B32A32_FLOAT, 1024);
 
 		try (final var disposer = Disposable.scope()) {
 			final var framebuffer = disposer.attach(new Framebuffer(Vec2i.broadcast(1024)));

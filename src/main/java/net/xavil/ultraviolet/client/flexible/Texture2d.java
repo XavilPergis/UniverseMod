@@ -17,7 +17,7 @@ public final class Texture2d extends Texture {
 	}
 
 	public void resize(int width, int height) {
-		if (this.textureFormat < 0) {
+		if (this.textureFormat != null) {
 			throw new IllegalStateException(
 					debugDescription() + "Cannot resize a texture whose storage has not been previously allocated!");
 		}
@@ -29,7 +29,7 @@ public final class Texture2d extends Texture {
 		return this;
 	}
 
-	public void createStorage(int textureFormat, int width, int height) {
+	public void createStorage(Texture.Format textureFormat, int width, int height) {
 		final var maxTextureSize = RenderSystem.maxSupportedTextureSize();
 		if (width > maxTextureSize || height > maxTextureSize) {
 			throw new IllegalArgumentException(debugDescription() + "Maximum texture size is " + maxTextureSize
@@ -42,14 +42,14 @@ public final class Texture2d extends Texture {
 		switch (this.type) {
 			case D2 -> GlStateManager._texImage2D(
 					this.type.id, 0,
-					textureFormat,
+					textureFormat.id,
 					width, height, 0,
 					// format + type are bogus values, and are ignored as we aren't actually doing
 					// any data transfer here.
 					GL32.GL_RGBA, GL32.GL_UNSIGNED_BYTE, null);
 			case D2_MS -> GL32.glTexImage2DMultisample(
 					this.type.id, 4,
-					textureFormat,
+					textureFormat.id,
 					width, height, true);
 			default -> throw new IllegalStateException(
 					debugDescription() + "Invalid type for 2d texture: " + this.type.description);

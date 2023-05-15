@@ -1,5 +1,7 @@
 package net.xavil.util.collections.interfaces;
 
+import java.util.Collections;
+import java.util.IdentityHashMap;
 import java.util.Set;
 import java.util.function.Predicate;
 
@@ -30,6 +32,10 @@ public interface MutableSet<T> extends MutableCollection, ImmutableSet<T> {
 
 	static <T> MutableSet<T> hashSet() {
 		return new MutableSetProxy<>(new ObjectOpenHashSet<>());
+	}
+
+	static <T> MutableSet<T> identityHashSet() {
+		return new MutableSetProxy<>(Collections.newSetFromMap(new IdentityHashMap<>()));
 	}
 
 	static <T> MutableSet<T> hashSet(MutableSet<T> set) {

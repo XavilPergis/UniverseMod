@@ -1,5 +1,7 @@
 package net.xavil.ultraviolet.client.flexible;
 
+import org.lwjgl.opengl.GL32;
+
 import net.xavil.ultraviolet.Mod;
 import net.xavil.util.Disposable;
 

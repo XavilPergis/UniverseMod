@@ -93,6 +93,7 @@ public final class BufferRenderer {
 	}
 
 	public static void drawFullscreen(ShaderInstance shader) {
+		shader.apply();
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
 		builder.vertex(-1, 1, 0).uv0(0, 1).endVertex();

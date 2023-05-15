@@ -22,6 +22,7 @@ import net.xavil.ultraviolet.client.flexible.CubemapTexture;
 import net.xavil.ultraviolet.client.flexible.FlexibleRenderTarget;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexConsumer;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
+import net.xavil.ultraviolet.client.flexible.Texture;
 import net.xavil.ultraviolet.client.flexible.Texture2d;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.Location;
@@ -38,6 +39,7 @@ import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.util.Disposable;
 import net.xavil.util.Option;
 import net.xavil.util.Rng;
 import net.xavil.util.Units;
@@ -46,7 +48,6 @@ import net.xavil.util.math.Quat;
 import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.Mat4;
 import net.xavil.util.math.matrices.Vec2;
-import net.xavil.util.math.matrices.Vec2i;
 import net.xavil.util.math.matrices.Vec3;
 
 public class SkyRenderer {
@@ -55,7 +56,6 @@ public class SkyRenderer {
 	private final Minecraft client = Minecraft.getInstance();
 
 	public FlexibleRenderTarget skyTarget = null;
-	public BloomRenderer bloomRenderer = null;
 	public boolean useMultisampling = false;
 
 	private Location previousLocation = null;
@@ -70,7 +70,7 @@ public class SkyRenderer {
 	private boolean shouldRenderGalaxyToCubemap = true;
 
 	private SkyRenderer() {
-		this.galaxyCubemap.createStorage(GL32.GL_RGBA32F, 1024);
+		this.galaxyCubemap.createStorage(Texture.Format.R32G32B32A32_FLOAT, 1024);
 	}
 
 	public void tick() {
@@ -81,9 +81,6 @@ public class SkyRenderer {
 	public void resize(int width, int height) {
 		if (this.skyTarget != null) {
 			this.skyTarget.resize(width, height, false);
-		}
-		if (this.bloomRenderer != null) {
-			this.bloomRenderer.resize(new Vec2i(width, height));
 		}
 	}
 
@@ -509,12 +506,7 @@ public class SkyRenderer {
 
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
 
-		if (this.bloomRenderer == null) {
-			final var window = this.client.getWindow();
-			final var size = new Vec2i(window.getWidth(), window.getHeight());
-			this.bloomRenderer = new BloomRenderer(size);
-		}
-
+		final var mainTarget = this.client.getMainRenderTarget();
 		final var compositeTarget = getSkyCompositeTarget();
 		if (this.useMultisampling) {
 			if (this.skyTarget == null) {
@@ -531,37 +523,28 @@ public class SkyRenderer {
 			drawSky(camera, compositeTarget, partialTick);
 		}
 
-		final var imported = Texture2d.importFromRenderTarget(compositeTarget);
-		this.bloomRenderer.render(imported);
+		try (final var disposer = Disposable.scope()) {
+			final var imported = Texture2d.importFromRenderTarget(compositeTarget);
+			final var bloomOutput = disposer.attach(BloomEffect.render(imported));
 
-		// compositeTarget.bindWrite(true);
-		// RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
-		// RenderSystem.disableBlend();
-		// BufferRenderer.drawFullscreen(this.bloomRenderer.getOutputTexture());
+			compositeTarget.bindWrite(true);
+			RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
+			RenderSystem.enableBlend();
+			BufferRenderer.drawFullscreen(bloomOutput.texture);
+			
+			profiler.push("composite");
+			mainTarget.setClearColor(0f, 0f, 0f, 1.0f);
+			mainTarget.clear(false);
+			ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).process(partialTick);
+			profiler.pop();
+			
+			// RenderSystem.disableBlend();
+			// mainTarget.bindWrite(true);
+			// BufferRenderer.drawFullscreen(bloomOutput.texture);
+		}
 
-		final var mainTarget = this.client.getMainRenderTarget();
-
-		compositeTarget.bindWrite(true);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
-		RenderSystem.enableBlend();
-		// RenderSystem.disableBlend();
-		BufferRenderer.drawFullscreen(this.bloomRenderer.getOutputTexture());
-
-		profiler.push("composite");
-		mainTarget.setClearColor(0f, 0f, 0f, 1.0f);
-		ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).process(partialTick);
+		// reset GL state for the rest of the level renderer. a bit scuffed...
 		mainTarget.bindWrite(true);
-		profiler.pop();
-
-		// compositeTarget.blitToScreen(client.getWindow().getWidth(), client.getWindow().getHeight());
-		
-		// final var holders = this.bloomRenderer.getHolders();
-		// final var holder = holders.get((int) ((System.currentTimeMillis() / 480) % holders.size()));
-		// RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
-		// RenderSystem.enableBlend();
-		// BufferRenderer.drawFullscreen(holder.texture);
-
-		// a bit scuffed...
 		GlStateManager._clearDepth(1.0);
 		GlStateManager._clear(GL32.GL_DEPTH_BUFFER_BIT, false);
 		RenderSystem.enableDepthTest();

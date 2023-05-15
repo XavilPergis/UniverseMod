@@ -215,7 +215,7 @@ public final class Framebuffer extends GlObject {
 			oldTarget.close();
 	}
 
-	public void createColorTarget(int index, int textureFormat) {
+	public void createColorTarget(int index, Texture.Format textureFormat) {
 		final var texture = new Texture2d(false);
 		texture.createStorage(textureFormat, this.size.x, this.size.y);
 		final var target = new Target.Texture2dTarget(true, texture);
@@ -244,7 +244,7 @@ public final class Framebuffer extends GlObject {
 			oldTarget.close();
 	}
 
-	public void createDepthTarget(int textureFormat) {
+	public void createDepthTarget(Texture.Format textureFormat) {
 		final var texture = new Texture2d(false);
 		texture.createStorage(textureFormat, this.size.x, this.size.y);
 		final var target = new Target.Texture2dTarget(true, texture);

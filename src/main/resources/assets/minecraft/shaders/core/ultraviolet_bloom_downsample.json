@@ -14,9 +14,13 @@
         { "name": "uPreviousSampler" }
     ],
     "uniforms": [
-		{ "name": "uSrcSize",   "type": "int", "count": 2, "values": [ 0, 0 ] },
-		{ "name": "uDstSize",   "type": "int", "count": 2, "values": [ 0, 0 ] },
-		{ "name": "uLevel",     "type": "int", "count": 1, "values": [ 0 ] },
-		{ "name": "uQuality",   "type": "int", "count": 1, "values": [ 1 ] }
+		{ "name": "uIntensity",     "type": "float", "count": 1, "values": [ 0.1 ] },
+		{ "name": "uThreshold",     "type": "float", "count": 1, "values": [ 0.5 ] },
+		{ "name": "uSoftThreshold", "type": "float", "count": 1, "values": [ 0.5 ] },
+		{ "name": "uSrcSize",       "type": "int", "count": 2, "values": [ 0, 0 ] },
+		{ "name": "uDstSize",       "type": "int", "count": 2, "values": [ 0, 0 ] },
+		{ "name": "uLevel",         "type": "int", "count": 1, "values": [ 0 ] },
+		{ "name": "uTotalLevels",   "type": "int", "count": 1, "values": [ 0 ] },
+		{ "name": "uQuality",       "type": "int", "count": 1, "values": [ 1 ] }
     ]
 }

@@ -7,8 +7,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.xavil.ultraviolet.client.ModRendering;
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
+import net.xavil.ultraviolet.client.Shaders;
 import net.xavil.ultraviolet.client.UltravioletTextureManager;
 import net.xavil.ultraviolet.client.UltravioletTextureManager.SpriteRegistrationContext;
+import net.xavil.ultraviolet.client.gl.GlFragmentWrites;
 import net.xavil.ultraviolet.client.screen.NewGalaxyMapScreen;
 import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
@@ -49,25 +51,23 @@ public class ClientMod implements ClientModInitializer {
 
 		ModRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
 			// @formatter:off
-			acceptor.accept(ModRendering.STAR_SHADER,             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-			acceptor.accept(ModRendering.STAR_BILLBOARD_SHADER,   DefaultVertexFormat.POSITION_COLOR_TEX);
-			acceptor.accept(ModRendering.PLANET_SHADER,           DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-			acceptor.accept(ModRendering.RING_SHADER,             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-			acceptor.accept(ModRendering.GALAXY_PARTICLE_SHADER,  DefaultVertexFormat.POSITION_COLOR_TEX);
-			acceptor.accept(ModRendering.SKYBOX_SHADER,           DefaultVertexFormat.POSITION);
-			acceptor.accept(ModRendering.BLOOM_DOWNSAMPLE_SHADER, DefaultVertexFormat.POSITION_TEX);
-			acceptor.accept(ModRendering.BLOOM_UPSAMPLE_SHADER,   DefaultVertexFormat.POSITION_TEX);
-			acceptor.accept(ModRendering.BLOOM_PREFILTER_SHADER,  DefaultVertexFormat.POSITION_TEX);
-			acceptor.accept(ModRendering.BLIT_SHADER,             DefaultVertexFormat.POSITION_TEX);
+			acceptor.accept(Shaders.SHADER_STAR,             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(Shaders.SHADER_STAR_BILLBOARD,   DefaultVertexFormat.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(Shaders.SHADER_PLANET,           DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(Shaders.SHADER_RING,             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(Shaders.SHADER_GALAXY_PARTICLE,  DefaultVertexFormat.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(Shaders.SHADER_SKYBOX,           DefaultVertexFormat.POSITION, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(Shaders.SHADER_BLIT,             DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			
+			acceptor.accept(Shaders.SHADER_BLOOM_DOWNSAMPLE, DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(Shaders.SHADER_BLOOM_UPSAMPLE,   DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(Shaders.SHADER_MAIN_POSTPROCESS, DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 			// @formatter:off
-		});
-		ModRendering.LOAD_POST_PROCESS_SHADERS_EVENT.register(acceptor -> {
-			acceptor.accept(ModRendering.COMPOSITE_SKY_CHAIN);
 		});
 
 		UltravioletTextureManager.REGISTER_ATLASES.register(ctx -> {
-			final var planetsAtlas = ctx.registerAtlas(PlanetRenderingContext.PLANET_ATLAS_LOCATION);
-			registerCelestialBody(planetsAtlas, "moon");
+			// final var planetsAtlas = ctx.registerAtlas(PlanetRenderingContext.PLANET_ATLAS_LOCATION);
+			// registerCelestialBody(planetsAtlas, "moon");
 		});
 	}
 

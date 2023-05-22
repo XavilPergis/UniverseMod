@@ -20,7 +20,7 @@ import net.minecraft.server.packs.resources.ReloadableResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.ultraviolet.client.SkyRenderer;
 import net.xavil.ultraviolet.client.UltravioletTextureManager;
-import net.xavil.ultraviolet.client.flexible.TemporaryTexture;
+import net.xavil.ultraviolet.client.flexible.RenderTexture;
 import net.xavil.ultraviolet.client.screen.UltravioletScreen;
 import net.xavil.ultraviolet.common.universe.universe.ClientUniverse;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
@@ -81,7 +81,7 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 
 	@Inject(method = "runTick", at = @At(value = "INVOKE_STRING", target = "Lnet/minecraft/util/profiling/ProfilerFiller;push(Ljava/lang/String;)V", args = "ldc=blit"))
 	private void updateTemporaryTextures(boolean renderLevel, CallbackInfo info) {
-		TemporaryTexture.tick();
+		RenderTexture.tick();
 	}
 
 	@Inject(method = "clearLevel(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("TAIL"))

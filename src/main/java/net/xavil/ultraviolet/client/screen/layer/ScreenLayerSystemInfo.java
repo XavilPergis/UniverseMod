@@ -4,6 +4,7 @@ import javax.annotation.Nonnull;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 
+import net.xavil.ultraviolet.client.gl.GlManager;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.UltravioletScreen;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -91,7 +92,10 @@ public class ScreenLayerSystemInfo extends UltravioletScreen.Layer2d {
 		if (selected == null)
 			return;
 
+		GlManager.pushState();
 		drawInfo(poseStack, selected);
+		GlManager.popState();
+		GlManager.currentState().sync();
 	}
 
 }

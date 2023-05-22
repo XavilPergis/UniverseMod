@@ -1,16 +1,14 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
-
 import net.xavil.ultraviolet.client.GalaxyRenderingContext;
 import net.xavil.ultraviolet.client.ModRendering;
+import static net.xavil.ultraviolet.client.Shaders.*;
+import static net.xavil.ultraviolet.client.DrawStates.*;
 import net.xavil.ultraviolet.client.camera.CameraConfig;
 import net.xavil.ultraviolet.client.camera.OrbitCamera;
 import net.xavil.ultraviolet.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.client.screen.Ultraviolet3dScreen;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -43,14 +41,9 @@ public class ScreenLayerGalaxy extends Ultraviolet3dScreen.Layer3d {
 		});
 		builder.end();
 
-		this.client.getTextureManager().getTexture(RenderHelper.GALAXY_GLOW_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.disableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
+		final var shader = getShader(SHADER_GALAXY_PARTICLE);
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
+		builder.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 	}
 
 }

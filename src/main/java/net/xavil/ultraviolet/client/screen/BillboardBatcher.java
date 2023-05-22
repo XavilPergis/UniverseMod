@@ -1,17 +1,14 @@
 package net.xavil.ultraviolet.client.screen;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
-
 import net.minecraft.client.Minecraft;
+import static net.xavil.ultraviolet.client.DrawStates.*;
+import static net.xavil.ultraviolet.client.Shaders.*;
 import net.xavil.ultraviolet.client.ModRendering;
 import net.xavil.ultraviolet.client.camera.CachedCamera;
 import net.xavil.ultraviolet.client.flexible.FlexibleBufferBuilder;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.Vec3;
 
 public final class BillboardBatcher {
@@ -39,14 +36,9 @@ public final class BillboardBatcher {
 	public void end() {
 		builder.end();
 
-		this.client.getTextureManager().getTexture(RenderHelper.GALAXY_GLOW_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
+		final var shader = getShader(SHADER_STAR_BILLBOARD);
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
+		builder.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 
 		this.current = 0;
 	}

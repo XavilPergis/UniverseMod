@@ -6,22 +6,22 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.math.Vector4f;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.ultraviolet.Mod;
+import static net.xavil.ultraviolet.client.Shaders.*;
+import static net.xavil.ultraviolet.client.DrawStates.*;
 import net.xavil.ultraviolet.client.camera.CachedCamera;
 import net.xavil.ultraviolet.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.client.flexible.FlexibleBufferBuilder;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexConsumer;
+import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
@@ -113,19 +113,7 @@ public final class PlanetRenderingContext {
 
 	public void renderStar(FlexibleBufferBuilder builder, CachedCamera<?> camera, StellarCelestialNode node,
 			TransformStack tfm, Color tintColor, boolean skip) {
-		// RenderSystem.depthMask(true);
-		// RenderSystem.enableDepthTest();
-		// RenderSystem.disableCull();
-		// RenderSystem.enableBlend();
-		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-
-		// // TODO: tint
-		// RenderHelper.renderStarBillboard(builder, camera, tfm, node);
-
-
 		var radiusM = Units.m_PER_Rsol * node.radiusRsol;
-		// var radiusM = 200 * Units.METERS_PER_REARTH * node.radiusRearth;
-		// final var metersPerUnit = 1 / unitsPerMeter;
 
 		final var partialTick = this.client.getFrameTime();
 
@@ -136,69 +124,21 @@ public final class PlanetRenderingContext {
 		var distanceRatio = radiusM / (distanceFromCamera * camera.metersPerUnit);
 
 		// if (distanceRatio < 0.0001)
-		// 	return;
+		// return;
 
 		tfm.push();
-		// var rotationalSpeed = -2.0 * Math.PI / node.rotationalPeriod;
-		// tfm.prependRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
-		// tfm.prependRotation(Quat.axisAngle(Vec3.YP, rotationalSpeed * this.celestialTime));
-
-		// setupShaderCommon(camera, tfm, nodePosUnits, ModRendering.getShader(ModRendering.PLANET_SHADER));
-		// setupShaderCommon(camera, tfm, nodePosUnits, ModRendering.getShader(ModRendering.RING_SHADER));
-		// setupPlanetShader(node, ModRendering.getShader(ModRendering.PLANET_SHADER));
-
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
-		RenderSystem.enableDepthTest();
-		RenderSystem.depthMask(true);
 
 		if (!skip) {
-			// var baseTexture = getBaseLayer(node);
-			// Minecraft.getInstance().getTextureManager().getTexture(baseTexture).setFilter(false, false);
-
 			var radiusUnits = radiusM / camera.metersPerUnit;
-			// var radiusUnits = 1000 * 1000;
-			// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
-			// renderPlanetLayer(builder, camera, baseTexture, tfm, nodePosUnits,
-			// radiusUnits, tintColor);
-			// if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
-			// }
 			builder.begin(VertexFormat.Mode.QUADS, ModRendering.PLANET_VERTEX_FORMAT);
 			addNormSphere(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits, tintColor);
 			builder.end();
-			Minecraft.getInstance().getTextureManager().getTexture(BASE_ROCKY_LOCATION).setFilter(true, false);
-			RenderSystem.setShaderTexture(0, BASE_ROCKY_LOCATION);
-			RenderSystem.disableCull();
-			final var shader = ModRendering.getShader(ModRendering.STAR_SHADER);
-			final var c = node.getColor();
-			shader.safeGetUniform("StarColor").set((float) c.r(), (float) c.g(), (float) c.b());
-			builder.draw(shader);
-	
-			// renderPlanetLayer(builder, camera, BASE_ROCKY_LOCATION, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits,
-			// 		tintColor);
+			final var shader = getShader(SHADER_STAR);
+			shader.setUniform("StarColor", node.getColor());
+			builder.draw(shader, DRAW_STATE_NO_CULL);
 		}
 
-		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-		// for (var ring : node.rings()) {
-		// 	tfm.push();
-		// 	tfm.prependRotation(ring.orbitalPlane.rotationFromReference());
-		// 	addRing(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), ring.interval.lower(), ring.interval.higher(), tintColor);
-		// 	tfm.pop();
-		// }
-		// builder.end();
-		// RenderSystem.setShaderTexture(0, BASE_ROCKY_LOCATION);
-		// RenderSystem.enableCull();
-		// builder.draw(ModRendering.getShader(ModRendering.RING_SHADER));
-
 		tfm.pop();
-
-		// if (distanceRatio < 0.00) {
-		// }
-		RenderSystem.depthMask(true);
-		RenderSystem.disableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
 
 		// TODO: tint
 		tfm.push();
@@ -210,7 +150,7 @@ public final class PlanetRenderingContext {
 	}
 
 	private void setupShaderCommon(CachedCamera<?> camera, TransformStack tfm, Vec3 sortOrigin,
-			ShaderInstance shader) {
+			ShaderProgram shader) {
 
 		final int maxLightCount = 4;
 
@@ -222,40 +162,28 @@ public final class PlanetRenderingContext {
 
 		final var lightCount = Math.min(maxLightCount, sortedLights.size());
 
-		var metersPerUnit = shader.safeGetUniform("MetersPerUnit");
-		metersPerUnit.set((float) camera.metersPerUnit);
-		var time = shader.safeGetUniform("Time");
-		time.set((float) this.celestialTime);
+		shader.setUniform("MetersPerUnit", camera.metersPerUnit);
+		shader.setUniform("Time", this.celestialTime);
 
 		for (var i = 0; i < maxLightCount; ++i) {
-			var lightColor = shader.safeGetUniform("LightColor" + i);
-			lightColor.set(new Vector4f(0, 0, 0, -1));
+			shader.setUniform("LightColor" + i, 0f, 0f, 0f, -1f);
 		}
 
 		for (var i = 0; i < lightCount; ++i) {
-			var lightColor = shader.safeGetUniform("LightColor" + i);
-			var lightPos = shader.safeGetUniform("LightPos" + i);
-
 			final var light = sortedLights.get(i);
 
-			float r = light.color.r(), g = light.color.g(), b = light.color.b();
 			float luminosity = (float) Math.max(light.luminosity, 0.4);
-			lightColor.set(new Vector4f(r, g, b, luminosity));
-			// lightColor.set(new Vector4f(r, g, b, luminosity * 0.2f));
+			shader.setUniform("LightColor" + i, light.color.withA(luminosity));
 
 			var pos = camera.toCameraSpace(light.pos.add(this.origin));
-			var shaderPos = new Vector4f((float) pos.x, (float) pos.y, (float) pos.z, 1);
-			// shaderPos.transform(tfm.last().pose());
-			// tfm
-			lightPos.set(shaderPos);
+			shader.setUniform("LightPos" + i, pos.withW(1));
 		}
 
 		BufferRenderer.setupCameraUniforms(shader, camera);
 	}
 
-	private void setupPlanetShader(PlanetaryCelestialNode node, ShaderInstance shader) {
-		final var planetType = shader.safeGetUniform("PlanetType");
-		planetType.set(switch (node.type) {
+	private void setupPlanetShader(PlanetaryCelestialNode node, ShaderProgram shader) {
+		shader.setUniform("PlanetType", switch (node.type) {
 			case EARTH_LIKE_WORLD -> 0;
 			case GAS_GIANT -> 1;
 			case ICE_WORLD -> 2;
@@ -263,8 +191,7 @@ public final class PlanetRenderingContext {
 			case ROCKY_WORLD -> 4;
 			case WATER_WORLD -> 5;
 		});
-		final var renderingSeed = shader.safeGetUniform("RenderingSeed");
-		renderingSeed.set((float) (FastHasher.hashInt(node.getId()) % 1000000L));
+		shader.setUniform("RenderingSeed", (float) (FastHasher.hashInt(node.getId()) % 1000000L));
 	}
 
 	public void renderPlanet(FlexibleBufferBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,
@@ -283,12 +210,6 @@ public final class PlanetRenderingContext {
 		var distanceRatio = radiusM / (distanceFromCamera * camera.metersPerUnit);
 
 		if (distanceRatio < 0.01) {
-			RenderSystem.depthMask(true);
-			RenderSystem.enableDepthTest();
-			RenderSystem.disableCull();
-			RenderSystem.enableBlend();
-			RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-	
 			// // TODO: tint
 			// tfm.push();
 			// tfm.prependTranslation(this.origin);
@@ -304,14 +225,9 @@ public final class PlanetRenderingContext {
 		tfm.prependRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
 		tfm.prependRotation(Quat.axisAngle(Vec3.YP, rotationalSpeed * this.celestialTime));
 
-		setupShaderCommon(camera, tfm, nodePosUnits, ModRendering.getShader(ModRendering.PLANET_SHADER));
-		setupShaderCommon(camera, tfm, nodePosUnits, ModRendering.getShader(ModRendering.RING_SHADER));
-		setupPlanetShader(node, ModRendering.getShader(ModRendering.PLANET_SHADER));
-
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
-		RenderSystem.enableDepthTest();
-		RenderSystem.depthMask(true);
+		setupShaderCommon(camera, tfm, nodePosUnits, getShader(SHADER_PLANET));
+		setupShaderCommon(camera, tfm, nodePosUnits, getShader(SHADER_RING));
+		setupPlanetShader(node, getShader(SHADER_PLANET));
 
 		if (!skip) {
 			var baseTexture = getBaseLayer(node);
@@ -324,21 +240,22 @@ public final class PlanetRenderingContext {
 			// radiusUnits, tintColor);
 			// if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
 			// }
-			renderPlanetLayer(builder, camera, BASE_ROCKY_LOCATION, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits,
-					tintColor);
+			renderPlanetLayer(builder, camera, BASE_ROCKY_LOCATION, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12),
+					radiusUnits, tintColor);
 		}
 
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
 		for (var ring : node.rings()) {
 			tfm.push();
 			tfm.prependRotation(ring.orbitalPlane.rotationFromReference());
-			addRing(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), ring.interval.lower(), ring.interval.higher(), tintColor);
+			addRing(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), ring.interval.lower(),
+					ring.interval.higher(), tintColor);
 			tfm.pop();
 		}
 		builder.end();
-		RenderSystem.setShaderTexture(0, BASE_ROCKY_LOCATION);
-		RenderSystem.enableCull();
-		builder.draw(ModRendering.getShader(ModRendering.RING_SHADER));
+
+		final var ringShader = getShader(SHADER_RING);
+		builder.draw(ringShader, DRAW_STATE_OPAQUE);
 
 		tfm.pop();
 
@@ -350,10 +267,9 @@ public final class PlanetRenderingContext {
 		builder.begin(VertexFormat.Mode.QUADS, ModRendering.PLANET_VERTEX_FORMAT);
 		addNormSphere(builder, camera, tfm, center, radius, tintColor);
 		builder.end();
-		Minecraft.getInstance().getTextureManager().getTexture(texture).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, texture);
-		RenderSystem.disableCull();
-		builder.draw(ModRendering.getShader(ModRendering.PLANET_SHADER));
+		final var planetShader = getShader(SHADER_PLANET);
+		// planetShader.setUniformSampler("uSurfaceAlbedo", GlTexture2d.importTexture(texture));
+		builder.draw(planetShader, DRAW_STATE_OPAQUE);
 	}
 
 	private static void addRing(FlexibleVertexConsumer builder, CachedCamera<?> camera, @Nullable TransformStack tfm,
@@ -534,51 +450,76 @@ public final class PlanetRenderingContext {
 
 	}
 
-	// private static void addCube(VertexConsumer builder, CachedCamera<?> camera, TransformStack tfm, Vec3 center,
-	// 		double radius, Color tintColor) {
+	// private static void addCube(VertexConsumer builder, CachedCamera<?> camera,
+	// TransformStack tfm, Vec3 center,
+	// double radius, Color tintColor) {
 
-	// 	final double nr = -radius, pr = radius;
-	// 	final var nnn = center.add(nr, nr, nr);
-	// 	final var nnp = center.add(nr, nr, pr);
-	// 	final var npn = center.add(nr, pr, nr);
-	// 	final var npp = center.add(nr, pr, pr);
-	// 	final var pnn = center.add(pr, nr, nr);
-	// 	final var pnp = center.add(pr, nr, pr);
-	// 	final var ppn = center.add(pr, pr, nr);
-	// 	final var ppp = center.add(pr, pr, pr);
+	// final double nr = -radius, pr = radius;
+	// final var nnn = center.add(nr, nr, nr);
+	// final var nnp = center.add(nr, nr, pr);
+	// final var npn = center.add(nr, pr, nr);
+	// final var npp = center.add(nr, pr, pr);
+	// final var pnn = center.add(pr, nr, nr);
+	// final var pnp = center.add(pr, nr, pr);
+	// final var ppn = center.add(pr, pr, nr);
+	// final var ppp = center.add(pr, pr, pr);
 
-	// 	final var pose = tfm.get();
+	// final var pose = tfm.get();
 
-	// 	// -X
-	// 	cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, -1, 0, 0, 0.00f, 0.25f);
-	// 	cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, -1, 0, 0, 0.00f, 0.50f);
-	// 	cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, -1, 0, 0, 0.25f, 0.50f);
-	// 	cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, -1, 0, 0, 0.25f, 0.25f);
-	// 	// +X
-	// 	cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 1, 0, 0, 0.75f, 0.50f);
-	// 	cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 1, 0, 0, 0.75f, 0.25f);
-	// 	cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 1, 0, 0, 0.50f, 0.25f);
-	// 	cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 1, 0, 0, 0.50f, 0.50f);
-	// 	// -Y
-	// 	cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, -1, 0, 0.25f, 0.75f);
-	// 	cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, -1, 0, 0.50f, 0.75f);
-	// 	cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, -1, 0, 0.50f, 0.50f);
-	// 	cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, -1, 0, 0.25f, 0.50f);
-	// 	// +Y
-	// 	cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 1, 0, 0.50f, 0.00f);
-	// 	cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, 0, 1, 0, 0.25f, 0.00f);
-	// 	cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 1, 0, 0.25f, 0.25f);
-	// 	cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 1, 0, 0.50f, 0.25f);
-	// 	// -Z
-	// 	cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, 0, -1, 0.75f, 0.50f);
-	// 	cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, 0, -1, 1.00f, 0.50f);
-	// 	cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, 0, 0, -1, 1.00f, 0.25f);
-	// 	cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 0, -1, 0.75f, 0.25f);
-	// 	// +Z
-	// 	cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, 0, 1, 0.25f, 0.50f);
-	// 	cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, 0, 1, 0.50f, 0.50f);
-	// 	cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 0, 1, 0.50f, 0.25f);
-	// 	cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1, 0.25f, 0.25f);
+	// // -X
+	// cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, -1, 0, 0,
+	// 0.00f, 0.25f);
+	// cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, -1, 0, 0,
+	// 0.00f, 0.50f);
+	// cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, -1, 0, 0,
+	// 0.25f, 0.50f);
+	// cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, -1, 0, 0,
+	// 0.25f, 0.25f);
+	// // +X
+	// cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 1, 0, 0,
+	// 0.75f, 0.50f);
+	// cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 1, 0, 0,
+	// 0.75f, 0.25f);
+	// cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 1, 0, 0,
+	// 0.50f, 0.25f);
+	// cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 1, 0, 0,
+	// 0.50f, 0.50f);
+	// // -Y
+	// cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, -1, 0,
+	// 0.25f, 0.75f);
+	// cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, -1, 0,
+	// 0.50f, 0.75f);
+	// cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, -1, 0,
+	// 0.50f, 0.50f);
+	// cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, -1, 0,
+	// 0.25f, 0.50f);
+	// // +Y
+	// cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 1, 0,
+	// 0.50f, 0.00f);
+	// cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, 0, 1, 0,
+	// 0.25f, 0.00f);
+	// cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 1, 0,
+	// 0.25f, 0.25f);
+	// cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 1, 0,
+	// 0.50f, 0.25f);
+	// // -Z
+	// cubeVertex(builder, camera, pose, tintColor, pnn.x, pnn.y, pnn.z, 0, 0, -1,
+	// 0.75f, 0.50f);
+	// cubeVertex(builder, camera, pose, tintColor, nnn.x, nnn.y, nnn.z, 0, 0, -1,
+	// 1.00f, 0.50f);
+	// cubeVertex(builder, camera, pose, tintColor, npn.x, npn.y, npn.z, 0, 0, -1,
+	// 1.00f, 0.25f);
+	// cubeVertex(builder, camera, pose, tintColor, ppn.x, ppn.y, ppn.z, 0, 0, -1,
+	// 0.75f, 0.25f);
+	// // +Z
+	// cubeVertex(builder, camera, pose, tintColor, nnp.x, nnp.y, nnp.z, 0, 0, 1,
+	// 0.25f, 0.50f);
+	// cubeVertex(builder, camera, pose, tintColor, pnp.x, pnp.y, pnp.z, 0, 0, 1,
+	// 0.50f, 0.50f);
+	// cubeVertex(builder, camera, pose, tintColor, ppp.x, ppp.y, ppp.z, 0, 0, 1,
+	// 0.50f, 0.25f);
+	// cubeVertex(builder, camera, pose, tintColor, npp.x, npp.y, npp.z, 0, 0, 1,
+	// 0.25f, 0.25f);
 	// }
 
 	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera,
@@ -603,14 +544,16 @@ public final class PlanetRenderingContext {
 		builder.vertex(p).uv0(u, v).color(color).normal(n).endVertex();
 	}
 
-	// private static void cubeVertex(VertexConsumer builder, CachedCamera<?> camera, PoseStack.Pose pose, Color color,
-	// 		double x, double y, double z, double nx, double ny, double nz, float u, float v) {
-	// 	final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
-	// 	builder.vertex(pose.pose(), (float) x, (float) y, (float) z)
-	// 			.uv(u, v)
-	// 			.color(r, g, b, a)
-	// 			.normal(pose.normal(), (float) nx, (float) ny, (float) nz)
-	// 			.endVertex();
+	// private static void cubeVertex(VertexConsumer builder, CachedCamera<?>
+	// camera, PoseStack.Pose pose, Color color,
+	// double x, double y, double z, double nx, double ny, double nz, float u, float
+	// v) {
+	// final float r = color.r(), g = color.g(), b = color.b(), a = color.a();
+	// builder.vertex(pose.pose(), (float) x, (float) y, (float) z)
+	// .uv(u, v)
+	// .color(r, g, b, a)
+	// .normal(pose.normal(), (float) nx, (float) ny, (float) nz)
+	// .endVertex();
 	// }
 
 }

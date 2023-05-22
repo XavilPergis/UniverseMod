@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.function.Predicate;
 
 import net.xavil.util.Option;
+import net.xavil.util.collections.CollectionHint;
 import net.xavil.util.collections.MutableListProxy;
 import net.xavil.util.iterator.IntoIterator;
 
@@ -23,6 +24,11 @@ public interface MutableList<T> extends MutableCollection, ImmutableList<T> {
 
 	default Option<T> pop() {
 		return this.isEmpty() ? Option.none() : Option.some(this.remove(this.size() - 1));
+	}
+
+	@Override
+	default MutableList<T> hint(CollectionHint hint) {
+		return this;
 	}
 
 	static <T> MutableList<T> proxy(List<T> list) {

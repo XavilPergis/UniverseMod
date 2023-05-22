@@ -42,6 +42,14 @@ public interface Disposable extends AutoCloseable {
 			return value;
 		}
 
+		public void detach(Disposable value) {
+			for (int i = 0; i < this.children.size(); ++i) {
+				if (this.children.get(i) != value)
+					continue;
+				this.children.remove(i);
+			}
+		}
+
 		@Override
 		public void close() {
 			this.children.forEach(Disposable::close);

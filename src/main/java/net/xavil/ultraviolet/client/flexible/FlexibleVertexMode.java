@@ -3,6 +3,10 @@ package net.xavil.ultraviolet.client.flexible;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
+import net.xavil.ultraviolet.client.gl.GlBuffer;
+import net.xavil.ultraviolet.client.gl.GlManager;
+import net.xavil.ultraviolet.client.gl.UnmanagedStateSink;
+
 public enum FlexibleVertexMode {
 	POINTS(4, 4, 4, 4),
 	LINES(4, 2, 2, 2),
@@ -65,9 +69,16 @@ public enum FlexibleVertexMode {
 	}
 
 	public RenderSystem.AutoStorageIndexBuffer getSequentialBuffer(int indexCount) {
+		final var previouslyBound = GlManager.isManaged()
+				? GlManager.currentState().boundBuffers[GlBuffer.Type.ELEMENT.ordinal()]
+				: 0;
 		final var vanilla = asVanilla();
+		RenderSystem.AutoStorageIndexBuffer buf;
 		if (vanilla != null)
-			return RenderSystem.getSequentialBuffer(vanilla, indexCount);
-		return RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS, indexCount);
+			buf = RenderSystem.getSequentialBuffer(vanilla, indexCount);
+		buf = RenderSystem.getSequentialBuffer(VertexFormat.Mode.QUADS, indexCount);
+		if (GlManager.isManaged())
+			UnmanagedStateSink.INSTANCE.bindBuffer(GlBuffer.Type.ELEMENT, previouslyBound);
+		return buf;
 	}
 }

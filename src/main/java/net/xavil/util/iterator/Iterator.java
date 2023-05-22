@@ -143,6 +143,15 @@ public interface Iterator<T> extends IntoIterator<T> {
 		return Option.none();
 	}
 
+	default int position(Predicate<T> predicate) {
+		for (int i = 0; hasNext(); ++i) {
+			final var value = next();
+			if (predicate.test(value))
+				return i;
+		}
+		return -1;
+	}
+
 	default boolean any(Predicate<T> predicate) {
 		while (hasNext()) {
 			final var value = next();

@@ -26,10 +26,12 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
+import static net.xavil.ultraviolet.client.Shaders.*;
 import net.xavil.ultraviolet.client.camera.CameraConfig;
 import net.xavil.ultraviolet.client.camera.OrbitCamera;
 import net.xavil.ultraviolet.client.camera.OrbitCamera.Cached;
 import net.xavil.ultraviolet.client.flexible.BufferRenderer;
+import net.xavil.ultraviolet.client.gl.GlManager;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.client.screen.Ultraviolet3dScreen;
 import net.xavil.ultraviolet.common.universe.system.gen.AccreteContext;
@@ -320,86 +322,86 @@ public class SystemGenerationDebugScreen extends Ultraviolet3dScreen {
 	record Quad(Vec3 innerStart, Vec3 innerEnd, Vec3 outerStart, Vec3 outerEnd, Color color) {
 	}
 
-	private void renderDustBands(Cached camera, DustBands dustBands, float partialTick) {
+	private void renderDustBands(GlManager state, Cached camera, DustBands dustBands, float partialTick) {
 
-		final var lines = new ArrayList<Line>();
-		final var quads = new ArrayList<Quad>();
-		final var consumer = new BandGeometryConsumer() {
-			@Override
-			public void addLine(Vec3 start, Vec3 end, Color color) {
-				lines.add(new Line(start, end, color));
-			}
+		// final var lines = new ArrayList<Line>();
+		// final var quads = new ArrayList<Quad>();
+		// final var consumer = new BandGeometryConsumer() {
+		// 	@Override
+		// 	public void addLine(Vec3 start, Vec3 end, Color color) {
+		// 		lines.add(new Line(start, end, color));
+		// 	}
 
-			@Override
-			public void addQuad(Vec3 innerStart, Vec3 innerEnd, Vec3 outerStart, Vec3 outerEnd, Color color) {
-				quads.add(new Quad(innerStart, innerEnd, outerStart, outerEnd, color));
-			}
-		};
-		for (var band : dustBands.bands) {
-			addDustBand(camera, consumer, band, partialTick);
-		}
+		// 	@Override
+		// 	public void addQuad(Vec3 innerStart, Vec3 innerEnd, Vec3 outerStart, Vec3 outerEnd, Color color) {
+		// 		quads.add(new Quad(innerStart, innerEnd, outerStart, outerEnd, color));
+		// 	}
+		// };
+		// for (var band : dustBands.bands) {
+		// 	addDustBand(camera, consumer, band, partialTick);
+		// }
 
-		for (var entry : this.planetesimalInfos.int2ObjectEntrySet()) {
-			if (entry.getValue().parent == -1) {
-				addCircle(camera, consumer, entry.getValue().distance, Color.WHITE);
-				addCircleInterval(camera, consumer, entry.getValue().effectInterval, Color.GREEN, 0.1);
-			}
-		}
+		// for (var entry : this.planetesimalInfos.int2ObjectEntrySet()) {
+		// 	if (entry.getValue().parent == -1) {
+		// 		addCircle(camera, consumer, entry.getValue().distance, Color.WHITE);
+		// 		addCircleInterval(camera, consumer, entry.getValue().effectInterval, Color.GREEN, 0.1);
+		// 	}
+		// }
 
-		if (this.currentEvent != -1 && this.currentEvent < this.events.size()) {
-			var initEvent = (AccreteDebugEvent.Initialize) this.events.get(0);
-			addCircle(camera, consumer, initEvent.planetesimalPlacementInterval.lower(), Color.RED);
-			addCircle(camera, consumer, initEvent.planetesimalPlacementInterval.higher(), Color.RED);
+		// if (this.currentEvent != -1 && this.currentEvent < this.events.size()) {
+		// 	var initEvent = (AccreteDebugEvent.Initialize) this.events.get(0);
+		// 	addCircle(camera, consumer, initEvent.planetesimalPlacementInterval.lower(), Color.RED);
+		// 	addCircle(camera, consumer, initEvent.planetesimalPlacementInterval.higher(), Color.RED);
 
-			var currentEvent = this.events.get(this.currentEvent);
-			if (currentEvent instanceof AccreteDebugEvent.Initialize event) {
-			} else if (currentEvent instanceof AccreteDebugEvent.PlanetesimalCreated event) {
-				addCircle(camera, consumer, event.distance, Color.MAGENTA);
-				addCircleInterval(camera, consumer, event.effectInterval, Color.MAGENTA, 0.2);
-			} else if (currentEvent instanceof AccreteDebugEvent.Sweep event) {
-				addCircleInterval(camera, consumer, event.sweepInterval, Color.MAGENTA, 0.2);
-			// } else if (currentEvent instanceof AccreteDebugEvent.OrbitalParentChanged event) {
-			// 	var parent = this.planetesimalInfos.get(event.id);
-			// 	var moon = this.planetesimalInfos.get(event.moonId);
-			// 	if (parent != null)
-			// 		addCircle(camera, consumer, parent.distance, Color.MAGENTA);
-			// 	if (moon != null)
-			// 		addCircle(camera, consumer, moon.distance, Color.CYAN);
-			// } else if (currentEvent instanceof AccreteDebugEvent.PlanetesimalCollision event) {
-			// 	var parent = this.planetesimalInfos.get(event.id);
-			// 	var collided = this.planetesimalInfos.get(event.collidedId);
-			// 	if (parent != null)
-			// 		addCircle(camera, consumer, parent.distance, Color.MAGENTA);
-			// 	if (collided != null)
-			// 		addCircle(camera, consumer, collided.distance, Color.CYAN);
-			}
-		}
+		// 	var currentEvent = this.events.get(this.currentEvent);
+		// 	if (currentEvent instanceof AccreteDebugEvent.Initialize event) {
+		// 	} else if (currentEvent instanceof AccreteDebugEvent.PlanetesimalCreated event) {
+		// 		addCircle(camera, consumer, event.distance, Color.MAGENTA);
+		// 		addCircleInterval(camera, consumer, event.effectInterval, Color.MAGENTA, 0.2);
+		// 	} else if (currentEvent instanceof AccreteDebugEvent.Sweep event) {
+		// 		addCircleInterval(camera, consumer, event.sweepInterval, Color.MAGENTA, 0.2);
+		// 	// } else if (currentEvent instanceof AccreteDebugEvent.OrbitalParentChanged event) {
+		// 	// 	var parent = this.planetesimalInfos.get(event.id);
+		// 	// 	var moon = this.planetesimalInfos.get(event.moonId);
+		// 	// 	if (parent != null)
+		// 	// 		addCircle(camera, consumer, parent.distance, Color.MAGENTA);
+		// 	// 	if (moon != null)
+		// 	// 		addCircle(camera, consumer, moon.distance, Color.CYAN);
+		// 	// } else if (currentEvent instanceof AccreteDebugEvent.PlanetesimalCollision event) {
+		// 	// 	var parent = this.planetesimalInfos.get(event.id);
+		// 	// 	var collided = this.planetesimalInfos.get(event.collidedId);
+		// 	// 	if (parent != null)
+		// 	// 		addCircle(camera, consumer, parent.distance, Color.MAGENTA);
+		// 	// 	if (collided != null)
+		// 	// 		addCircle(camera, consumer, collided.distance, Color.CYAN);
+		// 	}
+		// }
 
-		final var builder = BufferRenderer.immediateBuilder();
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
-		for (var quad : quads) {
-			RenderHelper.addQuad(builder, camera, quad.innerEnd, quad.innerStart, quad.outerStart, quad.outerEnd,
-					quad.color);
-		}
-		builder.end();
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		builder.draw(GameRenderer.getPositionColorShader());
+		// final var builder = BufferRenderer.immediateBuilder();
+		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+		// for (var quad : quads) {
+		// 	RenderHelper.addQuad(builder, camera, quad.innerEnd, quad.innerStart, quad.outerStart, quad.outerEnd,
+		// 			quad.color);
+		// }
+		// builder.end();
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+		// RenderSystem.depthMask(false);
+		// RenderSystem.enableDepthTest();
+		// RenderSystem.disableCull();
+		// RenderSystem.enableBlend();
+		// builder.draw(state, getVanillaShader(SHADER_VANILLA_POSITION_COLOR));
 
-		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		for (var line : lines) {
-			RenderHelper.addLine(builder, camera, line.start, line.end, line.color);
-		}
-		builder.end();
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
-		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		builder.draw(GameRenderer.getRendertypeLinesShader());
+		// builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+		// for (var line : lines) {
+		// 	RenderHelper.addLine(builder, camera, line.start, line.end, line.color);
+		// }
+		// builder.end();
+		// RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE_MINUS_SRC_ALPHA);
+		// RenderSystem.depthMask(false);
+		// RenderSystem.enableDepthTest();
+		// RenderSystem.disableCull();
+		// RenderSystem.enableBlend();
+		// builder.draw(GameRenderer.getRendertypeLinesShader());
 	}
 
 	// @Override

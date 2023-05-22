@@ -1,5 +1,7 @@
 package net.xavil.util.collections.interfaces;
 
+import net.xavil.util.collections.CollectionHint;
+
 public interface MutableCollection extends ImmutableCollection {
 
 	void clear();
@@ -16,6 +18,10 @@ public interface MutableCollection extends ImmutableCollection {
 	 * </p>
 	 */
 	default void optimize() {
+	}
+	
+	default MutableCollection hint(CollectionHint hint) {
+		return this;
 	}
 
 }

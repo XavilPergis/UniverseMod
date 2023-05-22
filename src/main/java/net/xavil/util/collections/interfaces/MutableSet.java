@@ -8,6 +8,7 @@ import java.util.function.Predicate;
 import javax.annotation.Nonnull;
 
 import it.unimi.dsi.fastutil.objects.ObjectOpenHashSet;
+import net.xavil.util.collections.CollectionHint;
 import net.xavil.util.collections.MutableSetProxy;
 import net.xavil.util.iterator.IntoIterator;
 import net.xavil.util.iterator.Iterator;
@@ -24,6 +25,11 @@ public interface MutableSet<T> extends MutableCollection, ImmutableSet<T> {
 
 	default Iterator<T> difference(ImmutableSet<T> other) {
 		return this.iter().filter(item -> !other.contains(item));
+	}
+
+	@Override
+	default MutableSet<T> hint(CollectionHint hint) {
+		return this;
 	}
 
 	static <T> MutableSetProxy<T> proxy(@Nonnull Set<T> set) {

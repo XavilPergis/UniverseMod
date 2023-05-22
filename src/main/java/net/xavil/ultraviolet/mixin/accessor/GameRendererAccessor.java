@@ -3,8 +3,8 @@ package net.xavil.ultraviolet.mixin.accessor;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.PostChain;
-import net.minecraft.client.renderer.ShaderInstance;
+import net.minecraft.resources.ResourceLocation;
+import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
 import net.xavil.util.math.matrices.Mat4;
 
 public interface GameRendererAccessor {
@@ -13,16 +13,16 @@ public interface GameRendererAccessor {
 
 	Mat4 ultraviolet_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation, float partialTick);
 
-	ShaderInstance ultraviolet_getShader(String id);
+	ShaderProgram ultraviolet_getShader(ResourceLocation id);
 
-	PostChain ultraviolet_getPostChain(String id);
+	ShaderProgram ultraviolet_getVanillaShader(String id);
 
-	static ShaderInstance getShader(GameRenderer renderer, String id) {
+	static ShaderProgram getShader(GameRenderer renderer, ResourceLocation id) {
 		return ((GameRendererAccessor) renderer).ultraviolet_getShader(id);
 	}
 
-	static PostChain getPostChain(GameRenderer renderer, String id) {
-		return ((GameRendererAccessor) renderer).ultraviolet_getPostChain(id);
+	static ShaderProgram getVanillaShader(GameRenderer renderer, String id) {
+		return ((GameRendererAccessor) renderer).ultraviolet_getVanillaShader(id);
 	}
 
 	static double getFov(GameRenderer renderer) {

@@ -1,6 +1,5 @@
 package net.xavil.ultraviolet.mixin.impl.render;
 
-import java.io.IOException;
 import java.util.Map;
 
 import org.spongepowered.asm.mixin.Final;
@@ -12,6 +11,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector3f;
 
@@ -19,7 +19,6 @@ import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceManager;
@@ -29,14 +28,18 @@ import net.minecraft.world.effect.MobEffects;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.ModRendering;
 import net.xavil.ultraviolet.client.SkyRenderer;
+import net.xavil.ultraviolet.client.gl.GlFragmentWrites;
+import net.xavil.ultraviolet.client.gl.shader.ShaderLoader;
+import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
+import net.xavil.util.iterator.Iterator;
 import net.xavil.util.math.matrices.Mat4;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin implements ResourceManagerReloadListener, AutoCloseable, GameRendererAccessor {
 
-	private final Map<String, ShaderInstance> modShaders = new Object2ObjectOpenHashMap<>();
-	private final Map<String, PostChain> modPostChains = new Object2ObjectOpenHashMap<>();
+	private final Map<ResourceLocation, ShaderProgram> modShaders = new Object2ObjectOpenHashMap<>();
+	private final Map<String, ShaderProgram> vanillaShaderProxies = new Object2ObjectOpenHashMap<>();
 
 	private boolean applyViewBobTranslation = true;
 
@@ -60,49 +63,56 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 
 	@Inject(method = "resize", at = @At("HEAD"))
 	private void onResize(int width, int height, CallbackInfo info) {
-		this.modPostChains.values().forEach(chain -> chain.resize(width, height));
 		SkyRenderer.INSTANCE.resize(width, height);
 	}
 
 	@Inject(method = "reloadShaders", at = @At("HEAD"))
 	private void onReloadShaders(ResourceManager resourceManager, CallbackInfo info) {
-		ModRendering.LOAD_SHADERS_EVENT.invoker().register((name, vertexFormat) -> {
-			try {
-				var shader = new ShaderInstance(resourceManager, name, vertexFormat);
-				final var prevShader = modShaders.put(name, shader);
-				if (prevShader != null)
-					prevShader.close();
-				Mod.LOGGER.info("loaded modded shader '{}'", name);
-			} catch (IOException ex) {
-				Mod.LOGGER.error("failed to load shader '{}'", name);
-				ex.printStackTrace();
-			}
-		});
+		ModRendering.LOAD_SHADERS_EVENT.invoker().register(new ModRendering.ShaderSink() {
 
-		ModRendering.LOAD_POST_PROCESS_SHADERS_EVENT.invoker().register((location) -> {
-			try {
-				var chain = new PostChain(this.minecraft.getTextureManager(), resourceManager,
-						this.minecraft.getMainRenderTarget(), new ResourceLocation(location));
-				chain.resize(this.minecraft.getWindow().getWidth(), this.minecraft.getWindow().getHeight());
-				final var prevChain = this.modPostChains.put(location, chain);
-				if (prevChain != null)
-					prevChain.close();
-				Mod.LOGGER.info("loaded modded post-process chain '{}'", location);
-			} catch (IOException ex) {
-				Mod.LOGGER.error("failed to load post chain '{}'", location);
-				Mod.LOGGER.error("caused by: {}", ex);
+			@Override
+			public void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites, Iterator<String> shaderDefines) {
+				try {
+					final var shader = ShaderLoader.load(resourceManager, name, vertexFormat, fragmentWrites, shaderDefines);
+					shader.setDebugName(name.toString());
+					final var prevShader = modShaders.put(name, shader);
+					if (prevShader != null)
+						prevShader.close();
+					Mod.LOGGER.debug("loaded modded shader '{}'", name);
+				} catch (ShaderLoader.ShaderLoadException ex) {
+					Mod.LOGGER.error("failed to load modded shader '{}':\n{}", name, ex.getMessage());
+					if (ex.getCause() != null) {
+						Mod.LOGGER.error("caused by: {}", ex.getCause().toString());
+					}
+				}
 			}
+
 		});
 	}
 
+	@Inject(method = "reloadShaders", at = @At("TAIL"))
+	private void onReloadShaders2(ResourceManager resourceManager, CallbackInfo info) {
+		this.shaders.forEach((name, shader) -> {
+			this.vanillaShaderProxies.put(name, new ShaderProgram(shader));
+		});
+	}
+
+	@Inject(method = "shutdownShaders()V", at = @At("TAIL"))
+	private void onShutdownShaders(CallbackInfo info) {
+		this.vanillaShaderProxies.clear();
+	}
+	
+	@Inject(method = "close()V", at = @At("TAIL"))
+	private void onClose(CallbackInfo info) {
+		this.modShaders.values().forEach(shader -> {
+			shader.close();
+		});
+		this.modShaders.clear();
+	}
+
 	@Override
-	public ShaderInstance ultraviolet_getShader(String name) {
+	public ShaderProgram ultraviolet_getShader(ResourceLocation name) {
 		return this.modShaders.get(name);
-	}
-
-	@Override
-	public PostChain ultraviolet_getPostChain(String id) {
-		return this.modPostChains.get(id);
 	}
 
 	@Shadow
@@ -150,7 +160,8 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 			this.applyViewBobTranslation = oldApplyViewBobTranslation;
 		}
 
-		final var portalTime = Mth.lerp(partialTick, this.minecraft.player.oPortalTime, this.minecraft.player.portalTime);
+		final var portalTime = Mth.lerp(partialTick, this.minecraft.player.oPortalTime,
+				this.minecraft.player.portalTime);
 		final var effectScale = this.minecraft.options.screenEffectScale * this.minecraft.options.screenEffectScale;
 		final var portalStrength = portalTime * effectScale;
 

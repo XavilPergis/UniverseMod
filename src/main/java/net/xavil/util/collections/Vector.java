@@ -13,6 +13,7 @@ public final class Vector<T> implements MutableList<T> {
 	private T[] elements = makeArray(0);
 	private int size = 0;
 	private float growthFactor = 2.0f;
+	private boolean unordered = false;
 
 	public Vector() {
 	}
@@ -125,28 +126,48 @@ public final class Vector<T> implements MutableList<T> {
 	public void insert(int index, T value) {
 		Assert.isTrue(index <= this.size);
 		growToFit(this.size + 1);
-		final var copyLen = this.size - index;
-		System.arraycopy(this.elements, index, this.elements, index + 1, copyLen);
-		this.elements[index] = value;
-		this.size += 1;
+		if (this.unordered) {
+			this.elements[this.size] = this.elements[index];
+			this.elements[index] = value;
+			this.size += 1;
+		} else {
+			final var copyLen = this.size - index;
+			System.arraycopy(this.elements, index, this.elements, index + 1, copyLen);
+			this.elements[index] = value;
+			this.size += 1;
+		}
 	}
 
 	@Override
 	public T remove(int index) {
 		Assert.isTrue(index < this.size);
 		T old = this.elements[index];
-		final var copyLen = this.size - index - 1;
-		System.arraycopy(this.elements, index + 1, this.elements, index, copyLen);
-		this.size -= 1;
+		if (this.unordered) {
+			this.elements[index] = this.elements[this.size - 1];
+			this.elements[this.size - 1] = null;
+			this.size -= 1;
+		} else {
+			final var copyLen = this.size - index - 1;
+			System.arraycopy(this.elements, index + 1, this.elements, index, copyLen);
+			this.size -= 1;
+		}
 		return old;
 	}
 
 	@Override
 	public void optimize() {
+		if (this.elements.length == this.size)
+			return;
 		T[] newElements = makeArray(this.size);
 		T[] oldElements = this.elements;
 		this.elements = newElements;
 		System.arraycopy(oldElements, 0, newElements, 0, this.size);
+	}
+
+	@Override
+	public Vector<T> hint(CollectionHint hint) {
+		this.unordered |= hint == CollectionHint.UNORDERED;
+		return this;
 	}
 
 	@Override

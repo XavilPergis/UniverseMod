@@ -1,32 +1,35 @@
 package net.xavil.ultraviolet.client.screen;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
-import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.ultraviolet.Mod;
+import static net.xavil.ultraviolet.client.Shaders.*;
+import static net.xavil.ultraviolet.client.DrawStates.*;
 import net.xavil.ultraviolet.client.ModRendering;
 import net.xavil.ultraviolet.client.camera.CachedCamera;
 import net.xavil.ultraviolet.client.camera.OrbitCamera;
 import net.xavil.ultraviolet.client.flexible.FlexibleBufferBuilder;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexConsumer;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
+import net.xavil.ultraviolet.client.gl.DrawState;
+import net.xavil.ultraviolet.client.gl.GlState;
+import net.xavil.ultraviolet.client.gl.GlManager;
+import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.util.Units;
 import net.xavil.util.math.Color;
-import net.xavil.util.math.Quat;
 import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.matrices.interfaces.Vec3Access;
 import net.xavil.util.math.matrices.Mat4;
 import net.xavil.util.math.matrices.Vec3;
+import net.xavil.util.math.matrices.interfaces.Vec3Access;
 
 public final class RenderHelper {
 
@@ -46,20 +49,21 @@ public final class RenderHelper {
 
 	private static final Minecraft CLIENT = Minecraft.getInstance();
 
+	public static final DrawState DRAW_STATE_STAR_BILLBOARD = DrawState.builder()
+			.depthMask(false)
+			.enableDepthTest(GlState.DepthFunc.LESS)
+			.enableCulling(false)
+			.enableAdditiveBlending()
+			.build();
+
 	public static void renderStarBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, TransformStack tfm,
 			CelestialNode node) {
-		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
 		addBillboard(builder, camera, tfm, node);
 		builder.end();
-		CLIENT.getTextureManager().getTexture(STAR_ICON_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, STAR_ICON_LOCATION);
-		RenderSystem.enableBlend();
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.disableDepthTest();
-		RenderSystem.disableCull();
-		builder.draw(ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER));
+		final var shader = getShader(SHADER_STAR_BILLBOARD);
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(STAR_ICON_LOCATION));
+		builder.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 	}
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, TransformStack tfm,
@@ -73,7 +77,8 @@ public final class RenderHelper {
 		addBillboard(builder, camera, node, d, np);
 	}
 
-	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, CelestialNode node, Vec3 pos) {
+	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, CelestialNode node,
+			Vec3 pos) {
 		final var distanceFromCameraTm = camera.posTm.distanceTo(pos);
 
 		double minAngularDiameterRad = Math.toRadians(0.15);
@@ -104,7 +109,7 @@ public final class RenderHelper {
 			final var brightnessThreshold = 100;
 			final var apparentBrightness = 1e11 * starNode.luminosityLsol
 					/ (4 * Math.PI * distanceFromCameraTm * distanceFromCameraTm);
-			
+
 			if (apparentBrightness > brightnessThreshold && angularRadius > idealAngularRadius) {
 				angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.1);
 				angularRadius = Math.min(angularRadius, Math.toRadians(0.1));
@@ -124,59 +129,63 @@ public final class RenderHelper {
 				pos.mul(1e12 / camera.metersPerUnit), d, color);
 	}
 
-	// public static void addBillboard(FlexibleVertexConsumer builder, Vec3 viewPos, CelestialNode node, Vec3 pos) {
-	// 	final var distanceFromCameraTm = viewPos.distanceTo(pos);
+	// public static void addBillboard(FlexibleVertexConsumer builder, Vec3 viewPos,
+	// CelestialNode node, Vec3 pos) {
+	// final var distanceFromCameraTm = viewPos.distanceTo(pos);
 
-	// 	double minAngularDiameterRad = Math.toRadians(0.15);
+	// double minAngularDiameterRad = Math.toRadians(0.15);
 
-	// 	// how many times we need to scale the billboard by to render the star at the
-	// 	// correct size. if the billboard texture were a circle with a diameter of the
-	// 	// size of the image, then this would be 1. if the diameter were 1/2 the size,
-	// 	// then this would be 2.
-	// 	final double billboardFactor = 18.0;
+	// // how many times we need to scale the billboard by to render the star at the
+	// // correct size. if the billboard texture were a circle with a diameter of
+	// the
+	// // size of the image, then this would be 1. if the diameter were 1/2 the
+	// size,
+	// // then this would be 2.
+	// final double billboardFactor = 18.0;
 
-	// 	double radius = 0;
-	// 	if (node instanceof StellarCelestialNode starNode) {
-	// 		// radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
-	// 		radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
-	// 		// if (radius > 1) radius = 1;
-	// 	} else if (node instanceof PlanetaryCelestialNode planetNode) {
-	// 		radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
-	// 		// if (planetNode.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
-	// 		// radius *= 2e3;
-	// 		// }
-	// 	}
+	// double radius = 0;
+	// if (node instanceof StellarCelestialNode starNode) {
+	// // radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
+	// radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
+	// // if (radius > 1) radius = 1;
+	// } else if (node instanceof PlanetaryCelestialNode planetNode) {
+	// radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
+	// // if (planetNode.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
+	// // radius *= 2e3;
+	// // }
+	// }
 
-	// 	final var idealAngularRadius = (radius / distanceFromCameraTm);
-	// 	var angularRadius = Math.max(idealAngularRadius, minAngularDiameterRad / 2);
-	// 	double k = 1.0;
+	// final var idealAngularRadius = (radius / distanceFromCameraTm);
+	// var angularRadius = Math.max(idealAngularRadius, minAngularDiameterRad / 2);
+	// double k = 1.0;
 
-	// 	if (node instanceof StellarCelestialNode starNode) {
-	// 		final var brightnessThreshold = 100;
-	// 		final var apparentBrightness = 1e11 * starNode.luminosityLsol
-	// 				/ (4 * Math.PI * distanceFromCameraTm * distanceFromCameraTm);
-			
-	// 		if (apparentBrightness > brightnessThreshold && angularRadius > idealAngularRadius) {
-	// 			angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.1);
-	// 			angularRadius = Math.min(angularRadius, Math.toRadians(0.1));
-	// 		} else {
-	// 			k *= Math.pow(apparentBrightness / brightnessThreshold, 0.08);
-	// 		}
-	// 	}
+	// if (node instanceof StellarCelestialNode starNode) {
+	// final var brightnessThreshold = 100;
+	// final var apparentBrightness = 1e11 * starNode.luminosityLsol
+	// / (4 * Math.PI * distanceFromCameraTm * distanceFromCameraTm);
 
-	// 	final var d = billboardFactor * distanceFromCameraTm * (angularRadius / 2);
+	// if (apparentBrightness > brightnessThreshold && angularRadius >
+	// idealAngularRadius) {
+	// angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.1);
+	// angularRadius = Math.min(angularRadius, Math.toRadians(0.1));
+	// } else {
+	// k *= Math.pow(apparentBrightness / brightnessThreshold, 0.08);
+	// }
+	// }
 
-	// 	var color = Color.WHITE;
-	// 	if (node instanceof StellarCelestialNode starNode) {
-	// 		color = starNode.getColor().withA(k);
-	// 	}
+	// final var d = billboardFactor * distanceFromCameraTm * (angularRadius / 2);
 
-	// 	final var forward = 
-	// 	final var up = pos.sub(viewPos).cross(Vec3.XP);
-	// 	final var left = pos.sub(viewPos).cross(Vec3.XP);
+	// var color = Color.WHITE;
+	// if (node instanceof StellarCelestialNode starNode) {
+	// color = starNode.getColor().withA(k);
+	// }
 
-	// 	RenderHelper.addBillboardWorldspace(builder, viewPos, camera.up, camera.left,
-	// 			pos.mul(1e12 / camera.metersPerUnit), d, color);
+	// final var forward =
+	// final var up = pos.sub(viewPos).cross(Vec3.XP);
+	// final var left = pos.sub(viewPos).cross(Vec3.XP);
+
+	// RenderHelper.addBillboardWorldspace(builder, viewPos, camera.up, camera.left,
+	// pos.mul(1e12 / camera.metersPerUnit), d, color);
 	// }
 
 	public static double getCelestialBodySize(Vec3 camPos, CelestialNode node, Vec3 pos) {
@@ -226,19 +235,20 @@ public final class RenderHelper {
 		// camera.left, pos, d, color);
 	}
 
-	public static void renderBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, TransformStack tfm,
-			Vec3 center, double scale, Color color, ResourceLocation texture, ShaderInstance shader) {
+	public static void renderUiBillboard(DrawState drawState, FlexibleBufferBuilder builder,
+			CachedCamera<?> camera, TransformStack tfm,
+			Vec3 center, double scale, Color color, ResourceLocation texture, ShaderProgram shader) {
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		addBillboard(builder, camera, tfm, center, scale, color);
 		builder.end();
-		CLIENT.getTextureManager().getTexture(texture).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, texture);
-		RenderSystem.enableBlend();
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.disableCull();
-		builder.draw(shader);
+		// CLIENT.getTextureManager().getTexture(texture).setFilter(true, false);
+		// RenderSystem.setShaderTexture(0, texture);
+		GlManager.enableBlend(true);
+		GlManager.blendFunc(GlState.BlendFactor.SRC_ALPHA, GlState.BlendFactor.ONE);
+		GlManager.depthMask(false);
+		GlManager.enableDepthTest(false);
+		GlManager.enableCull(false);
+		builder.draw(shader, drawState);
 	}
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, TransformStack tfm,
@@ -362,42 +372,45 @@ public final class RenderHelper {
 
 	public static void addBillboardWorldspaceFacing(FlexibleVertexConsumer builder,
 			Vec3Access viewPos, Vec3Access center, double angle, Color color) {
-			}
-	// public static void addBillboardWorldspaceFacing(FlexibleVertexConsumer builder,
-	// 		Vec3Access viewPos, Vec3Access center, double angle, Color color) {
+	}
+	// public static void addBillboardWorldspaceFacing(FlexibleVertexConsumer
+	// builder,
+	// Vec3Access viewPos, Vec3Access center, double angle, Color color) {
 
-	// 	final var offset = center.sub(viewPos);
-	// 	final var forward = offset.normalize();
+	// final var offset = center.sub(viewPos);
+	// final var forward = offset.normalize();
 
-	// 	final var rotationAngle = rng.uniformDouble(0, 2.0 * Math.PI);
-	// 	final var rotation = Quat.axisAngle(forward, rotationAngle);
+	// final var rotationAngle = rng.uniformDouble(0, 2.0 * Math.PI);
+	// final var rotation = Quat.axisAngle(forward, rotationAngle);
 
-	// 	final var du = forward.dot(Vec3.YP);
-	// 	final var df = forward.dot(Vec3.ZN);
-	// 	final var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
-	// 	final var right = rotation.transform(v1.cross(forward).neg());
-	// 	final var up = forward.cross(right).neg();
-	// 	// RenderHelper.addBillboardCamspace(builder, up, right, forward.mul(100), s, 0,
-	// 	// Color.WHITE.withA(0.1));
-	// 	RenderHelper.addBillboardCamspace(builder, up, right, offset, offset.length() * s, Color.WHITE.withA(0.1));
+	// final var du = forward.dot(Vec3.YP);
+	// final var df = forward.dot(Vec3.ZN);
+	// final var v1 = Math.abs(du) < Math.abs(df) ? Vec3.YP : Vec3.ZN;
+	// final var right = rotation.transform(v1.cross(forward).neg());
+	// final var up = forward.cross(right).neg();
+	// // RenderHelper.addBillboardCamspace(builder, up, right, forward.mul(100), s,
+	// 0,
+	// // Color.WHITE.withA(0.1));
+	// RenderHelper.addBillboardCamspace(builder, up, right, offset, offset.length()
+	// * s, Color.WHITE.withA(0.1));
 
-	// 	final var n = new Vec3.Mutable(0, 0, 0);
+	// final var n = new Vec3.Mutable(0, 0, 0);
 
-	// 	n.load(Vec3.ZERO).addAssign(right).subAssign(up);
-	// 	n.mulAssign(scale).addAssign(center).subAssign(camPos);
-	// 	builder.vertex(n).color(color).uv0(1, 0).endVertex();
+	// n.load(Vec3.ZERO).addAssign(right).subAssign(up);
+	// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+	// builder.vertex(n).color(color).uv0(1, 0).endVertex();
 
-	// 	n.load(Vec3.ZERO).subAssign(right).subAssign(up);
-	// 	n.mulAssign(scale).addAssign(center).subAssign(camPos);
-	// 	builder.vertex(n).color(color).uv0(0, 0).endVertex();
+	// n.load(Vec3.ZERO).subAssign(right).subAssign(up);
+	// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+	// builder.vertex(n).color(color).uv0(0, 0).endVertex();
 
-	// 	n.load(Vec3.ZERO).subAssign(right).addAssign(up);
-	// 	n.mulAssign(scale).addAssign(center).subAssign(camPos);
-	// 	builder.vertex(n).color(color).uv0(0, 1).endVertex();
+	// n.load(Vec3.ZERO).subAssign(right).addAssign(up);
+	// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+	// builder.vertex(n).color(color).uv0(0, 1).endVertex();
 
-	// 	n.load(Vec3.ZERO).addAssign(right).addAssign(up);
-	// 	n.mulAssign(scale).addAssign(center).subAssign(camPos);
-	// 	builder.vertex(n).color(color).uv0(1, 1).endVertex();
+	// n.load(Vec3.ZERO).addAssign(right).addAssign(up);
+	// n.mulAssign(scale).addAssign(center).subAssign(camPos);
+	// builder.vertex(n).color(color).uv0(1, 1).endVertex();
 	// }
 
 	public static double getGridScale(OrbitCamera.Cached camera, double tmPerUnit, double scaleFactor,
@@ -412,27 +425,27 @@ public final class RenderHelper {
 		return scale;
 	}
 
-	public static void renderGrid(FlexibleBufferBuilder builder, OrbitCamera.Cached camera, double tmPerUnit,
-			double gridUnits,
-			int scaleFactor, int gridLineCount, float partialTick) {
+	public static void renderGrid(FlexibleBufferBuilder builder, OrbitCamera.Cached camera,
+			double tmPerUnit, double gridUnits, int scaleFactor, int gridLineCount, float partialTick) {
 		var focusPos = camera.focus.div(tmPerUnit);
 		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
 		renderGrid(builder, camera, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
 	}
 
-	public static void renderGrid(FlexibleBufferBuilder builder, CachedCamera<?> camera, Vec3 focusPos,
-			double gridDiameter,
-			int subcellsPerCell, int gridLineCount) {
+	public static final DrawState GRID_STATE = DrawState.builder()
+			.depthMask(false)
+			.enableCulling(false)
+			.enableAdditiveBlending()
+			.enableDepthTest(GlState.DepthFunc.LESS)
+			.build();
+
+	public static void renderGrid(FlexibleBufferBuilder builder, CachedCamera<?> camera,
+			Vec3 focusPos, double gridDiameter, int subcellsPerCell, int gridLineCount) {
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 		addGrid(builder, camera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
 		builder.end();
-		RenderSystem.enableBlend();
-		RenderSystem.disableTexture();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
 		RenderSystem.lineWidth(1);
-		RenderSystem.depthMask(false);
-		builder.draw(GameRenderer.getRendertypeLinesShader());
+		builder.draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), GRID_STATE);
 	}
 
 	public static void addGrid(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 focusPos,

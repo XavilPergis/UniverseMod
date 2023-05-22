@@ -7,10 +7,16 @@ import com.mojang.blaze3d.vertex.VertexFormatElement;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.PostChain;
-import net.minecraft.client.renderer.ShaderInstance;
-import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
+import net.minecraft.resources.ResourceLocation;
+import net.xavil.ultraviolet.client.flexible.BufferRenderer;
+import net.xavil.ultraviolet.client.flexible.RenderTexture;
+import net.xavil.ultraviolet.client.gl.GlFragmentWrites;
+import net.xavil.ultraviolet.client.gl.GlFramebuffer;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
+import net.xavil.util.Disposable;
+import net.xavil.util.iterator.Iterator;
+import static net.xavil.ultraviolet.client.Shaders.*;
 
 public final class ModRendering {
 
@@ -20,31 +26,14 @@ public final class ModRendering {
 					callback.register(acceptor);
 			});
 
-	public static final Event<RegisterPostProcessShadersCallback> LOAD_POST_PROCESS_SHADERS_EVENT = EventFactory
-			.createArrayBacked(RegisterPostProcessShadersCallback.class, callbacks -> acceptor -> {
-				for (var callback : callbacks)
-					callback.register(acceptor);
-			});
-
-	public static final String PLANET_SHADER = "ultraviolet_planet";
-	public static final String RING_SHADER = "ultraviolet_ring";
-	public static final String STAR_BILLBOARD_SHADER = "ultraviolet_star_billboard";
-	public static final String STAR_SHADER = "ultraviolet_star";
-	public static final String GALAXY_PARTICLE_SHADER = "ultraviolet_galaxy_particle";
-	public static final String SKYBOX_SHADER = "ultraviolet_skybox";
-	public static final String BLOOM_DOWNSAMPLE_SHADER = "ultraviolet_bloom_downsample";
-	public static final String BLOOM_UPSAMPLE_SHADER = "ultraviolet_bloom_upsample";
-	public static final String BLOOM_PREFILTER_SHADER = "ultraviolet_bloom_prefilter";
-	public static final String BLIT_SHADER = "ultraviolet_blit";
-
-	public static final String COMPOSITE_SKY_CHAIN = "shaders/post/ultraviolet_composite_sky.json";
-
-	// the one in `DefaultVertexFormat` has a component type of `short`, and we want `float`.
+	// the one in `DefaultVertexFormat` has a component type of `short`, and we want
+	// `float`.
 	public static final VertexFormatElement ELEMENT_UV1 = new VertexFormatElement(1, VertexFormatElement.Type.FLOAT,
 			VertexFormatElement.Usage.UV, 2);
 	public static final VertexFormatElement ELEMENT_NORMAL = new VertexFormatElement(0, VertexFormatElement.Type.FLOAT,
 			VertexFormatElement.Usage.NORMAL, 3);
-	public static final VertexFormatElement ELEMENT_BILLBOARD_SIZE_INFO = new VertexFormatElement(0, VertexFormatElement.Type.FLOAT,
+	public static final VertexFormatElement ELEMENT_BILLBOARD_SIZE_INFO = new VertexFormatElement(0,
+			VertexFormatElement.Type.FLOAT,
 			VertexFormatElement.Usage.UV, 2);
 
 	public static final VertexFormat PLANET_VERTEX_FORMAT = new VertexFormat(
@@ -63,28 +52,43 @@ public final class ModRendering {
 					.put("SizeInfo", ELEMENT_BILLBOARD_SIZE_INFO)
 					.build());
 
-	public static ShaderInstance getShader(String id) {
-		return GameRendererAccessor.getShader(Minecraft.getInstance().gameRenderer, id);
-	}
-
-	public static PostChain getPostChain(String id) {
-		return GameRendererAccessor.getPostChain(Minecraft.getInstance().gameRenderer, id);
-	}
-
 	public interface ShaderSink {
-		void accept(String name, VertexFormat vertexFormat);
+		default void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites) {
+			accept(name, vertexFormat, fragmentWrites, Iterator.empty());
+		}
+
+		void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites,
+				Iterator<String> shaderDefines);
 	}
 
 	public interface RegisterShadersCallback {
 		void register(ShaderSink sink);
 	}
 
-	public interface PostProcessShaderSink {
-		void accept(String location);
-	}
+	private static final RenderTexture.StaticDescriptor DESC = new RenderTexture.StaticDescriptor(
+			GlTexture.Format.RGBA32_FLOAT);
 
-	public interface RegisterPostProcessShadersCallback {
-		void register(PostProcessShaderSink sink);
+	/**
+	 * {@code input} may be a texture that is written to by {@code output}.
+	 * 
+	 * @param state  The current GL state
+	 * @param output The framebuffer to write the post-processing results to
+	 * @param input  The source image to apply the post-processing effects to
+	 */
+	public static void doPostProcessing(GlFramebuffer output, GlTexture2d input) {
+		try (final var disposer = Disposable.scope()) {
+			// bloom
+			final var hdrPost = disposer.attach(RenderTexture.getTemporary(input.size().d2(), DESC));
+			BloomEffect.render(hdrPost.framebuffer, input);
+
+			// tonemapping
+			output.bindAndClear();
+			final var postShader = getShader(SHADER_MAIN_POSTPROCESS);
+			postShader.setUniform("uExposure", 1f);
+			postShader.setUniformSampler("uSampler", hdrPost.colorTexture);
+			BufferRenderer.drawFullscreen(postShader);
+		}
+
 	}
 
 }

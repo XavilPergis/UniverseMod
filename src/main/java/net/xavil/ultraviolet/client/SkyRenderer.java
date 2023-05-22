@@ -1,14 +1,10 @@
 package net.xavil.ultraviolet.client;
 
 import java.util.Objects;
-import java.util.OptionalInt;
 import java.util.Random;
 
-import org.lwjgl.opengl.GL32;
+import org.lwjgl.opengl.GL32C;
 
-import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
@@ -16,14 +12,19 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
+import static net.xavil.ultraviolet.client.Shaders.*;
+import static net.xavil.ultraviolet.client.DrawStates.*;
+
+import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.camera.CachedCamera;
 import net.xavil.ultraviolet.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.client.flexible.CubemapTexture;
-import net.xavil.ultraviolet.client.flexible.FlexibleRenderTarget;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexConsumer;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
-import net.xavil.ultraviolet.client.flexible.Texture;
-import net.xavil.ultraviolet.client.flexible.Texture2d;
+import net.xavil.ultraviolet.client.gl.GlFragmentWrites;
+import net.xavil.ultraviolet.client.gl.GlFramebuffer;
+import net.xavil.ultraviolet.client.gl.texture.GlCubemapTexture;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -48,15 +49,17 @@ import net.xavil.util.math.Quat;
 import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.Mat4;
 import net.xavil.util.math.matrices.Vec2;
+import net.xavil.util.math.matrices.Vec2i;
 import net.xavil.util.math.matrices.Vec3;
 
-public class SkyRenderer {
+public class SkyRenderer implements Disposable {
 
 	public static final SkyRenderer INSTANCE = new SkyRenderer();
 	private final Minecraft client = Minecraft.getInstance();
 
-	public FlexibleRenderTarget skyTarget = null;
 	public boolean useMultisampling = false;
+	public GlFramebuffer hdrSpaceTarget = null;
+	public GlFramebuffer postProcessTarget = null;
 
 	private Location previousLocation = null;
 
@@ -66,11 +69,11 @@ public class SkyRenderer {
 	private StarRenderManager starRenderer = null;
 
 	private GalaxyRenderingContext galaxyRenderingContext = null;
-	private CubemapTexture galaxyCubemap = new CubemapTexture();
+	private GlCubemapTexture galaxyCubemap = new GlCubemapTexture();
 	private boolean shouldRenderGalaxyToCubemap = true;
 
 	private SkyRenderer() {
-		this.galaxyCubemap.createStorage(Texture.Format.R32G32B32A32_FLOAT, 1024);
+		this.galaxyCubemap.createStorage(GlTexture.Format.RGBA32_FLOAT, 1024);
 	}
 
 	public void tick() {
@@ -79,21 +82,25 @@ public class SkyRenderer {
 	}
 
 	public void resize(int width, int height) {
-		if (this.skyTarget != null) {
-			this.skyTarget.resize(width, height, false);
+		if (this.hdrSpaceTarget != null) {
+			this.hdrSpaceTarget.resize(new Vec2i(width, height));
+		}
+		if (this.postProcessTarget != null) {
+			this.postProcessTarget.resize(new Vec2i(width, height));
 		}
 	}
 
 	public void setMultisampled(boolean useMultisampling) {
 		if (this.useMultisampling != useMultisampling) {
 			this.useMultisampling = useMultisampling;
-			this.skyTarget = null;
+			this.hdrSpaceTarget = null;
 		}
 	}
 
-	public RenderTarget getSkyCompositeTarget() {
-		return ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).getTempTarget("sky");
-	}
+	// public RenderTarget getSkyCompositeTarget() {
+	// return
+	// ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).getTempTarget("sky");
+	// }
 
 	private void addBackgroundBillboard(FlexibleVertexConsumer builder, Rng rng, Vec3 camPos, Vec3 pos, double s) {
 		final var offset = pos.sub(camPos);
@@ -287,14 +294,11 @@ public class SkyRenderer {
 		}
 	}
 
-	private void drawSky(Camera srcCamera, RenderTarget target, float partialTick) {
+	private void drawCelestialObjects(Camera srcCamera, GlFramebuffer target, float partialTick) {
 		final var profiler = Minecraft.getInstance().getProfiler();
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
 
-		target.bindWrite(false);
-		target.setClearColor(0, 0, 0, 0);
-		target.clear(false);
-		target.bindWrite(false);
+		target.bindAndClear();
 
 		// ticket management
 		final var location = EntityAccessor.getLocation(this.client.player);
@@ -352,9 +356,6 @@ public class SkyRenderer {
 			applyFaceDir(tfm, faceDir);
 			final var camera = createCubemapCamera(null, tfm, partialTick);
 
-			RenderSystem.clearColor(1, 0, 1, 1);
-			RenderSystem.clear(GL32.GL_COLOR_BUFFER_BIT, false);
-
 			if (this.shouldRenderGalaxyToCubemap)
 				return;
 
@@ -368,14 +369,9 @@ public class SkyRenderer {
 			});
 			builder.end();
 
-			this.client.getTextureManager().getTexture(RenderHelper.GALAXY_GLOW_LOCATION).setFilter(true, false);
-			RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
-			RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-			RenderSystem.depthMask(false);
-			RenderSystem.disableDepthTest();
-			RenderSystem.disableCull();
-			RenderSystem.enableBlend();
-			builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
+			final var shader = getShader(SHADER_GALAXY_PARTICLE);
+			shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
+			builder.draw(shader, DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
 			tfm.pop();
 		});
 
@@ -420,12 +416,9 @@ public class SkyRenderer {
 		builder.vertex(-1, 1, 1).endVertex();
 		builder.end();
 
-		final var shader = ModRendering.getShader(ModRendering.SKYBOX_SHADER);
-		shader.setSampler("SkyboxSampler", this.galaxyCubemap);
-		RenderSystem.depthMask(false);
-		RenderSystem.disableDepthTest();
-		RenderSystem.disableCull();
-		builder.draw(shader);
+		final var shader = getShader(SHADER_SKYBOX);
+		shader.setUniformSampler("SkyboxSampler", this.galaxyCubemap);
+		builder.draw(shader, DRAW_STATE_DIRECT);
 	}
 
 	private void drawGalaxy(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
@@ -444,14 +437,9 @@ public class SkyRenderer {
 
 		builder.end();
 
-		this.client.getTextureManager().getTexture(RenderHelper.GALAXY_GLOW_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.disableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		builder.draw(ModRendering.getShader(ModRendering.GALAXY_PARTICLE_SHADER));
+		final var shader = getShader(SHADER_GALAXY_PARTICLE);
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
+		builder.draw(shader, DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
 
 	}
 
@@ -461,7 +449,8 @@ public class SkyRenderer {
 			drawSystem(camera, galaxy, system.unwrap(), partialTick);
 	}
 
-	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, StarSystem system, float partialTick) {
+	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, StarSystem system,
+			float partialTick) {
 		final var profiler = Minecraft.getInstance().getProfiler();
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
 		final var time = universe.getCelestialTime(partialTick);
@@ -500,58 +489,45 @@ public class SkyRenderer {
 		profiler.pop();
 	}
 
-	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float tickDelta, Camera camera,
-			boolean isSkyVisible) {
-		final var profiler = Minecraft.getInstance().getProfiler();
+	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float tickDelta,
+			Camera camera, boolean isSkyVisible) {
+
+		if (this.hdrSpaceTarget == null) {
+			Mod.LOGGER.info("creating SkyRenderer framebuffer");
+			this.hdrSpaceTarget = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY);
+			this.hdrSpaceTarget.createColorTarget(GlFragmentWrites.COLOR, GlTexture.Format.RGBA32_FLOAT);
+			this.hdrSpaceTarget.createDepthTarget(false, GlTexture.Format.DEPTH_UNSPECIFIED);
+			this.hdrSpaceTarget.enableAllColorAttachments();
+			this.hdrSpaceTarget.checkStatus();
+		}
 
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
+		drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
 
-		final var mainTarget = this.client.getMainRenderTarget();
-		final var compositeTarget = getSkyCompositeTarget();
-		if (this.useMultisampling) {
-			if (this.skyTarget == null) {
-				final var window = this.client.getWindow();
-				final var format = new FlexibleRenderTarget.FramebufferFormat(this.useMultisampling, GL32.GL_RGBA32F,
-						OptionalInt.of(GL32.GL_DEPTH_COMPONENT32));
-				this.skyTarget = new FlexibleRenderTarget(window.getWidth(), window.getHeight(), format);
-			}
-			drawSky(camera, this.skyTarget, partialTick);
-			profiler.push("resolve");
-			this.skyTarget.resolveTo(compositeTarget);
-			profiler.pop();
-		} else {
-			drawSky(camera, compositeTarget, partialTick);
-		}
+		// TODO: draw atmosphere or something
+		// TODO: figure out how the fuck we're gonna make vanilla fog not look like
+		// total ass
+		// could maybe replace the vanilla fog shader with one that takes in a
+		// background image buffer and uses that as the fog color. idk.
 
-		try (final var disposer = Disposable.scope()) {
-			final var imported = Texture2d.importFromRenderTarget(compositeTarget);
-			final var bloomOutput = disposer.attach(BloomEffect.render(imported));
-
-			compositeTarget.bindWrite(true);
-			RenderSystem.blendFunc(GlStateManager.SourceFactor.ONE, GlStateManager.DestFactor.ONE);
-			RenderSystem.enableBlend();
-			BufferRenderer.drawFullscreen(bloomOutput.texture);
-			
-			profiler.push("composite");
-			mainTarget.setClearColor(0f, 0f, 0f, 1.0f);
-			mainTarget.clear(false);
-			ModRendering.getPostChain(ModRendering.COMPOSITE_SKY_CHAIN).process(partialTick);
-			profiler.pop();
-			
-			// RenderSystem.disableBlend();
-			// mainTarget.bindWrite(true);
-			// BufferRenderer.drawFullscreen(bloomOutput.texture);
-		}
-
-		// reset GL state for the rest of the level renderer. a bit scuffed...
-		mainTarget.bindWrite(true);
-		GlStateManager._clearDepth(1.0);
-		GlStateManager._clear(GL32.GL_DEPTH_BUFFER_BIT, false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.depthMask(true);
-		RenderSystem.enableCull();
+		final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
+		mainTarget.bindAndClear();
+		ModRendering.doPostProcessing(mainTarget,
+				this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d());
 
 		return true;
+	}
+
+	@Override
+	public void close() {
+		if (this.galaxyCubemap != null)
+			this.galaxyCubemap.close();
+		if (this.hdrSpaceTarget != null)
+			this.hdrSpaceTarget.close();
+		if (this.postProcessTarget != null)
+			this.postProcessTarget.close();
+		if (this.starRenderer != null)
+			this.starRenderer.close();
 	}
 
 }

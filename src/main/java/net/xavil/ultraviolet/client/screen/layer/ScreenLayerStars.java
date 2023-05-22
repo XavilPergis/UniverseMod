@@ -2,7 +2,6 @@ package net.xavil.ultraviolet.client.screen.layer;
 
 import org.lwjgl.glfw.GLFW;
 
-import net.minecraft.client.renderer.GameRenderer;
 import net.xavil.ultraviolet.client.ClientDebugFeatures;
 import net.xavil.ultraviolet.client.camera.CameraConfig;
 import net.xavil.ultraviolet.client.camera.OrbitCamera;
@@ -12,7 +11,6 @@ import net.xavil.ultraviolet.client.screen.BillboardBatcher;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.NewGalaxyMapScreen;
 import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
-import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.client.screen.Ultraviolet3dScreen;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
@@ -23,9 +21,7 @@ import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.util.Disposable;
 import net.xavil.util.Option;
-import net.xavil.util.math.Color;
 import net.xavil.util.math.Ray;
-import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.Vec2;
 import net.xavil.util.math.matrices.Vec3;
 
@@ -179,12 +175,11 @@ public class ScreenLayerStars extends Ultraviolet3dScreen.Layer3d {
 		});
 		batcher.end();
 
-		if (this.selectedPos != null) {
-			final var pos = this.selectedPos.mul(1e12 / camera.metersPerUnit);
-			RenderHelper.renderBillboard(builder, camera, new TransformStack(), pos,
-					0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION,
-					GameRenderer.getPositionColorTexShader());
-		}
+		// if (this.selectedPos != null) {
+		// 	final var pos = this.selectedPos.mul(1e12 / camera.metersPerUnit);
+		// 	RenderHelper.renderUiBillboard(builder, camera, new TransformStack(), pos,
+		// 			0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+		// }
 	}
 
 }

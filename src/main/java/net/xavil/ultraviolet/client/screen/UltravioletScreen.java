@@ -9,6 +9,11 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.xavil.ultraviolet.client.ModRendering;
+import net.xavil.ultraviolet.client.flexible.RenderTexture;
+import net.xavil.ultraviolet.client.gl.GlFramebuffer;
+import net.xavil.ultraviolet.client.gl.GlManager;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture;
 import net.xavil.util.Disposable;
 import net.xavil.util.Option;
 import net.xavil.util.collections.Blackboard;
@@ -149,12 +154,33 @@ public abstract class UltravioletScreen extends Screen {
 		return dispatchEvent(layer -> layer.handleKeypress(keyCode, scanCode, modifiers));
 	}
 
+	private static final RenderTexture.StaticDescriptor DESC = new RenderTexture.StaticDescriptor(
+			GlTexture.Format.RGBA32_FLOAT);
+
 	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
+		GlManager.pushState();
+
+		// managed code: enter
+		final var output = RenderTexture.getTemporary(new Vec2i(this.width, this.height), DESC);
+		output.framebuffer.bindAndClear();
 		final var mousePos = Vec2i.from(mouseX, mouseY);
 		final var partialTick = this.client.getFrameTime();
+		renderScreenPreLayers(poseStack, mousePos, partialTick);
 		this.layers.forEach(layer -> layer.render(poseStack, mousePos, partialTick));
+		renderScreenPostLayers(poseStack, mousePos, partialTick);
+		final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
+		ModRendering.doPostProcessing(mainTarget, output.colorTexture);
+		// managed code: exit
+
+		GlManager.popState();
 		super.render(poseStack, mouseX, mouseY, tickDelta);
+	}
+
+	public void renderScreenPreLayers(PoseStack poseStack, Vec2i mousePos, float partialTick) {
+	}
+
+	public void renderScreenPostLayers(PoseStack poseStack, Vec2i mousePos, float partialTick) {
 	}
 
 	/**

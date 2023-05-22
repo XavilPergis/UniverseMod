@@ -2,12 +2,12 @@ package net.xavil.ultraviolet.client.screen.layer;
 
 import org.lwjgl.glfw.GLFW;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.util.Mth;
+import static net.xavil.ultraviolet.client.Shaders.*;
+import static net.xavil.ultraviolet.client.DrawStates.*;
 import net.xavil.ultraviolet.client.ClientDebugFeatures;
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
 import net.xavil.ultraviolet.client.camera.CameraConfig;
@@ -37,7 +37,6 @@ import net.xavil.util.collections.Blackboard;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.Ellipse;
 import net.xavil.util.math.Ray;
-import net.xavil.util.math.TransformStack;
 import net.xavil.util.math.matrices.Vec2;
 import net.xavil.util.math.matrices.Vec3;
 
@@ -192,12 +191,11 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 
 			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 			final var selectedNode = system.rootNode.lookup(selectedId);
-			if (selectedNode != null) {
-				final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
-				RenderHelper.renderBillboard(builder, camera, new TransformStack(), pos,
-						0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION,
-						GameRenderer.getPositionColorTexShader());
-			}
+			// if (selectedNode != null) {
+			// 	final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
+			// 	RenderHelper.renderUiBillboard(builder, camera, new TransformStack(), pos,
+			// 			0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+			// }
 		});
 	}
 
@@ -309,13 +307,7 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 		}
 
 		builder.end();
-		RenderSystem.lineWidth(2f);
-		RenderSystem.enableBlend();
-		RenderSystem.disableTexture();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
-		RenderSystem.depthMask(true);
-		builder.draw(GameRenderer.getRendertypeLinesShader());
+		builder.draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
 	}
 
 	private void showUnaryGuides(FlexibleBufferBuilder builder, OrbitCamera.Cached camera,
@@ -330,13 +322,7 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 		addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 
 		builder.end();
-		RenderSystem.lineWidth(2f);
-		RenderSystem.enableBlend();
-		RenderSystem.disableTexture();
-		RenderSystem.defaultBlendFunc();
-		RenderSystem.disableCull();
-		RenderSystem.depthMask(true);
-		builder.draw(GameRenderer.getRendertypeLinesShader());
+		builder.draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
 	}
 
 }

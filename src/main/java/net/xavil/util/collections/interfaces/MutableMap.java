@@ -8,6 +8,7 @@ import java.util.function.Supplier;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.xavil.util.Option;
+import net.xavil.util.collections.CollectionHint;
 import net.xavil.util.collections.MutableMapProxy;
 import net.xavil.util.iterator.Iterator;
 
@@ -28,6 +29,11 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 	@Override
 	default Iterator<? extends EntryMut<K, V>> entries() {
 		return this.keys().map(this::entry);
+	}
+
+	@Override
+	default MutableMap<K, V> hint(CollectionHint hint) {
+		return this;
 	}
 
 	static <K, V> MutableMapProxy<K, V> proxy(Map<K, V> map) {

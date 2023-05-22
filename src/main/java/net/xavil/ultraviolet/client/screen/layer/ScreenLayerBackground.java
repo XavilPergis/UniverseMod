@@ -1,12 +1,12 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 
-import net.minecraft.client.renderer.GameRenderer;
+import static net.xavil.ultraviolet.client.Shaders.*;
+import static net.xavil.ultraviolet.client.DrawStates.*;
 import net.xavil.ultraviolet.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.client.flexible.FlexibleBufferBuilder;
 import net.xavil.ultraviolet.client.screen.UltravioletScreen;
@@ -31,20 +31,14 @@ public class ScreenLayerBackground extends UltravioletScreen.Layer2d {
 
 	@Override
 	public void render(PoseStack poseStack, Vec2i mousePos, float partialTick) {
-		RenderSystem.depthMask(false);
-		RenderSystem.disableTexture();
-		RenderSystem.enableBlend();
-		RenderSystem.defaultBlendFunc();
 		final var builder = BufferRenderer.immediateBuilder();
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 		fillGradient(poseStack.last().pose(), builder,
 				0, 0, this.attachedScreen.width, this.attachedScreen.height,
 				0, this.bottomColor, this.topColor);
 		builder.end();
-		builder.draw(GameRenderer.getPositionColorShader());
-		RenderSystem.disableBlend();
-		RenderSystem.enableTexture();
-		RenderSystem.depthMask(true);
+
+		builder.draw(getVanillaShader(SHADER_VANILLA_POSITION_COLOR), DRAW_STATE_DIRECT_ALPHA_BLENDING);
 	}
 
 	private static void fillGradient(Matrix4f matrix, FlexibleBufferBuilder builder, int x1, int y1, int x2, int y2,

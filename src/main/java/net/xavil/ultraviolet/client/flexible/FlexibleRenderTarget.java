@@ -2,8 +2,7 @@ package net.xavil.ultraviolet.client.flexible;
 
 import java.util.OptionalInt;
 
-import org.lwjgl.opengl.GL31;
-import org.lwjgl.opengl.GL32;
+import org.lwjgl.opengl.GL32C;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -12,18 +11,21 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.client.gl.GlManager;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 
 // a render that uses a custom internal texture format
 public class FlexibleRenderTarget extends RenderTarget {
 
 	public record FramebufferFormat(boolean multisample, int colorFormat0, OptionalInt depthFormat) {
 		public boolean isDefault() {
-			return !this.multisample && this.colorFormat0 == GL31.GL_RGBA8
-					&& this.depthFormat.equals(OptionalInt.of(GL31.GL_DEPTH_COMPONENT));
+			return !this.multisample && this.colorFormat0 == GL32C.GL_RGBA8
+					&& this.depthFormat.equals(OptionalInt.of(GL32C.GL_DEPTH_COMPONENT));
 		}
 
-		public int textureTarget() {
-			return this.multisample ? GL32.GL_TEXTURE_2D_MULTISAMPLE : GL32.GL_TEXTURE_2D;
+		public GlTexture.Type textureTarget() {
+			return this.multisample ? GlTexture.Type.D2_MS : GlTexture.Type.D2;
 		}
 	}
 
@@ -45,7 +47,7 @@ public class FlexibleRenderTarget extends RenderTarget {
 					"Window " + width + "x" + height + " size out of bounds (max. size: " + maxTextureSize + ")");
 		}
 
-		final var target = this.format.textureTarget();
+		final var target = this.format.textureTarget().id;
 
 		this.viewWidth = width;
 		this.viewHeight = height;
@@ -56,42 +58,41 @@ public class FlexibleRenderTarget extends RenderTarget {
 
 		if (this.useDepth) {
 			this.depthBufferId = TextureUtil.generateTextureId();
-			Texture2d.bindTexture(target, this.depthBufferId);
+			GlTexture2d.bindTexture(target, this.depthBufferId);
 			
 			final var depthFormat = this.format.depthFormat.getAsInt();
 			if (this.format.multisample) {
-				GL32.glTexImage2DMultisample(target, 4, depthFormat, this.width, this.height, true);
+				GL32C.glTexImage2DMultisample(target, 4, depthFormat, this.width, this.height, true);
 			} else {
-				GlStateManager._texParameter(target, GL32.GL_TEXTURE_MIN_FILTER, GL32.GL_NEAREST);
-				GlStateManager._texParameter(target, GL32.GL_TEXTURE_MAG_FILTER, GL32.GL_NEAREST);
-				GlStateManager._texParameter(target, GL32.GL_TEXTURE_COMPARE_MODE, GL32.GL_NONE);
-				GlStateManager._texParameter(target, GL32.GL_TEXTURE_WRAP_S, GL32.GL_CLAMP_TO_EDGE);
-				GlStateManager._texParameter(target, GL32.GL_TEXTURE_WRAP_T, GL32.GL_CLAMP_TO_EDGE);
+				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_MIN_FILTER, GL32C.GL_NEAREST);
+				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_MAG_FILTER, GL32C.GL_NEAREST);
+				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_COMPARE_MODE, GL32C.GL_NONE);
+				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_WRAP_S, GL32C.GL_CLAMP_TO_EDGE);
+				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_WRAP_T, GL32C.GL_CLAMP_TO_EDGE);
 				GlStateManager._texImage2D(target, 0, depthFormat, this.width, this.height, 0,
-						GL32.GL_DEPTH_COMPONENT, GL32.GL_FLOAT, null);
+						GL32C.GL_DEPTH_COMPONENT, GL32C.GL_FLOAT, null);
 			}
 
 		}
 
-		this.filterMode = GL32.GL_NEAREST;
-		Texture2d.bindTexture(target, this.colorTextureId);
+		this.filterMode = GL32C.GL_NEAREST;
+		GlTexture2d.bindTexture(target, this.colorTextureId);
 		if (this.format.multisample) {
 			Mod.LOGGER.debug("created multisampled framebuffer");
-			GL32.glTexImage2DMultisample(target, 4, this.format.colorFormat0, this.width, this.height,
-			true);
+			GL32C.glTexImage2DMultisample(target, 4, this.format.colorFormat0, this.width, this.height, true);
 		} else {
-			GlStateManager._texParameter(target, GL32.GL_TEXTURE_MIN_FILTER, this.filterMode);
-			GlStateManager._texParameter(target, GL32.GL_TEXTURE_MAG_FILTER, this.filterMode);
-			GlStateManager._texParameter(target, GL32.GL_TEXTURE_WRAP_S, GL32.GL_CLAMP_TO_EDGE);
-			GlStateManager._texParameter(target, GL32.GL_TEXTURE_WRAP_T, GL32.GL_CLAMP_TO_EDGE);
+			GlStateManager._texParameter(target, GL32C.GL_TEXTURE_MIN_FILTER, this.filterMode);
+			GlStateManager._texParameter(target, GL32C.GL_TEXTURE_MAG_FILTER, this.filterMode);
+			GlStateManager._texParameter(target, GL32C.GL_TEXTURE_WRAP_S, GL32C.GL_CLAMP_TO_EDGE);
+			GlStateManager._texParameter(target, GL32C.GL_TEXTURE_WRAP_T, GL32C.GL_CLAMP_TO_EDGE);
 			GlStateManager._texImage2D(target, 0, this.format.colorFormat0, this.width, this.height, 0,
-					GL32.GL_RGBA, GL32.GL_UNSIGNED_BYTE, null);
+					GL32C.GL_RGBA, GL32C.GL_UNSIGNED_BYTE, null);
 		}
-		GlStateManager._glBindFramebuffer(GL32.GL_FRAMEBUFFER, this.frameBufferId);
-		GlStateManager._glFramebufferTexture2D(GL32.GL_FRAMEBUFFER, GL32.GL_COLOR_ATTACHMENT0, target,
+		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.frameBufferId);
+		GlStateManager._glFramebufferTexture2D(GL32C.GL_FRAMEBUFFER, GL32C.GL_COLOR_ATTACHMENT0, target,
 				this.colorTextureId, 0);
 		if (this.useDepth) {
-			GlStateManager._glFramebufferTexture2D(GL32.GL_FRAMEBUFFER, GL32.GL_DEPTH_ATTACHMENT, target,
+			GlStateManager._glFramebufferTexture2D(GL32C.GL_FRAMEBUFFER, GL32C.GL_DEPTH_ATTACHMENT, target,
 					this.depthBufferId, 0);
 		}
 		this.checkStatus();
@@ -100,13 +101,13 @@ public class FlexibleRenderTarget extends RenderTarget {
 	}
 
 	public void resolveTo(RenderTarget target) {
-		GlStateManager._glBindFramebuffer(GL32.GL_READ_FRAMEBUFFER, this.frameBufferId);
-		GlStateManager._glBindFramebuffer(GL32.GL_DRAW_FRAMEBUFFER, target.frameBufferId);
-		GL32.glBlitFramebuffer(
+		GlManager.bindFramebuffer(GL32C.GL_READ_FRAMEBUFFER, this.frameBufferId);
+		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, target.frameBufferId);
+		GL32C.glBlitFramebuffer(
 				0, 0, this.width, this.height,
 				0, 0, target.width, target.height,
-				GL32.GL_COLOR_BUFFER_BIT, GL32.GL_NEAREST);
-		GlStateManager._glBindFramebuffer(GL32.GL_FRAMEBUFFER, 0);
+				GL32C.GL_COLOR_BUFFER_BIT, GL32C.GL_NEAREST);
+		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, 0);
 	}
 
 	public boolean isMultisampled() {
@@ -116,13 +117,13 @@ public class FlexibleRenderTarget extends RenderTarget {
 	@Override
 	public void bindRead() {
 		RenderSystem.assertOnRenderThread();
-		Texture2d.bindTexture(this.format.textureTarget(), this.colorTextureId);
+		GlManager.bindTexture(this.format.textureTarget(), this.colorTextureId);
 	}
 
 	@Override
 	public void unbindRead() {
 		RenderSystem.assertOnRenderThreadOrInit();
-		Texture2d.bindTexture(this.format.textureTarget(), 0);
+		GlManager.bindTexture(this.format.textureTarget(), 0);
 	}
 
 }

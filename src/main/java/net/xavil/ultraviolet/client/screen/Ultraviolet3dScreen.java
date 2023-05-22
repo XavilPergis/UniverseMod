@@ -4,17 +4,16 @@ import java.util.function.Consumer;
 
 import org.lwjgl.glfw.GLFW;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import static net.xavil.ultraviolet.client.Shaders.*;
+import static net.xavil.ultraviolet.client.DrawStates.*;
 import net.xavil.ultraviolet.client.camera.CameraConfig;
 import net.xavil.ultraviolet.client.camera.OrbitCamera;
 import net.xavil.ultraviolet.client.flexible.BufferRenderer;
@@ -266,14 +265,7 @@ public abstract class Ultraviolet3dScreen extends UltravioletScreen {
 		RenderHelper.addLine(builder, camera, ppn, ppp, color);
 
 		builder.end();
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.enableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		RenderSystem.lineWidth(2.0f);
-		builder.draw(GameRenderer.getRendertypeLinesShader());
-
+		builder.draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
 	}
 
 	@Override
@@ -345,8 +337,7 @@ public abstract class Ultraviolet3dScreen extends UltravioletScreen {
 	}
 
 	@Override
-	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
-		final var partialTick = this.client.getFrameTime();
+	public void renderScreenPreLayers(PoseStack poseStack, Vec2i mousePos, float partialTick) {
 		forEach3dLayer(layer -> {
 			layer.setup3d(this.camera, partialTick);
 			layer.lastCamera = layer.camera;
@@ -354,8 +345,12 @@ public abstract class Ultraviolet3dScreen extends UltravioletScreen {
 			if (layer.lastCamera == null)
 				layer.lastCamera = layer.camera;
 		});
-		super.render(poseStack, mouseX, mouseY, tickDelta);
+		super.renderScreenPreLayers(poseStack, mousePos, partialTick);
+	}
 
+	@Override
+	public void renderScreenPostLayers(PoseStack poseStack, Vec2i mousePos, float partialTick) {
+		super.renderScreenPostLayers(poseStack, mousePos, partialTick);
 		final var debugCamera = setupCamera(getDebugCameraConfig(), partialTick);
 
 		final var prevMatrices = debugCamera.setupRenderMatrices();

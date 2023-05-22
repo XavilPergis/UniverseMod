@@ -7,16 +7,15 @@ import java.util.List;
 import org.slf4j.Logger;
 
 import com.google.common.collect.Lists;
-import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.MemoryTracker;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
 import com.mojang.datafixers.util.Pair;
 import com.mojang.logging.LogUtils;
 
-import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.util.Mth;
-import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.client.gl.DrawState;
+import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
 import net.xavil.util.Assert;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.matrices.interfaces.Vec3Access;
@@ -205,16 +204,9 @@ public final class FlexibleBufferBuilder implements FlexibleVertexConsumer {
 		return this.buffer.asReadOnlyBuffer();
 	}
 
-	public void draw(ShaderInstance shader) {
+	public void draw(ShaderProgram shader, DrawState drawState) {
 		Assert.isTrue(!isBuilding());
-		BufferRenderer.draw(shader, this);
-	}
-
-	public void draw(RenderTarget target, ShaderInstance shader) {
-		Assert.isTrue(!isBuilding());
-		target.bindWrite(false);
-		BufferRenderer.draw(shader, this);
-		target.unbindWrite();
+		BufferRenderer.draw(shader, this, drawState);
 	}
 
 	public void reset() {

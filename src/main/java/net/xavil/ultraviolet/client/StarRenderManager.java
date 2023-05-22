@@ -1,13 +1,15 @@
 package net.xavil.ultraviolet.client;
 
-import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
+import static net.xavil.ultraviolet.client.Shaders.*;
+import static net.xavil.ultraviolet.client.DrawStates.*;
 import net.xavil.ultraviolet.client.camera.CachedCamera;
 import net.xavil.ultraviolet.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexBuffer;
 import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.client.screen.BillboardBatcher;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -117,9 +119,8 @@ public final class StarRenderManager implements Disposable {
 	}
 
 	private void drawStarsFromBuffer(CachedCamera<?> camera) {
-		final var shader = ModRendering.getShader(ModRendering.STAR_BILLBOARD_SHADER);
-		CLIENT.getTextureManager().getTexture(RenderHelper.GALAXY_GLOW_LOCATION).setFilter(true, false);
-		RenderSystem.setShaderTexture(0, RenderHelper.GALAXY_GLOW_LOCATION);
+		final var shader = getShader(SHADER_STAR_BILLBOARD);
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 
 		{
 			final var poseStack = RenderSystem.getModelViewStack();
@@ -137,12 +138,7 @@ public final class StarRenderManager implements Disposable {
 		}
 
 		BufferRenderer.setupDefaultShaderUniforms(shader);
-		RenderSystem.blendFunc(GlStateManager.SourceFactor.SRC_ALPHA, GlStateManager.DestFactor.ONE);
-		RenderSystem.depthMask(false);
-		RenderSystem.disableDepthTest();
-		RenderSystem.disableCull();
-		RenderSystem.enableBlend();
-		this.starsBuffer.draw(shader);
+		this.starsBuffer.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 	}
 
 	@Override

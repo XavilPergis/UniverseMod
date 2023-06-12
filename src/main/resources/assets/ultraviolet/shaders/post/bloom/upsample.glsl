@@ -12,7 +12,7 @@ uniform ivec2 uDstSize;
 uniform int uLevel;
 uniform int uQuality;
 
-out vec4 fragColor;
+out vec4 fColor;
 
 void main() {
 	vec3 color = vec3(0.0);
@@ -21,7 +21,7 @@ void main() {
 	vec3 a = texture2D(uAdjacentSampler, texCoord0).rgb;
 	vec3 b = texture2D(uPreviousSampler, texCoord0).rgb;
 	color = vec3(distance(a, b));
-	fragColor = vec4(color, 1.0);
+	fColor = vec4(color, 1.0);
 }
 
 #endif

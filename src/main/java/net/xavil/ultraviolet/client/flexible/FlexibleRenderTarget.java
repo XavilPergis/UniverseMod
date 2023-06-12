@@ -12,6 +12,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 import net.minecraft.client.Minecraft;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.gl.GlManager;
+import net.xavil.ultraviolet.client.gl.UnmanagedStateSink;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 
@@ -58,7 +59,7 @@ public class FlexibleRenderTarget extends RenderTarget {
 
 		if (this.useDepth) {
 			this.depthBufferId = TextureUtil.generateTextureId();
-			GlTexture2d.bindTexture(target, this.depthBufferId);
+			GlManager.bindTexture(GlTexture.Type.from(target), this.depthBufferId);
 			
 			final var depthFormat = this.format.depthFormat.getAsInt();
 			if (this.format.multisample) {
@@ -76,7 +77,7 @@ public class FlexibleRenderTarget extends RenderTarget {
 		}
 
 		this.filterMode = GL32C.GL_NEAREST;
-		GlTexture2d.bindTexture(target, this.colorTextureId);
+		GlManager.bindTexture(GlTexture.Type.from(target), this.colorTextureId);
 		if (this.format.multisample) {
 			Mod.LOGGER.debug("created multisampled framebuffer");
 			GL32C.glTexImage2DMultisample(target, 4, this.format.colorFormat0, this.width, this.height, true);

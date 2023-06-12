@@ -21,7 +21,7 @@ uniform vec4 LightPos3;
 uniform vec4 LightColor3;
 uniform float MetersPerUnit;
 
-out vec4 fragColor;
+out vec4 fColor;
 
 vec3 contribution(vec4 color, vec4 pos) {
 	if (color.a >= 0) {
@@ -85,7 +85,7 @@ void main() {
     // finalColor = pow(finalColor, vec3(1.0 / gamma));
 	// finalColor = acesTonemap(finalColor);
 
-    fragColor = vec4(finalColor, baseColor.a);
+    fColor = vec4(finalColor, baseColor.a);
 }
 
 #endif

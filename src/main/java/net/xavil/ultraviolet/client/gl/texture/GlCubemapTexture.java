@@ -16,18 +16,26 @@ import net.xavil.util.math.matrices.Vec3;
 public final class GlCubemapTexture extends GlTexture {
 
 	public static enum Face {
-		XP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_X, Vec3.XP),
-		XN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_X, Vec3.XN),
-		YP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_Y, Vec3.YP),
-		YN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, Vec3.YN),
-		ZP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_Z, Vec3.ZP),
-		ZN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, Vec3.ZN);
+		XP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_X, Vec3.XP, "+X"),
+		XN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_X, Vec3.XN, "-X"),
+		YP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_Y, Vec3.YP, "+Y"),
+		YN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, Vec3.YN, "-Y"),
+		ZP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_Z, Vec3.ZP, "+Z"),
+		ZN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, Vec3.ZN, "-Z");
 
 		public final int glId;
 		public final Vec3 faceDir;
-		private Face(int glId, Vec3 faceDir) {
+		public final String description;
+
+		private Face(int glId, Vec3 faceDir, String description) {
 			this.glId = glId;
 			this.faceDir = faceDir;
+			this.description = description;
+		}
+
+		@Override
+		public String toString() {
+			return this.description;
 		}
 	}
 
@@ -64,7 +72,8 @@ public final class GlCubemapTexture extends GlTexture {
 			for (final var face : Face.values()) {
 				framebuffer.setColorTarget(GlFragmentWrites.COLOR, createFaceTarget(face));
 				framebuffer.checkStatus();
-				framebuffer.bindAndClear();
+				framebuffer.bind();
+				framebuffer.clear();
 				consumer.accept(face.faceDir);
 			}
 		}

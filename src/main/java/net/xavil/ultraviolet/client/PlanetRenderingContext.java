@@ -134,17 +134,17 @@ public final class PlanetRenderingContext {
 			addNormSphere(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits, tintColor);
 			builder.end();
 			final var shader = getShader(SHADER_STAR);
-			shader.setUniform("StarColor", node.getColor());
+			shader.setUniform("uStarColor", node.getColor());
 			builder.draw(shader, DRAW_STATE_NO_CULL);
 		}
 
 		tfm.pop();
 
 		// TODO: tint
-		tfm.push();
-		tfm.prependTranslation(this.origin);
-		RenderHelper.renderStarBillboard(builder, camera, tfm, node);
-		tfm.pop();
+		// tfm.push();
+		// tfm.prependTranslation(this.origin);
+		// RenderHelper.renderStarBillboard(builder, camera, tfm, node);
+		// tfm.pop();
 
 		this.renderedStarCount += 1;
 	}
@@ -162,28 +162,28 @@ public final class PlanetRenderingContext {
 
 		final var lightCount = Math.min(maxLightCount, sortedLights.size());
 
-		shader.setUniform("MetersPerUnit", camera.metersPerUnit);
-		shader.setUniform("Time", this.celestialTime);
+		shader.setUniform("uMetersPerUnit", camera.metersPerUnit);
+		shader.setUniform("uTime", this.celestialTime);
 
 		for (var i = 0; i < maxLightCount; ++i) {
-			shader.setUniform("LightColor" + i, 0f, 0f, 0f, -1f);
+			shader.setUniform("uLightColor" + i, 0f, 0f, 0f, -1f);
 		}
 
 		for (var i = 0; i < lightCount; ++i) {
 			final var light = sortedLights.get(i);
 
 			float luminosity = (float) Math.max(light.luminosity, 0.4);
-			shader.setUniform("LightColor" + i, light.color.withA(luminosity));
+			shader.setUniform("uLightColor" + i, light.color.withA(luminosity));
 
 			var pos = camera.toCameraSpace(light.pos.add(this.origin));
-			shader.setUniform("LightPos" + i, pos.withW(1));
+			shader.setUniform("uLightPos" + i, pos.withW(1));
 		}
 
 		BufferRenderer.setupCameraUniforms(shader, camera);
 	}
 
 	private void setupPlanetShader(PlanetaryCelestialNode node, ShaderProgram shader) {
-		shader.setUniform("PlanetType", switch (node.type) {
+		shader.setUniform("uPlanetType", switch (node.type) {
 			case EARTH_LIKE_WORLD -> 0;
 			case GAS_GIANT -> 1;
 			case ICE_WORLD -> 2;
@@ -191,7 +191,7 @@ public final class PlanetRenderingContext {
 			case ROCKY_WORLD -> 4;
 			case WATER_WORLD -> 5;
 		});
-		shader.setUniform("RenderingSeed", (float) (FastHasher.hashInt(node.getId()) % 1000000L));
+		shader.setUniform("uRenderingSeed", (float) (FastHasher.hashInt(node.getId()) % 1000000L));
 	}
 
 	public void renderPlanet(FlexibleBufferBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,

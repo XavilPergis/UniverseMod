@@ -21,7 +21,7 @@ public final class GlTexture2d extends GlTexture {
 	}
 
 	public void resize(int width, int height) {
-		if (this.textureFormat != null) {
+		if (this.textureFormat == null) {
 			throw new IllegalStateException(
 					debugDescription() + "Cannot resize a texture whose storage has not been previously allocated!");
 		}

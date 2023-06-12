@@ -10,11 +10,12 @@ import net.xavil.ultraviolet.client.gl.texture.GlCubemapTexture;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture.Format;
+import net.xavil.util.DebugFormattable;
 import net.xavil.util.Disposable;
 import net.xavil.util.math.Color;
 import net.xavil.util.math.matrices.Vec2i;
 
-public abstract sealed class GlFramebufferAttachment implements Disposable {
+public abstract sealed class GlFramebufferAttachment implements Disposable, DebugFormattable {
 	/**
 	 * A flag that indicates whether or not this framebuffer target is owned. A
 	 * target that is owned is responsible for managing its internal objects, such
@@ -116,6 +117,15 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		}
 
 		@Override
+		public String toString() {
+			return (this.owned ? "owned " : "unowned ") + "texture 2d attachment: " + this.target;
+		}
+
+		@Override
+		public void writeDebugInfo(DebugConsumer output) {
+		}
+
+		@Override
 		public void close() {
 			if (this.owned)
 				this.target.close();
@@ -159,6 +169,15 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		}
 
 		@Override
+		public String toString() {
+			return "unowned cubemap " + this.face + " face attachment: " + this.target;
+		}
+
+		@Override
+		public void writeDebugInfo(DebugConsumer output) {
+		}
+
+		@Override
 		public void close() {
 			// individual cubemap faces cannot be owned.
 		}
@@ -191,6 +210,16 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		@Override
 		public Format format() {
 			return this.target.format();
+		}
+
+		@Override
+		public String toString() {
+			return (this.owned ? "owned " : "unowned ") + "renderbuffer attachment: " + this.target;
+		}
+
+		@Override
+		public void writeDebugInfo(DebugConsumer output) {
+			
 		}
 
 		@Override

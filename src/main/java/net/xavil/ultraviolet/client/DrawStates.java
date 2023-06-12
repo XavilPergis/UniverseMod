@@ -39,7 +39,7 @@ public final class DrawStates {
 			.build();
 	public static final DrawState DRAW_STATE_NO_CULL = DrawState.builder()
 			.enableDepthTest(GlState.DepthFunc.LESS)
-			.depthMask(false)
+			.depthMask(true)
 			.enableCulling(false)
 			.build();
 	public static final DrawState DRAW_STATE_OPAQUE = DrawState.builder()

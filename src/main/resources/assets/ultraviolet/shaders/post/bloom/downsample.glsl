@@ -16,7 +16,7 @@ uniform float uThreshold;
 uniform float uSoftThreshold;
 uniform float uIntensity;
 
-out vec4 fragColor;
+out vec4 fColor;
 
 #define PREFILTER_BIAS 0.00001
 
@@ -45,7 +45,7 @@ vec4 downsample() {
 void main() {
 	vec3 color = downsample().rgb;
 	if (uLevel == 0) color = uIntensity * prefilter(color);
-	fragColor = vec4(color, 1.0);
+	fColor = vec4(color, 1.0);
 }
 
 #endif

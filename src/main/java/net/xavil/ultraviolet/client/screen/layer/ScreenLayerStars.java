@@ -3,6 +3,7 @@ package net.xavil.ultraviolet.client.screen.layer;
 import org.lwjgl.glfw.GLFW;
 
 import net.xavil.ultraviolet.client.ClientDebugFeatures;
+import net.xavil.ultraviolet.client.StarRenderManager;
 import net.xavil.ultraviolet.client.camera.CameraConfig;
 import net.xavil.ultraviolet.client.camera.OrbitCamera;
 import net.xavil.ultraviolet.client.camera.OrbitCamera.Cached;
@@ -29,21 +30,27 @@ public class ScreenLayerStars extends Ultraviolet3dScreen.Layer3d {
 	private final NewGalaxyMapScreen screen;
 	public final Galaxy galaxy;
 	private final SectorTicket<SectorTicketInfo.Multi> cameraTicket;
-	private Vec3 selectedPos;
+	private final StarRenderManager starRenderer;
 
 	public ScreenLayerStars(NewGalaxyMapScreen attachedScreen, Galaxy galaxy, SectorTicketInfo.Multi ticketInfo) {
 		super(attachedScreen, new CameraConfig(0.01, 1e6));
 		this.screen = attachedScreen;
 		this.galaxy = galaxy;
 		this.cameraTicket = galaxy.sectorManager.createSectorTicket(this.disposer, ticketInfo);
+		this.starRenderer = new StarRenderManager(galaxy);
 	}
 
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
 		if (ClientDebugFeatures.SECTOR_TICKET_AROUND_FOCUS.isEnabled())
 			return camera.focus;
-		// return camera.pos.mul(camera.metersPerUnit /
-		// 1e12).add(camera.forward.mul(GalaxySector.BASE_SIZE_Tm));
 		return camera.pos.mul(camera.metersPerUnit / 1e12);
+	}
+
+	@Override
+	public void tick() {
+		super.tick();
+		if (this.starRenderer != null)
+			this.starRenderer.tick();
 	}
 
 	@Override
@@ -55,10 +62,6 @@ public class ScreenLayerStars extends Ultraviolet3dScreen.Layer3d {
 			final var ray = this.lastCamera.rayForPicking(this.client.getWindow(), mousePos);
 			final var selected = pickElement(this.lastCamera, ray);
 			insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM, selected.unwrapOrNull());
-			this.selectedPos = selected
-					.flatMap(this.galaxy.sectorManager::getInitial)
-					.map(elem -> elem.pos())
-					.unwrapOrNull();
 			return true;
 		}
 
@@ -146,34 +149,36 @@ public class ScreenLayerStars extends Ultraviolet3dScreen.Layer3d {
 
 	@Override
 	public void render3d(Cached camera, float partialTick) {
-		final var builder = BufferRenderer.immediateBuilder();
-		final var batcher = new BillboardBatcher(builder, 10000);
+		// final var builder = BufferRenderer.immediateBuilder();
+		// final var batcher = new BillboardBatcher(builder, 10000);
 
 		final var cullingCamera = getCullingCamera();
 		final var viewCenter = getStarViewCenterPos(cullingCamera);
 		cameraTicket.info.centerPos = viewCenter;
 		cameraTicket.info.multiplicitaveFactor = 2.0;
 
-		batcher.begin(camera);
-		this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
-			// if (sector.pos().level() != 0) return;
-			final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
-			final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
-			if (!cullingCamera.isAabbInFrustum(min, max))
-				return;
-			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
-			// final var levelSize = GalaxySector.sizeForLevel(0);
-			final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
-			sector.initialElements.forEach(elem -> {
-				if (elem.pos().distanceTo(viewCenter) > levelSize)
-					return;
-				final var toStar = elem.pos().sub(camPos);
-				if (toStar.dot(cullingCamera.forward) <= 0)
-					return;
-				batcher.add(elem.info().primaryStar, elem.pos());
-			});
-		});
-		batcher.end();
+		this.starRenderer.draw(camera);
+
+		// batcher.begin(camera);
+		// this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
+		// 	// if (sector.pos().level() != 0) return;
+		// 	final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
+		// 	final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
+		// 	if (!cullingCamera.isAabbInFrustum(min, max))
+		// 		return;
+		// 	final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
+		// 	// final var levelSize = GalaxySector.sizeForLevel(0);
+		// 	final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
+		// 	sector.initialElements.forEach(elem -> {
+		// 		if (elem.pos().distanceTo(viewCenter) > levelSize)
+		// 			return;
+		// 		final var toStar = elem.pos().sub(camPos);
+		// 		if (toStar.dot(cullingCamera.forward) <= 0)
+		// 			return;
+		// 		batcher.add(elem.info().primaryStar, elem.pos());
+		// 	});
+		// });
+		// batcher.end();
 
 		// if (this.selectedPos != null) {
 		// 	final var pos = this.selectedPos.mul(1e12 / camera.metersPerUnit);

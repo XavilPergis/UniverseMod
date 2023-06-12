@@ -1,5 +1,7 @@
 package net.xavil.ultraviolet.client.gl;
 
+import java.nio.ByteBuffer;
+
 import net.xavil.ultraviolet.client.gl.shader.ShaderStage;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture;
 
@@ -69,5 +71,7 @@ public interface GlStateSink {
 	void colorMask(boolean colorMaskR, boolean colorMaskG, boolean colorMaskB, boolean colorMaskA);
 
 	void setViewport(int x, int y, int w, int h);
+
+	void bufferData(GlBuffer.Type target, ByteBuffer data, GlBuffer.UsageHint usage);
 
 }

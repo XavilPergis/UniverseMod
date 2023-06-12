@@ -6,10 +6,10 @@
 
 uniform sampler2D uSampler;
 
-out vec4 fragColor;
+out vec4 fColor;
 
 void main() {
-	fragColor = texture2D(uSampler, texCoord0);
+	fColor = texture2D(uSampler, texCoord0);
 }
 
 #endif

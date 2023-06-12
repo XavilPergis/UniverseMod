@@ -273,9 +273,10 @@ public final class ShaderProgram extends GlObject {
 
 	public ShaderProgram(ShaderInstance imported) {
 		super(imported.getId(), false);
+		this.wrappedVanillaShader = imported;
 		queryUniforms();
 		setupAttribBindings(imported.getVertexFormat(), false);
-		this.fragmentWrites = GlFragmentWrites.VANILLA;
+		setupFragLocations(GlFragmentWrites.VANILLA);
 	}
 
 	public ShaderProgram() {
@@ -362,15 +363,15 @@ public final class ShaderProgram extends GlObject {
 
 		private boolean uploadMatrix() {
 			switch (this.type) {
-				case FLOAT_MAT2x2 -> GL32C.glUniformMatrix2fv(this.location, false, this.floatValues);
-				case FLOAT_MAT3x3 -> GL32C.glUniformMatrix3fv(this.location, false, this.floatValues);
-				case FLOAT_MAT4x4 -> GL32C.glUniformMatrix4fv(this.location, false, this.floatValues);
-				case FLOAT_MAT2x3 -> GL32C.glUniformMatrix2x3fv(this.location, false, this.floatValues);
-				case FLOAT_MAT2x4 -> GL32C.glUniformMatrix2x4fv(this.location, false, this.floatValues);
-				case FLOAT_MAT3x2 -> GL32C.glUniformMatrix3x2fv(this.location, false, this.floatValues);
-				case FLOAT_MAT3x4 -> GL32C.glUniformMatrix3x4fv(this.location, false, this.floatValues);
-				case FLOAT_MAT4x2 -> GL32C.glUniformMatrix4x2fv(this.location, false, this.floatValues);
-				case FLOAT_MAT4x3 -> GL32C.glUniformMatrix4x3fv(this.location, false, this.floatValues);
+				case FLOAT_MAT2x2 -> GL32C.glUniformMatrix2fv(this.location, true, this.floatValues);
+				case FLOAT_MAT3x3 -> GL32C.glUniformMatrix3fv(this.location, true, this.floatValues);
+				case FLOAT_MAT4x4 -> GL32C.glUniformMatrix4fv(this.location, true, this.floatValues);
+				case FLOAT_MAT2x3 -> GL32C.glUniformMatrix2x3fv(this.location, true, this.floatValues);
+				case FLOAT_MAT2x4 -> GL32C.glUniformMatrix2x4fv(this.location, true, this.floatValues);
+				case FLOAT_MAT3x2 -> GL32C.glUniformMatrix3x2fv(this.location, true, this.floatValues);
+				case FLOAT_MAT3x4 -> GL32C.glUniformMatrix3x4fv(this.location, true, this.floatValues);
+				case FLOAT_MAT4x2 -> GL32C.glUniformMatrix4x2fv(this.location, true, this.floatValues);
+				case FLOAT_MAT4x3 -> GL32C.glUniformMatrix4x3fv(this.location, true, this.floatValues);
 				default -> {
 					return false;
 				}
@@ -384,11 +385,9 @@ public final class ShaderProgram extends GlObject {
 					// TODO: report error
 					return true;
 				}
-				if (GlStateManager.TEXTURES[ctx.currentTextureUnit].binding != this.textureValue.id) {
-					GlManager.activeTexture(GL32C.GL_TEXTURE0 + ctx.currentTextureUnit);
-					this.textureValue.bind();
-					GL32C.glUniform1i(this.location, ctx.currentTextureUnit);
-				}
+				GlManager.activeTexture(GL32C.GL_TEXTURE0 + ctx.currentTextureUnit);
+				this.textureValue.bind();
+				GL32C.glUniform1i(this.location, ctx.currentTextureUnit);
 				ctx.currentTextureUnit += 1;
 				return true;
 			}
@@ -456,8 +455,18 @@ public final class ShaderProgram extends GlObject {
 	private VertexFormat format;
 	private GlFragmentWrites fragmentWrites;
 
-	public VertexFormat getFormat() {
+	private ShaderInstance wrappedVanillaShader;
+
+	public VertexFormat format() {
 		return this.format;
+	}
+
+	public GlFragmentWrites fragmentWrites() {
+		return this.fragmentWrites;
+	}
+
+	public ShaderInstance getWrappedVanillaShader() {
+		return this.wrappedVanillaShader;
 	}
 
 	public void attachShader(ShaderStage shader) {
@@ -516,6 +525,7 @@ public final class ShaderProgram extends GlObject {
 		for (int i = 0; i < count; ++i) {
 			GL32C.glBindFragDataLocation(this.id, i, fragmentWrites.getFragmentWriteName(i));
 		}
+		this.fragmentWrites = fragmentWrites;
 	}
 
 	private boolean checkType(UniformSlot slot, UniformType requestedType) {
@@ -754,11 +764,14 @@ public final class ShaderProgram extends GlObject {
 			// since texture unit binding can change sorta whenever, we always have to check
 			// that the texture currently stored in a sampler uniform is the active texture
 			// for the current texture unit.
-			final var prevActiveTexture = GlStateManager._getActiveTexture();
+			final var prevActiveTexture = GlManager.currentState().boundTextureUnit;
 			final var uploadContext = new UploadContext();
 			this.uniforms.values().forEach(slot -> slot.upload(uploadContext));
-			GlStateManager._activeTexture(prevActiveTexture);
+			GlManager.activeTexture(prevActiveTexture);
 			this.areUniformsDirty = false;
+		}
+		if (this.wrappedVanillaShader != null) {
+			this.wrappedVanillaShader.apply();
 		}
 	}
 

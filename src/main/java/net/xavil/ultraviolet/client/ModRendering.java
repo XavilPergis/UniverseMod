@@ -16,6 +16,8 @@ import net.xavil.ultraviolet.client.gl.texture.GlTexture;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
 import net.xavil.util.Disposable;
 import net.xavil.util.iterator.Iterator;
+import net.xavil.util.math.Color;
+
 import static net.xavil.ultraviolet.client.Shaders.*;
 
 public final class ModRendering {
@@ -78,14 +80,19 @@ public final class ModRendering {
 	public static void doPostProcessing(GlFramebuffer output, GlTexture2d input) {
 		try (final var disposer = Disposable.scope()) {
 			// bloom
-			final var hdrPost = disposer.attach(RenderTexture.getTemporary(input.size().d2(), DESC));
-			BloomEffect.render(hdrPost.framebuffer, input);
+			// final var hdrPost = disposer.attach(RenderTexture.getTemporary(input.size().d2(), DESC));
+			// BloomEffect.render(hdrPost.framebuffer, input);
 
 			// tonemapping
-			output.bindAndClear();
-			final var postShader = getShader(SHADER_MAIN_POSTPROCESS);
-			postShader.setUniform("uExposure", 1f);
-			postShader.setUniformSampler("uSampler", hdrPost.colorTexture);
+			output.bind();
+			// final var postShader = getShader(SHADER_MAIN_POSTPROCESS);
+			// postShader.setUniform("uExposure", 1f);
+			// postShader.setUniformSampler("uSampler", hdrPost.colorTexture);
+			// BufferRenderer.drawFullscreen(postShader);
+
+			final var postShader = getShader(SHADER_BLIT);
+			// postShader.setUniform("uExposure", 1f);
+			postShader.setUniformSampler("uSampler", input);
 			BufferRenderer.drawFullscreen(postShader);
 		}
 

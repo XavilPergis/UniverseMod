@@ -511,7 +511,8 @@ public final class ShaderLoader {
 			GlFragmentWrites fragmentWrites, Iterator<String> shaderDefines) throws ShaderLoadException {
 		final var source = loadSource(provider, location, shaderDefines);
 
-		try (final var disposer = Disposable.scope()) {
+		final var disposer = Disposable.scope();
+		try {
 			final var program = disposer.attach(new ShaderProgram());
 			for (final var stageType : source.getStages().iterable()) {
 				final var stage = disposer.attach(new ShaderStage(stageType));
@@ -544,6 +545,10 @@ public final class ShaderLoader {
 
 			disposer.detach(program);
 			return program;
+		} finally {
+			// try-with-resources was giving me a self-suppression exception for some rason
+			// so im doing this manually.
+			disposer.close();
 		}
 	}
 

@@ -13,7 +13,7 @@ uniform float uExposure;
 
 uniform sampler2D uSampler;
 
-out vec4 fragColor;
+out vec4 fColor;
 
 void main() {
     vec3 light = texture(uSampler, texCoord0).rgb;
@@ -23,7 +23,7 @@ void main() {
 	light = tonemapACESFull(light);
 
 	vec3 gammaEncoded = pow(light, vec3(1.0 / gamma));
-    fragColor = vec4(gammaEncoded, 1.0);
+    fColor = vec4(gammaEncoded, 1.0);
 }
 
 #endif

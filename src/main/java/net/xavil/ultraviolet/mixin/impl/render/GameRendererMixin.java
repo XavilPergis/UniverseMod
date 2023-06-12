@@ -115,6 +115,11 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 		return this.modShaders.get(name);
 	}
 
+	@Override
+	public ShaderProgram ultraviolet_getVanillaShader(String id) {
+		return this.vanillaShaderProxies.get(id);
+	}
+
 	@Shadow
 	private double getFov(Camera activeRenderInfo, float partialTicks, boolean useFOVSetting) {
 		throw new AssertionError("unreachable");

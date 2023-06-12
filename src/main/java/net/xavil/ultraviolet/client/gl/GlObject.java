@@ -1,9 +1,10 @@
 package net.xavil.ultraviolet.client.gl;
 
 import net.xavil.ultraviolet.Mod;
+import net.xavil.util.DebugFormattable;
 import net.xavil.util.Disposable;
 
-public abstract class GlObject implements Disposable {
+public abstract class GlObject implements Disposable, DebugFormattable {
 
 	public static enum ObjectType {
 		TEXTURE("Texture"),
@@ -54,7 +55,32 @@ public abstract class GlObject implements Disposable {
 
 	public abstract ObjectType objectType();
 
-	// protected abstract void release(int id);
+	@Override
+	public void writeDebugInfo(DebugConsumer output) {
+		// output.write();
+	}
+
+	public void writeDebugInfo(StringBuilder output) {
+		/*
+		 * Texture 'Temporary 3' [id:342] [owned]
+		 * size: 1024 x 768 [D2]
+		 */
+		output.append(objectType().description);
+		if (this.debugName != null) {
+			output.append(" '");
+			output.append(this.debugName);
+			output.append("'");
+		}
+		output.append(" [id:");
+		output.append(this.id);
+		output.append("]");
+		if (this.owned) {
+			output.append(" [owned]");
+		} else {
+			output.append(" [unowned]");
+		}
+		output.append('\n');
+	}
 
 	public String debugDescription() {
 		var desc = objectType().description + " " + this.id;

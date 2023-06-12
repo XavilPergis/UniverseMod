@@ -1,5 +1,6 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -38,7 +39,9 @@ public class ScreenLayerBackground extends UltravioletScreen.Layer2d {
 				0, this.bottomColor, this.topColor);
 		builder.end();
 
-		builder.draw(getVanillaShader(SHADER_VANILLA_POSITION_COLOR), DRAW_STATE_DIRECT_ALPHA_BLENDING);
+		final var shader = getVanillaShader(SHADER_VANILLA_POSITION_COLOR);
+		RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
+		builder.draw(shader, DRAW_STATE_DIRECT_ALPHA_BLENDING);
 	}
 
 	private static void fillGradient(Matrix4f matrix, FlexibleBufferBuilder builder, int x1, int y1, int x2, int y2,

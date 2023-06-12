@@ -14,6 +14,7 @@ public final class BloomEffect {
 	public record Settings(int passes, double intensity, double threshold, double softThreshold) {
 	}
 
+	public static final int MINUMUM_RESOLUTION = 8;
 	public static final Settings DEFAULT_SETTINGS = new Settings(8, 0.1, 1.1, 0.9);
 
 	public static void render(GlFramebuffer output, GlTexture2d input) {
@@ -22,7 +23,8 @@ public final class BloomEffect {
 
 	private static void drawDownsample(GlFramebuffer output, GlTexture2d input, int level) {
 		final var shader = getShader(SHADER_BLOOM_DOWNSAMPLE);
-		output.bindAndClear();
+		output.bind();
+		output.clear();
 		shader.setUniformSampler("uPreviousSampler", input);
 		shader.setUniform("uSrcSize", input.size().d2());
 		shader.setUniform("uDstSize", output.size());
@@ -33,7 +35,8 @@ public final class BloomEffect {
 	private static void drawUpsample(GlFramebuffer output, GlTexture2d prev, GlTexture2d adj,
 			int level) {
 		final var shader = getShader(SHADER_BLOOM_UPSAMPLE);
-		output.bindAndClear();
+		output.bind();
+		output.clear();
 
 		shader.setUniformSampler("uPreviousSampler", prev);
 		shader.setUniformSampler("uAdjacentSampler", adj);
@@ -53,7 +56,7 @@ public final class BloomEffect {
 			// we always want to write something to `output`, so that callers can assume
 			// that the framebuffer is valid for use.
 			if (!output.writesTo(input)) {
-				output.bind(true);
+				output.bind();
 				BufferRenderer.drawFullscreen(input);
 			}
 			return;
@@ -78,6 +81,8 @@ public final class BloomEffect {
 				// start with half resolution!
 				currentSize = currentSize.floorDiv(2);
 				final var level = downsampleStack.size();
+				if (currentSize.x <= MINUMUM_RESOLUTION || currentSize.y <= MINUMUM_RESOLUTION)
+					break;
 				final var target = disposer.attach(RenderTexture.getTemporary(currentSize, DESC));
 				drawDownsample(target.framebuffer, previous, level);
 				downsampleStack.push(target.colorTexture);

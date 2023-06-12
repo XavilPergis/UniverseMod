@@ -33,7 +33,7 @@ public final class StarRenderManager implements Disposable {
 	 * The distance the camera needs to be from the current snapshot (in Tm) before
 	 * the background stars are rebuilt.
 	 */
-	public double starSnapshotThreshold = 10;
+	public double starSnapshotThreshold = 10000;
 	private double immediateStarsTimerTicks = -1;
 
 	public StarRenderManager(Galaxy galaxy) {
@@ -61,6 +61,7 @@ public final class StarRenderManager implements Disposable {
 		} else {
 			drawStarsFromBuffer(camera);
 		}
+		// drawStarsImmediate(camera);
 	}
 
 	private void buildStarsIfNeeded(CachedCamera<?> camera) {
@@ -70,7 +71,7 @@ public final class StarRenderManager implements Disposable {
 			return;
 		}
 		if (this.immediateStarsTimerTicks == -1)
-			this.immediateStarsTimerTicks = 20;
+			this.immediateStarsTimerTicks = 1;
 		if (this.immediateStarsTimerTicks > 0)
 			return;
 
@@ -110,7 +111,7 @@ public final class StarRenderManager implements Disposable {
 				if (elem.pos().distanceTo(camPos) > levelSize)
 					return;
 				final var toStar = elem.pos().sub(camPos);
-				if (toStar.dot(camera.forward) >= 0)
+				if (toStar.dot(camera.forward) <= 0)
 					return;
 				batcher.add(elem.info().primaryStar, elem.pos());
 			});

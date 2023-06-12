@@ -1,6 +1,7 @@
 #stages fragment
 
-#define BILLBOARD_KIND_TOWARDS_CAMERA
+// #define BILLBOARD_KIND_TOWARDS_CAMERA
+#define BILLBOARD_KIND_VIEW_ALIGNED
 #include [ultraviolet:vertex/billboard.glsl]
 
 #ifdef IS_FRAGMENT_STAGE
@@ -8,7 +9,7 @@
 
 uniform sampler2D uBillboardTexture;
 
-out vec4 fragColor;
+out vec4 fColor;
 
 void main() {
     vec4 s1 = texture(uBillboardTexture, texCoord0);
@@ -20,7 +21,7 @@ void main() {
 	hdrColor = (1.0 * hdrColor) + (1.0 * s2.a * s2);
 
 	float alpha = max(0.0, pow(vertexColor.a, 1.0));
-    fragColor = 0.9 * hdrColor * alpha;
+    fColor = 0.9 * hdrColor * alpha;
 }
 
 #endif

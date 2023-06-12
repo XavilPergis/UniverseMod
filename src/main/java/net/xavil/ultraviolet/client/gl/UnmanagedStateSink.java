@@ -1,10 +1,14 @@
 package net.xavil.ultraviolet.client.gl;
 
+import java.nio.ByteBuffer;
+
 import org.lwjgl.opengl.GL32C;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 
+import net.xavil.ultraviolet.client.gl.GlBuffer.Type;
+import net.xavil.ultraviolet.client.gl.GlBuffer.UsageHint;
 import net.xavil.ultraviolet.client.gl.GlObject.ObjectType;
 import net.xavil.ultraviolet.client.gl.GlState.BlendEquation;
 import net.xavil.ultraviolet.client.gl.GlState.BlendFactor;
@@ -68,7 +72,15 @@ public final class UnmanagedStateSink implements GlStateSink {
 
 	@Override
 	public void bindTexture(GlTexture.Type target, int id) {
-		GlTexture.bindTexture(target.id, id);
+		// NOTE: GlStateManager only tracks 2d textures
+		if (target == GlTexture.Type.D2) {
+			if (id != GlStateManager.TEXTURES[GlStateManager.activeTexture].binding) {
+				GlStateManager.TEXTURES[GlStateManager.activeTexture].binding = id;
+				GL32C.glBindTexture(target.id, id);
+			}
+		} else {
+			GL32C.glBindTexture(target.id, id);
+		}
 	}
 
 	@Override
@@ -179,5 +191,10 @@ public final class UnmanagedStateSink implements GlStateSink {
 	@Override
 	public void drawBuffers(int[] buffers) {
 		GL32C.glDrawBuffers(buffers);
+	}
+
+	@Override
+	public void bufferData(Type target, ByteBuffer data, UsageHint usage) {
+		GlStateManager._glBufferData(target.id, data, usage.id);
 	}
 }

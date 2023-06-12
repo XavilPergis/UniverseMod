@@ -1,8 +1,11 @@
 package net.xavil.ultraviolet.client.gl;
 
+import java.nio.ByteBuffer;
 import java.util.Arrays;
 
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL45C;
 import org.lwjgl.system.MemoryStack;
 
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -10,6 +13,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.xavil.ultraviolet.client.gl.shader.ShaderStage;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture;
+import net.xavil.ultraviolet.client.gl.texture.GlTexture.Type;
 
 public final class GlState implements GlStateSink {
 
@@ -273,6 +277,10 @@ public final class GlState implements GlStateSink {
 		}
 	}
 
+	public static final int MAX_TEXTURE_UNITS = Math.min(32, GlLimits.MAX_TEXTURE_IMAGE_UNITS);
+	public static final int TEXTURE_TARGET_COUNT = GlTexture.Type.values().length;
+	public static final int BUFFER_TARGET_COUNT = GlBuffer.Type.values().length;
+
 	public PolygonMode polygonMode = PolygonMode.FILL;
 
 	// culling
@@ -310,14 +318,48 @@ public final class GlState implements GlStateSink {
 	public int viewportWidth = 0;
 	public int viewportHeight = 0;
 
-	public int[] boundBuffers = new int[GlBuffer.Type.values().length];
-	public int[] boundTextures = new int[GlTexture.Type.values().length];
+	public static final class TextureUnit {
+		// each bit represents one texture target. if a bit is 1, then the texture bound
+		// to the corresponding texture target differs from the binding as it was then
+		// this state was captured. This is used to quickly skip syncing texture units
+		// that have not had their bindings changed.
+		public int bindingRestoreMask = 0;
+		public final int[] prevTextures = new int[TEXTURE_TARGET_COUNT];
+		public final int[] boundTextures = new int[TEXTURE_TARGET_COUNT];
+
+		public void setBinding(int target, int id) {
+			this.boundTextures[target] = id;
+			this.bindingRestoreMask &= ~(1 << target);
+			if (this.prevTextures[target] != id)
+				this.bindingRestoreMask |= 1 << target;
+		}
+
+		public void copyStateFrom(TextureUnit src) {
+			this.bindingRestoreMask = 0;
+			for (int i = 0; i < TEXTURE_TARGET_COUNT; ++i) {
+				this.boundTextures[i] = src.boundTextures[i];
+				this.prevTextures[i] = src.boundTextures[i];
+			}
+		}
+	}
+
+	// NOTE: vanilla only ever uses GL_TEXTURE_2D, so it doesnt need to track each
+	// target for each unit, and instead just tracks that specific binding per unit.
+	public final TextureUnit[] textureUnits = new TextureUnit[MAX_TEXTURE_UNITS];
+
+	public final int[] boundBuffers = new int[BUFFER_TARGET_COUNT];
 	public int boundVertexArray = 0;
 	public int boundProgram = 0;
 	public int boundDrawFramebuffer = 0;
 	public int boundReadFramebuffer = 0;
 	public int boundRenderbuffer = 0;
 	public int boundTextureUnit = GL32C.GL_TEXTURE0;
+
+	public GlState() {
+		for (int i = 0; i < MAX_TEXTURE_UNITS; ++i) {
+			this.textureUnits[i] = new TextureUnit();
+		}
+	}
 
 	public void copyStateFrom(GlState src) {
 		this.polygonMode = src.polygonMode;
@@ -341,8 +383,12 @@ public final class GlState implements GlStateSink {
 		this.logicOpEnabled = src.logicOpEnabled;
 		this.logicOp = src.logicOp;
 
-		this.boundBuffers = Arrays.copyOf(src.boundBuffers, src.boundBuffers.length);
-		this.boundTextures = Arrays.copyOf(src.boundTextures, src.boundTextures.length);
+		for (int i = 0; i < BUFFER_TARGET_COUNT; ++i) {
+			this.boundBuffers[i] = src.boundBuffers[i];
+		}
+		for (int i = 0; i < MAX_TEXTURE_UNITS; ++i) {
+			this.textureUnits[i].copyStateFrom(src.textureUnits[i]);
+		}
 		this.boundVertexArray = src.boundVertexArray;
 		this.boundProgram = src.boundProgram;
 		this.boundDrawFramebuffer = src.boundDrawFramebuffer;
@@ -379,9 +425,15 @@ public final class GlState implements GlStateSink {
 		this.logicOpEnabled = GL32C.glGetBoolean(GL32C.GL_COLOR_LOGIC_OP);
 		this.logicOp = LogicOp.from(GL32C.glGetInteger(GL32C.GL_LOGIC_OP_MODE));
 
-		for (final var binding : GlTexture.Type.values()) {
-			this.boundTextures[binding.ordinal()] = GL32C.glGetInteger(binding.bindingId);
+		this.boundTextureUnit = GL32C.glGetInteger(GL32C.GL_ACTIVE_TEXTURE);
+		for (int i = 0; i < MAX_TEXTURE_UNITS; ++i) {
+			GL32C.glActiveTexture(GL32C.GL_TEXTURE0 + i);
+			for (final var binding : GlTexture.Type.values()) {
+				this.textureUnits[i].boundTextures[binding.ordinal()] = GL32C.glGetInteger(binding.bindingId);
+			}
 		}
+		GL32C.glActiveTexture(this.boundTextureUnit);
+
 		for (final var binding : GlBuffer.Type.values()) {
 			this.boundBuffers[binding.ordinal()] = GL32C.glGetInteger(binding.bindingId);
 		}
@@ -391,10 +443,9 @@ public final class GlState implements GlStateSink {
 		this.boundDrawFramebuffer = GL32C.glGetInteger(GL32C.GL_DRAW_FRAMEBUFFER_BINDING);
 		this.boundReadFramebuffer = GL32C.glGetInteger(GL32C.GL_READ_FRAMEBUFFER_BINDING);
 		this.boundRenderbuffer = GL32C.glGetInteger(GL32C.GL_RENDERBUFFER_BINDING);
-		this.boundTextureUnit = GL32C.glGetInteger(GL32C.GL_ACTIVE_TEXTURE);
 	}
 
-	public void apply(GlState current) {
+	public void restore(GlState current) {
 		if (this.polygonMode != current.polygonMode)
 			UNMANAGED.polygonMode(this.polygonMode);
 
@@ -435,16 +486,16 @@ public final class GlState implements GlStateSink {
 		if (this.logicOp != current.logicOp)
 			UNMANAGED.logicOp(this.logicOp);
 
+		// make sure we don't clobber VAO state here
+		UNMANAGED.bindVertexArray(0);
 		for (final var binding : GlBuffer.Type.values()) {
 			final var toBind = this.boundBuffers[binding.ordinal()];
 			if (toBind != current.boundBuffers[binding.ordinal()])
 				UNMANAGED.bindBuffer(binding, toBind);
 		}
-		for (final var binding : GlTexture.Type.values()) {
-			final var toBind = this.boundTextures[binding.ordinal()];
-			if (toBind != current.boundTextures[binding.ordinal()])
-				UNMANAGED.bindTexture(binding, toBind);
-		}
+
+		// `current` knows what texture units were bound when its state was set up.
+		current.restoreTextureUnits();
 
 		if (this.boundVertexArray != current.boundVertexArray)
 			UNMANAGED.bindVertexArray(this.boundVertexArray);
@@ -460,11 +511,25 @@ public final class GlState implements GlStateSink {
 			UNMANAGED.activeTexture(this.boundTextureUnit);
 	}
 
+	private void restoreTextureUnits() {
+		for (var i = 0; i < MAX_TEXTURE_UNITS; ++i) {
+			final var unit = this.textureUnits[i];
+			if (unit.bindingRestoreMask == 0)
+				continue;
+			for (final var binding : GlTexture.Type.values()) {
+				final var prev = unit.prevTextures[binding.ordinal()];
+				final var cur = unit.boundTextures[binding.ordinal()];
+				if (prev != cur)
+					UNMANAGED.bindTexture(binding, prev);
+			}
+		}
+	}
+
 	@Override
 	public int createObject(GlObject.ObjectType objectType) {
 		return UNMANAGED.createObject(objectType);
 	}
-	
+
 	@Override
 	public int createShader(ShaderStage.Stage stage) {
 		return UNMANAGED.createShader(stage);
@@ -472,6 +537,15 @@ public final class GlState implements GlStateSink {
 
 	@Override
 	public void deleteObject(GlObject.ObjectType objectType, int id) {
+		if (objectType == GlObject.ObjectType.TEXTURE) {
+			for (int i = 0; i < MAX_TEXTURE_UNITS; ++i) {
+				final var unit = this.textureUnits[i];
+				for (int j = 0; j < TEXTURE_TARGET_COUNT; ++j) {
+					if (unit.boundTextures[j] == id)
+						unit.setBinding(j, 0);
+				}
+			}
+		}
 		UNMANAGED.deleteObject(objectType, id);
 	}
 
@@ -601,9 +675,10 @@ public final class GlState implements GlStateSink {
 
 	@Override
 	public void bindTexture(GlTexture.Type target, int id) {
-		if (this.boundTextures[target.ordinal()] != id) {
+		final var unit = this.textureUnits[this.boundTextureUnit - GL32C.GL_TEXTURE0];
+		if (unit.boundTextures[target.ordinal()] != id) {
 			UNMANAGED.bindTexture(target, id);
-			this.boundTextures[target.ordinal()] = id;
+			unit.setBinding(target.ordinal(), id);
 		}
 	}
 
@@ -633,6 +708,11 @@ public final class GlState implements GlStateSink {
 
 	@Override
 	public void activeTexture(int unit) {
+		if (unit - GL32C.GL_TEXTURE0 >= MAX_TEXTURE_UNITS) {
+			throw new IllegalArgumentException(String.format(
+					"cannot bind texture unit %d, a maximum of %d texture units are supported.",
+					unit - GL32C.GL_TEXTURE0, MAX_TEXTURE_UNITS));
+		}
 		if (this.boundTextureUnit != unit) {
 			UNMANAGED.activeTexture(unit);
 			this.boundTextureUnit = unit;
@@ -670,6 +750,34 @@ public final class GlState implements GlStateSink {
 	public void drawBuffers(int[] buffers) {
 		// no state to track
 		UNMANAGED.drawBuffers(buffers);
+	}
+	
+	public void drawBuffers(int framebuffer, int[] buffers) {
+		// if (GlLimits.HAS_DIRECT_STATE_ACCESS) {
+		// 	GL45C.glNamedFramebufferDrawBuffers(framebuffer, buffers);
+		// 	return;
+		// }
+		final var prevBinding = this.boundDrawFramebuffer;
+		bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, framebuffer);
+		UNMANAGED.drawBuffers(buffers);
+		bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevBinding);
+	}
+	
+	@Override
+	public void bufferData(GlBuffer.Type target, ByteBuffer data, GlBuffer.UsageHint usage) {
+		// no state to track
+		UNMANAGED.bufferData(target, data, usage);
+	}
+
+	public void bufferData(int id, ByteBuffer data, GlBuffer.UsageHint usage) {
+		// if (GlLimits.HAS_DIRECT_STATE_ACCESS) {
+		// 	GL45C.glNamedBufferData(id, data, usage.id);
+		// 	return;
+		// }
+		final var prevBinding = this.boundBuffers[GlBuffer.Type.ARRAY.ordinal()];
+		bindBuffer(GlBuffer.Type.ARRAY, id);
+		UNMANAGED.bufferData(GlBuffer.Type.ARRAY, data, usage);
+		bindBuffer(GlBuffer.Type.ARRAY, prevBinding);
 	}
 
 }

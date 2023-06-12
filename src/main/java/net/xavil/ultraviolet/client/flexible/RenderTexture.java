@@ -77,7 +77,7 @@ public final class RenderTexture implements Disposable {
 	private RenderTexture(int id, Vec2i size, StaticDescriptor descriptor) {
 		this.descriptor = descriptor;
 		this.framebuffer = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY, size);
-		this.framebuffer.setDebugName("Temporary Framebuffer " + id);
+		this.framebuffer.setDebugName("Temporary " + id);
 		this.framebuffer.createColorTarget(GlFragmentWrites.COLOR, descriptor.colorFormat);
 		this.colorTexture = this.framebuffer.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
 		this.colorTexture.setDebugName(String.format("Temporary %d '%s'", id, GlFragmentWrites.COLOR));
@@ -90,6 +90,7 @@ public final class RenderTexture implements Disposable {
 		} else {
 			this.depthTexture = null;
 		}
+		this.framebuffer.enableAllColorAttachments();
 		this.framebuffer.checkStatus();
 	}
 
@@ -100,7 +101,7 @@ public final class RenderTexture implements Disposable {
 			TEXTURE_RELEASE_THRESHOLD_FRAMES = TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT;
 		}
 		final var toRemove = MutableSet.<RenderTexture>identityHashSet();
-		for (final var texture : ALL_TEXTURES.iterable()) {
+		for (final var texture : FREE_TEXTURES.iterable()) {
 			texture.framesSinceLastUsed += 1;
 			if (texture.framesSinceLastUsed > TEXTURE_RELEASE_THRESHOLD_FRAMES) {
 				toRemove.insert(texture);
@@ -158,7 +159,8 @@ public final class RenderTexture implements Disposable {
 
 	public static RenderTexture getTemporaryCopy(GlTexture2d textureToCopy) {
 		final var temp = getTemporaryWithSameInfo(textureToCopy);
-		temp.framebuffer.bindAndClear();
+		temp.framebuffer.bind();
+		temp.framebuffer.clear();
 		BufferRenderer.drawFullscreen(textureToCopy);
 		return temp;
 	}

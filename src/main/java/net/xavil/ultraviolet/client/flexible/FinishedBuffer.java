@@ -1,5 +1,7 @@
 package net.xavil.ultraviolet.client.flexible;
 
+import java.nio.ByteBuffer;
+
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 public record FinishedBuffer(
@@ -20,5 +22,18 @@ public record FinishedBuffer(
 
 	public int byteCount() {
 		return vertexBufferSize() + indexBufferSize();
+	}
+
+	public ByteBuffer vertexData(ByteBuffer buffer) {
+		final var dataLength = this.vertexCount * this.format.getVertexSize();
+		return buffer.slice(0, dataLength);
+	}
+
+	public ByteBuffer indexData(ByteBuffer buffer) {
+		if (this.sequentialIndex)
+			return null;
+		final var vertexDataLength = this.vertexCount * this.format.getVertexSize();
+		final var indexDataLength = this.indexCount * this.indexType.bytes;
+		return buffer.slice(vertexDataLength, vertexDataLength + indexDataLength);
 	}
 }

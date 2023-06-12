@@ -83,7 +83,9 @@ public class SkyRenderer implements Disposable {
 
 	public void resize(int width, int height) {
 		if (this.hdrSpaceTarget != null) {
-			this.hdrSpaceTarget.resize(new Vec2i(width, height));
+			this.hdrSpaceTarget.close();
+			this.hdrSpaceTarget = null;
+			// this.hdrSpaceTarget.resize(new Vec2i(width, height));
 		}
 		if (this.postProcessTarget != null) {
 			this.postProcessTarget.resize(new Vec2i(width, height));
@@ -298,7 +300,8 @@ public class SkyRenderer implements Disposable {
 		final var profiler = Minecraft.getInstance().getProfiler();
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
 
-		target.bindAndClear();
+		target.bind();
+		target.clear();
 
 		// ticket management
 		final var location = EntityAccessor.getLocation(this.client.player);
@@ -329,7 +332,7 @@ public class SkyRenderer implements Disposable {
 			final var snapshot = camera.setupRenderMatrices();
 			if (galaxy != null) {
 				profiler.push("galaxy");
-				drawGalaxyCubemap(camera, galaxy, partialTick);
+				// drawGalaxyCubemap(camera, galaxy, partialTick);
 				if (this.starRenderer != null) {
 					profiler.popPush("stars");
 					this.starRenderer.draw(camera);
@@ -445,7 +448,7 @@ public class SkyRenderer implements Disposable {
 
 	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
 		final var system = this.systemTicket.forceLoad();
-		if (system.isSome())
+		if (system.isSome() && system.isNone())
 			drawSystem(camera, galaxy, system.unwrap(), partialTick);
 	}
 
@@ -501,8 +504,12 @@ public class SkyRenderer implements Disposable {
 			this.hdrSpaceTarget.checkStatus();
 		}
 
+		final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
+		mainTarget.enableAllColorAttachments();
+
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
-		drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
+		// drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
+		drawCelestialObjects(camera, mainTarget, partialTick);
 
 		// TODO: draw atmosphere or something
 		// TODO: figure out how the fuck we're gonna make vanilla fog not look like
@@ -510,10 +517,11 @@ public class SkyRenderer implements Disposable {
 		// could maybe replace the vanilla fog shader with one that takes in a
 		// background image buffer and uses that as the fog color. idk.
 
-		final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
-		mainTarget.bindAndClear();
-		ModRendering.doPostProcessing(mainTarget,
-				this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d());
+		mainTarget.bind();
+		mainTarget.clearDepthAttachment(1.0f);
+
+		// final var sceneTexture = this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
+		// ModRendering.doPostProcessing(mainTarget, sceneTexture);
 
 		return true;
 	}

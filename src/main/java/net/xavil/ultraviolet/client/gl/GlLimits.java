@@ -1,5 +1,6 @@
 package net.xavil.ultraviolet.client.gl;
 
+import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL32C;
 
 public final class GlLimits {
@@ -48,6 +49,8 @@ public final class GlLimits {
 	public static final int MAX_GEOMETRY_INPUT_COMPONENTS;
 	public static final int MAX_GEOMETRY_OUTPUT_COMPONENTS;
 	public static final int MAX_VIEWPORT_DIMS;
+
+	public static final boolean HAS_DIRECT_STATE_ACCESS = GL.getCapabilities().GL_ARB_direct_state_access;
 
 	static {
 		MAX_3D_TEXTURE_SIZE = GL32C.glGetInteger(GL32C.GL_MAX_3D_TEXTURE_SIZE);

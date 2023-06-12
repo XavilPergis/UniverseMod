@@ -93,6 +93,7 @@ public abstract class DrawState {
 
 		public Builder blendFunc(GlState.BlendFactor blendFactorSrcRgb, GlState.BlendFactor blendFactorSrcAlpha,
 				GlState.BlendFactor blendFactorDstRgb, GlState.BlendFactor blendFactorDstAlpha) {
+			this.blendingEnabled = true;
 			this.blendFactorSrcRgb = blendFactorSrcRgb;
 			this.blendFactorSrcAlpha = blendFactorSrcAlpha;
 			this.blendFactorDstRgb = blendFactorDstRgb;
@@ -144,6 +145,7 @@ public abstract class DrawState {
 
 
 		public Builder enableAdditiveBlending() {
+			this.blendingEnabled = true;
 			this.blendEquationRgb = GlState.BlendEquation.ADD;
 			this.blendEquationAlpha = GlState.BlendEquation.ADD;
 			this.blendFactorSrcRgb = GlState.BlendFactor.SRC_ALPHA;
@@ -184,6 +186,7 @@ public abstract class DrawState {
 
 		@Override
 		public void apply(GlState state) {
+			this.children.forEach(child -> child.apply(state));
 		}
 	}
 

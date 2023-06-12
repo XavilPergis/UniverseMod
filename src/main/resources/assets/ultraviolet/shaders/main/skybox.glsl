@@ -15,10 +15,10 @@ void main() {
 
 uniform samplerCube SkyboxSampler;
 
-out vec4 fragColor;
+out vec4 fColor;
 
 void main() {
-	fragColor = texture(SkyboxSampler, texCoord0);
+	fColor = texture(SkyboxSampler, texCoord0);
 }
 
 #endif

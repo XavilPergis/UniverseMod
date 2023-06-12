@@ -10,6 +10,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.xavil.ultraviolet.client.ModRendering;
+import net.xavil.ultraviolet.client.Shaders;
+import net.xavil.ultraviolet.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.client.flexible.RenderTexture;
 import net.xavil.ultraviolet.client.gl.GlFramebuffer;
 import net.xavil.ultraviolet.client.gl.GlManager;
@@ -19,6 +21,7 @@ import net.xavil.util.Option;
 import net.xavil.util.collections.Blackboard;
 import net.xavil.util.collections.Vector;
 import net.xavil.util.collections.interfaces.MutableList;
+import net.xavil.util.math.Color;
 import net.xavil.util.math.matrices.Vec2;
 import net.xavil.util.math.matrices.Vec2i;
 
@@ -43,6 +46,9 @@ public abstract class UltravioletScreen extends Screen {
 		@Override
 		public void close() {
 			this.disposer.close();
+		}
+
+		public void tick() {
 		}
 
 		public abstract void render(PoseStack poseStack, Vec2i mousePos, float partialTick);
@@ -158,19 +164,36 @@ public abstract class UltravioletScreen extends Screen {
 			GlTexture.Format.RGBA32_FLOAT);
 
 	@Override
+	public void tick() {
+		super.tick();
+		this.layers.forEach(layer -> layer.tick());
+	}
+
+	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
 		GlManager.pushState();
 
+		final var window = this.client.getWindow();
+
 		// managed code: enter
-		final var output = RenderTexture.getTemporary(new Vec2i(this.width, this.height), DESC);
-		output.framebuffer.bindAndClear();
-		final var mousePos = Vec2i.from(mouseX, mouseY);
-		final var partialTick = this.client.getFrameTime();
-		renderScreenPreLayers(poseStack, mousePos, partialTick);
-		this.layers.forEach(layer -> layer.render(poseStack, mousePos, partialTick));
-		renderScreenPostLayers(poseStack, mousePos, partialTick);
-		final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
-		ModRendering.doPostProcessing(mainTarget, output.colorTexture);
+		try (final var disposer = Disposable.scope()) {
+			final var output = disposer.attach(RenderTexture
+					.getTemporary(new Vec2i(window.getWidth(), window.getHeight()), new RenderTexture.StaticDescriptor(
+							GlTexture.Format.RGBA16_FLOAT, false, GlTexture.Format.DEPTH_UNSPECIFIED)));
+			output.framebuffer.bind();
+			output.framebuffer.clear();
+
+			final var mousePos = Vec2i.from(mouseX, mouseY);
+			final var partialTick = this.client.getFrameTime();
+			renderScreenPreLayers(poseStack, mousePos, partialTick);
+			this.layers.forEach(layer -> layer.render(poseStack, mousePos, partialTick));
+			renderScreenPostLayers(poseStack, mousePos, partialTick);
+
+			final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
+			// mainTarget.bind();
+			mainTarget.enableAllColorAttachments();
+			ModRendering.doPostProcessing(mainTarget, output.colorTexture);
+		}
 		// managed code: exit
 
 		GlManager.popState();

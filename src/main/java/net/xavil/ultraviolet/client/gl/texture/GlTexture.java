@@ -5,12 +5,12 @@ import javax.annotation.Nullable;
 import org.lwjgl.opengl.GL32C;
 
 import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.platform.TextureUtil;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.gl.GlManager;
 import net.xavil.ultraviolet.client.gl.GlObject;
+import net.xavil.util.DebugFormattable;
 import net.xavil.util.math.matrices.Vec2i;
 import net.xavil.util.math.matrices.Vec3i;
 
@@ -291,6 +291,22 @@ public abstract class GlTexture extends GlObject {
 		public String toString() {
 			return this.description;
 		}
+
+		public static Type from(int value) {
+			return switch (value) {
+				case GL32C.GL_TEXTURE_1D -> D1;
+				case GL32C.GL_TEXTURE_2D -> D2;
+				case GL32C.GL_TEXTURE_3D -> D3;
+				case GL32C.GL_TEXTURE_CUBE_MAP -> CUBEMAP;
+				case GL32C.GL_TEXTURE_1D_ARRAY -> D1_ARRAY;
+				case GL32C.GL_TEXTURE_2D_ARRAY -> D2_ARRAY;
+				case GL32C.GL_TEXTURE_2D_MULTISAMPLE -> D2_MS;
+				case GL32C.GL_TEXTURE_2D_MULTISAMPLE_ARRAY -> D2_MS_ARRAY;
+				case GL32C.GL_TEXTURE_BUFFER -> BUFFER;
+				case GL32C.GL_TEXTURE_RECTANGLE -> RECTANGLE;
+				default -> null;
+			};
+		}
 	}
 
 	public static final class Size {
@@ -314,6 +330,23 @@ public abstract class GlTexture extends GlObject {
 
 		public Vec3i d3() {
 			return new Vec3i(this.width, this.height, this.depth);
+		}
+
+		@Override
+		public String toString() {
+			final var builder = new StringBuilder();
+			builder.append(this.width);
+			builder.append('x');
+			builder.append(this.height);
+			if (this.depth > 1) {
+				builder.append('x');
+				builder.append(this.depth);
+			}
+			if (this.layers > 1) {
+				builder.append('x');
+				builder.append(this.layers);
+			}
+			return builder.toString();
 		}
 	}
 
@@ -452,6 +485,19 @@ public abstract class GlTexture extends GlObject {
 		queryTexParams();
 	}
 
+	@Override
+	public void writeDebugInfo(StringBuilder output) {
+		super.writeDebugInfo(output);
+		output.append(String.format("  size: [%s] %s\n",
+				String.valueOf(this.type), String.valueOf(this.size)));
+		output.append(String.format("  format: %s\n",
+				String.valueOf(this.textureFormat)));
+		output.append(String.format("  filtering: [min:%s] [max:%s]\n",
+				String.valueOf(this.minFilter), String.valueOf(this.magFilter)));
+		output.append(String.format("  wrap: [S:%s] [T:%s] [R:%s]\n",
+				String.valueOf(this.wrapModeS), String.valueOf(this.wrapModeT), String.valueOf(this.wrapModeR)));
+	}
+
 	private void queryTexParams() {
 		bind();
 		this.minFilter = MinFilter.from(GL32C.glGetTexParameteri(type.id, GL32C.GL_TEXTURE_MIN_FILTER));
@@ -551,14 +597,6 @@ public abstract class GlTexture extends GlObject {
 		if (this.wrapModeR != mode)
 			GlStateManager._texParameter(this.type.id, WrapAxis.R.id, mode.id);
 		this.wrapModeS = this.wrapModeT = this.wrapModeR = mode;
-	}
-
-	public static void bindTexture(int target, int id) {
-		RenderSystem.assertOnRenderThreadOrInit();
-		if (id != GlStateManager.TEXTURES[GlStateManager.activeTexture].binding) {
-			GlStateManager.TEXTURES[GlStateManager.activeTexture].binding = id;
-			GL32C.glBindTexture(target, id);
-		}
 	}
 
 }

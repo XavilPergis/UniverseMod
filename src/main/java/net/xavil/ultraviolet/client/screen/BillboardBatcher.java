@@ -37,7 +37,8 @@ public final class BillboardBatcher {
 		builder.end();
 
 		final var shader = getShader(SHADER_STAR_BILLBOARD);
-		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
+		// shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 		builder.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 
 		this.current = 0;

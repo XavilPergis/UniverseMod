@@ -1,5 +1,7 @@
 package net.xavil.ultraviolet.client.gl;
 
+import java.nio.ByteBuffer;
+
 import com.mojang.blaze3d.platform.GlStateManager;
 
 import net.xavil.ultraviolet.client.gl.shader.ShaderStage;
@@ -13,6 +15,9 @@ public final class GlManager {
 
 	private final MutableList<GlState> stack = new Vector<>();
 	private final MutableList<GlState> freeStates = new Vector<>();
+
+	// the OpenGL state that needs to be restored after we pop our final state.
+	private GlState unmanagedState = null;
 	private GlState current = null;
 	private GlStateSink currentSink = UnmanagedStateSink.INSTANCE;
 
@@ -28,12 +33,12 @@ public final class GlManager {
 	}
 
 	private void push() {
-		final var newState = fetchNewState();
-		if (this.stack.isEmpty()) {
-			newState.sync();
-		} else {
-			newState.copyStateFrom(this.stack.last().unwrap());
+		if (this.current == null) {
+			this.unmanagedState = fetchNewState();
+			this.unmanagedState.sync();
 		}
+		final var newState = fetchNewState();
+		newState.copyStateFrom(this.current == null ? this.unmanagedState : this.stack.last().unwrap());
 		this.stack.push(newState);
 		this.current = newState;
 		this.currentSink = this.current;
@@ -44,15 +49,20 @@ public final class GlManager {
 		if (this.stack.isEmpty()) {
 			this.current = null;
 			this.currentSink = UnmanagedStateSink.INSTANCE;
+			this.unmanagedState.restore(prev);
+			this.unmanagedState = null;
 		} else {
 			this.current = this.stack.last().unwrap();
-			this.current.apply(prev);
+			this.current.restore(prev);
 			this.currentSink = this.current;
 		}
 		this.freeStates.push(prev);
 	}
 
 	public static GlState currentState() {
+		if (INSTANCE.current == null) {
+			throw new IllegalStateException("Cannot access the current OpenGL state because GlManager is not active!");
+		}
 		return INSTANCE.current;
 	}
 
@@ -223,5 +233,9 @@ public final class GlManager {
 
 	public static void drawBuffers(int[] buffers) {
 		INSTANCE.currentSink.drawBuffers(buffers);
+	}
+	
+	public static void bufferData(GlBuffer.Type target, ByteBuffer data, GlBuffer.UsageHint usage) {
+		INSTANCE.currentSink.bufferData(target, data, usage);
 	}
 }

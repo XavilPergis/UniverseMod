@@ -8,11 +8,14 @@ import org.lwjgl.opengl.GL32C;
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
 import net.minecraft.client.Minecraft;
+import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture;
 import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
+import net.xavil.util.Assert;
 import net.xavil.util.Option;
 import net.xavil.util.collections.interfaces.MutableMap;
 import net.xavil.util.collections.interfaces.MutableSet;
+import net.xavil.util.math.Color;
 import net.xavil.util.math.matrices.Vec2i;
 
 public final class GlFramebuffer extends GlObject {
@@ -33,14 +36,14 @@ public final class GlFramebuffer extends GlObject {
 
 	public GlFramebuffer(RenderTarget imported) {
 		super(imported.frameBufferId, false);
-		this.fragmentWrites = GlFragmentWrites.VANILLA;
+		this.fragmentWrites = GlFragmentWrites.COLOR_ONLY;
 		this.size = new Vec2i(imported.width, imported.height);
 		this.viewport = new Viewport(Vec2i.ZERO, this.size);
 		// TODO: copy clear colors from imported target
 		final var colorTex = GlTexture2d.importFromRenderTargetColor(imported);
 		final var depthTex = GlTexture2d.importFromRenderTargetDepth(imported);
 		if (colorTex != null)
-			setColorTarget("fragColor", new GlFramebufferAttachment.Texture2d(false, colorTex));
+			setColorTarget(GlFragmentWrites.COLOR, new GlFramebufferAttachment.Texture2d(false, colorTex));
 		if (depthTex != null)
 			setDepthAttachment(new GlFramebufferAttachment.Texture2d(false, depthTex));
 	}
@@ -64,16 +67,6 @@ public final class GlFramebuffer extends GlObject {
 	@Override
 	public ObjectType objectType() {
 		return ObjectType.FRAMEBUFFER;
-	}
-
-	private void recomputeSize() {
-		this.size = Vec2i.ZERO;
-		this.colorAttachments.values().forEach(target -> {
-			this.size = Vec2i.min(this.size, target.size());
-		});
-		if (this.depthAttachment != null) {
-			this.size = Vec2i.min(this.size, this.depthAttachment.size());
-		}
 	}
 
 	public void resize(Vec2i size) {
@@ -110,10 +103,12 @@ public final class GlFramebuffer extends GlObject {
 		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
 
 		if (target != null) {
-			target.attach(GL32C.GL_COLOR_ATTACHMENT0 + index);
+			if (this.owned)
+				target.attach(GL32C.GL_COLOR_ATTACHMENT0 + index);
 			this.colorAttachments.insert(index, target);
 		} else {
-			GlFramebufferAttachment.detach(GL32C.GL_COLOR_ATTACHMENT0 + index);
+			if (this.owned)
+				GlFramebufferAttachment.detach(GL32C.GL_COLOR_ATTACHMENT0 + index);
 			this.colorAttachments.remove(index);
 		}
 		if (oldTarget != null)
@@ -145,10 +140,12 @@ public final class GlFramebuffer extends GlObject {
 		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
 
 		if (target != null) {
-			target.attach(GL32C.GL_DEPTH_ATTACHMENT);
+			if (this.owned)
+				target.attach(GL32C.GL_DEPTH_ATTACHMENT);
 			this.depthAttachment = target;
 		} else {
-			GlFramebufferAttachment.detach(GL32C.GL_DEPTH_ATTACHMENT);
+			if (this.owned)
+				GlFramebufferAttachment.detach(GL32C.GL_DEPTH_ATTACHMENT);
 			this.depthAttachment = null;
 		}
 		if (oldTarget != null)
@@ -221,8 +218,20 @@ public final class GlFramebuffer extends GlObject {
 		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
 		final var status = GlStateManager.glCheckFramebufferStatus(GL32C.GL_FRAMEBUFFER);
 		if (status != GL32C.GL_FRAMEBUFFER_COMPLETE) {
-			throw new IllegalStateException(
-					"Framebuffer '" + this.id + "' was not complete: " + statusDescription(status));
+			Mod.LOGGER.error("{} was not complete (status {})", toString(), statusDescription(status));
+			if (this.depthAttachment != null) {
+				Mod.LOGGER.error("Depth attachment: {}", this.depthAttachment.toString());
+			}
+			for (int i = 0; i < this.fragmentWrites.getFragmentWriteCount(); ++i) {
+				final var attachment = this.colorAttachments.get(i).unwrapOrNull();
+				if (attachment == null)
+					continue;
+				Mod.LOGGER.error("Color attachment '{}': {}", this.fragmentWrites.getFragmentWriteName(i),
+						this.colorAttachments.get(i).toString());
+			}
+			throw new IllegalStateException(String.format(
+					"'%s' was not complete (status '%s')",
+					toString(), statusDescription(status)));
 		}
 	}
 
@@ -242,28 +251,15 @@ public final class GlFramebuffer extends GlObject {
 	}
 
 	/**
-	 * Binds this framebuffer for reading and writing. If {@code setViewport} is
-	 * {@code true}, then the OpenGL viewport state will be set to match this
-	 * framebuffer's size.
-	 * 
-	 * @param setViewport {@code true} if the OpenGL viewport state should be set to
-	 *                    the framebuffer's viewport state
-	 */
-	public void bind(boolean setViewport) {
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
-		if (setViewport) {
-			GlManager.setViewport(this.viewport.pos.x, this.viewport.pos.y,
-					this.viewport.size.x, this.viewport.size.y);
-		}
-		syncDrawBuffers();
-	}
-
-	/**
 	 * Binds this framebuffer for reading and writing, and sets the OpenGL viewport
-	 * state to match this framebuffer's size.
+	 * state to match this framebuffer's size. You are encouraged to call this
+	 * before doing any clearing operations, but it is not required.
 	 */
 	public void bind() {
-		bind(true);
+		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
+		GlManager.setViewport(this.viewport.pos.x, this.viewport.pos.y,
+				this.viewport.size.x, this.viewport.size.y);
+		syncDrawBuffers();
 	}
 
 	public static void unbind() {
@@ -271,7 +267,7 @@ public final class GlFramebuffer extends GlObject {
 	}
 
 	private void syncDrawBuffers() {
-		if (!this.areDrawBuffersDirty)
+		if (!this.areDrawBuffersDirty || !this.owned)
 			return;
 		final var count = this.fragmentWrites.getFragmentWriteCount();
 		final var drawBuffers = new int[count];
@@ -328,23 +324,106 @@ public final class GlFramebuffer extends GlObject {
 					GL32C.glClearBufferiv(GL32C.GL_STENCIL, colorAttachmentIndex, stencil);
 				}
 			}
-			default -> {
+			case NONE -> {
 			}
 		}
 	}
 
 	/**
-	 * Binds this framebuffer for reading and writing, sets the OpenGL viewport
-	 * state to match this framebuffer's size, then clears the framebuffer
+	 * This method clears the depth attachment, bypassing the
+	 * {@link GlFramebufferAttachment#depthClearState} that is associated with the
+	 * depth attachment.
+	 * 
+	 * @param clearValue The value to clear the depth attachment to
 	 */
-	public void bindAndClear() {
-		bind(true);
-
-		this.colorAttachments.entries().forEach(entry -> {
-			clearBuffer(entry.get().unwrap(), entry.key);
-		});
+	public void clearDepthAttachment(float clearValue) {
+		final var prevFramebuffer = GlManager.currentState().boundDrawFramebuffer;
+		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, this.id);
 		if (this.depthAttachment != null) {
-			clearBuffer(this.depthAttachment, 0);
+			Assert.isTrue(this.depthAttachment.format().isDepthRenderable);
+			GL32C.glClearBufferfv(GL32C.GL_DEPTH, 0, new float[] { clearValue });
+		}
+		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevFramebuffer);
+	}
+
+	/**
+	 * Like {@link #clearDepthAttachment(float)}, but uses
+	 * {@link GlFramebufferAttachment#depthClearState} as the clear value.
+	 */
+	public void clearDepthAttachment() {
+		if (this.depthAttachment == null)
+			return;
+		final var depth = getFloatClearValue(this.depthAttachment.depthClearState).unwrapOrNull();
+		if (depth != null)
+			clearDepthAttachment(depth[0]);
+	}
+
+	/**
+	 * This method clears the color attachment specified by {@code fragmentWriteId},
+	 * bypassing the {@link GlFramebufferAttachment#colorClearState} that is
+	 * associated with the color attachment. Note that this method may only be used
+	 * on color buffers where {@link GlFramebufferAttachment#format()} has a sampler
+	 * type of {@link GlTexture.SamplerType#FLOAT} (i.e., float buffers and
+	 * normalized int buffers).
+	 * 
+	 * @param fragmentWriteId The color attachment to clear
+	 * @param color           The value to clear the specified color attachment to
+	 */
+	public void clearColorAttachment(String fragmentWriteId, Color color) {
+		final var index = this.fragmentWrites.getFragmentWriteId(fragmentWriteId);
+		final var attachment = this.colorAttachments.get(index).unwrapOrNull();
+
+		final var prevFramebuffer = GlManager.currentState().boundDrawFramebuffer;
+		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, this.id);
+		if (attachment != null) {
+			Assert.isTrue(attachment.format().isColorRenderable);
+			Assert.isEqual(attachment.format().samplerType, GlTexture.SamplerType.FLOAT);
+			GL32C.glClearBufferfv(GL32C.GL_COLOR, index, new float[] {
+					color.r(), color.g(), color.b(), color.a(),
+			});
+		}
+		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevFramebuffer);
+	}
+
+	/**
+	 * Like {@link #clearColorAttachment(String, Color)}, but uses
+	 * {@link GlFramebufferAttachment#colorClearState} as the clear value.
+	 */
+	public void clearColorAttachment(String fragmentWriteId) {
+		final var index = this.fragmentWrites.getFragmentWriteId(fragmentWriteId);
+		final var attachment = this.colorAttachments.get(index).unwrapOrNull();
+
+		final var prevFramebuffer = GlManager.currentState().boundDrawFramebuffer;
+		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, this.id);
+		if (attachment != null) {
+			Assert.isTrue(attachment.format().isColorRenderable);
+			Assert.isEqual(attachment.format().samplerType, GlTexture.SamplerType.FLOAT);
+			final var clearValue = getFloatClearValue(this.depthAttachment.colorClearState).unwrapOrNull();
+			if (clearValue != null)
+				GL32C.glClearBufferfv(GL32C.GL_COLOR, index, clearValue);
+		}
+		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevFramebuffer);
+	}
+
+
+	/**
+	 * This method clears all attachments to the clear value specified on each
+	 * attaachment. For color attachments,
+	 * {@link GlFramebufferAttachment#colorClearState} is used. For depth
+	 * attachments, {@link GlFramebufferAttachment#depthClearState} is used.
+	 */
+	public void clear() {
+		final var prevFramebuffer = GlManager.currentState().boundDrawFramebuffer;
+		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, this.id);
+		try {
+			this.colorAttachments.entries().forEach(entry -> {
+				clearBuffer(entry.get().unwrap(), entry.key);
+			});
+			if (this.depthAttachment != null) {
+				clearBuffer(this.depthAttachment, 0);
+			}
+		} finally {
+			GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevFramebuffer);
 		}
 	}
 

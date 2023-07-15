@@ -1,13 +1,14 @@
 package net.xavil.ultraviolet.client;
 
-import static net.xavil.ultraviolet.client.Shaders.*;
-import net.xavil.ultraviolet.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.client.flexible.RenderTexture;
-import net.xavil.ultraviolet.client.gl.GlFramebuffer;
-import net.xavil.ultraviolet.client.gl.texture.GlTexture;
-import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
-import net.xavil.util.Disposable;
-import net.xavil.util.collections.Vector;
+import static net.xavil.ultraviolet.client.UltravioletShaders.*;
+
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.client.gl.GlFramebuffer;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
+import net.xavil.hawklib.client.gl.texture.GlTexture2d;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.RenderTexture;
 
 public final class BloomEffect {
 
@@ -48,8 +49,9 @@ public final class BloomEffect {
 
 	public final static GlTexture.Format BLOOM_FORMAT = GlTexture.Format.RGBA16_FLOAT;
 
-	private final static RenderTexture.StaticDescriptor DESC = new RenderTexture.StaticDescriptor(
-			GlTexture.Format.RGBA32_FLOAT);
+	private final static RenderTexture.StaticDescriptor DESC = RenderTexture.StaticDescriptor.create(builder -> {
+		builder.colorFormat = GlTexture.Format.RGBA32_FLOAT;
+	});
 
 	public static void render(Settings settings, GlFramebuffer output, GlTexture2d input) {
 		if (settings.passes() == 0) {

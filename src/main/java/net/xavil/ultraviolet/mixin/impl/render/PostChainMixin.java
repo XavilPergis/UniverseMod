@@ -18,7 +18,7 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.renderer.PostChain;
 import net.minecraft.server.ChainedJsonException;
 import net.minecraft.util.GsonHelper;
-import net.xavil.ultraviolet.client.flexible.FlexibleRenderTarget;
+import net.xavil.hawklib.client.flexible.FlexibleRenderTarget;
 
 @Mixin(PostChain.class)
 public abstract class PostChainMixin {

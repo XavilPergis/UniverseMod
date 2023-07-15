@@ -2,10 +2,10 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 
 import java.util.Random;
 
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.DoubleField3;
-import net.xavil.util.Units;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public enum GalaxyType {
 

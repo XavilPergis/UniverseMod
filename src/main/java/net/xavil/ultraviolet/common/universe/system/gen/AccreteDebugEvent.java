@@ -3,8 +3,8 @@ package net.xavil.ultraviolet.common.universe.system.gen;
 import java.util.Set;
 import java.util.function.BiConsumer;
 
-import net.xavil.util.Units;
-import net.xavil.util.math.Interval;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.math.Interval;
 
 public abstract sealed class AccreteDebugEvent {
 

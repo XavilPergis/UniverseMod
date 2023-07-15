@@ -3,16 +3,16 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 import java.util.Random;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.NameTemplate;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.system.StarSystemGeneratorImpl;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Rng;
-import net.xavil.util.Units;
-import net.xavil.util.hash.FastHasher;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.hash.FastHasher;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 

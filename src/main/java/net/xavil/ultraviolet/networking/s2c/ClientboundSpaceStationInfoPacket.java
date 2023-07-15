@@ -6,7 +6,7 @@ import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.ultraviolet.networking.ModPacket;
-import net.xavil.util.math.Quat;
+import net.xavil.hawklib.math.Quat;
 
 public class ClientboundSpaceStationInfoPacket extends ModPacket<ClientGamePacketListener> {
 

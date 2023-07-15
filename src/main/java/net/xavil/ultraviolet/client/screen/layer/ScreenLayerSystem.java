@@ -6,19 +6,20 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.util.Mth;
-import static net.xavil.ultraviolet.client.Shaders.*;
-import static net.xavil.ultraviolet.client.DrawStates.*;
+
+import static net.xavil.hawklib.client.HawkDrawStates.*;
+import static net.xavil.ultraviolet.client.UltravioletShaders.*;
+
 import net.xavil.ultraviolet.client.ClientDebugFeatures;
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
-import net.xavil.ultraviolet.client.camera.CameraConfig;
-import net.xavil.ultraviolet.client.camera.OrbitCamera;
-import net.xavil.ultraviolet.client.camera.OrbitCamera.Cached;
-import net.xavil.ultraviolet.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.client.flexible.FlexibleBufferBuilder;
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.camera.CameraConfig;
+import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.VertexBuilder;
+import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
-import net.xavil.ultraviolet.client.screen.Ultraviolet3dScreen;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
@@ -33,14 +34,15 @@ import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.collections.Blackboard;
-import net.xavil.util.math.Color;
-import net.xavil.util.math.Ellipse;
-import net.xavil.util.math.Ray;
-import net.xavil.util.math.matrices.Vec2;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.collections.Blackboard;
+import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.Ellipse;
+import net.xavil.hawklib.math.Ray;
+import net.xavil.hawklib.math.matrices.Vec2;
+import net.xavil.hawklib.math.matrices.Vec3;
 
-public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
+public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	public final Galaxy galaxy;
 	private final SystemTicket ticket;
 	// private CelestialNode systemRoot;
@@ -50,7 +52,7 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 	private boolean isPlanetRendererSetup = false;
 	private PlanetRenderingContext renderContext = new PlanetRenderingContext();
 
-	public ScreenLayerSystem(Ultraviolet3dScreen attachedScreen, Galaxy galaxy, GalaxySectorId systemId) {
+	public ScreenLayerSystem(HawkScreen3d attachedScreen, Galaxy galaxy, GalaxySectorId systemId) {
 		super(attachedScreen, new CameraConfig(0.01, 1e6));
 		this.galaxy = galaxy;
 		this.ticket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId);
@@ -168,7 +170,7 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 
 	@Override
 	public void render3d(Cached camera, float partialTick) {
-		final var builder = BufferRenderer.immediateBuilder();
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var cullingCamera = getCullingCamera();
 		this.galaxy.getSystem(this.ticket.id).ifSome(system -> {
 			final var universe = this.galaxy.parentUniverse;
@@ -276,7 +278,7 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 		return selected ? getBlackboardOrDefault(key) : getBlackboardOrDefault(BlackboardKeys.SELECTED_PATH_COLOR);
 	}
 
-	private void showOrbitGuides(FlexibleBufferBuilder builder, OrbitCamera.Cached camera,
+	private void showOrbitGuides(VertexBuilder builder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, CelestialNode node) {
 		if (node instanceof BinaryCelestialNode binaryNode) {
 			showBinaryGuides(builder, camera, cullingCamera, binaryNode);
@@ -287,7 +289,7 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 		}
 	}
 
-	private void showBinaryGuides(FlexibleBufferBuilder builder, OrbitCamera.Cached camera,
+	private void showBinaryGuides(VertexBuilder builder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, BinaryCelestialNode node) {
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
@@ -306,11 +308,10 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 		}
 
-		builder.end();
-		builder.draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
+		builder.end().draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
 	}
 
-	private void showUnaryGuides(FlexibleBufferBuilder builder, OrbitCamera.Cached camera,
+	private void showUnaryGuides(VertexBuilder builder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, CelestialNodeChild<?> orbiter) {
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
@@ -321,8 +322,7 @@ public class ScreenLayerSystem extends Ultraviolet3dScreen.Layer3d {
 		final var color = getPathColor(BlackboardKeys.UNARY_PATH_COLOR, isSelected);
 		addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 
-		builder.end();
-		builder.draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
+		builder.end().draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
 	}
 
 }

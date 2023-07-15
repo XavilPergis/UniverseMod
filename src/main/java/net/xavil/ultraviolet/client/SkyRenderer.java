@@ -3,8 +3,6 @@ package net.xavil.ultraviolet.client;
 import java.util.Objects;
 import java.util.Random;
 
-import org.lwjgl.opengl.GL32C;
-
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
@@ -12,19 +10,25 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
-import static net.xavil.ultraviolet.client.Shaders.*;
-import static net.xavil.ultraviolet.client.DrawStates.*;
 
+import static net.xavil.hawklib.client.HawkDrawStates.*;
+import static net.xavil.ultraviolet.client.UltravioletShaders.*;
+
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.gl.GlFragmentWrites;
+import net.xavil.hawklib.client.gl.GlFramebuffer;
+import net.xavil.hawklib.client.gl.texture.GlCubemapTexture;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
+import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.client.camera.CachedCamera;
-import net.xavil.ultraviolet.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexConsumer;
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
-import net.xavil.ultraviolet.client.gl.GlFragmentWrites;
-import net.xavil.ultraviolet.client.gl.GlFramebuffer;
-import net.xavil.ultraviolet.client.gl.texture.GlCubemapTexture;
-import net.xavil.ultraviolet.client.gl.texture.GlTexture;
-import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
+import net.xavil.hawklib.client.HawkRendering;
+import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -40,17 +44,13 @@ import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
-import net.xavil.util.Rng;
-import net.xavil.util.Units;
-import net.xavil.util.math.Color;
-import net.xavil.util.math.Quat;
-import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.matrices.Mat4;
-import net.xavil.util.math.matrices.Vec2;
-import net.xavil.util.math.matrices.Vec2i;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.Quat;
+import net.xavil.hawklib.math.TransformStack;
+import net.xavil.hawklib.math.matrices.Mat4;
+import net.xavil.hawklib.math.matrices.Vec2;
+import net.xavil.hawklib.math.matrices.Vec2i;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public class SkyRenderer implements Disposable {
 
@@ -207,7 +207,7 @@ public class SkyRenderer implements Disposable {
 		return false;
 	}
 
-	private Option<CachedCamera<?>> createCubemapCamera(CachedCamera<?> srcCamera, Location location, Vec3 faceDir,
+	private Maybe<CachedCamera<?>> createCubemapCamera(CachedCamera<?> srcCamera, Location location, Vec3 faceDir,
 			float partialTick) {
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
 		final var time = universe.getCelestialTime(partialTick);
@@ -216,23 +216,23 @@ public class SkyRenderer implements Disposable {
 			return universe.getSystem(loc.id.system()).flatMap(sys -> {
 				final var node = sys.rootNode.lookup(loc.id.nodeId());
 				if (node == null)
-					return Option.none();
+					return Maybe.none();
 				tfm.appendTranslation(node.getPosition(partialTick));
 				tfm.appendTranslation(sys.pos);
-				return Option.some(createCubemapCamera(srcCamera.camera, tfm, partialTick));
+				return Maybe.some(createCubemapCamera(srcCamera.uncached, tfm, partialTick));
 			});
 		} else if (location instanceof Location.Station loc) {
 			return universe.getStation(loc.id).flatMap(station -> {
 				final var p = station.getPos(partialTick);
 				tfm.appendTranslation(p);
 				applyFaceDir(tfm, faceDir);
-				return Option.some(createCubemapCamera(srcCamera.camera, tfm, partialTick));
+				return Maybe.some(createCubemapCamera(srcCamera.uncached, tfm, partialTick));
 			});
 		}
-		return Option.none();
+		return Maybe.none();
 	}
 
-	private Option<CachedCamera<?>> createCamera(Camera camera, Location location, float partialTick) {
+	private Maybe<CachedCamera<?>> createCamera(Camera camera, Location location, float partialTick) {
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
 		final var time = universe.getCelestialTime(partialTick);
 		final var tfm = new TransformStack();
@@ -240,7 +240,7 @@ public class SkyRenderer implements Disposable {
 			return universe.getSystem(loc.id.system()).flatMap(sys -> {
 				final var node = sys.rootNode.lookup(loc.id.nodeId());
 				if (node == null)
-					return Option.none();
+					return Maybe.none();
 				final var srcCamPos = Vec3.from(camera.getPosition());
 				// var nodePos = sys.pos.add(node.getPosition(partialTick));
 				// final var quat = toCelestialWorldSpaceRotation(node, time, srcCamPos.xz());
@@ -249,17 +249,17 @@ public class SkyRenderer implements Disposable {
 				// }
 				applyPlanetTransform(tfm, node, time, srcCamPos.xz(), partialTick);
 				tfm.appendTranslation(sys.pos);
-				return Option.some(createCamera(camera, tfm, partialTick));
+				return Maybe.some(createCamera(camera, tfm, partialTick));
 			});
 		} else if (location instanceof Location.Station loc) {
 			return universe.getStation(loc.id).flatMap(station -> {
 				final var p = station.getPos(partialTick);
 				tfm.appendRotation(station.orientation.inverse());
 				tfm.appendTranslation(p);
-				return Option.some(createCamera(camera, tfm, partialTick));
+				return Maybe.some(createCamera(camera, tfm, partialTick));
 			});
 		}
-		return Option.none();
+		return Maybe.none();
 	}
 
 	private void createTickets(Universe universe, UniverseSectorId galaxyId) {
@@ -333,6 +333,7 @@ public class SkyRenderer implements Disposable {
 			if (galaxy != null) {
 				profiler.push("galaxy");
 				// drawGalaxyCubemap(camera, galaxy, partialTick);
+				drawGalaxy(camera, galaxy, partialTick);
 				if (this.starRenderer != null) {
 					profiler.popPush("stars");
 					this.starRenderer.draw(camera);
@@ -348,7 +349,7 @@ public class SkyRenderer implements Disposable {
 	}
 
 	private void renderGalaxyToCubemap(Galaxy galaxy, float partialTick) {
-		final var builder = BufferRenderer.immediateBuilder();
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 
 		final var tfm = new TransformStack();
 		final var location = EntityAccessor.getLocation(this.client.player);
@@ -362,7 +363,10 @@ public class SkyRenderer implements Disposable {
 			if (this.shouldRenderGalaxyToCubemap)
 				return;
 
-			builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
+			final var shader = getShader(SHADER_GALAXY_PARTICLE);
+			shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
+	
+			builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 			this.galaxyRenderingContext.build();
 			this.galaxyRenderingContext.enumerate((pos, size) -> {
 				RenderHelper.addBillboard(builder, camera, new TransformStack(),
@@ -370,11 +374,7 @@ public class SkyRenderer implements Disposable {
 						0.4 * size * (1e12 / camera.metersPerUnit),
 						Color.WHITE.withA(1.0));
 			});
-			builder.end();
-
-			final var shader = getShader(SHADER_GALAXY_PARTICLE);
-			shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
-			builder.draw(shader, DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
+			builder.end().draw(shader, DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
 			tfm.pop();
 		});
 
@@ -384,9 +384,12 @@ public class SkyRenderer implements Disposable {
 	private void drawGalaxyCubemap(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
 		if (this.shouldRenderGalaxyToCubemap)
 			renderGalaxyToCubemap(galaxy, partialTick);
-		final var builder = BufferRenderer.immediateBuilder();
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 
-		builder.begin(FlexibleVertexMode.QUADS, DefaultVertexFormat.POSITION);
+		final var shader = getShader(SHADER_SKYBOX);
+		shader.setUniformSampler("SkyboxSampler", this.galaxyCubemap);
+
+		builder.begin(PrimitiveType.QUADS, DefaultVertexFormat.POSITION);
 		// -Y
 		builder.vertex(1, -1, 1).endVertex();
 		builder.vertex(-1, -1, 1).endVertex();
@@ -417,19 +420,17 @@ public class SkyRenderer implements Disposable {
 		builder.vertex(1, -1, 1).endVertex();
 		builder.vertex(1, 1, 1).endVertex();
 		builder.vertex(-1, 1, 1).endVertex();
-		builder.end();
-
-		final var shader = getShader(SHADER_SKYBOX);
-		shader.setUniformSampler("SkyboxSampler", this.galaxyCubemap);
-		builder.draw(shader, DRAW_STATE_DIRECT);
+		builder.end().draw(shader, DRAW_STATE_DIRECT);
 	}
 
 	private void drawGalaxy(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
-		final var builder = BufferRenderer.immediateBuilder();
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var rng = Rng.wrap(new Random(1337));
 
-		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
+		final var shader = getShader(SHADER_GALAXY_PARTICLE);
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 
+		builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		this.galaxyRenderingContext.build();
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
 			RenderHelper.addBillboard(builder, camera, new TransformStack(),
@@ -437,18 +438,13 @@ public class SkyRenderer implements Disposable {
 					0.4 * size * (1e12 / camera.metersPerUnit),
 					Color.WHITE.withA(0.1));
 		});
-
-		builder.end();
-
-		final var shader = getShader(SHADER_GALAXY_PARTICLE);
-		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
-		builder.draw(shader, DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
+		builder.end().draw(shader, DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
 
 	}
 
 	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
 		final var system = this.systemTicket.forceLoad();
-		if (system.isSome() && system.isNone())
+		if (system.isSome())
 			drawSystem(camera, galaxy, system.unwrap(), partialTick);
 	}
 
@@ -464,7 +460,7 @@ public class SkyRenderer implements Disposable {
 		// system.rootNode.updatePositions(time);
 
 		profiler.popPush("planet_context_setup");
-		final var builder = BufferRenderer.immediateBuilder();
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var ctx = new PlanetRenderingContext();
 		system.rootNode.visit(node -> {
 			if (node instanceof StellarCelestialNode starNode) {
@@ -519,9 +515,10 @@ public class SkyRenderer implements Disposable {
 
 		mainTarget.bind();
 		mainTarget.clearDepthAttachment(1.0f);
+		// mainTarget.enableAllColorAttachments();
 
 		// final var sceneTexture = this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
-		// ModRendering.doPostProcessing(mainTarget, sceneTexture);
+		// HawkRendering.doPostProcessing(mainTarget, sceneTexture);
 
 		return true;
 	}

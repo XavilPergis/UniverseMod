@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 @Mixin(Particle.class)
 public abstract class ParticleMixin {

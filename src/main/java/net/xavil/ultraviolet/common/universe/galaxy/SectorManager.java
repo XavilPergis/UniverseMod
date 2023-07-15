@@ -5,25 +5,25 @@ import java.util.function.Consumer;
 
 import net.minecraft.util.profiling.InactiveProfiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.Util;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
-import net.xavil.util.Assert;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
-import net.xavil.util.Util;
-import net.xavil.util.collections.Vector;
-import net.xavil.util.collections.interfaces.MutableList;
-import net.xavil.util.collections.interfaces.MutableMap;
-import net.xavil.util.collections.interfaces.MutableSet;
-import net.xavil.util.math.matrices.Vec3i;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableList;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.math.matrices.Vec3i;
 
 public final class SectorManager {
 
 	public final class SectorTicketTracker {
 		public final SectorTicket<?> loanedTicket;
-		private Option<? extends SectorTicketInfo> prevInfo = Option.none();
+		private Maybe<? extends SectorTicketInfo> prevInfo = Maybe.none();
 
 		public SectorTicketTracker(SectorTicket<?> loanedTicket) {
 			this.loanedTicket = loanedTicket;
@@ -31,7 +31,7 @@ public final class SectorManager {
 
 		public void update(MutableSet<SectorPos> toLoad, MutableSet<SectorPos> toUnload) {
 			final var prev = this.prevInfo;
-			final var cur = Option.fromNullable(this.loanedTicket.info);
+			final var cur = Maybe.fromNullable(this.loanedTicket.info);
 			if (prev.equals(cur))
 				return;
 			if (prev.isNone() && cur.isSome()) {
@@ -43,13 +43,13 @@ public final class SectorManager {
 				toLoad.extend(diff.added());
 				toUnload.extend(diff.removed());
 			}
-			this.prevInfo = cur.isSome() ? Option.some(cur.unwrap().copy()) : Option.none();
+			this.prevInfo = cur.isSome() ? Maybe.some(cur.unwrap().copy()) : Maybe.none();
 		}
 	}
 
 	public final class SystemTicketTracker {
 		public final SystemTicket loanedTicket;
-		private Option<GalaxySectorId> prevId = Option.none();
+		private Maybe<GalaxySectorId> prevId = Maybe.none();
 
 		public SystemTicketTracker(SystemTicket loanedTicket) {
 			this.loanedTicket = loanedTicket;
@@ -117,7 +117,7 @@ public final class SectorManager {
 		public boolean generationFailed = false;
 		public boolean isLoaded = false;
 		public StarSystem system;
-		public CompletableFuture<Option<StarSystem>> waitingFuture = null;
+		public CompletableFuture<Maybe<StarSystem>> waitingFuture = null;
 
 		public SystemSlot(GalaxySectorId id) {
 			this.id = id;
@@ -171,16 +171,16 @@ public final class SectorManager {
 		applyFinished();
 	}
 
-	public Option<StarSystem> forceLoad(SystemTicket systemTicket) {
+	public Maybe<StarSystem> forceLoad(SystemTicket systemTicket) {
 		return forceLoad(InactiveProfiler.INSTANCE, systemTicket);
 	}
 
-	public Option<StarSystem> forceLoad(ProfilerFiller profiler, SystemTicket systemTicket) {
+	public Maybe<StarSystem> forceLoad(ProfilerFiller profiler, SystemTicket systemTicket) {
 		if (systemTicket.id == null)
-			return Option.none();
+			return Maybe.none();
 		final var systemSlot = this.systemMap.get(systemTicket.id).unwrap();
 		if (systemSlot.system != null)
-			return Option.some(systemSlot.system);
+			return Maybe.some(systemSlot.system);
 		final var sectorPos = systemTicket.id.sectorPos();
 		final var sectorSlot = this.sectorMap.get(sectorPos.rootCoords()).unwrap();
 		final var sector = sectorSlot.sector.lookupSubtree(sectorPos);
@@ -189,7 +189,7 @@ public final class SectorManager {
 			Assert.isTrue(sector.isComplete());
 		}
 		if (sector.initialElements.size() <= systemTicket.id.elementIndex()) {
-			return Option.none();
+			return Maybe.none();
 		}
 		final var system = systemSlot.waitingFuture.join();
 		applyFinished();
@@ -213,7 +213,7 @@ public final class SectorManager {
 		final var systemsToUnload = MutableSet.<GalaxySectorId>hashSet();
 		for (final var ticket : this.trackedSystemTickets.iterable()) {
 			final var prev = ticket.prevId;
-			final var cur = Option.fromNullable(ticket.loanedTicket.id);
+			final var cur = Maybe.fromNullable(ticket.loanedTicket.id);
 			if (cur.equals(prev))
 				continue;
 			prev.ifSome(systemsToUnload::insert);
@@ -274,16 +274,16 @@ public final class SectorManager {
 		}
 	}
 
-	private Option<StarSystem> generateSystem(GalaxySector sector, GalaxySectorId id) {
+	private Maybe<StarSystem> generateSystem(GalaxySector sector, GalaxySectorId id) {
 		if (id.elementIndex() >= sector.initialElements.size())
-			return Option.none();
+			return Maybe.none();
 		try {
-			return Option.some(this.galaxy.generateFullSystem(sector, sector.initialElements.get(id.elementIndex())));
+			return Maybe.some(this.galaxy.generateFullSystem(sector, sector.initialElements.get(id.elementIndex())));
 		} catch (Throwable t) {
 			Mod.LOGGER.error("failed to generate system because of an exception!");
 			t.printStackTrace();
 		}
-		return Option.none();
+		return Maybe.none();
 	}
 
 	public boolean isLoaded(SectorPos pos) {
@@ -339,22 +339,22 @@ public final class SectorManager {
 		applyTickets(InactiveProfiler.INSTANCE);
 	}
 
-	public Option<GalaxySector> getSector(SectorPos pos) {
+	public Maybe<GalaxySector> getSector(SectorPos pos) {
 		final var slot = this.sectorMap.get(pos.rootCoords());
 		return slot.map(s -> s.sector.lookupSubtree(pos)).filter(sector -> sector.isComplete());
 	}
 
-	public Option<GalaxySector.InitialElement> getInitial(GalaxySectorId id) {
+	public Maybe<GalaxySector.InitialElement> getInitial(GalaxySectorId id) {
 		return this.sectorMap.get(id.sectorPos().rootCoords()).flatMap(slot -> {
 			final var sector = slot.sector.lookupSubtree(id.sectorPos());
 			if (!sector.isComplete())
-				return Option.none();
-			return Option.some(sector.lookupInitial(id.elementIndex()));
+				return Maybe.none();
+			return Maybe.some(sector.lookupInitial(id.elementIndex()));
 		});
 	}
 
-	public Option<StarSystem> getSystem(GalaxySectorId id) {
-		return this.systemMap.get(id).flatMap(sys -> Option.fromNullable(sys.system));
+	public Maybe<StarSystem> getSystem(GalaxySectorId id) {
+		return this.systemMap.get(id).flatMap(sys -> Maybe.fromNullable(sys.system));
 	}
 
 	public boolean isSystemLoaded(GalaxySectorId id) {

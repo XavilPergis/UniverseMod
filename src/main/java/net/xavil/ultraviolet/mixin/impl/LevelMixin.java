@@ -7,13 +7,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
+import net.xavil.hawklib.Disposable;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.ModSavedData;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
-import net.xavil.util.Disposable;
 
 @Mixin(Level.class)
 public abstract class LevelMixin implements LevelAccessor {

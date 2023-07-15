@@ -2,11 +2,11 @@ package net.xavil.ultraviolet.common.universe.system;
 
 import java.util.Random;
 
+import net.xavil.hawklib.Rng;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.system.StarSystem.Info;
-import net.xavil.util.Rng;
-import net.xavil.util.hash.FastHasher;
+import net.xavil.hawklib.hash.FastHasher;
 
 public interface StarSystemGenerator {
 

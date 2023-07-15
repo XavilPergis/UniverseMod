@@ -12,8 +12,8 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.common.dimension.DimensionCreationProperties;
-import net.xavil.util.Units;
 
 public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 

@@ -6,16 +6,16 @@ import org.lwjgl.glfw.GLFW;
 
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.client.camera.CameraConfig;
-import net.xavil.ultraviolet.client.camera.OrbitCamera;
-import net.xavil.ultraviolet.client.screen.Ultraviolet3dScreen;
+import net.xavil.hawklib.client.camera.CameraConfig;
+import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.ultraviolet.common.universe.Octree;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
-import net.xavil.util.Units;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
-public class GalaxyDensityDebugScreen extends Ultraviolet3dScreen {
+public class GalaxyDensityDebugScreen extends HawkScreen3d {
 
 	private Octree<Double> galaxyPoints = null;
 	private final Galaxy galaxy;
@@ -107,7 +107,7 @@ public class GalaxyDensityDebugScreen extends Ultraviolet3dScreen {
 	// 	if (galaxyPoints == null)
 	// 		buildGalaxyPoints(false);
 
-	// 	final var builder = BufferRenderer.immediateBuilder();
+	// 	final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 
 	// 	RenderHelper.renderGrid(builder, camera, 1, 1, 10, 40, partialTick);
 

@@ -4,6 +4,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ServerGamePacketListener;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.networking.ModPacket;
+import net.xavil.ultraviolet.networking.NetworkSerializers;
 
 public class ServerboundTeleportToLocationPacket extends ModPacket<ServerGamePacketListener> {
 
@@ -17,12 +18,12 @@ public class ServerboundTeleportToLocationPacket extends ModPacket<ServerGamePac
 
 	@Override
 	public void read(FriendlyByteBuf buf) {
-		this.location = readLocation(buf);
+		this.location = read(buf, NetworkSerializers.LOCATION);
 	}
 
 	@Override
 	public void write(FriendlyByteBuf buf) {
-		writeLocation(buf, this.location);
+		write(buf, this.location, NetworkSerializers.LOCATION);
 	}
 	
 }

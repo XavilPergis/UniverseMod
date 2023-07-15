@@ -7,6 +7,10 @@ import com.mojang.serialization.Codec;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
@@ -15,13 +19,9 @@ import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Assert;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
-import net.xavil.util.Units;
-import net.xavil.util.math.OrbitalPlane;
-import net.xavil.util.math.OrbitalShape;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.OrbitalPlane;
+import net.xavil.hawklib.math.OrbitalShape;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public abstract sealed class StationLocation implements Disposable {
 
@@ -85,15 +85,15 @@ public abstract sealed class StationLocation implements Disposable {
 				nbt.put("shape", encodeNbt(OrbitalShape.CODEC, this.shape));
 		}
 
-		public static Option<OrbitingCelestialBody> createDefault(Universe universe, SystemNodeId id) {
+		public static Maybe<OrbitingCelestialBody> createDefault(Universe universe, SystemNodeId id) {
 			try (final var disposer = Disposable.scope()) {
 				final var galaxy = universe.loadGalaxy(disposer, id.universeSector()).unwrapOrNull();
 				if (galaxy == null)
-					return Option.none();
+					return Maybe.none();
 				final var ticket = galaxy.sectorManager.createSystemTicketManual(id.galaxySector());
 				if (ticket.forceLoad().isNone())
-					return Option.none();
-				return Option.some(new OrbitingCelestialBody(universe, ticket, id));
+					return Maybe.none();
+				return Maybe.some(new OrbitingCelestialBody(universe, ticket, id));
 			}
 		}
 
@@ -186,15 +186,15 @@ public abstract sealed class StationLocation implements Disposable {
 			this.targetNode = id;
 		}
 
-		public static Option<JumpingSystem> create(Universe universe, StationLocation current, SystemId target) {
+		public static Maybe<JumpingSystem> create(Universe universe, StationLocation current, SystemId target) {
 			try (final var disposer = Disposable.scope()) {
 				final var galaxy = universe.loadGalaxy(disposer, target.universeSector()).unwrapOrNull();
 				if (galaxy == null)
-					return Option.none();
+					return Maybe.none();
 				final var ticket = galaxy.sectorManager.createSystemTicketManual(target.galaxySector());
 				if (ticket.forceLoad().isNone())
-					return Option.none();
-				return Option.some(new JumpingSystem(universe, ticket, current, target));
+					return Maybe.none();
+				return Maybe.some(new JumpingSystem(universe, ticket, current, target));
 			}
 		}
 

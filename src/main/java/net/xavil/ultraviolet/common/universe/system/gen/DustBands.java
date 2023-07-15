@@ -3,8 +3,8 @@ package net.xavil.ultraviolet.common.universe.system.gen;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.xavil.util.Rng;
-import net.xavil.util.math.Interval;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.math.Interval;
 
 public class DustBands {
 

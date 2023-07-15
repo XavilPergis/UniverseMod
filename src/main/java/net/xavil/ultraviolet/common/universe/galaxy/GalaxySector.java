@@ -1,12 +1,12 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.Util;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.util.Units;
-import net.xavil.util.Util;
-import net.xavil.util.collections.interfaces.ImmutableList;
-import net.xavil.util.math.matrices.Vec3;
-import net.xavil.util.math.matrices.Vec3i;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3i;
 
 public final class GalaxySector {
 

@@ -3,9 +3,9 @@ package net.xavil.universegen.system;
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
-import net.xavil.util.Rng;
-import net.xavil.util.Units;
-import net.xavil.util.math.Color;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.math.Color;
 
 public non-sealed class StellarCelestialNode extends CelestialNode {
 
@@ -147,7 +147,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public static double temperature(double radiusRsol, double luminosityLsol) {
 		var r = Units.m_PER_Rsol * radiusRsol;
 		var l = Units.W_PER_Lsol * luminosityLsol;
-		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT_W_PER_m2K4), 0.25);
+		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT_W_PER_m2_K4), 0.25);
 	}
 
 	// private static @Nullable StellarCelestialNode generateStarNode(Random random,

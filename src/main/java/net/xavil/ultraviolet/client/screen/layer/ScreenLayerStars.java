@@ -2,17 +2,17 @@ package net.xavil.ultraviolet.client.screen.layer;
 
 import org.lwjgl.glfw.GLFW;
 
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.ultraviolet.client.ClientDebugFeatures;
 import net.xavil.ultraviolet.client.StarRenderManager;
-import net.xavil.ultraviolet.client.camera.CameraConfig;
-import net.xavil.ultraviolet.client.camera.OrbitCamera;
-import net.xavil.ultraviolet.client.camera.OrbitCamera.Cached;
-import net.xavil.ultraviolet.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.client.screen.BillboardBatcher;
+import net.xavil.hawklib.client.camera.CameraConfig;
+import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.NewGalaxyMapScreen;
 import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
-import net.xavil.ultraviolet.client.screen.Ultraviolet3dScreen;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorPos;
@@ -20,13 +20,11 @@ import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
-import net.xavil.util.math.Ray;
-import net.xavil.util.math.matrices.Vec2;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.Ray;
+import net.xavil.hawklib.math.matrices.Vec2;
+import net.xavil.hawklib.math.matrices.Vec3;
 
-public class ScreenLayerStars extends Ultraviolet3dScreen.Layer3d {
+public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	private final NewGalaxyMapScreen screen;
 	public final Galaxy galaxy;
 	private final SectorTicket<SectorTicketInfo.Multi> cameraTicket;
@@ -104,7 +102,7 @@ public class ScreenLayerStars extends Ultraviolet3dScreen.Layer3d {
 		return false;
 	}
 
-	private Option<GalaxySectorId> pickElement(OrbitCamera.Cached camera, Ray ray) {
+	private Maybe<GalaxySectorId> pickElement(OrbitCamera.Cached camera, Ray ray) {
 		// @formatter:off
 		final var closest = new Object() {
 			double    distance    = Double.POSITIVE_INFINITY;
@@ -143,13 +141,13 @@ public class ScreenLayerStars extends Ultraviolet3dScreen.Layer3d {
 		});
 
 		if (closest.sectorIndex == -1)
-			return Option.none();
-		return Option.some(GalaxySectorId.from(closest.sectorPos, closest.sectorIndex));
+			return Maybe.none();
+		return Maybe.some(GalaxySectorId.from(closest.sectorPos, closest.sectorIndex));
 	}
 
 	@Override
 	public void render3d(Cached camera, float partialTick) {
-		// final var builder = BufferRenderer.immediateBuilder();
+		// final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		// final var batcher = new BillboardBatcher(builder, 10000);
 
 		final var cullingCamera = getCullingCamera();

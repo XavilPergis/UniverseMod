@@ -5,6 +5,8 @@ import java.util.List;
 import java.util.Random;
 
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
@@ -12,13 +14,11 @@ import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.universegen.system.CelestialNode;
-import net.xavil.util.Option;
-import net.xavil.util.Disposable;
-import net.xavil.util.collections.Vector;
-import net.xavil.util.collections.interfaces.ImmutableList;
-import net.xavil.util.hash.FastHasher;
-import net.xavil.util.math.Interval;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
+import net.xavil.hawklib.hash.FastHasher;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public class Galaxy {
 
@@ -88,21 +88,21 @@ public class Galaxy {
 		return this.generationLayers.get(elem.generationLayer()).generateFullSystem(elem);
 	}
 
-	public Option<StarSystem> loadSystem(Disposable.Multi disposer, GalaxySectorId id) {
+	public Maybe<StarSystem> loadSystem(Disposable.Multi disposer, GalaxySectorId id) {
 		final var systemTicket = this.sectorManager.createSystemTicket(disposer, id);
 		return this.sectorManager.forceLoad(systemTicket);
 	}
 
-	public Option<StarSystem> getSystem(GalaxySectorId id) {
+	public Maybe<StarSystem> getSystem(GalaxySectorId id) {
 		return this.sectorManager.getSystem(id);
 	}
 
-	public Option<Vec3> getSystemPos(GalaxySectorId id) {
+	public Maybe<Vec3> getSystemPos(GalaxySectorId id) {
 		return this.sectorManager.getInitial(id).map(info -> info.pos());
 	}
 
-	public Option<CelestialNode> getSystemNode(GalaxySectorId id, int nodeId) {
-		return this.sectorManager.getSystem(id).flatMap(system -> Option.fromNullable(system.rootNode.lookup(nodeId)));
+	public Maybe<CelestialNode> getSystemNode(GalaxySectorId id, int nodeId) {
+		return this.sectorManager.getSystem(id).flatMap(system -> Maybe.fromNullable(system.rootNode.lookup(nodeId)));
 	}
 
 }

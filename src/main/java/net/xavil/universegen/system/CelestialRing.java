@@ -1,7 +1,7 @@
 package net.xavil.universegen.system;
 
-import net.xavil.util.math.Interval;
-import net.xavil.util.math.OrbitalPlane;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.OrbitalPlane;
 
 public class CelestialRing {
 	public final OrbitalPlane orbitalPlane;

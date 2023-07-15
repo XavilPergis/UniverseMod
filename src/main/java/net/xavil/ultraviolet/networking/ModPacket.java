@@ -3,12 +3,6 @@ package net.xavil.ultraviolet.networking;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.PacketListener;
 import net.minecraft.network.protocol.Packet;
-import net.xavil.ultraviolet.common.universe.Location;
-import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
-import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
-import net.xavil.util.math.matrices.Vec3i;
-import net.xavil.ultraviolet.common.universe.id.SystemId;
-import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 
 public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 
@@ -30,95 +24,125 @@ public abstract class ModPacket<T extends PacketListener> implements Packet<T> {
 		ModNetworking.dispatch(this, listener);
 	}
 
-	public static Vec3i readVector(FriendlyByteBuf buf) {
-		var x = buf.readInt();
-		var y = buf.readInt();
-		var z = buf.readInt();
-		return Vec3i.from(x, y, z);
+	public static boolean readBoolean(FriendlyByteBuf buf) {
+		return buf.readBoolean();
 	}
 
-	public static void writeVector(FriendlyByteBuf buf, Vec3i vec) {
-		buf.writeInt(vec.x);
-		buf.writeInt(vec.y);
-		buf.writeInt(vec.z);
+	public static void writeBoolean(FriendlyByteBuf buf, boolean value) {
+		buf.writeBoolean(value);
 	}
 
-	public static UniverseSectorId readSectorId(FriendlyByteBuf buf) {
-		var x = buf.readInt();
-		var y = buf.readInt();
-		var z = buf.readInt();
-		var id = buf.readInt();
-		return new UniverseSectorId(Vec3i.from(x, y, z), id);
+	public static byte readByte(FriendlyByteBuf buf) {
+		return buf.readByte();
 	}
 
-	public static void writeSectorId(FriendlyByteBuf buf, UniverseSectorId id) {
-		buf.writeInt(id.sectorPos().x);
-		buf.writeInt(id.sectorPos().y);
-		buf.writeInt(id.sectorPos().z);
-		buf.writeInt(id.id());
+	public static void writeByte(FriendlyByteBuf buf, byte value) {
+		buf.writeByte(value);
 	}
 
-	public static SystemId readSystemId(FriendlyByteBuf buf) {
-		var galaxySector = readSectorId(buf);
-		var packedInfo = buf.readInt();
-		var pos = readVector(buf);
-		return new SystemId(galaxySector, new GalaxySectorId(pos, packedInfo));
+	public static short readShort(FriendlyByteBuf buf) {
+		return buf.readShort();
 	}
 
-	public static void writeSystemId(FriendlyByteBuf buf, SystemId id) {
-		writeSectorId(buf, id.universeSector());
-		buf.writeInt(id.galaxySector().packedInfo());
-		writeVector(buf, id.galaxySector().levelCoords());
+	public static void writeShort(FriendlyByteBuf buf, short value) {
+		buf.writeShort(value);
 	}
 
-	public static SystemNodeId readSystemNodeId(FriendlyByteBuf buf) {
-		if (buf.readBoolean())
-			return null;
-
-		var systemId = readSystemId(buf);
-		var node = buf.readInt();
-		return new SystemNodeId(systemId, node);
+	public static int readInt(FriendlyByteBuf buf) {
+		return buf.readInt();
 	}
 
-	public static void writeSystemNodeId(FriendlyByteBuf buf, SystemNodeId id) {
-		buf.writeBoolean(id == null);
-		if (id != null) {
-			writeSystemId(buf, id.system());
-			buf.writeInt(id.nodeId());
-		}
+	public static void writeInt(FriendlyByteBuf buf, int value) {
+		buf.writeInt(value);
 	}
 
-	public static Location readLocation(FriendlyByteBuf buf) {
-		if (buf.readBoolean())
-			return null;
-
-		final var type = buf.readByte();
-		if (type == 0) {
-			return Location.UNKNOWN;
-		} else if (type == 1) {
-			final var systemNodeId = readSystemNodeId(buf);
-			if (systemNodeId == null)
-				return null;
-			return new Location.World(systemNodeId);
-		} else if (type == 2) {
-			return new Location.Station(buf.readInt());
-		}
-		return null;
+	public static long readLong(FriendlyByteBuf buf) {
+		return buf.readLong();
 	}
 
-	public static void writeLocation(FriendlyByteBuf buf, Location id) {
-		buf.writeBoolean(id == null);
-		if (id == null)
-			return;
-		if (id instanceof Location.Unknown) {
-			buf.writeByte(0);
-		} else if (id instanceof Location.World world) {
-			buf.writeByte(1);
-			writeSystemNodeId(buf, world.id);
-		} else if (id instanceof Location.Station station) {
-			buf.writeByte(2);
-			buf.writeInt(station.id);
-		}
+	public static void writeLong(FriendlyByteBuf buf, long value) {
+		buf.writeLong(value);
 	}
 
+	public static float readFloat(FriendlyByteBuf buf) {
+		return buf.readFloat();
+	}
+
+	public static void writeFloat(FriendlyByteBuf buf, float value) {
+		buf.writeFloat(value);
+	}
+
+	public static double readDouble(FriendlyByteBuf buf) {
+		return buf.readDouble();
+	}
+
+	public static void writeDouble(FriendlyByteBuf buf, double value) {
+		buf.writeDouble(value);
+	}
+
+	public static <T> T read(FriendlyByteBuf buf, NetworkSerializer<T> serializer) {
+		return serializer.read(buf);
+	}
+
+	public static <T> void write(FriendlyByteBuf buf, T value, NetworkSerializer<T> serializer) {
+		serializer.write(buf, value);
+	}
+
+	// public static Vec3i readVector(FriendlyByteBuf buf) {
+	// 	var x = buf.readInt();
+	// 	var y = buf.readInt();
+	// 	var z = buf.readInt();
+	// 	return Vec3i.from(x, y, z);
+	// }
+
+	// public static void writeVector(FriendlyByteBuf buf, Vec3i vec) {
+	// 	buf.writeInt(vec.x);
+	// 	buf.writeInt(vec.y);
+	// 	buf.writeInt(vec.z);
+	// }
+
+	// public static UniverseSectorId readSectorId(FriendlyByteBuf buf) {
+	// 	var x = buf.readInt();
+	// 	var y = buf.readInt();
+	// 	var z = buf.readInt();
+	// 	var id = buf.readInt();
+	// 	return new UniverseSectorId(Vec3i.from(x, y, z), id);
+	// }
+
+	// public static void writeSectorId(FriendlyByteBuf buf, UniverseSectorId id) {
+	// 	buf.writeInt(id.sectorPos().x);
+	// 	buf.writeInt(id.sectorPos().y);
+	// 	buf.writeInt(id.sectorPos().z);
+	// 	buf.writeInt(id.id());
+	// }
+
+	// public static SystemId readSystemId(FriendlyByteBuf buf) {
+	// 	var galaxySector = readSectorId(buf);
+	// 	var packedInfo = buf.readInt();
+	// 	var pos = readVector(buf);
+	// 	return new SystemId(galaxySector, new GalaxySectorId(pos, packedInfo));
+	// }
+
+	// public static void writeSystemId(FriendlyByteBuf buf, SystemId id) {
+	// 	writeSectorId(buf, id.universeSector());
+	// 	buf.writeInt(id.galaxySector().packedInfo());
+	// 	writeVector(buf, id.galaxySector().levelCoords());
+	// }
+
+	// public static SystemNodeId readSystemNodeId(FriendlyByteBuf buf) {
+	// 	if (buf.readBoolean())
+	// 		return null;
+
+	// 	var systemId = readSystemId(buf);
+	// 	var node = buf.readInt();
+	// 	return new SystemNodeId(systemId, node);
+	// }
+
+	// public static void writeSystemNodeId(FriendlyByteBuf buf, SystemNodeId id) {
+	// 	buf.writeBoolean(id == null);
+	// 	if (id != null) {
+	// 		writeSystemId(buf, id.system());
+	// 		buf.writeInt(id.nodeId());
+	// 	}
+	// }
 }

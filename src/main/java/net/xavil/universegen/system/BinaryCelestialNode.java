@@ -1,8 +1,8 @@
 package net.xavil.universegen.system;
 
-import net.xavil.util.math.Ellipse;
-import net.xavil.util.math.OrbitalPlane;
-import net.xavil.util.math.OrbitalShape;
+import net.xavil.hawklib.math.Ellipse;
+import net.xavil.hawklib.math.OrbitalPlane;
+import net.xavil.hawklib.math.OrbitalShape;
 
 // The position of this node represents the barycenter of the binary system
 public final class BinaryCelestialNode extends CelestialNode {

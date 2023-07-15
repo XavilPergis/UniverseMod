@@ -7,29 +7,31 @@ import com.mojang.blaze3d.vertex.VertexFormat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.gl.DrawState;
+import net.xavil.hawklib.client.gl.GlState;
+import net.xavil.hawklib.client.gl.shader.ShaderProgram;
+import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.Mod;
-import static net.xavil.ultraviolet.client.Shaders.*;
-import static net.xavil.ultraviolet.client.DrawStates.*;
-import net.xavil.ultraviolet.client.ModRendering;
-import net.xavil.ultraviolet.client.camera.CachedCamera;
-import net.xavil.ultraviolet.client.camera.OrbitCamera;
-import net.xavil.ultraviolet.client.flexible.FlexibleBufferBuilder;
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexConsumer;
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
-import net.xavil.ultraviolet.client.gl.DrawState;
-import net.xavil.ultraviolet.client.gl.GlState;
-import net.xavil.ultraviolet.client.gl.GlManager;
-import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
-import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
+import net.xavil.ultraviolet.client.UltravioletVertexFormats;
+
+import static net.xavil.hawklib.client.HawkDrawStates.*;
+import static net.xavil.ultraviolet.client.UltravioletShaders.*;
+
+import net.xavil.hawklib.client.HawkRendering;
+import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.flexible.VertexBuilder;
+import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Units;
-import net.xavil.util.math.Color;
-import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.matrices.Mat4;
-import net.xavil.util.math.matrices.Vec3;
-import net.xavil.util.math.matrices.interfaces.Vec3Access;
+import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.TransformStack;
+import net.xavil.hawklib.math.matrices.Mat4;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public final class RenderHelper {
 
@@ -56,14 +58,13 @@ public final class RenderHelper {
 			.enableAdditiveBlending()
 			.build();
 
-	public static void renderStarBillboard(FlexibleBufferBuilder builder, CachedCamera<?> camera, TransformStack tfm,
+	public static void renderStarBillboard(VertexBuilder builder, CachedCamera<?> camera, TransformStack tfm,
 			CelestialNode node) {
-		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
-		addBillboard(builder, camera, tfm, node);
-		builder.end();
 		final var shader = getShader(SHADER_STAR_BILLBOARD);
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(STAR_ICON_LOCATION));
-		builder.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
+		builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		addBillboard(builder, camera, tfm, node);
+		builder.end().draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 	}
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, TransformStack tfm,
@@ -235,20 +236,19 @@ public final class RenderHelper {
 		// camera.left, pos, d, color);
 	}
 
-	public static void renderUiBillboard(DrawState drawState, FlexibleBufferBuilder builder,
+	public static void renderUiBillboard(DrawState drawState, VertexBuilder builder,
 			CachedCamera<?> camera, TransformStack tfm,
 			Vec3 center, double scale, Color color, ResourceLocation texture, ShaderProgram shader) {
+				// CLIENT.getTextureManager().getTexture(texture).setFilter(true, false);
+				// RenderSystem.setShaderTexture(0, texture);
+				// GlManager.enableBlend(true);
+				// GlManager.blendFunc(GlState.BlendFactor.SRC_ALPHA, GlState.BlendFactor.ONE);
+				// GlManager.depthMask(false);
+				// GlManager.enableDepthTest(false);
+				// GlManager.enableCull(false);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		addBillboard(builder, camera, tfm, center, scale, color);
-		builder.end();
-		// CLIENT.getTextureManager().getTexture(texture).setFilter(true, false);
-		// RenderSystem.setShaderTexture(0, texture);
-		GlManager.enableBlend(true);
-		GlManager.blendFunc(GlState.BlendFactor.SRC_ALPHA, GlState.BlendFactor.ONE);
-		GlManager.depthMask(false);
-		GlManager.enableDepthTest(false);
-		GlManager.enableCull(false);
-		builder.draw(shader, drawState);
+		builder.end().draw(shader, drawState);
 	}
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, TransformStack tfm,
@@ -419,13 +419,13 @@ public final class RenderHelper {
 		var scale = tmPerUnit;
 		for (var i = 0; i < 10; ++i) {
 			currentThreshold *= scaleFactor;
-			if (camera.camera.scale.get(partialTick) > currentThreshold)
+			if (camera.uncached.scale.get(partialTick) > currentThreshold)
 				scale = currentThreshold;
 		}
 		return scale;
 	}
 
-	public static void renderGrid(FlexibleBufferBuilder builder, OrbitCamera.Cached camera,
+	public static void renderGrid(VertexBuilder builder, OrbitCamera.Cached camera,
 			double tmPerUnit, double gridUnits, int scaleFactor, int gridLineCount, float partialTick) {
 		var focusPos = camera.focus.div(tmPerUnit);
 		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
@@ -439,13 +439,12 @@ public final class RenderHelper {
 			.enableDepthTest(GlState.DepthFunc.LESS)
 			.build();
 
-	public static void renderGrid(FlexibleBufferBuilder builder, CachedCamera<?> camera,
+	public static void renderGrid(VertexBuilder builder, CachedCamera<?> camera,
 			Vec3 focusPos, double gridDiameter, int subcellsPerCell, int gridLineCount) {
+		RenderSystem.lineWidth(1);
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 		addGrid(builder, camera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
-		builder.end();
-		RenderSystem.lineWidth(1);
-		builder.draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), GRID_STATE);
+		builder.end().draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), GRID_STATE);
 	}
 
 	public static void addGrid(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 focusPos,

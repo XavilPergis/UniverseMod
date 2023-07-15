@@ -1,7 +1,7 @@
 package net.xavil.ultraviolet.client;
 
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexBuffer;
-import net.xavil.util.Disposable;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.client.flexible.FlexibleVertexBuffer;
 
 public final class PlanetGeometryManager implements Disposable {
 

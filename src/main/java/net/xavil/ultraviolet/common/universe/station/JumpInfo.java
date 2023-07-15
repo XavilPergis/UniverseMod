@@ -1,7 +1,7 @@
 package net.xavil.ultraviolet.common.universe.station;
 
+import net.xavil.hawklib.Disposable;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
-import net.xavil.util.Disposable;
 
 public final class JumpInfo implements Disposable {
 

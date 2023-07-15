@@ -11,6 +11,10 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.dimension.DimensionCreationProperties;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
@@ -28,13 +32,9 @@ import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
-import net.xavil.util.Rng;
-import net.xavil.util.Units;
-import net.xavil.util.math.Interval;
-import net.xavil.util.math.OrbitalPlane;
-import net.xavil.util.math.matrices.Vec3i;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.OrbitalPlane;
+import net.xavil.hawklib.math.matrices.Vec3i;
 
 public final class ServerUniverse extends Universe {
 
@@ -74,7 +74,7 @@ public final class ServerUniverse extends Universe {
 
 	// ew
 	@Override
-	public Option<Integer> createStation(String name, StationLocation location) {
+	public Maybe<Integer> createStation(String name, StationLocation location) {
 		final var res = super.createStation(name, location);
 		res.ifSome(id -> {
 			final var station = this.spaceStations.get(id).unwrap();

@@ -5,24 +5,24 @@ import java.util.function.Consumer;
 
 import net.minecraft.util.profiling.InactiveProfiler;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.Util;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
-import net.xavil.util.Assert;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
-import net.xavil.util.Util;
-import net.xavil.util.collections.Vector;
-import net.xavil.util.collections.interfaces.MutableList;
-import net.xavil.util.collections.interfaces.MutableMap;
-import net.xavil.util.collections.interfaces.MutableSet;
-import net.xavil.util.math.matrices.Vec3i;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableList;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.math.matrices.Vec3i;
 
 public final class UniverseSectorManager {
 
 	public final class SectorTicketTracker {
 		public final UniverseSectorTicket loanedTicket;
-		private Option<UniverseSectorTicketInfo> prevInfo = Option.none();
+		private Maybe<UniverseSectorTicketInfo> prevInfo = Maybe.none();
 
 		public SectorTicketTracker(UniverseSectorTicket loanedTicket) {
 			this.loanedTicket = loanedTicket;
@@ -40,13 +40,13 @@ public final class UniverseSectorManager {
 				toLoad.extend(diff.added());
 				toUnload.extend(diff.removed());
 			}
-			this.prevInfo = Option.some(cur.copy());
+			this.prevInfo = Maybe.some(cur.copy());
 		}
 	}
 
 	public final class GalaxyTicketTracker {
 		public final GalaxyTicket loanedTicket;
-		private Option<UniverseSectorId> prevId = Option.none();
+		private Maybe<UniverseSectorId> prevId = Maybe.none();
 
 		public GalaxyTicketTracker(GalaxyTicket loanedTicket) {
 			this.loanedTicket = loanedTicket;
@@ -202,16 +202,16 @@ public final class UniverseSectorManager {
 		applyFinished();
 	}
 
-	public Option<Galaxy> forceLoad(GalaxyTicket galaxyTicket) {
+	public Maybe<Galaxy> forceLoad(GalaxyTicket galaxyTicket) {
 		return forceLoad(InactiveProfiler.INSTANCE, galaxyTicket);
 	}
 
-	public Option<Galaxy> forceLoad(ProfilerFiller profiler, GalaxyTicket galaxyTicket) {
+	public Maybe<Galaxy> forceLoad(ProfilerFiller profiler, GalaxyTicket galaxyTicket) {
 		if (galaxyTicket.id == null)
-			return Option.none();
+			return Maybe.none();
 		final var galaxySlot = this.galaxyMap.get(galaxyTicket.id).unwrap();
 		if (galaxySlot.galaxy != null)
-			return Option.some(galaxySlot.galaxy);
+			return Maybe.some(galaxySlot.galaxy);
 		final var sectorPos = galaxyTicket.id.sectorPos();
 		final var sectorSlot = this.sectorMap.get(sectorPos).unwrap();
 		final var sector = sectorSlot.sector;
@@ -220,11 +220,11 @@ public final class UniverseSectorManager {
 			Assert.isTrue(sector.isComplete());
 		}
 		if (sector.initialElements.size() <= galaxyTicket.id.id()) {
-			return Option.none();
+			return Maybe.none();
 		}
 		final var galaxy = galaxySlot.waitingFuture.join();
 		applyFinished();
-		return Option.some(galaxy);
+		return Maybe.some(galaxy);
 	}
 
 	public void tick(ProfilerFiller profiler) {
@@ -249,7 +249,7 @@ public final class UniverseSectorManager {
 		final var galaxiesToUnload = MutableSet.<UniverseSectorId>hashSet();
 		for (final var ticket : this.trackedGalaxyTickets.iterable()) {
 			final var prev = ticket.prevId;
-			final var cur = Option.fromNullable(ticket.loanedTicket.id);
+			final var cur = Maybe.fromNullable(ticket.loanedTicket.id);
 			if (cur.equals(prev))
 				continue;
 			prev.ifSome(galaxiesToUnload::insert);
@@ -356,16 +356,16 @@ public final class UniverseSectorManager {
 		applyTickets(InactiveProfiler.INSTANCE);
 	}
 
-	public Option<UniverseSector> getSector(Vec3i pos) {
+	public Maybe<UniverseSector> getSector(Vec3i pos) {
 		return this.sectorMap.get(pos).map(slot -> slot.sector);
 	}
 
-	public Option<UniverseSector.InitialElement> getInitial(UniverseSectorId id) {
+	public Maybe<UniverseSector.InitialElement> getInitial(UniverseSectorId id) {
 		return this.sectorMap.get(id.sectorPos()).map(slot -> slot.sector.lookupInitial(id.id()));
 	}
 
-	public Option<Galaxy> getGalaxy(UniverseSectorId id) {
-		return this.galaxyMap.get(id).flatMap(slot -> Option.fromNullable(slot.galaxy));
+	public Maybe<Galaxy> getGalaxy(UniverseSectorId id) {
+		return this.galaxyMap.get(id).flatMap(slot -> Maybe.fromNullable(slot.galaxy));
 	}
 
 	public void enumerate(SectorTicket<?> ticket, Consumer<UniverseSector> sectorConsumer) {

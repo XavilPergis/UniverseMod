@@ -2,10 +2,10 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 
 import java.util.function.Consumer;
 
-import net.xavil.util.collections.interfaces.ImmutableSet;
-import net.xavil.util.collections.interfaces.MutableSet;
-import net.xavil.util.math.matrices.Vec3;
-import net.xavil.util.math.matrices.Vec3i;
+import net.xavil.hawklib.collections.interfaces.ImmutableSet;
+import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3i;
 
 public abstract sealed class SectorTicketInfo {
 

@@ -3,9 +3,9 @@ package net.xavil.ultraviolet.common.universe.id;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
+import net.xavil.hawklib.Util;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorPos;
-import net.xavil.util.Util;
-import net.xavil.util.math.matrices.Vec3i;
+import net.xavil.hawklib.math.matrices.Vec3i;
 
 public record GalaxySectorId(Vec3i levelCoords, int packedInfo) {
 

@@ -1,5 +1,6 @@
 package net.xavil.ultraviolet.networking;
 
+import java.util.concurrent.Executor;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -19,6 +20,11 @@ import net.minecraft.network.protocol.status.ClientStatusPacketListener;
 import net.minecraft.network.protocol.status.ServerStatusPacketListener;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.server.network.ServerGamePacketListenerImpl;
+import net.minecraft.util.thread.BlockableEventLoop;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableList;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.ultraviolet.Mod;
 
 public class ModNetworking {
 
@@ -29,8 +35,87 @@ public class ModNetworking {
 				}
 			});
 
-	public static Consumer<ModPacket<ClientGamePacketListener>> CLIENTBOUND_PLAY_HANDLER = null;
-	public static BiConsumer<ServerPlayer, ModPacket<ServerGamePacketListener>> SERVERBOUND_PLAY_HANDLER = null;
+	private static class ClientboundHandler<T> {
+		private final Class<T> packetType;
+		private final MutableList<Consumer<T>> consumers = new Vector<>();
+
+		public ClientboundHandler(Class<T> packetType) {
+			this.packetType = packetType;
+		}
+
+		public void dispatch(ModPacket<?> packet) {
+			if (packet != null && packet.getClass() == this.packetType) {
+				@SuppressWarnings("unchecked")
+				final T typedPacket = (T) packet;
+				this.consumers.forEach(consumer -> consumer.accept(typedPacket));
+			}
+		}
+	}
+
+	private ModNetworking() {
+	}
+
+	private static class ServerboundHandler<T> {
+		private final Class<T> packetType;
+		private final MutableList<BiConsumer<ServerPlayer, T>> consumers = new Vector<>();
+
+		public ServerboundHandler(Class<T> packetType) {
+			this.packetType = packetType;
+		}
+
+		public void dispatch(ServerPlayer player, ModPacket<?> packet) {
+			if (packet != null && packet.getClass() == this.packetType) {
+				@SuppressWarnings("unchecked")
+				final T typedPacket = (T) packet;
+				this.consumers.forEach(consumer -> consumer.accept(player, typedPacket));
+			}
+		}
+	}
+
+	private static MutableMap<Class<?>, ClientboundHandler<?>> CLIENTBOUND_PLAY_HANDLERS = MutableMap.hashMap();
+	private static MutableMap<Class<?>, ServerboundHandler<?>> SERVERBOUND_PLAY_HANDLERS = MutableMap.hashMap();
+
+	public static <T extends ModPacket<ClientGamePacketListener>> void addClientboundHandlerRaw(Class<T> clazz,
+			Consumer<T> packetHandler) {
+		if (!CLIENTBOUND_PLAY_HANDLERS.containsKey(clazz)) {
+			CLIENTBOUND_PLAY_HANDLERS.insert(clazz, new ClientboundHandler<>(clazz));
+		}
+		@SuppressWarnings("unchecked")
+		final var handlers = (ClientboundHandler<T>) CLIENTBOUND_PLAY_HANDLERS.get(clazz).unwrap();
+		handlers.consumers.push(packetHandler);
+	}
+
+	public static <T extends ModPacket<ServerGamePacketListener>> void addServerboundHandlerRaw(Class<T> clazz,
+			BiConsumer<ServerPlayer, T> packetHandler) {
+		if (!SERVERBOUND_PLAY_HANDLERS.containsKey(clazz)) {
+			SERVERBOUND_PLAY_HANDLERS.insert(clazz, new ServerboundHandler<>(clazz));
+		}
+		@SuppressWarnings("unchecked")
+		final var handlers = (ServerboundHandler<T>) SERVERBOUND_PLAY_HANDLERS.get(clazz).unwrap();
+		handlers.consumers.push(packetHandler);
+	}
+
+	public static <T extends ModPacket<ClientGamePacketListener>> void addClientboundHandler(Class<T> clazz,
+			Executor executor, Consumer<T> packetHandler) {
+		addClientboundHandlerRaw(clazz, packet -> executor.execute(() -> {
+			packetHandler.accept(packet);
+		}));
+	}
+
+	public static <T extends ModPacket<ServerGamePacketListener>> void addServerboundHandler(Class<T> clazz,
+			BiConsumer<ServerPlayer, T> packetHandler) {
+		addServerboundHandlerRaw(clazz, (player, packet) -> player.server.execute(() -> {
+			packetHandler.accept(player, packet);
+		}));
+	}
+
+	// public static void addClientboundHandler(ClientboundPlayHandler handler) {
+	// CLIENTBOUND_PLAY_HANDLERS.push(handler);
+	// }
+
+	// public static void addServerboundHandler(ServerboundPlayHandler handler) {
+	// SERVERBOUND_PLAY_HANDLERS.push(handler);
+	// }
 
 	public static final class PacketSet<T extends PacketListener> {
 		private final ConnectionProtocol.PacketSet<T> packetSet;
@@ -86,11 +171,21 @@ public class ModNetworking {
 
 	public static <T extends PacketListener> void dispatch(ModPacket<T> packet, T listener) {
 		if (listener instanceof ClientGamePacketListener) {
-			if (CLIENTBOUND_PLAY_HANDLER != null)
-				CLIENTBOUND_PLAY_HANDLER.accept((ModPacket<ClientGamePacketListener>) packet);
+			final var handler = CLIENTBOUND_PLAY_HANDLERS.get(packet.getClass()).unwrapOrNull();
+			if (handler != null) {
+				handler.dispatch(packet);
+			} else {
+				Mod.LOGGER.warn("Packet handler (Client Play) not found for packet class '{}'!",
+						packet.getClass().getName());
+			}
 		} else if (listener instanceof ServerGamePacketListenerImpl impl) {
-			if (SERVERBOUND_PLAY_HANDLER != null)
-				SERVERBOUND_PLAY_HANDLER.accept(impl.player, (ModPacket<ServerGamePacketListener>) packet);
+			final var handler = SERVERBOUND_PLAY_HANDLERS.get(packet.getClass()).unwrapOrNull();
+			if (handler != null) {
+				handler.dispatch(impl.player, packet);
+			} else {
+				Mod.LOGGER.warn("Packet handler (Server Play) not found for packet class '{}'!",
+						packet.getClass().getName());
+			}
 		}
 	}
 

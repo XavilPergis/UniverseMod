@@ -1,6 +1,5 @@
 package net.xavil.ultraviolet;
 
-import java.lang.annotation.Target;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
@@ -10,11 +9,8 @@ import org.slf4j.LoggerFactory;
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
-import net.minecraft.commands.CommandSourceStack;
-import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
-import net.minecraft.network.chat.TextComponent;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -26,6 +22,9 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.ChunkPos;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
 import net.xavil.ultraviolet.common.block.ModBlocks;
 import net.xavil.ultraviolet.common.dimension.DimensionCreationProperties;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
@@ -34,13 +33,9 @@ import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
-import net.xavil.ultraviolet.common.universe.station.StationLocation;
-import net.xavil.ultraviolet.common.universe.station.StationLocation.OrbitingCelestialBody;
-import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.ultraviolet.networking.ModNetworking;
-import net.xavil.ultraviolet.networking.ModPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundChangeSystemPacket;
@@ -51,10 +46,7 @@ import net.xavil.ultraviolet.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundUniverseInfoPacket;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.util.Assert;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public class Mod implements ModInitializer {
 
@@ -78,8 +70,8 @@ public class Mod implements ModInitializer {
 
 		Registry.register(Registry.CHUNK_GENERATOR, namespaced("empty"), EmptyChunkGenerator.CODEC);
 
-		ModNetworking.SERVERBOUND_PLAY_HANDLER = (player, packet) -> player.server
-				.execute(() -> handlePacket(player, packet));
+		ModNetworking.addServerboundHandler(ServerboundTeleportToLocationPacket.class, Mod::handlePacket);
+		ModNetworking.addServerboundHandler(ServerboundStationJumpPacket.class, Mod::handlePacket);
 
 		ModNetworking.REGISTER_PACKETS_EVENT.register(acceptor -> {
 			// @formatter:off
@@ -122,11 +114,11 @@ public class Mod implements ModInitializer {
 		}
 	}
 
-	private static Option<Supplier<DimensionCreationProperties>> getDimProperties(MinecraftServer server,
+	private static Maybe<Supplier<DimensionCreationProperties>> getDimProperties(MinecraftServer server,
 			CelestialNode node) {
 		if (node instanceof PlanetaryCelestialNode planetNode)
-			return Option.fromNullable(planetNode.dimensionProperties(server));
-		return Option.none();
+			return Maybe.fromNullable(planetNode.dimensionProperties(server));
+		return Maybe.none();
 	}
 
 	private static ServerLevel createWorld(MinecraftServer server, SystemNodeId id,
@@ -143,15 +135,15 @@ public class Mod implements ModInitializer {
 		return newLevel;
 	}
 
-	private static Option<ServerLevel> getOrCreateWorld(MinecraftServer server, SystemNodeId id) {
+	private static Maybe<ServerLevel> getOrCreateWorld(MinecraftServer server, SystemNodeId id) {
 		final var universe = MinecraftServerAccessor.getUniverse(server);
 		if (id.equals(universe.getStartingSystemGenerator().getStartingSystemId())) {
-			return Option.some(server.overworld());
+			return Maybe.some(server.overworld());
 		}
 
 		try (final var disposer = Disposable.scope()) {
 			return universe.loadSystem(disposer, id.system())
-					.flatMap(system -> Option.fromNullable(system.rootNode.lookup(id.nodeId())))
+					.flatMap(system -> Maybe.fromNullable(system.rootNode.lookup(id.nodeId())))
 					.flatMap(node -> getDimProperties(server, node))
 					.map(props -> createWorld(server, id, props));
 		}
@@ -171,59 +163,61 @@ public class Mod implements ModInitializer {
 		}
 	}
 
-	public static void handlePacket(ServerPlayer sender, ModPacket<?> packetUntyped) {
+	public static void handlePacket(ServerPlayer sender, ServerboundTeleportToLocationPacket packet) {
+		final var server = sender.server;
+		final var info = new PacketInfo(sender);
+
+		var opLevel = server.getOperatorUserPermissionLevel();
+		if (!sender.hasPermissions(opLevel))
+			return;
+
+		if (packet.location == null) {
+			info.warn("tried to teleport to null location!");
+			return;
+		}
+
+		if (packet.location instanceof Location.Unknown) {
+			info.warn("tried to teleport to an unknown location!");
+			return;
+		} else if (packet.location instanceof Location.World world) {
+			teleportToWorld(sender, world.id);
+		} else if (packet.location instanceof Location.Station station) {
+			teleportToStation(sender, station.id);
+		}
+
+		var changeSystemPacket = new ClientboundChangeSystemPacket(packet.location);
+		sender.connection.send(changeSystemPacket);
+
+		info.info("teleport to celestial location! {}", packet.location);
+	}
+
+	public static void handlePacket(ServerPlayer sender, ServerboundStationJumpPacket packet) {
 		final var server = sender.server;
 		final var info = new PacketInfo(sender);
 		final var universe = MinecraftServerAccessor.getUniverse(server);
 
-		if (packetUntyped instanceof ServerboundTeleportToLocationPacket packet) {
+		var opLevel = server.getOperatorUserPermissionLevel();
+		if (packet.isJumpInstant && !sender.hasPermissions(opLevel))
+			return;
 
-			var opLevel = server.getOperatorUserPermissionLevel();
-			if (!sender.hasPermissions(opLevel))
-				return;
-
-			if (packet.location == null) {
-				info.warn("tried to teleport to null location!");
-				return;
-			}
-
-			if (packet.location instanceof Location.Unknown) {
-				info.warn("tried to teleport to an unknown location!");
-				return;
-			} else if (packet.location instanceof Location.World world) {
-				teleportToWorld(sender, world.id);
-			} else if (packet.location instanceof Location.Station station) {
-				teleportToStation(sender, station.id);
-			}
-
-			var changeSystemPacket = new ClientboundChangeSystemPacket(packet.location);
-			sender.connection.send(changeSystemPacket);
-
-			info.info("teleport to celestial location! {}", packet.location);
-		} else if (packetUntyped instanceof ServerboundStationJumpPacket packet) {
-			var opLevel = server.getOperatorUserPermissionLevel();
-			if (packet.isJumpInstant && !sender.hasPermissions(opLevel))
-				return;
-
-			if (packet.target == null) {
-				info.warn("tried to jump to null target!");
-				return;
-			}
-
-			final SpaceStation station = universe.getStation(packet.stationId).unwrapOrNull();
-			if (station == null) {
-				info.warn("cannot jump, station {} does not exist.", packet.stationId);
-				return;
-			}
-
-			// FIXME: verify that the system we want to jump to actually exists
-
-			station.prepareForJump(packet.target.system(), packet.isJumpInstant);
-
-			final var beginPacket = new ClientboundStationJumpBeginPacket(packet.stationId, packet.target,
-					packet.isJumpInstant);
-			server.getPlayerList().broadcastAll(beginPacket);
+		if (packet.target == null) {
+			info.warn("tried to jump to null target!");
+			return;
 		}
+
+		final SpaceStation station = universe.getStation(packet.stationId).unwrapOrNull();
+		if (station == null) {
+			info.warn("cannot jump, station {} does not exist.", packet.stationId);
+			return;
+		}
+
+		// FIXME: verify that the system we want to jump to actually exists
+
+		station.prepareForJump(packet.target.system(), packet.isJumpInstant);
+
+		final var beginPacket = new ClientboundStationJumpBeginPacket(packet.stationId, packet.target,
+				packet.isJumpInstant);
+		server.getPlayerList().broadcastAll(beginPacket);
 	}
 
 	private static class PacketInfo {

@@ -3,6 +3,9 @@ package net.xavil.ultraviolet.common.universe.system;
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.BaseGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -14,12 +17,9 @@ import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Assert;
-import net.xavil.util.Rng;
-import net.xavil.util.Units;
-import net.xavil.util.math.Formulas;
-import net.xavil.util.math.Interval;
-import net.xavil.util.math.OrbitalPlane;
+import net.xavil.hawklib.math.Formulas;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.OrbitalPlane;
 
 public class StarSystemGeneratorImpl {
 

@@ -2,10 +2,13 @@ package net.xavil.ultraviolet.client.screen;
 
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.client.camera.CameraConfig;
-import net.xavil.ultraviolet.client.camera.OrbitCamera;
-import net.xavil.ultraviolet.client.camera.OrbitCamera.Cached;
+import net.xavil.hawklib.client.camera.CameraConfig;
+import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGalaxy;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGrid;
@@ -14,12 +17,10 @@ import net.xavil.ultraviolet.client.screen.layer.ScreenLayerSystemInfo;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
-import net.xavil.util.Disposable;
-import net.xavil.util.Units;
-import net.xavil.util.math.Color;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.matrices.Vec3;
 
-public class NewGalaxyMapScreen extends Ultraviolet3dScreen {
+public class NewGalaxyMapScreen extends HawkScreen3d {
 	private final Galaxy galaxy;
 
 	public NewGalaxyMapScreen(Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {

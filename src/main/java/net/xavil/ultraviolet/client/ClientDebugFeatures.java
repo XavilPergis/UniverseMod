@@ -1,6 +1,6 @@
 package net.xavil.ultraviolet.client;
 
-import net.xavil.util.math.Color;
+import net.xavil.hawklib.math.Color;
 
 public class ClientDebugFeatures {
 

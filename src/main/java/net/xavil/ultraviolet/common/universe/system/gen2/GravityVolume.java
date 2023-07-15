@@ -3,8 +3,8 @@ package net.xavil.ultraviolet.common.universe.system.gen2;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.xavil.util.Units;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public class GravityVolume {
 

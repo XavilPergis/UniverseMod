@@ -2,12 +2,12 @@ package net.xavil.ultraviolet.client;
 
 import java.util.Random;
 
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.Octree;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
-import net.xavil.util.Units;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public class GalaxyRenderingContext {
 

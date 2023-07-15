@@ -11,8 +11,8 @@ uniform vec4 uStarColor;
 
 out vec4 fColor;
 
-vec2 uvFromNormal(vec4 norm) {
-	vec3 normCam = (inverse(uViewMatrix) * norm).xyz;
+vec2 uvFromNormal(vec4 normWorld) {
+	vec3 normCam = (inverse(uViewMatrix) * normWorld).xyz;
 	float pole = normCam.y;
 	float equator = atan(normCam.z / normCam.x) / HALF_PI;
 	equator = normCam.x >= 0 ? equator * 0.5 - 0.5 : equator * 0.5 + 0.5;
@@ -20,13 +20,15 @@ vec2 uvFromNormal(vec4 norm) {
 }
 
 void main() {
-	vec3 norm = (inverse(uViewMatrix) * normalize(normal)).xyz;
-	//vec2 uv = uvFromNormal(norm);
-	float a = fbm(DEFAULT_FBM, norm + 10.0);
-	float b = fbm(DEFAULT_FBM, norm - 10.0);
-	float n = 1. - abs(fbm(DEFAULT_FBM, 4.0 * norm + vec3(a, 0.0, b)));
+	vec3 normWorld = (inverse(uViewMatrix) * normalize(normal)).xyz;
+	vec3 posWorld = (inverse(uViewMatrix) * normalize(vertexPos)).xyz;
+	//vec2 uv = uvFromNormal(normWorld);
+	float a = fbm(DEFAULT_FBM, normWorld + 10.0);
+	float b = fbm(DEFAULT_FBM, normWorld - 10.0);
+	float n = 1. - abs(fbm(DEFAULT_FBM, 4.0 * normWorld + vec3(a, 0.0, b)));
 	vec3 col = 10.0 * (uStarColor.rgb + 0.1) * n;
-	col += 70.0 * (uStarColor.rgb + 0.1) * fresnelFactor(normalize(normal).xyz, 2.0);
+	vec3 toEye = normalize(uCameraPos - posWorld);
+	col += 120.0 * (uStarColor.rgb + 0.1) * fresnelFactor(toEye, normWorld, 6.0);
 	col = col / (1.0 + col);
     fColor = vec4(col, 1.0);
 }

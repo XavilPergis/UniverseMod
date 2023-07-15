@@ -18,10 +18,10 @@ import net.minecraft.network.Connection;
 import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
+import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.ultraviolet.client.SkyRenderer;
-import net.xavil.ultraviolet.client.UltravioletTextureManager;
-import net.xavil.ultraviolet.client.flexible.RenderTexture;
-import net.xavil.ultraviolet.client.screen.UltravioletScreen;
+import net.xavil.hawklib.client.HawkTextureManager;
+import net.xavil.hawklib.client.flexible.RenderTexture;
 import net.xavil.ultraviolet.common.universe.universe.ClientUniverse;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 
@@ -45,8 +45,8 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 
 	@Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/Gui;<init>(Lnet/minecraft/client/Minecraft;)V"))
 	private void registerReloaders(GameConfig config, CallbackInfo info) {
-		UltravioletTextureManager.INSTANCE.registerAtlases();
-		this.resourceManager.registerReloadListener(UltravioletTextureManager.INSTANCE);
+		HawkTextureManager.INSTANCE.registerAtlases();
+		this.resourceManager.registerReloadListener(HawkTextureManager.INSTANCE);
 	}
 
 	@Inject(method = "tick", at = @At("TAIL"))
@@ -59,7 +59,7 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 
 	@ModifyArg(method = "runTick", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/renderer/GameRenderer;render(FJZ)V"), index = 2)
 	private boolean modifyRenderLevel(boolean shouldRender) {
-		if (this.screen instanceof UltravioletScreen modScreen) {
+		if (this.screen instanceof HawkScreen modScreen) {
 			shouldRender &= modScreen.shouldRenderWorld();
 		}
 		if (!shouldRender) {

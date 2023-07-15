@@ -26,14 +26,17 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
-import static net.xavil.ultraviolet.client.Shaders.*;
-import net.xavil.ultraviolet.client.camera.CameraConfig;
-import net.xavil.ultraviolet.client.camera.OrbitCamera;
-import net.xavil.ultraviolet.client.camera.OrbitCamera.Cached;
-import net.xavil.ultraviolet.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.client.gl.GlManager;
+import static net.xavil.ultraviolet.client.UltravioletShaders.*;
+
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.gl.GlManager;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.client.camera.CameraConfig;
+import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
-import net.xavil.ultraviolet.client.screen.Ultraviolet3dScreen;
 import net.xavil.ultraviolet.common.universe.system.gen.AccreteContext;
 import net.xavil.ultraviolet.common.universe.system.gen.AccreteDebugEvent;
 import net.xavil.ultraviolet.common.universe.system.gen.DustBands;
@@ -41,13 +44,11 @@ import net.xavil.ultraviolet.common.universe.system.gen.Planetesimal;
 import net.xavil.ultraviolet.common.universe.system.gen.ProtoplanetaryDisc;
 import net.xavil.ultraviolet.common.universe.system.gen.SimulationParameters;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Rng;
-import net.xavil.util.Units;
-import net.xavil.util.math.Color;
-import net.xavil.util.math.Interval;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.matrices.Vec3;
 
-public class SystemGenerationDebugScreen extends Ultraviolet3dScreen {
+public class SystemGenerationDebugScreen extends HawkScreen3d {
 
 	private StellarCelestialNode node;
 	private final List<AccreteDebugEvent> events = new ArrayList<>();
@@ -377,7 +378,7 @@ public class SystemGenerationDebugScreen extends Ultraviolet3dScreen {
 		// 	}
 		// }
 
-		// final var builder = BufferRenderer.immediateBuilder();
+		// final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
 		// for (var quad : quads) {
 		// 	RenderHelper.addQuad(builder, camera, quad.innerEnd, quad.innerStart, quad.outerStart, quad.outerEnd,
@@ -406,7 +407,7 @@ public class SystemGenerationDebugScreen extends Ultraviolet3dScreen {
 
 	// @Override
 	// public void render3d(Cached camera, float partialTick) {
-	// 	final var builder = BufferRenderer.immediateBuilder();
+	// 	final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 
 	// 	RenderHelper.renderGrid(builder, camera, 1, 1, 10, 40, partialTick);
 

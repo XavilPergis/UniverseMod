@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import net.xavil.util.Assert;
+import net.xavil.hawklib.Assert;
 
 public class LinearSpline {
 	

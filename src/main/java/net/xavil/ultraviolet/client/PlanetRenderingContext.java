@@ -6,7 +6,6 @@ import java.util.List;
 
 import javax.annotation.Nullable;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
@@ -14,25 +13,27 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.ultraviolet.Mod;
-import static net.xavil.ultraviolet.client.Shaders.*;
-import static net.xavil.ultraviolet.client.DrawStates.*;
-import net.xavil.ultraviolet.client.camera.CachedCamera;
-import net.xavil.ultraviolet.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.client.flexible.FlexibleBufferBuilder;
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexConsumer;
-import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
-import net.xavil.ultraviolet.client.screen.RenderHelper;
+
+import static net.xavil.hawklib.client.HawkDrawStates.*;
+import static net.xavil.ultraviolet.client.UltravioletShaders.*;
+
+import net.xavil.hawklib.client.HawkRendering;
+import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.VertexBuilder;
+import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Units;
-import net.xavil.util.hash.FastHasher;
-import net.xavil.util.math.Color;
-import net.xavil.util.math.Quat;
-import net.xavil.util.math.TransformStack;
-import net.xavil.util.math.matrices.Mat4;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.hash.FastHasher;
+import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.Quat;
+import net.xavil.hawklib.math.TransformStack;
+import net.xavil.hawklib.math.matrices.Mat4;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class PlanetRenderingContext {
 
@@ -99,11 +100,11 @@ public final class PlanetRenderingContext {
 		return this.renderedStarCount;
 	}
 
-	public void render(FlexibleBufferBuilder builder, CachedCamera<?> camera, CelestialNode node, boolean skip) {
+	public void render(VertexBuilder builder, CachedCamera<?> camera, CelestialNode node, boolean skip) {
 		render(builder, camera, node, new TransformStack(), Color.WHITE, skip);
 	}
 
-	public void render(FlexibleBufferBuilder builder, CachedCamera<?> camera, CelestialNode node, TransformStack tfm,
+	public void render(VertexBuilder builder, CachedCamera<?> camera, CelestialNode node, TransformStack tfm,
 			Color tintColor, boolean skip) {
 		if (node instanceof StellarCelestialNode starNode)
 			renderStar(builder, camera, starNode, tfm, tintColor, skip);
@@ -111,7 +112,7 @@ public final class PlanetRenderingContext {
 			renderPlanet(builder, camera, planetNode, tfm, tintColor, skip);
 	}
 
-	public void renderStar(FlexibleBufferBuilder builder, CachedCamera<?> camera, StellarCelestialNode node,
+	public void renderStar(VertexBuilder builder, CachedCamera<?> camera, StellarCelestialNode node,
 			TransformStack tfm, Color tintColor, boolean skip) {
 		var radiusM = Units.m_PER_Rsol * node.radiusRsol;
 
@@ -130,12 +131,11 @@ public final class PlanetRenderingContext {
 
 		if (!skip) {
 			var radiusUnits = radiusM / camera.metersPerUnit;
-			builder.begin(VertexFormat.Mode.QUADS, ModRendering.PLANET_VERTEX_FORMAT);
+			builder.begin(VertexFormat.Mode.QUADS, UltravioletVertexFormats.PLANET_VERTEX_FORMAT);
 			addNormSphere(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits, tintColor);
-			builder.end();
 			final var shader = getShader(SHADER_STAR);
 			shader.setUniform("uStarColor", node.getColor());
-			builder.draw(shader, DRAW_STATE_NO_CULL);
+			builder.end().draw(shader, DRAW_STATE_NO_CULL);
 		}
 
 		tfm.pop();
@@ -194,7 +194,7 @@ public final class PlanetRenderingContext {
 		shader.setUniform("uRenderingSeed", (float) (FastHasher.hashInt(node.getId()) % 1000000L));
 	}
 
-	public void renderPlanet(FlexibleBufferBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,
+	public void renderPlanet(VertexBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,
 			TransformStack tfm, Color tintColor, boolean skip) {
 
 		var radiusM = Units.m_PER_Rearth * node.radiusRearth;
@@ -252,24 +252,23 @@ public final class PlanetRenderingContext {
 					ring.interval.higher(), tintColor);
 			tfm.pop();
 		}
-		builder.end();
 
 		final var ringShader = getShader(SHADER_RING);
-		builder.draw(ringShader, DRAW_STATE_OPAQUE);
+		builder.end().draw(ringShader, DRAW_STATE_OPAQUE);
 
 		tfm.pop();
 
 		this.renderedPlanetCount += 1;
 	}
 
-	private static void renderPlanetLayer(FlexibleBufferBuilder builder, CachedCamera<?> camera,
+	private static void renderPlanetLayer(VertexBuilder builder, CachedCamera<?> camera,
 			ResourceLocation texture, @Nullable TransformStack tfm, Vec3 center, double radius, Color tintColor) {
-		builder.begin(VertexFormat.Mode.QUADS, ModRendering.PLANET_VERTEX_FORMAT);
-		addNormSphere(builder, camera, tfm, center, radius, tintColor);
-		builder.end();
 		final var planetShader = getShader(SHADER_PLANET);
-		// planetShader.setUniformSampler("uSurfaceAlbedo", GlTexture2d.importTexture(texture));
-		builder.draw(planetShader, DRAW_STATE_OPAQUE);
+		// planetShader.setUniformSampler("uSurfaceAlbedo",
+		// GlTexture2d.importTexture(texture));
+		builder.begin(VertexFormat.Mode.QUADS, UltravioletVertexFormats.PLANET_VERTEX_FORMAT);
+		addNormSphere(builder, camera, tfm, center, radius, tintColor);
+		builder.end().draw(planetShader, DRAW_STATE_OPAQUE);
 	}
 
 	private static void addRing(FlexibleVertexConsumer builder, CachedCamera<?> camera, @Nullable TransformStack tfm,
@@ -304,7 +303,7 @@ public final class PlanetRenderingContext {
 		}
 	}
 
-	private static void addNormSphere(FlexibleBufferBuilder builder, CachedCamera<?> camera,
+	private static void addNormSphere(VertexBuilder builder, CachedCamera<?> camera,
 			@Nullable TransformStack tfm, Vec3 center, double radius, Color tintColor) {
 
 		final var pose = tfm == null ? null : tfm.get();
@@ -533,7 +532,7 @@ public final class PlanetRenderingContext {
 		builder.vertex(p).uv0(u, v).color(color).normal(norm).endVertex();
 	}
 
-	private static void normSphereVertex(FlexibleBufferBuilder builder, CachedCamera<?> camera,
+	private static void normSphereVertex(VertexBuilder builder, CachedCamera<?> camera,
 			@Nullable Mat4 pose, Vec3 center, Color color, double radius, double x, double y, double z,
 			float u, float v) {
 		var pos = Vec3.from(x, y, z);

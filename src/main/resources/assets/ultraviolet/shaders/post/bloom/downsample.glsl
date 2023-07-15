@@ -1,6 +1,6 @@
 #stages fragment
 
-#include [ultraviolet:vertex/fullscreen.glsl]
+#include [hawk:vertex/fullscreen.glsl]
 
 #ifdef IS_FRAGMENT_STAGE
 #include [ultraviolet:lib/filtering.glsl]

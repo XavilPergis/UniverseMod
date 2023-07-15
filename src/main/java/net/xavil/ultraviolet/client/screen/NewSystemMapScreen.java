@@ -4,9 +4,11 @@ import javax.annotation.Nullable;
 
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
-import net.xavil.ultraviolet.client.camera.CameraConfig;
-import net.xavil.ultraviolet.client.camera.OrbitCamera;
-import net.xavil.ultraviolet.client.camera.OrbitCamera.Cached;
+import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.client.camera.CameraConfig;
+import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGalaxy;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGrid;
@@ -16,10 +18,9 @@ import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.util.Units;
-import net.xavil.util.math.Color;
+import net.xavil.hawklib.math.Color;
 
-public class NewSystemMapScreen extends Ultraviolet3dScreen {
+public class NewSystemMapScreen extends HawkScreen3d {
 
 	public static final double TM_PER_UNIT = Units.Tm_PER_au;
 	private final SystemTicket systemTicket;

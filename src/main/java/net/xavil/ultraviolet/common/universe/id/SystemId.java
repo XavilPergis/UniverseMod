@@ -3,7 +3,7 @@ package net.xavil.ultraviolet.common.universe.id;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import net.xavil.util.Util;
+import net.xavil.hawklib.Util;
 
 public record SystemId(UniverseSectorId universeSector, GalaxySectorId galaxySector) {
 	public static final Codec<SystemId> CODEC = RecordCodecBuilder.create(inst -> inst.group(

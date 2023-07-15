@@ -12,9 +12,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.LivingEntity;
+import net.xavil.hawklib.Assert;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
-import net.xavil.util.Assert;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 @Mixin(LivingEntity.class)
 public abstract class LivingEntityMixin {

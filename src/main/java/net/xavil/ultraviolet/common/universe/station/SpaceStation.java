@@ -5,11 +5,11 @@ import javax.annotation.Nullable;
 import net.minecraft.world.level.Level;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
-import net.xavil.util.collections.Vector;
-import net.xavil.util.collections.interfaces.MutableList;
-import net.xavil.util.math.Quat;
-import net.xavil.util.math.matrices.Vec3;
-import net.xavil.util.math.matrices.interfaces.Vec3Access;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableList;
+import net.xavil.hawklib.math.Quat;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public final class SpaceStation {
 

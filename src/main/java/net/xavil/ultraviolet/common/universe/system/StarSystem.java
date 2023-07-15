@@ -1,10 +1,10 @@
 package net.xavil.ultraviolet.common.universe.system;
 
+import net.xavil.hawklib.Assert;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.Assert;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public class StarSystem {
 

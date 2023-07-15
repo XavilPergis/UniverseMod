@@ -4,6 +4,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ClientGamePacketListener;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.networking.ModPacket;
+import net.xavil.ultraviolet.networking.NetworkSerializers;
 
 public class ClientboundOpenStarmapPacket extends ModPacket<ClientGamePacketListener> {
 
@@ -18,12 +19,12 @@ public class ClientboundOpenStarmapPacket extends ModPacket<ClientGamePacketList
 
 	@Override
 	public void read(FriendlyByteBuf buf) {
-		this.toOpen = readSystemNodeId(buf);
+		this.toOpen = read(buf, NetworkSerializers.SYSTEM_NODE_ID);
 	}
 
 	@Override
 	public void write(FriendlyByteBuf buf) {
-		writeSystemNodeId(buf, this.toOpen);
+		write(buf, this.toOpen, NetworkSerializers.SYSTEM_NODE_ID);
 	}
 
 }

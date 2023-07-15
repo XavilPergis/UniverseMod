@@ -1,8 +1,8 @@
 package net.xavil.universegen.system;
 
-import net.xavil.util.math.Ellipse;
-import net.xavil.util.math.OrbitalPlane;
-import net.xavil.util.math.OrbitalShape;
+import net.xavil.hawklib.math.Ellipse;
+import net.xavil.hawklib.math.OrbitalPlane;
+import net.xavil.hawklib.math.OrbitalShape;
 
 public class CelestialNodeChild<T extends CelestialNode> {
 	public final CelestialNode parentNode;

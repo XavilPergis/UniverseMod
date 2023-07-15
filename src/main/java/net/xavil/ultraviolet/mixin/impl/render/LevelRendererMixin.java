@@ -12,8 +12,8 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.ultraviolet.client.SkyRenderer;
-import net.xavil.ultraviolet.client.gl.GlManager;
 
 @Mixin(LevelRenderer.class)
 public abstract class LevelRendererMixin {

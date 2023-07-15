@@ -3,13 +3,17 @@ package net.xavil.ultraviolet.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
-import static net.xavil.ultraviolet.client.Shaders.*;
-import static net.xavil.ultraviolet.client.DrawStates.*;
-import net.xavil.ultraviolet.client.camera.CachedCamera;
-import net.xavil.ultraviolet.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexBuffer;
-import net.xavil.ultraviolet.client.flexible.FlexibleVertexMode;
-import net.xavil.ultraviolet.client.gl.texture.GlTexture2d;
+
+import static net.xavil.hawklib.client.HawkDrawStates.*;
+import static net.xavil.ultraviolet.client.UltravioletShaders.*;
+
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.client.gl.texture.GlTexture2d;
+import net.xavil.hawklib.client.HawkRendering;
+import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.FlexibleVertexBuffer;
+import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.BillboardBatcher;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -17,8 +21,7 @@ import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.universe.GalaxyTicket;
-import net.xavil.util.Disposable;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class StarRenderManager implements Disposable {
 	private static final Minecraft CLIENT = Minecraft.getInstance();
@@ -55,12 +58,12 @@ public final class StarRenderManager implements Disposable {
 		this.sectorTicket.info.centerPos = camPos;
 		this.sectorTicket.info.multiplicitaveFactor = 2.0;
 
-		buildStarsIfNeeded(camera);
-		if (this.immediateStarsTimerTicks != -1) {
-			drawStarsImmediate(camera);
-		} else {
-			drawStarsFromBuffer(camera);
-		}
+		drawStarsImmediate(camera);
+		// buildStarsIfNeeded(camera);
+		// if (this.immediateStarsTimerTicks != -1) {
+		// } else {
+		// 	drawStarsFromBuffer(camera);
+		// }
 		// drawStarsImmediate(camera);
 	}
 
@@ -71,15 +74,15 @@ public final class StarRenderManager implements Disposable {
 			return;
 		}
 		if (this.immediateStarsTimerTicks == -1)
-			this.immediateStarsTimerTicks = 1;
+			this.immediateStarsTimerTicks = 10;
 		if (this.immediateStarsTimerTicks > 0)
 			return;
 
 		this.immediateStarsTimerTicks = -1;
 		this.starSnapshotOrigin = camera.posTm;
 
-		final var builder = BufferRenderer.immediateBuilder();
-		builder.begin(FlexibleVertexMode.POINTS, ModRendering.BILLBOARD_FORMAT);
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
+		builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		this.sectorTicket.attachedManager.forceLoad(this.sectorTicket);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
@@ -89,13 +92,11 @@ public final class StarRenderManager implements Disposable {
 				RenderHelper.addBillboard(builder, camera, elem.info().primaryStar, elem.pos());
 			});
 		});
-		builder.end();
-
-		this.starsBuffer.upload(builder);
+		this.starsBuffer.upload(builder.end());
 	}
 
 	private void drawStarsImmediate(CachedCamera<?> camera) {
-		final var builder = BufferRenderer.immediateBuilder();
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var batcher = new BillboardBatcher(builder, 10000);
 
 		final var camPos = camera.pos.mul(camera.metersPerUnit / 1e12);

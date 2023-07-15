@@ -11,17 +11,17 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.util.Assert;
-import net.xavil.util.Units;
-import net.xavil.util.collections.Vector;
-import net.xavil.util.collections.interfaces.ImmutableList;
-import net.xavil.util.math.Ellipse;
-import net.xavil.util.math.Formulas;
-import net.xavil.util.math.Interval;
-import net.xavil.util.math.OrbitalPlane;
-import net.xavil.util.math.OrbitalShape;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
+import net.xavil.hawklib.math.Ellipse;
+import net.xavil.hawklib.math.Formulas;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.OrbitalPlane;
+import net.xavil.hawklib.math.OrbitalShape;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public abstract sealed class CelestialNode permits
 		StellarCelestialNode, BinaryCelestialNode, PlanetaryCelestialNode, OtherCelestialNode {
@@ -172,18 +172,18 @@ public abstract sealed class CelestialNode permits
 			return this.id;
 		if (this instanceof BinaryCelestialNode binaryNode) {
 			var a = binaryNode.getA().find(predicate);
-			if (a != -1)
+			if (a != UNASSINED_ID)
 				return a;
 			var b = binaryNode.getB().find(predicate);
-			if (b != -1)
+			if (b != UNASSINED_ID)
 				return b;
 		}
 		for (var child : this.childNodes) {
 			var id = child.node.find(predicate);
-			if (id != -1)
+			if (id != UNASSINED_ID)
 				return id;
 		}
-		return -1;
+		return UNASSINED_ID;
 	}
 
 	public void setBinaryParent(BinaryCelestialNode parent) {

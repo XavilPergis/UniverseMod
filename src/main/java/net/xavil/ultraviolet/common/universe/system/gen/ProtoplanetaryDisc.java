@@ -10,11 +10,11 @@ import java.util.stream.Collectors;
 import com.google.common.collect.Sets;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Units;
 import net.xavil.universegen.system.CelestialNode;
-import net.xavil.util.Assert;
-import net.xavil.util.Units;
-import net.xavil.util.math.Interval;
-import net.xavil.util.math.OrbitalShape;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.OrbitalShape;
 
 // TODO: this simulation is okay enough, but the algorithm is from the 80's and doesnt include more recent developments in astrophysics and whatnot.
 //

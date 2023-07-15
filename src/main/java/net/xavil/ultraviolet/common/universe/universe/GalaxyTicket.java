@@ -1,9 +1,9 @@
 package net.xavil.ultraviolet.common.universe.universe;
 
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
 
 public final class GalaxyTicket implements Disposable {
 
@@ -24,7 +24,7 @@ public final class GalaxyTicket implements Disposable {
 		remove();
 	}
 
-	public Option<Galaxy> forceLoad() {
+	public Maybe<Galaxy> forceLoad() {
 		return this.attachedManager.forceLoad(this);
 	}
 	

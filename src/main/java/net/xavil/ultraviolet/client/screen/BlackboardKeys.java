@@ -1,8 +1,8 @@
 package net.xavil.ultraviolet.client.screen;
 
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
-import net.xavil.util.collections.Blackboard;
-import net.xavil.util.math.Color;
+import net.xavil.hawklib.collections.Blackboard;
+import net.xavil.hawklib.math.Color;
 
 public final class BlackboardKeys {
 	private BlackboardKeys() {

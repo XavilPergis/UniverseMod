@@ -9,16 +9,16 @@ import java.util.stream.Collectors;
 import com.google.common.collect.Sets;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.util.Assert;
-import net.xavil.util.Units;
-import net.xavil.util.math.Interval;
-import net.xavil.util.math.OrbitalPlane;
-import net.xavil.util.math.OrbitalShape;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.OrbitalPlane;
+import net.xavil.hawklib.math.OrbitalShape;
 
 public class Planetesimal {
 

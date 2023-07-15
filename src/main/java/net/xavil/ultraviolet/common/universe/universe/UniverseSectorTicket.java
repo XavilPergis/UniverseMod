@@ -1,6 +1,6 @@
 package net.xavil.ultraviolet.common.universe.universe;
 
-import net.xavil.util.Disposable;
+import net.xavil.hawklib.Disposable;
 
 public final class UniverseSectorTicket implements Disposable {
 	

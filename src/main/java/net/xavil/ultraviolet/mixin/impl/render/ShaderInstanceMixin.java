@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import net.minecraft.client.renderer.ShaderInstance;
-import net.xavil.ultraviolet.client.gl.texture.GlTexture;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
 
 @Mixin(ShaderInstance.class)
 public abstract class ShaderInstanceMixin {

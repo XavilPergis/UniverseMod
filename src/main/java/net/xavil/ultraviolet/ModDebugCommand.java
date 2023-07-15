@@ -23,7 +23,7 @@ import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation.OrbitingCelestialBody;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
-import net.xavil.util.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class ModDebugCommand {
 
@@ -39,11 +39,11 @@ public final class ModDebugCommand {
 								.then(argument("name", StringArgumentType.string())
 										.executes(ModDebugCommand::executeStationRemove)))
 						.then(literal("tp")
+								.then(argument("name", StringArgumentType.string())
+										.executes(ModDebugCommand::executeStationTpImplicit))
 								.then(argument("entities", EntityArgument.entities())
 										.then(argument("name", StringArgumentType.string())
-												.executes(ModDebugCommand::executeStationTpExplicit)))
-								.then(argument("name", StringArgumentType.string())
-										.executes(ModDebugCommand::executeStationTpImplicit)))
+												.executes(ModDebugCommand::executeStationTpExplicit))))
 						.then(literal("move")
 								.then(argument("name", StringArgumentType.string())
 										.executes(ModDebugCommand::executeStationMove))))
@@ -134,7 +134,7 @@ public final class ModDebugCommand {
 		}
 		return 1;
 	}
-	
+
 	private static int executeStationTpImplicit(CommandContext<CommandSourceStack> ctx) {
 		final var name = StringArgumentType.getString(ctx, "name");
 		final var entities = List.of(ctx.getSource().getEntity());

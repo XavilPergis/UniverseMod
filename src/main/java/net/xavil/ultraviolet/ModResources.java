@@ -2,7 +2,7 @@ package net.xavil.ultraviolet;
 
 import net.minecraft.resources.ResourceLocation;
 import net.xavil.ultraviolet.common.universe.universe.AuthoredSystemResource;
-import net.xavil.util.collections.Blackboard;
+import net.xavil.hawklib.collections.Blackboard;
 
 public class ModResources {
 

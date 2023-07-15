@@ -25,16 +25,16 @@ public class ClientboundSyncCelestialTimePacket extends ModPacket<ClientGamePack
 
 	@Override
 	public void read(FriendlyByteBuf buf) {
-		this.celestialTime = buf.readDouble();
-		this.celestialTimeRate = buf.readDouble();
-		this.isDiscontinuous = buf.readBoolean();
+		this.celestialTime = readDouble(buf);
+		this.celestialTimeRate = readDouble(buf);
+		this.isDiscontinuous = readBoolean(buf);
 	}
 
 	@Override
 	public void write(FriendlyByteBuf buf) {
-		buf.writeDouble(this.celestialTime);
-		buf.writeDouble(this.celestialTimeRate);
-		buf.writeBoolean(this.isDiscontinuous);
+		writeDouble(buf, this.celestialTime);
+		writeDouble(buf, this.celestialTimeRate);
+		writeBoolean(buf, this.isDiscontinuous);
 	}
 
 }

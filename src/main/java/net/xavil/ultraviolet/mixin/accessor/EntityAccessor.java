@@ -2,12 +2,12 @@ package net.xavil.ultraviolet.mixin.accessor;
 
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
+import net.xavil.hawklib.Maybe;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.util.Option;
-import net.xavil.util.math.matrices.Vec3;
-import net.xavil.util.math.matrices.interfaces.Vec3Access;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public interface EntityAccessor {
 
@@ -23,37 +23,37 @@ public interface EntityAccessor {
 		return ((LevelAccessor) entity.level).ultraviolet_getLocation() instanceof Location.Station loc ? loc.id : -1;
 	}
 
-	static Option<Vec3> getGravityAt(Level level, Vec3Access pos) {
+	static Maybe<Vec3> getGravityAt(Level level, Vec3Access pos) {
 		final var location = ((LevelAccessor) level).ultraviolet_getLocation();
 		final var universe = ((LevelAccessor) level).ultraviolet_getUniverse();
 		if (universe != null && location != null) {
 			if (location instanceof Location.World loc) {
 				final var node = universe.getSystemNode(loc.id).unwrapOrNull();
 				if (node instanceof PlanetaryCelestialNode planetNode) {
-					return Option.some(Vec3.from(0, -planetNode.surfaceGravityEarthRelative(), 0));
+					return Maybe.some(Vec3.from(0, -planetNode.surfaceGravityEarthRelative(), 0));
 				}
 			} else if (location instanceof Location.Station loc) {
 				return universe.getStation(loc.id).map(st -> st.getGavityAt(pos));
 			}
 		}
-		return Option.none();
+		return Maybe.none();
 	}
 
-	static Option<Vec3> getEntityGravity(Entity entity) {
+	static Maybe<Vec3> getEntityGravity(Entity entity) {
 		final var location = EntityAccessor.getLocation(entity);
 		final var universe = EntityAccessor.getUniverse(entity);
 		if (universe != null && location != null) {
 			if (location instanceof Location.World loc) {
 				final var node = universe.getSystemNode(loc.id).unwrapOrNull();
 				if (node instanceof PlanetaryCelestialNode planetNode) {
-					return Option.some(Vec3.from(0, -planetNode.surfaceGravityEarthRelative(), 0));
+					return Maybe.some(Vec3.from(0, -planetNode.surfaceGravityEarthRelative(), 0));
 				}
 			} else if (location instanceof Location.Station loc) {
 				final var pos = Vec3.from(entity.position());
 				return universe.getStation(loc.id).map(st -> st.getGavityAt(pos));
 			}
 		}
-		return Option.none();
+		return Maybe.none();
 	}
 
 	static void applyGravity(Entity entity, Vec3 vanillaAcceleration) {

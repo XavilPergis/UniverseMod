@@ -4,8 +4,8 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
-import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
-import net.xavil.util.math.matrices.Mat4;
+import net.xavil.hawklib.client.gl.shader.ShaderProgram;
+import net.xavil.hawklib.math.matrices.Mat4;
 
 public interface GameRendererAccessor {
 

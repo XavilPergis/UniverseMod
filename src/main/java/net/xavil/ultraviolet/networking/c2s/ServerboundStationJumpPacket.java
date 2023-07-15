@@ -4,6 +4,7 @@ import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.network.protocol.game.ServerGamePacketListener;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.networking.ModPacket;
+import net.xavil.ultraviolet.networking.NetworkSerializers;
 
 public class ServerboundStationJumpPacket extends ModPacket<ServerGamePacketListener> {
 
@@ -21,16 +22,16 @@ public class ServerboundStationJumpPacket extends ModPacket<ServerGamePacketList
 
 	@Override
 	public void read(FriendlyByteBuf buf) {
-		this.stationId = buf.readInt();
-		this.target = readSystemNodeId(buf);
-		this.isJumpInstant = buf.readBoolean();
+		this.stationId = readInt(buf);
+		this.isJumpInstant = readBoolean(buf);
+		this.target = read(buf, NetworkSerializers.SYSTEM_NODE_ID);
 	}
 
 	@Override
 	public void write(FriendlyByteBuf buf) {
-		buf.writeInt(this.stationId);
-		writeSystemNodeId(buf, this.target);
-		buf.writeBoolean(this.isJumpInstant);
+		writeInt(buf, this.stationId);
+		writeBoolean(buf, this.isJumpInstant);
+		write(buf, this.target, NetworkSerializers.SYSTEM_NODE_ID);
 	}
 	
 }

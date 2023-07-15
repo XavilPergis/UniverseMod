@@ -26,14 +26,14 @@ import net.minecraft.server.packs.resources.ResourceManagerReloadListener;
 import net.minecraft.util.Mth;
 import net.minecraft.world.effect.MobEffects;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.client.ModRendering;
 import net.xavil.ultraviolet.client.SkyRenderer;
-import net.xavil.ultraviolet.client.gl.GlFragmentWrites;
-import net.xavil.ultraviolet.client.gl.shader.ShaderLoader;
-import net.xavil.ultraviolet.client.gl.shader.ShaderProgram;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
-import net.xavil.util.iterator.Iterator;
-import net.xavil.util.math.matrices.Mat4;
+import net.xavil.hawklib.client.HawkRendering;
+import net.xavil.hawklib.client.gl.GlFragmentWrites;
+import net.xavil.hawklib.client.gl.shader.ShaderLoader;
+import net.xavil.hawklib.client.gl.shader.ShaderProgram;
+import net.xavil.hawklib.collections.iterator.Iterator;
+import net.xavil.hawklib.math.matrices.Mat4;
 
 @Mixin(GameRenderer.class)
 public abstract class GameRendererMixin implements ResourceManagerReloadListener, AutoCloseable, GameRendererAccessor {
@@ -68,7 +68,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 
 	@Inject(method = "reloadShaders", at = @At("HEAD"))
 	private void onReloadShaders(ResourceManager resourceManager, CallbackInfo info) {
-		ModRendering.LOAD_SHADERS_EVENT.invoker().register(new ModRendering.ShaderSink() {
+		HawkRendering.LOAD_SHADERS_EVENT.invoker().register(new HawkRendering.ShaderSink() {
 
 			@Override
 			public void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites, Iterator<String> shaderDefines) {

@@ -5,6 +5,8 @@ import java.util.Random;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
+import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Maybe;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxyType;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
@@ -15,15 +17,13 @@ import net.xavil.ultraviolet.common.universe.station.SpaceStation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.universegen.system.CelestialNode;
-import net.xavil.util.Disposable;
-import net.xavil.util.Option;
-import net.xavil.util.collections.Vector;
-import net.xavil.util.collections.interfaces.ImmutableList;
-import net.xavil.util.collections.interfaces.MutableList;
-import net.xavil.util.collections.interfaces.MutableMap;
-import net.xavil.util.hash.FastHasher;
-import net.xavil.util.math.matrices.Vec3;
-import net.xavil.util.math.matrices.Vec3i;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
+import net.xavil.hawklib.collections.interfaces.MutableList;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.hash.FastHasher;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3i;
 
 public abstract class Universe implements Disposable {
 
@@ -53,13 +53,13 @@ public abstract class Universe implements Disposable {
 
 	public abstract Level createLevelForStation(String name, int id);
 
-	public Option<SpaceStation> getStation(int id) {
+	public Maybe<SpaceStation> getStation(int id) {
 		return this.spaceStations.get(id);
 	}
 
-	public Option<Integer> createStation(String name, StationLocation location) {
+	public Maybe<Integer> createStation(String name, StationLocation location) {
 		if (this.spaceStations.values().any(station -> station.name == name))
-			return Option.none();
+			return Maybe.none();
 		
 		while (this.spaceStations.containsKey(this.nextStationId)) {
 			this.nextStationId += 1;
@@ -70,10 +70,10 @@ public abstract class Universe implements Disposable {
 		final var level = createLevelForStation(name, id);
 		final var station = new SpaceStation(this, level, name, location);
 		this.spaceStations.insert(id, station);
-		return Option.some(id);
+		return Maybe.some(id);
 	}
 
-	public Option<SpaceStation> getStationByName(String name) {
+	public Maybe<SpaceStation> getStationByName(String name) {
 		return this.spaceStations.values().find(station -> station.name.equals(name));
 	}
 
@@ -94,22 +94,22 @@ public abstract class Universe implements Disposable {
 		return Mth.lerp(partialTick, this.lastCelestialTime, this.celestialTime); 
 	}
 
-	public Option<StarSystem> loadSystem(Disposable.Multi disposer, SystemId id) {
+	public Maybe<StarSystem> loadSystem(Disposable.Multi disposer, SystemId id) {
 		final var galaxyTicket = this.sectorManager.createGalaxyTicket(disposer, id.universeSector());
 		return this.sectorManager.forceLoad(galaxyTicket)
 				.flatMap(galaxy -> galaxy.loadSystem(disposer, id.galaxySector()));
 	}
 
-	public Option<Galaxy> loadGalaxy(Disposable.Multi disposer, UniverseSectorId id) {
+	public Maybe<Galaxy> loadGalaxy(Disposable.Multi disposer, UniverseSectorId id) {
 		final var galaxyTicket = this.sectorManager.createGalaxyTicket(disposer, id);
 		return this.sectorManager.forceLoad(galaxyTicket);
 	}
 
-	public Option<StarSystem> getSystem(SystemId id) {
+	public Maybe<StarSystem> getSystem(SystemId id) {
 		return this.sectorManager.getGalaxy(id.universeSector()).flatMap(galaxy -> galaxy.getSystem(id.galaxySector()));
 	}
 
-	public Option<Vec3> getSystemPos(SystemId id) {
+	public Maybe<Vec3> getSystemPos(SystemId id) {
 		return this.sectorManager.getGalaxy(id.universeSector())
 				.flatMap(galaxy -> galaxy.getSystemPos(id.galaxySector()));
 	}
@@ -126,7 +126,7 @@ public abstract class Universe implements Disposable {
 	// return Option.some(systemPos.add(node.position));
 	// }
 
-	public Option<CelestialNode> getSystemNode(SystemNodeId id) {
+	public Maybe<CelestialNode> getSystemNode(SystemNodeId id) {
 		return this.sectorManager.getGalaxy(id.system().universeSector())
 				.flatMap(galaxy -> galaxy.getSystemNode(id.system().galaxySector(), id.nodeId()));
 	}

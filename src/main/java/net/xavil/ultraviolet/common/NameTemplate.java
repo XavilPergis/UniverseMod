@@ -9,7 +9,7 @@ import java.util.Random;
 
 import org.apache.commons.lang3.StringUtils;
 
-import net.xavil.util.Rng;
+import net.xavil.hawklib.Rng;
 
 public class NameTemplate {
 

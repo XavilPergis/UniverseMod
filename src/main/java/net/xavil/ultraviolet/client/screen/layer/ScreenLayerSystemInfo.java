@@ -4,21 +4,21 @@ import javax.annotation.Nonnull;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 
-import net.xavil.ultraviolet.client.gl.GlManager;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
-import net.xavil.ultraviolet.client.screen.UltravioletScreen;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.util.math.matrices.Vec2i;
+import net.xavil.hawklib.client.gl.GlManager;
+import net.xavil.hawklib.client.screen.HawkScreen;
+import net.xavil.hawklib.math.matrices.Vec2i;
 
-public class ScreenLayerSystemInfo extends UltravioletScreen.Layer2d {
+public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 
 	private final Galaxy galaxy;
 	private final SystemTicket selectedSystemTicket;
 
-	public ScreenLayerSystemInfo(UltravioletScreen attachedScreen, Galaxy galaxy) {
+	public ScreenLayerSystemInfo(HawkScreen attachedScreen, Galaxy galaxy) {
 		super(attachedScreen);
 		this.galaxy = galaxy;
 		this.selectedSystemTicket = galaxy.sectorManager.createSystemTicket(disposer, null);

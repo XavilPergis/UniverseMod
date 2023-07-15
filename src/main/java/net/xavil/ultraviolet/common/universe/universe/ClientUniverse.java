@@ -2,6 +2,7 @@ package net.xavil.ultraviolet.common.universe.universe;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.Level;
+import net.xavil.hawklib.Disposable;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
@@ -11,7 +12,6 @@ import net.xavil.ultraviolet.networking.s2c.ClientboundStationJumpBeginPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundUniverseInfoPacket;
 import net.xavil.universegen.system.CelestialNode;
-import net.xavil.util.Disposable;
 
 public final class ClientUniverse extends Universe {
 

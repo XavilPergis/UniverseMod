@@ -1,6 +1,6 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
-import net.xavil.util.Disposable;
+import net.xavil.hawklib.Disposable;
 
 public final class SectorTicket<T extends SectorTicketInfo> implements Disposable {
 	public final SectorManager attachedManager;

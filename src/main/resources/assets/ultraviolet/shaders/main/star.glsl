@@ -26,10 +26,11 @@ void main() {
 	float a = fbm(DEFAULT_FBM, normWorld + 10.0);
 	float b = fbm(DEFAULT_FBM, normWorld - 10.0);
 	float n = 1. - abs(fbm(DEFAULT_FBM, 4.0 * normWorld + vec3(a, 0.0, b)));
-	vec3 col = 10.0 * (uStarColor.rgb + 0.1) * n;
+	// vec3 col = 10.0 * (uStarColor.rgb + 0.1) * n;
+	vec3 col = 3.0 * (uStarColor.rgb + 0.1) * n;
 	vec3 toEye = normalize(uCameraPos - posWorld);
-	col += 120.0 * (uStarColor.rgb + 0.1) * fresnelFactor(toEye, normWorld, 6.0);
-	col = col / (1.0 + col);
+	col += 3.0 * (uStarColor.rgb + 0.1) * fresnelFactor(toEye, normWorld, 6.0);
+	// col = col / (1.0 + col);
     fColor = vec4(col, 1.0);
 }
 

@@ -5,7 +5,6 @@ import org.lwjgl.glfw.GLFW;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
-import net.xavil.ultraviolet.client.ClientDebugFeatures;
 import net.xavil.ultraviolet.client.StarRenderManager;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
@@ -20,6 +19,8 @@ import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
+import net.xavil.ultraviolet.debug.ClientDebug;
+import net.xavil.ultraviolet.debug.DebugKey;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -39,7 +40,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	}
 
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
-		if (ClientDebugFeatures.SECTOR_TICKET_AROUND_FOCUS.isEnabled())
+		if (ClientDebug.get(DebugKey.SECTOR_TICKET_AROUND_FOCUS))
 			return camera.focus;
 		return camera.pos.mul(camera.metersPerUnit / 1e12);
 	}
@@ -70,16 +71,6 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	public boolean handleKeypress(int keyCode, int scanCode, int modifiers) {
 		if (super.handleKeypress(keyCode, scanCode, modifiers))
 			return true;
-
-		if (((modifiers & GLFW.GLFW_MOD_SHIFT) != 0) && ((modifiers & GLFW.GLFW_MOD_ALT) != 0)) {
-			if (keyCode == GLFW.GLFW_KEY_B) {
-				ClientDebugFeatures.SHOW_SECTOR_BOUNDARIES.toggle();
-				return true;
-			} else if (keyCode == GLFW.GLFW_KEY_H) {
-				ClientDebugFeatures.SECTOR_TICKET_AROUND_FOCUS.toggle();
-				return true;
-			}
-		}
 
 		if (keyCode == GLFW.GLFW_KEY_R) {
 			final var selected = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();

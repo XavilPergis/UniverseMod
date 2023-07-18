@@ -19,7 +19,7 @@ public class ClientboundUniverseInfoPacket extends ModPacket<ClientGamePacketLis
 		this.commonSeed = readLong(buf);
 		this.uniqueSeed = readLong(buf);
 		this.startingId = read(buf, NetworkSerializers.SYSTEM_NODE_ID);
-		this.startingSystemNbt = read(buf, NetworkSerializers.NBT);
+		this.startingSystemNbt = read(buf, NetworkSerializers.NBT_COMPOUND);
 	}
 
 	@Override
@@ -27,7 +27,7 @@ public class ClientboundUniverseInfoPacket extends ModPacket<ClientGamePacketLis
 		writeLong(buf, this.commonSeed);
 		writeLong(buf, this.uniqueSeed);
 		write(buf, this.startingId, NetworkSerializers.SYSTEM_NODE_ID);
-		write(buf, this.startingSystemNbt, NetworkSerializers.NBT);
+		write(buf, this.startingSystemNbt, NetworkSerializers.NBT_COMPOUND);
 	}
 
 }

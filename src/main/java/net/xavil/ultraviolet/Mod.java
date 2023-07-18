@@ -33,12 +33,15 @@ import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
+import net.xavil.ultraviolet.debug.ModDebugCommand;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.ultraviolet.networking.ModNetworking;
+import net.xavil.ultraviolet.networking.c2s.ServerboundDebugValueSetPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundChangeSystemPacket;
+import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundStationJumpBeginPacket;
@@ -72,6 +75,7 @@ public class Mod implements ModInitializer {
 
 		ModNetworking.addServerboundHandler(ServerboundTeleportToLocationPacket.class, Mod::handlePacket);
 		ModNetworking.addServerboundHandler(ServerboundStationJumpPacket.class, Mod::handlePacket);
+		ModNetworking.addServerboundHandler(ServerboundDebugValueSetPacket.class, Mod::handlePacket);
 
 		ModNetworking.REGISTER_PACKETS_EVENT.register(acceptor -> {
 			// @formatter:off
@@ -81,9 +85,11 @@ public class Mod implements ModInitializer {
 			acceptor.clientboundPlay.register(ClientboundSyncCelestialTimePacket.class, ClientboundSyncCelestialTimePacket::new);
 			acceptor.clientboundPlay.register(ClientboundSpaceStationInfoPacket.class, ClientboundSpaceStationInfoPacket::new);
 			acceptor.clientboundPlay.register(ClientboundStationJumpBeginPacket.class, ClientboundStationJumpBeginPacket::new);
+			acceptor.clientboundPlay.register(ClientboundDebugValueSetPacket.class, ClientboundDebugValueSetPacket::new);
 
 			acceptor.serverboundPlay.register(ServerboundTeleportToLocationPacket.class, ServerboundTeleportToLocationPacket::new);
 			acceptor.serverboundPlay.register(ServerboundStationJumpPacket.class, ServerboundStationJumpPacket::new);
+			acceptor.serverboundPlay.register(ServerboundDebugValueSetPacket.class, ServerboundDebugValueSetPacket::new);
 			// @formatter:on
 		});
 
@@ -161,6 +167,13 @@ public class Mod implements ModInitializer {
 			final var playerUuid = sender.getStringUUID();
 			Mod.LOGGER.warn("{} ({}) tried to teleport to non-landable node {}", playerName, playerUuid, id);
 		}
+	}
+
+	public static void handlePacket(ServerPlayer sender, ServerboundDebugValueSetPacket packet) {
+		final var opLevel = sender.server.getOperatorUserPermissionLevel();
+		if (!sender.hasPermissions(opLevel))
+			return;
+		
 	}
 
 	public static void handlePacket(ServerPlayer sender, ServerboundTeleportToLocationPacket packet) {

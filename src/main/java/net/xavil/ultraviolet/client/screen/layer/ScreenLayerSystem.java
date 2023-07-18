@@ -10,7 +10,6 @@ import net.minecraft.util.Mth;
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
-import net.xavil.ultraviolet.client.ClientDebugFeatures;
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
@@ -27,6 +26,8 @@ import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
+import net.xavil.ultraviolet.debug.ClientDebug;
+import net.xavil.ultraviolet.debug.DebugKey;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
@@ -78,16 +79,6 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	public boolean handleKeypress(int keyCode, int scanCode, int modifiers) {
 		if (super.handleKeypress(keyCode, scanCode, modifiers))
 			return true;
-
-		if (((modifiers & GLFW.GLFW_MOD_SHIFT) != 0) && ((modifiers & GLFW.GLFW_MOD_ALT) != 0)) {
-			if (keyCode == GLFW.GLFW_KEY_P) {
-				ClientDebugFeatures.SHOW_ORBIT_PATH_SUBDIVISIONS.toggle();
-				return true;
-			} else if (keyCode == GLFW.GLFW_KEY_L) {
-				ClientDebugFeatures.SHOW_ALL_ORBIT_PATH_LEVELS.toggle();
-				return true;
-			}
-		}
 
 		if (keyCode == GLFW.GLFW_KEY_R) {
 			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
@@ -194,9 +185,10 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 			final var selectedNode = system.rootNode.lookup(selectedId);
 			// if (selectedNode != null) {
-			// 	final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
-			// 	RenderHelper.renderUiBillboard(builder, camera, new TransformStack(), pos,
-			// 			0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+			// final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
+			// RenderHelper.renderUiBillboard(builder, camera, new TransformStack(), pos,
+			// 0.02 * camera.pos.distanceTo(pos), Color.WHITE,
+			// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
 			// }
 		});
 	}
@@ -221,8 +213,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		// var midpointIdeal = ellipse.pointFromTrueAnomaly(midpointAngle);
 		// var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
 
-		if (ClientDebugFeatures.SHOW_ORBIT_PATH_SUBDIVISIONS.isEnabled()) {
-			color = ClientDebugFeatures.getDebugColor(maxDepth);
+		if (ClientDebug.get(DebugKey.SHOW_ORBIT_PATH_SUBDIVISIONS)) {
+			color = ClientDebug.getDebugColor(maxDepth);
 		}
 
 		var isSegmentVisible = !fadeOut
@@ -239,7 +231,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				addEllipseArc(builder, camera, cullingCamera, ellipse, color, angleL, angleH, maxDepth - 1, fadeOut);
 			}
 
-			if (ClientDebugFeatures.SHOW_ALL_ORBIT_PATH_LEVELS.isEnabled()) {
+			if (ClientDebug.get(DebugKey.SHOW_ALL_ORBIT_PATH_LEVELS)) {
 				RenderHelper.addLine(builder, camera,
 						endpointL.mul(1e12 / cullingCamera.metersPerUnit),
 						endpointH.mul(1e12 / cullingCamera.metersPerUnit),

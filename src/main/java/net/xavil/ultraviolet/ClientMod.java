@@ -11,10 +11,12 @@ import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.NewGalaxyMapScreen;
 import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
+import net.xavil.ultraviolet.debug.ClientDebug;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.ultraviolet.networking.ModNetworking;
 import net.xavil.ultraviolet.networking.s2c.ClientboundChangeSystemPacket;
+import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundStationJumpBeginPacket;
@@ -33,6 +35,7 @@ public class ClientMod implements ClientModInitializer {
 		ModNetworking.addClientboundHandler(ClientboundSyncCelestialTimePacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundSpaceStationInfoPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundStationJumpBeginPacket.class, CLIENT, ClientMod::handlePacket);
+		ModNetworking.addClientboundHandler(ClientboundDebugValueSetPacket.class, CLIENT, ClientDebug::applyPacket);
 
 		HawkRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
 			// @formatter:off

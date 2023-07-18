@@ -1,11 +1,18 @@
 package net.xavil.hawklib.collections.interfaces;
 
+import javax.annotation.Nullable;
+
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.iterator.Iterator;
 
 public interface ImmutableMap<K, V> extends ImmutableCollection {
 
 	Maybe<V> get(K key);
+
+	@Nullable
+	default V getOrNull(K key) {
+		return get(key).unwrapOrNull();
+	}
 
 	Iterator<K> keys();
 

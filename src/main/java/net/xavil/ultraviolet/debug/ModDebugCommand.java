@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet;
+package net.xavil.ultraviolet.debug;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;
@@ -8,8 +8,8 @@ import java.util.List;
 
 import com.mojang.brigadier.CommandDispatcher;
 import com.mojang.brigadier.arguments.DoubleArgumentType;
-import com.mojang.brigadier.arguments.IntegerArgumentType;
 import com.mojang.brigadier.arguments.StringArgumentType;
+import com.mojang.brigadier.builder.LiteralArgumentBuilder;
 import com.mojang.brigadier.context.CommandContext;
 import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
@@ -18,19 +18,21 @@ import net.minecraft.commands.arguments.EntityArgument;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation.OrbitingCelestialBody;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
+import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class ModDebugCommand {
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, boolean dedicated) {
-
 		dispatcher.register(literal("ultraviolet")
 				.requires(src -> src.hasPermission(2))
+				.then(createDebugSubcommand())
 				.then(literal("station")
 						.then(literal("add")
 								.then(argument("name", StringArgumentType.string())
@@ -54,6 +56,51 @@ public final class ModDebugCommand {
 								.executes(ModDebugCommand::executeTimeSet)))
 						.then(literal("add").then(argument("seconds", DoubleArgumentType.doubleArg())
 								.executes(ModDebugCommand::executeTimeAdd)))));
+	}
+
+	private static CommonDebug getCommonDebug(CommandContext<CommandSourceStack> ctx) {
+		return ((MinecraftServerAccessor) ctx.getSource().getServer()).ultraviolet_getCommonDebug();
+	}
+
+	private static <T> void executeDebugSetCommand(DebugKey<T> key, CommandContext<CommandSourceStack> ctx)
+			throws CommandSyntaxException {
+		final T value = ctx.getArgument("value", key.type.containedClass);
+		final var oldValue = getCommonDebug(ctx).setPlayer(key, ctx.getSource().getPlayerOrException(), value);
+		if (oldValue.isSome()) {
+			final var message = String.format(
+					"debug value '%s' changed from '%s' to '%s'",
+					key.keyId, oldValue.unwrap(), value);
+			ctx.getSource().sendSuccess(new TextComponent(message), true);
+		} else {
+			final var message = String.format(
+					"debug value '%s' changed to '%s'",
+					key.keyId, value);
+			ctx.getSource().sendSuccess(new TextComponent(message), true);
+		}
+	}
+
+	private static LiteralArgumentBuilder<CommandSourceStack> createDebugSubcommand() {
+		final var builders = new Object() {
+			// LiteralArgumentBuilder<CommandSourceStack> get = literal("get");
+			LiteralArgumentBuilder<CommandSourceStack> set = literal("set");
+			// LiteralArgumentBuilder<CommandSourceStack> unset = literal("unset");
+		};
+
+		DebugKey.enumerate(key -> {
+			// builders.get.then(literal(value.keyId).executes(ctx -> {
+			// final var message = String.format(
+			// "debug value '%s' is currently '%s'",
+			// value.keyId, ModDebug.get(value));
+			// ctx.getSource().sendSuccess(new TextComponent(message), true);
+			// return 1;
+			// }));
+			builders.set.then(literal(key.keyId).then(argument("value", key.type.argumentType).executes(ctx -> {
+				executeDebugSetCommand(key, ctx);
+				return 1;
+			})));
+		});
+		final var builder = literal("debug").then(builders.set);
+		return builder;
 	}
 
 	private static int executeTimeScale(CommandContext<CommandSourceStack> ctx) {
@@ -147,7 +194,6 @@ public final class ModDebugCommand {
 		final var universe = LevelAccessor.getUniverse(level);
 		final var stationOpt = universe.getStationByName(name);
 		stationOpt.ifSome(station -> {
-			// final var entity = ctx.getSource().getEntity();
 			if (station.level instanceof ServerLevel newLevel) {
 				for (final var entity : entities) {
 					final var spawnPos = Vec3.from(0, 128, 0);

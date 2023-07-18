@@ -3,6 +3,8 @@ package net.xavil.hawklib.collections.impl.proxy;
 import java.util.Map;
 import java.util.function.BiPredicate;
 
+import javax.annotation.Nullable;
+
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.iterator.Iterator;
@@ -28,6 +30,12 @@ public final class MutableMapProxy<K, V> implements MutableMap<K, V> {
 	@Override
 	public Maybe<V> get(K key) {
 		return this.wrapped.containsKey(key) ? Maybe.some(this.wrapped.get(key)) : Maybe.none();
+	}
+
+	@Override
+	@Nullable
+	public V getOrNull(K key) {
+		return this.wrapped.get(key);
 	}
 
 	@Override

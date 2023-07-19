@@ -232,7 +232,16 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 
 		// TODO: color based on temperature and not on star class!
 		if (starClass != null) {
-			return starClass.color;
+			// @formatter:off
+			if (this.massYg < Units.fromMsol(0.45)) return Color.rgb(1, 0.14, 0.05);
+			if (this.massYg < Units.fromMsol(0.8))  return Color.rgb(1, 0.2, 0.05);
+			if (this.massYg < Units.fromMsol(1.04)) return Color.rgb(0.6, 0.36, 0.12);
+			if (this.massYg < Units.fromMsol(1.4))  return Color.rgb(0.4, 0.4, 0.5);
+			if (this.massYg < Units.fromMsol(2.1))  return Color.rgb(0.3, 0.4, 0.7);
+			if (this.massYg < Units.fromMsol(16))   return Color.rgb(0.2, 0.3, 0.9);
+													return Color.rgb(0.1, 0.2, 1);
+			// @formatter:on
+			// return starClass.color;
 		} else if (this.type == StellarCelestialNode.Type.WHITE_DWARF) {
 			return Color.rgb(1, 1, 1);
 		} else if (this.type == StellarCelestialNode.Type.NEUTRON_STAR) {

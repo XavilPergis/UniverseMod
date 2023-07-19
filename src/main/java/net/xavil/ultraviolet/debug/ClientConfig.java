@@ -6,7 +6,7 @@ import net.xavil.hawklib.math.Color;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 
-public final class ClientDebug {
+public final class ClientConfig {
 
 	public static final Color[] DEBUG_COLORS = { Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.MAGENTA,
 			Color.YELLOW, };
@@ -16,10 +16,10 @@ public final class ClientDebug {
 	}
 
 	private static final class Slot<T> {
-		private final DebugKey<T> key;
+		private final ConfigKey<T> key;
 		private T value;
 
-		public Slot(DebugKey<T> key) {
+		public Slot(ConfigKey<T> key) {
 			this.key = key;
 		}
 
@@ -37,22 +37,22 @@ public final class ClientDebug {
 		}
 	}
 
-	private static final MutableMap<DebugKey<?>, Slot<?>> VALUE_MAP = MutableMap.hashMap();
+	private static final MutableMap<ConfigKey<?>, Slot<?>> VALUE_MAP = MutableMap.hashMap();
 
 	@SuppressWarnings("unchecked")
-	public static <T> T get(DebugKey<T> key) {
+	public static <T> T get(ConfigKey<T> key) {
 		final var slot = VALUE_MAP.getOrNull(key);
 		return slot == null ? key.defaultValue : (T) slot.value;
 	}
 
 	public static void applyPacket(ClientboundDebugValueSetPacket packet) {
-		final var key = DebugKey.lookup(packet.keyId);
+		final var key = ConfigKey.lookup(packet.keyId);
 		if (key == null) {
 			Mod.LOGGER.error("[client] debug packet has unknown key ID of '{}'", packet.keyId);
 			return;
 		}
 
-		final var slot = VALUE_MAP.entry(key).orInsertWith(Slot::new);
+		final var slot = VALUE_MAP.entry(key).orInsertWith(k -> new Slot<>(k));
 		slot.update(packet.nbt);
 	}
 

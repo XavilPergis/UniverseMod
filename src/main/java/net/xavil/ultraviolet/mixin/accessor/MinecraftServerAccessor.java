@@ -12,13 +12,13 @@ import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.WorldData;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
-import net.xavil.ultraviolet.debug.CommonDebug;
+import net.xavil.ultraviolet.debug.CommonConfig;
 
 public interface MinecraftServerAccessor {
 
 	DynamicDimensionManager ultraviolet_getDimensionManager();
 
-	CommonDebug ultraviolet_getCommonDebug();
+	CommonConfig ultraviolet_getCommonDebug();
 
 	ServerUniverse ultraviolet_getUniverse();
 

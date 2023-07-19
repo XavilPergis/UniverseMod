@@ -135,6 +135,7 @@ public final class PlanetRenderingContext {
 			addNormSphere(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits, tintColor);
 			final var shader = getShader(SHADER_STAR);
 			shader.setUniform("uStarColor", node.getColor());
+			shader.setUniform("uTime", this.celestialTime % 10000.0);
 			builder.end().draw(shader, DRAW_STATE_NO_CULL);
 		}
 

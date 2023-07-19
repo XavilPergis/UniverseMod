@@ -291,10 +291,9 @@ public final class VertexBuilder implements FlexibleVertexConsumer {
 		ensureBufferCapacity(emissionSize);
 
 		this.dispatch.emit(this.vertexByteOffset);
-		
+
 		int writePos = this.vertexByteOffset + vertexSize;
 		for (int i = 0; i < this.primitiveType.duplicationCount; ++i) {
-			// this.dispatch.emit(writePos);
 			this.buffer.put(writePos, this.buffer, this.vertexByteOffset, vertexSize);
 			writePos += vertexSize;
 		}

@@ -22,15 +22,20 @@ vec2 uvFromNormal(vec4 normWorld) {
 void main() {
 	vec3 normWorld = (inverse(uViewMatrix) * normalize(normal)).xyz;
 	vec3 posWorld = (inverse(uViewMatrix) * normalize(vertexPos)).xyz;
-	//vec2 uv = uvFromNormal(normWorld);
-	float a = fbm(DEFAULT_FBM, normWorld + 10.0);
-	float b = fbm(DEFAULT_FBM, normWorld - 10.0);
-	float n = 1. - abs(fbm(DEFAULT_FBM, 4.0 * normWorld + vec3(a, 0.0, b)));
-	// vec3 col = 10.0 * (uStarColor.rgb + 0.1) * n;
-	vec3 col = 3.0 * (uStarColor.rgb + 0.1) * n;
+
+	float frequency = 2.0;
+	float warpScale = 0.8;
+	float a = fbm(DEFAULT_FBM, normWorld + 20.0);
+	float b = fbm(DEFAULT_FBM, normWorld - 20.0);
+	float n = abs(fbm(DEFAULT_FBM, frequency * normWorld + warpScale * vec3(a, 0.0, b) + vec3(uTime / 1000)));
+	n = pow(n, 0.2);
+	n = 1.0 - n;
+
+	vec3 starColor = uStarColor.rgb + 0.05;
+	vec3 col = 4.0 * starColor * n;
 	vec3 toEye = normalize(uCameraPos - posWorld);
-	col += 3.0 * (uStarColor.rgb + 0.1) * fresnelFactor(toEye, normWorld, 6.0);
-	// col = col / (1.0 + col);
+	col += 3.0 * starColor * fresnelFactor(toEye, normWorld, 6.0);
+	col += 1.0 * starColor;
     fColor = vec4(col, 1.0);
 }
 

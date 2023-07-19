@@ -32,7 +32,7 @@ public final class ModDebugCommand {
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, boolean dedicated) {
 		dispatcher.register(literal("ultraviolet")
 				.requires(src -> src.hasPermission(2))
-				.then(createDebugSubcommand())
+				.then(createConfigSubcommand())
 				.then(literal("station")
 						.then(literal("add")
 								.then(argument("name", StringArgumentType.string())
@@ -58,48 +58,48 @@ public final class ModDebugCommand {
 								.executes(ModDebugCommand::executeTimeAdd)))));
 	}
 
-	private static CommonDebug getCommonDebug(CommandContext<CommandSourceStack> ctx) {
+	private static CommonConfig getCommonDebug(CommandContext<CommandSourceStack> ctx) {
 		return ((MinecraftServerAccessor) ctx.getSource().getServer()).ultraviolet_getCommonDebug();
 	}
 
-	private static <T> void executeDebugSetCommand(DebugKey<T> key, CommandContext<CommandSourceStack> ctx)
+	private static <T> void executeConfigSetCommand(ConfigKey<T> key, CommandContext<CommandSourceStack> ctx)
 			throws CommandSyntaxException {
 		final T value = ctx.getArgument("value", key.type.containedClass);
 		final var oldValue = getCommonDebug(ctx).setPlayer(key, ctx.getSource().getPlayerOrException(), value);
 		if (oldValue.isSome()) {
 			final var message = String.format(
-					"debug value '%s' changed from '%s' to '%s'",
+					"config value '%s' changed from '%s' to '%s'",
 					key.keyId, oldValue.unwrap(), value);
 			ctx.getSource().sendSuccess(new TextComponent(message), true);
 		} else {
 			final var message = String.format(
-					"debug value '%s' changed to '%s'",
+					"config value '%s' changed to '%s'",
 					key.keyId, value);
 			ctx.getSource().sendSuccess(new TextComponent(message), true);
 		}
 	}
 
-	private static LiteralArgumentBuilder<CommandSourceStack> createDebugSubcommand() {
+	private static LiteralArgumentBuilder<CommandSourceStack> createConfigSubcommand() {
 		final var builders = new Object() {
 			// LiteralArgumentBuilder<CommandSourceStack> get = literal("get");
 			LiteralArgumentBuilder<CommandSourceStack> set = literal("set");
 			// LiteralArgumentBuilder<CommandSourceStack> unset = literal("unset");
 		};
 
-		DebugKey.enumerate(key -> {
+		ConfigKey.enumerate(key -> {
 			// builders.get.then(literal(value.keyId).executes(ctx -> {
 			// final var message = String.format(
-			// "debug value '%s' is currently '%s'",
+			// "config value '%s' is currently '%s'",
 			// value.keyId, ModDebug.get(value));
 			// ctx.getSource().sendSuccess(new TextComponent(message), true);
 			// return 1;
 			// }));
 			builders.set.then(literal(key.keyId).then(argument("value", key.type.argumentType).executes(ctx -> {
-				executeDebugSetCommand(key, ctx);
+				executeConfigSetCommand(key, ctx);
 				return 1;
 			})));
 		});
-		final var builder = literal("debug").then(builders.set);
+		final var builder = literal("config").then(builders.set);
 		return builder;
 	}
 

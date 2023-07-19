@@ -32,10 +32,7 @@ public final class BillboardBatcher {
 	}
 
 	public void begin(CachedCamera<?> camera) {
-		builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
-		// builder.begin(VertexFormat.Mode.QUADS, ModRendering.BILLBOARD_FORMAT);
-		// builder.begin(FlexibleVertexMode.POINTS, DefaultVertexFormat.POSITION_COLOR_TEX);
-		// builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
+		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		this.camera = camera;
 	}
 

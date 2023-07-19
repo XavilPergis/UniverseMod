@@ -23,7 +23,7 @@ import net.minecraft.world.level.storage.WorldData;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
-import net.xavil.ultraviolet.debug.CommonDebug;
+import net.xavil.ultraviolet.debug.CommonConfig;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 
@@ -32,7 +32,7 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 
 	private DynamicDimensionManager dynamicDimensionManager = null;
 	private ServerUniverse universe = null;
-	private CommonDebug commonDebug = new CommonDebug((MinecraftServer) (Object) this);
+	private CommonConfig commonDebug = new CommonConfig((MinecraftServer) (Object) this);
 
 	@Shadow
 	private ProfilerFiller profiler;
@@ -82,7 +82,7 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 	}
 
 	@Override
-	public CommonDebug ultraviolet_getCommonDebug() {
+	public CommonConfig ultraviolet_getCommonDebug() {
 		return this.commonDebug;
 	}
 

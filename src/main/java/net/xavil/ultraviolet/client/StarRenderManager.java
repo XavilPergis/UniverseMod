@@ -58,12 +58,12 @@ public final class StarRenderManager implements Disposable {
 		this.sectorTicket.info.centerPos = camPos;
 		this.sectorTicket.info.multiplicitaveFactor = 2.0;
 
-		drawStarsImmediate(camera);
-		// buildStarsIfNeeded(camera);
-		// if (this.immediateStarsTimerTicks != -1) {
-		// } else {
-		// 	drawStarsFromBuffer(camera);
-		// }
+		buildStarsIfNeeded(camera);
+		if (this.immediateStarsTimerTicks != -1) {
+			drawStarsImmediate(camera);
+		} else {
+			drawStarsFromBuffer(camera);
+		}
 		// drawStarsImmediate(camera);
 	}
 
@@ -82,7 +82,7 @@ public final class StarRenderManager implements Disposable {
 		this.starSnapshotOrigin = camera.posTm;
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		this.sectorTicket.attachedManager.forceLoad(this.sectorTicket);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
@@ -112,7 +112,7 @@ public final class StarRenderManager implements Disposable {
 				if (elem.pos().distanceTo(camPos) > levelSize)
 					return;
 				final var toStar = elem.pos().sub(camPos);
-				if (toStar.dot(camera.forward) <= 0)
+				if (toStar.dot(camera.forward) == 0)
 					return;
 				batcher.add(elem.info().primaryStar, elem.pos());
 			});

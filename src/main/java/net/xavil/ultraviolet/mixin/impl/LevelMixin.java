@@ -13,6 +13,7 @@ import net.xavil.ultraviolet.common.ModSavedData;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
+import net.xavil.ultraviolet.debug.ConfigProvider;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 
 @Mixin(Level.class)
@@ -23,6 +24,7 @@ public abstract class LevelMixin implements LevelAccessor {
 
 	private Disposable.Multi disposer = new Disposable.Multi();
 	private SystemTicket systemTicket;
+	private ConfigProvider configProvider;
 
 	@Override
 	public Location ultraviolet_getLocation() {
@@ -31,6 +33,7 @@ public abstract class LevelMixin implements LevelAccessor {
 
 	@Override
 	public void ultraviolet_setLocation(Location id) {
+		@SuppressWarnings("resource")
 		final var self = (Level) (Object) this;
 		if (id == null || id.equals(this.location))
 			return;
@@ -64,6 +67,16 @@ public abstract class LevelMixin implements LevelAccessor {
 	@Override
 	public void ultraviolet_setUniverse(Universe universe) {
 		this.universe = universe;
+	}
+
+	@Override
+	public ConfigProvider ultraviolet_getConfigProvider() {
+		return this.configProvider;
+	}
+
+	@Override
+	public void ultraviolet_setConfigProvider(ConfigProvider provider) {
+		this.configProvider = provider;
 	}
 
 	@Inject(method = "close", at = @At("TAIL"))

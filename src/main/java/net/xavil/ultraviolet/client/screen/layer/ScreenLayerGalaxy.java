@@ -38,7 +38,7 @@ public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 
 		this.galaxyRenderingContext.build();
-		builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
 			RenderHelper.addBillboard(builder, camera, new TransformStack(),
 					pos.sub(this.originOffset),

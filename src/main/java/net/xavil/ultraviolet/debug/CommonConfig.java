@@ -11,24 +11,20 @@ import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 
-public final class CommonDebug {
+public final class CommonConfig {
 
 	private final MinecraftServer server;
 
 	private static final class Slot<T> {
-		public final DebugKey<T> key;
+		public final ConfigKey<T> key;
 		public T value;
 
-		public Slot(DebugKey<T> key) {
+		public Slot(ConfigKey<T> key) {
 			this.key = key;
 		}
 
 		public Tag toNbt() {
 			return this.key.type.writeNbt.apply(this.value);
-		}
-
-		public void fromNbt(Tag nbt) {
-			this.value = this.key.type.readNbt.apply(nbt);
 		}
 	}
 
@@ -37,11 +33,11 @@ public final class CommonDebug {
 	private final MutableMap<UUID, MutableSet<String>> dirtyPlayerSlots = MutableMap.hashMap();
 	private final MutableMap<UUID, MutableMap<String, Slot<?>>> playerSlots = MutableMap.hashMap();
 
-	public CommonDebug(MinecraftServer server) {
+	public CommonConfig(MinecraftServer server) {
 		this.server = server;
 	}
 
-	public <T> T get(DebugKey<T> key) {
+	public <T> T get(ConfigKey<T> key) {
 		@SuppressWarnings("unchecked")
 		final var slot = (Slot<T>) this.globalSlots.getOrNull(key.keyId);
 		if (slot != null) {
@@ -50,7 +46,7 @@ public final class CommonDebug {
 		return key.defaultValue;
 	}
 
-	public <T> T get(DebugKey<T> key, ServerPlayer player) {
+	public <T> T get(ConfigKey<T> key, ServerPlayer player) {
 		final var slots = this.playerSlots.getOrNull(player.getUUID());
 		if (slots != null) {
 			@SuppressWarnings("unchecked")
@@ -62,7 +58,7 @@ public final class CommonDebug {
 		return get(key);
 	}
 
-	public <T> Maybe<T> setGlobal(DebugKey<T> key, T value) {
+	public <T> Maybe<T> setGlobal(ConfigKey<T> key, T value) {
 		final var hadPrevious = this.globalSlots.containsKey(key.keyId);
 		@SuppressWarnings("unchecked")
 		final var slot = (Slot<T>) this.globalSlots.entry(key.keyId).orInsertWith(k -> new Slot<>(key));
@@ -73,11 +69,12 @@ public final class CommonDebug {
 		return hadPrevious ? Maybe.some(oldValue) : Maybe.none();
 	}
 
-	public <T> Maybe<T> setPlayer(DebugKey<T> key, ServerPlayer player, T value) {
-		if (key.side != DebugKey.Side.CLIENT) {
-			Mod.LOGGER.error("Tried to set global debug value '{}' for player '{}'", key.keyId,
-					player.getGameProfile().getName());
-			return Maybe.none();
+	public <T> Maybe<T> setPlayer(ConfigKey<T> key, ServerPlayer player, T value) {
+		if (key.side != ConfigKey.Side.CLIENT) {
+			return setGlobal(key, value);
+			// Mod.LOGGER.error("Tried to set global debug value '{}' for player '{}'", key.keyId,
+			// 		player.getGameProfile().getName());
+			// return Maybe.none();
 		}
 		final var slots = this.playerSlots.entry(player.getUUID()).orInsertWith(k -> MutableMap.hashMap());
 		final var hadPrevious = slots.containsKey(key.keyId);

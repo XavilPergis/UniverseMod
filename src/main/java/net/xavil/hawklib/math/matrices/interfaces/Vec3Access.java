@@ -15,6 +15,16 @@ public interface Vec3Access {
 		return new net.minecraft.world.phys.Vec3(x(), y(), z());
 	}
 
+	static Vec3Access from(net.minecraft.world.phys.Vec3 vec) {
+		return new Vec3Access() {
+			// @formatter:off
+			@Override public double x() { return vec.x; }
+			@Override public double y() { return vec.y; }
+			@Override public double z() { return vec.z; }
+			// @formatter:on
+		};
+	}
+
 	default double dot(Vec3Access other) {
 		return this.x() * other.x() + this.y() * other.y() + this.z() * other.z();
 	}

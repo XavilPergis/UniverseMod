@@ -12,7 +12,6 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.LevelRenderer;
-import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.ultraviolet.client.SkyRenderer;
 
 @Mixin(LevelRenderer.class)
@@ -25,10 +24,8 @@ public abstract class LevelRendererMixin {
 	private void renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float tickDelta, Camera camera, boolean bl,
 			Runnable runnable, CallbackInfo info) {
 		if (this.minecraft.level != null) {
-			GlManager.pushState();
 			if (SkyRenderer.INSTANCE.renderSky(poseStack, projectionMatrix, tickDelta, camera, bl))
 				info.cancel();
-			GlManager.popState();
 		}
 	}
 

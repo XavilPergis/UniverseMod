@@ -2,6 +2,7 @@ package net.xavil.ultraviolet.client.screen.layer;
 
 import org.lwjgl.glfw.GLFW;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
@@ -11,6 +12,7 @@ import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
+import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
@@ -26,8 +28,8 @@ import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.ultraviolet.debug.ClientDebug;
-import net.xavil.ultraviolet.debug.DebugKey;
+import net.xavil.ultraviolet.debug.ClientConfig;
+import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
@@ -180,6 +182,17 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				if (this.showGuides)
 					showOrbitGuides(builder, camera, cullingCamera, node);
 			}
+
+			// final var masses = new double[] { 0.4, 0.6, 1.0, 1.2, 2.0, 15, 17 };
+			// double d = 0.0, r = 1.0;
+			// for (int i = 0; i < masses.length; ++i) {
+			// 	final var node = new StellarCelestialNode(StellarCelestialNode.Type.MAIN_SEQUENCE, Units.fromMsol(masses[i]), 1, r, 1);
+			// 	node.position = node.lastPosition = new Vec3(d, 1, 0);
+			// 	this.renderContext.render(builder, camera, node, false);
+			// 	r *= 3;
+			// 	d += 2 * r * (Units.m_PER_Rsol / Units.TERA);
+			// }
+
 			this.renderContext.end();
 
 			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
@@ -213,8 +226,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		// var midpointIdeal = ellipse.pointFromTrueAnomaly(midpointAngle);
 		// var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
 
-		if (ClientDebug.get(DebugKey.SHOW_ORBIT_PATH_SUBDIVISIONS)) {
-			color = ClientDebug.getDebugColor(maxDepth);
+		if (ClientConfig.get(ConfigKey.SHOW_ORBIT_PATH_SUBDIVISIONS)) {
+			color = ClientConfig.getDebugColor(maxDepth);
 		}
 
 		var isSegmentVisible = !fadeOut
@@ -231,7 +244,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				addEllipseArc(builder, camera, cullingCamera, ellipse, color, angleL, angleH, maxDepth - 1, fadeOut);
 			}
 
-			if (ClientDebug.get(DebugKey.SHOW_ALL_ORBIT_PATH_LEVELS)) {
+			if (ClientConfig.get(ConfigKey.SHOW_ALL_ORBIT_PATH_LEVELS)) {
 				RenderHelper.addLine(builder, camera,
 						endpointL.mul(1e12 / cullingCamera.metersPerUnit),
 						endpointH.mul(1e12 / cullingCamera.metersPerUnit),
@@ -258,7 +271,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	private static void addEllipse(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, Ellipse ellipse, Color color, boolean fadeOut) {
 		var basePathSegments = 32;
-		var maxDepth = 20;
+		var maxDepth = 4;
 		for (var i = 0; i < basePathSegments; ++i) {
 			var angleL = 2 * Math.PI * (i / (double) basePathSegments);
 			var angleH = 2 * Math.PI * ((i + 1) / (double) basePathSegments);
@@ -300,6 +313,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 		}
 
+		RenderSystem.lineWidth(2);
 		builder.end().draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
 	}
 
@@ -314,6 +328,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		final var color = getPathColor(BlackboardKeys.UNARY_PATH_COLOR, isSelected);
 		addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 
+		RenderSystem.lineWidth(2);
 		builder.end().draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
 	}
 

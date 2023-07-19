@@ -62,7 +62,7 @@ public final class RenderHelper {
 			CelestialNode node) {
 		final var shader = getShader(SHADER_STAR_BILLBOARD);
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(STAR_ICON_LOCATION));
-		builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		addBillboard(builder, camera, tfm, node);
 		builder.end().draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 	}

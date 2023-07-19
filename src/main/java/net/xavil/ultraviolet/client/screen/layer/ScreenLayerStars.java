@@ -19,8 +19,8 @@ import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
-import net.xavil.ultraviolet.debug.ClientDebug;
-import net.xavil.ultraviolet.debug.DebugKey;
+import net.xavil.ultraviolet.debug.ClientConfig;
+import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -40,7 +40,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	}
 
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
-		if (ClientDebug.get(DebugKey.SECTOR_TICKET_AROUND_FOCUS))
+		if (ClientConfig.get(ConfigKey.SECTOR_TICKET_AROUND_FOCUS))
 			return camera.focus;
 		return camera.pos.mul(camera.metersPerUnit / 1e12);
 	}

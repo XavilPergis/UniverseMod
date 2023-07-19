@@ -36,6 +36,7 @@ public abstract class ConnectionProtocolMixin {
 		// that side must decode messages to that side, and encode messages to the other
 		// side, which requires global knowlege about the network protocol.
 
+		@SuppressWarnings("unchecked")
 		final var acceptor = new PacketRegistrationAcceptor(
 				(ConnectionProtocol.PacketSet<ClientLoginPacketListener>) state.flows.get(PacketFlow.CLIENTBOUND),
 				(ConnectionProtocol.PacketSet<ServerLoginPacketListener>) state.flows.get(PacketFlow.SERVERBOUND),

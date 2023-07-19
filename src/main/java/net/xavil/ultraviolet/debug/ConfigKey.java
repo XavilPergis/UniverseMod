@@ -21,9 +21,8 @@ import net.minecraft.nbt.IntTag;
 import net.minecraft.nbt.StringTag;
 import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
-import net.xavil.ultraviolet.Mod;
 
-public final class DebugKey<T> {
+public final class ConfigKey<T> {
 
 	public enum Side {
 		CLIENT,
@@ -73,42 +72,57 @@ public final class DebugKey<T> {
 				Function.identity(), Function.identity());
 	}
 
-	private static final MutableMap<String, DebugKey<?>> KEY_MAP = MutableMap.hashMap();
+	private static final MutableMap<String, ConfigKey<?>> KEY_MAP = MutableMap.hashMap();
 	public final String keyId;
 	public final Type<T> type;
 	public final T defaultValue;
 	public final Side side;
 
-	public DebugKey(String keyId, Type<T> type, T defaultValue, Side side) {
+	public ConfigKey(String keyId, Type<T> type, T defaultValue, Side side) {
 		this.keyId = keyId;
 		this.type = type;
 		this.defaultValue = defaultValue;
 		this.side = side;
 	}
 
-	public static <T> DebugKey<T> register(DebugKey<T> key) {
+	public static <T> ConfigKey<T> register(ConfigKey<T> key) {
 		KEY_MAP.insert(key.keyId, key);
 		return key;
 	}
 
 	@Nullable
-	public static DebugKey<?> lookup(String keyId) {
+	public static ConfigKey<?> lookup(String keyId) {
 		return KEY_MAP.get(keyId).unwrapOrNull();
 	}
 
-	public static void enumerate(Consumer<DebugKey<?>> consumer) {
+	public static void enumerate(Consumer<ConfigKey<?>> consumer) {
 		KEY_MAP.values().forEach(consumer);
 	}
 
-	public static DebugKey<Boolean> booleanKey(String id, boolean defaultValue, Side side) {
-		return register(new DebugKey<Boolean>(id, Type.BOOLEAN, defaultValue, side));
+	public static ConfigKey<Boolean> booleanKey(String id, boolean defaultValue, Side side) {
+		return register(new ConfigKey<Boolean>(id, Type.BOOLEAN, defaultValue, side));
+	}
+
+	public static ConfigKey<Float> floatKey(String id, float defaultValue, Side side) {
+		return register(new ConfigKey<Float>(id, Type.FLOAT, defaultValue, side));
+	}
+
+	public static ConfigKey<Double> doubleKey(String id, double defaultValue, Side side) {
+		return register(new ConfigKey<Double>(id, Type.DOUBLE, defaultValue, side));
 	}
 
 	// @formatter:off
-	public static final DebugKey<Boolean> SHOW_SECTOR_BOUNDARIES       = booleanKey("showSectorBoundaries",              false, Side.CLIENT);
-	public static final DebugKey<Boolean> SECTOR_TICKET_AROUND_FOCUS   = booleanKey("sectorTicketAroundFocus",           false, Side.CLIENT);
-	public static final DebugKey<Boolean> SHOW_ORBIT_PATH_SUBDIVISIONS = booleanKey("showOrbitPathSubdivisions",         false, Side.CLIENT);
-	public static final DebugKey<Boolean> SHOW_ALL_ORBIT_PATH_LEVELS   = booleanKey("showAllOrbitPathSubdivisionLevels", false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_SECTOR_BOUNDARIES       = booleanKey("showSectorBoundaries",              false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SECTOR_TICKET_AROUND_FOCUS   = booleanKey("sectorTicketAroundFocus",           false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_ORBIT_PATH_SUBDIVISIONS = booleanKey("showOrbitPathSubdivisions",         false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_ALL_ORBIT_PATH_LEVELS   = booleanKey("showAllOrbitPathSubdivisionLevels", false, Side.CLIENT);
+	public static final ConfigKey<Float>   SKY_CAMERA_NEAR_PLANE        = floatKey  ("skyCameraNearPlane",                1e-6f, Side.CLIENT);
+	public static final ConfigKey<Float>   SKY_CAMERA_FAR_PLANE         = floatKey  ("skyCameraFarPlane",                 1e5f,  Side.CLIENT);
+
+	public static final ConfigKey<Double>  MIN_GRAVITY       = doubleKey ("minGravity",      0.2,   Side.SERVER);
+	public static final ConfigKey<Double>  MAX_GRAVITY       = doubleKey ("maxGravity",      1.2,   Side.SERVER);
+	public static final ConfigKey<Boolean> USE_FIXED_GRAVITY = booleanKey("useFixedGravity", false, Side.SERVER);
+	public static final ConfigKey<Double>  FIXED_GRAVITY     = doubleKey ("fixedGravity",    1.0,   Side.SERVER);
 	// @formatter:on
 
 }

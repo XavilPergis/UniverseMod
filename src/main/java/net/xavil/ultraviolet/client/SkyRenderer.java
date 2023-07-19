@@ -20,6 +20,7 @@ import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
+import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.texture.GlCubemapTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
@@ -38,6 +39,8 @@ import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.GalaxyTicket;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
+import net.xavil.ultraviolet.debug.ClientConfig;
+import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
@@ -124,22 +127,28 @@ public class SkyRenderer implements Disposable {
 	private CachedCamera<?> createCamera(Camera camera, TransformStack tfm, float partialTick) {
 		double n = 0;
 		var offset = Vec3.ZERO;
-		// n = ((System.nanoTime() / 100000) % 1000000) / 1e0;
+		// n = ((System.nanoTime() / 1e8) % 100) / 100;
 		// offset = Vec3.from(0, 10000000, 0);
+		// tfm = new TransformStack();
 		tfm.push();
 		tfm.appendTranslation(Vec3.from(n, 0.01 * n, 0));
 		tfm.appendTranslation(offset);
 		tfm.prependRotation(CachedCamera.orientationFromMinecraftCamera(camera).inverse());
 		final var invView = tfm.get();
 		tfm.pop();
+
+		final var nearPlane = ClientConfig.get(ConfigKey.SKY_CAMERA_NEAR_PLANE);
+		final var farPlane = ClientConfig.get(ConfigKey.SKY_CAMERA_FAR_PLANE);
 		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
-				0.000001f, 1e5f, false, partialTick);
+				nearPlane, farPlane, false, partialTick);
 		return new CachedCamera<>(camera, invView, proj, 1e12);
 	}
 
 	private CachedCamera<?> createCubemapCamera(Object camera, TransformStack tfm, float partialTick) {
 		final var invView = tfm.get();
-		final var proj = Mat4.perspectiveProjection(Math.PI, 1, 1e-5, 1e5);
+		final var nearPlane = ClientConfig.get(ConfigKey.SKY_CAMERA_NEAR_PLANE);
+		final var farPlane = ClientConfig.get(ConfigKey.SKY_CAMERA_FAR_PLANE);
+		final var proj = Mat4.perspectiveProjection(Math.PI, 1, nearPlane, farPlane);
 		return new CachedCamera<>(camera, invView, proj, 1e12);
 	}
 
@@ -334,6 +343,16 @@ public class SkyRenderer implements Disposable {
 				profiler.push("galaxy");
 				// drawGalaxyCubemap(camera, galaxy, partialTick);
 				drawGalaxy(camera, galaxy, partialTick);
+
+				// final var builder = BufferRenderer.IMMEDIATE_BUILDER;
+				// builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+
+				// RenderHelper.addBillboard(builder, camera, new TransformStack(), Vec3.YP, 1, Color.WHITE);
+
+				// final var shader = getShader(SHADER_STAR_BILLBOARD);
+				// shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
+				// builder.end().draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
+
 				if (this.starRenderer != null) {
 					profiler.popPush("stars");
 					this.starRenderer.draw(camera);
@@ -365,8 +384,8 @@ public class SkyRenderer implements Disposable {
 
 			final var shader = getShader(SHADER_GALAXY_PARTICLE);
 			shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
-	
-			builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+
+			builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 			this.galaxyRenderingContext.build();
 			this.galaxyRenderingContext.enumerate((pos, size) -> {
 				RenderHelper.addBillboard(builder, camera, new TransformStack(),
@@ -430,7 +449,7 @@ public class SkyRenderer implements Disposable {
 		final var shader = getShader(SHADER_GALAXY_PARTICLE);
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 
-		builder.begin(PrimitiveType.POINTS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		this.galaxyRenderingContext.build();
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
 			RenderHelper.addBillboard(builder, camera, new TransformStack(),
@@ -491,6 +510,12 @@ public class SkyRenderer implements Disposable {
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float tickDelta,
 			Camera camera, boolean isSkyVisible) {
 
+		final var profiler = Minecraft.getInstance().getProfiler();
+
+		profiler.push("pushGlState");
+		GlManager.pushState();
+
+		profiler.popPush("hdr_setup");
 		if (this.hdrSpaceTarget == null) {
 			Mod.LOGGER.info("creating SkyRenderer framebuffer");
 			this.hdrSpaceTarget = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY);
@@ -500,9 +525,11 @@ public class SkyRenderer implements Disposable {
 			this.hdrSpaceTarget.checkStatus();
 		}
 
+		profiler.popPush("framebuffer_setup");
 		final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
 		mainTarget.enableAllColorAttachments();
-
+		
+		profiler.popPush("draw");
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
 		// drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
 		drawCelestialObjects(camera, mainTarget, partialTick);
@@ -513,11 +540,17 @@ public class SkyRenderer implements Disposable {
 		// could maybe replace the vanilla fog shader with one that takes in a
 		// background image buffer and uses that as the fog color. idk.
 
+		profiler.popPush("teardown");
 		mainTarget.bind();
 		mainTarget.clearDepthAttachment(1.0f);
 		// mainTarget.enableAllColorAttachments();
+		
+		profiler.popPush("popGlState");
+		GlManager.popState();
+		profiler.pop();
 
-		// final var sceneTexture = this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
+		// final var sceneTexture =
+		// this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
 		// HawkRendering.doPostProcessing(mainTarget, sceneTexture);
 
 		return true;

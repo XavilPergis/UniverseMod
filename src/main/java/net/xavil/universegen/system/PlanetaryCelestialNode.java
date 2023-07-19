@@ -68,7 +68,7 @@ public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 		var natural = this.type == Type.EARTH_LIKE_WORLD;
 
 		return Holder.direct(DimensionType.create(
-				OptionalLong.of(1000), true, false, ultrawarm, natural, 1, false, false, true, true, false,
+				OptionalLong.of(18000), true, false, ultrawarm, natural, 1, false, false, true, true, false,
 				-64, 384, 384,
 				BlockTags.INFINIBURN_OVERWORLD, DimensionType.OVERWORLD_EFFECTS, 0.0f));
 	}
@@ -87,8 +87,7 @@ public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 	public double surfaceGravityEarthRelative() {
 		final var radiusRearth = this.radiusRearth;
 		final var massMearth = this.massYg / Units.Yg_PER_Mearth;
-		final var ratio = massMearth / (radiusRearth * radiusRearth);
-		return Mth.clamp(ratio, 0.2, 1.2);
+		return massMearth / (radiusRearth * radiusRearth);
 	}
 
 	// planet type (gas giant, icy world, rocky world, earth-like world, etc)

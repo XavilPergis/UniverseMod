@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Camera;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Mat4;
@@ -19,13 +20,17 @@ public class CachedCamera<T> {
 	public final Quat orientation;
 	public final double metersPerUnit;
 
+	public final double nearPlane;
+	public final double farPlane;
+
 	public final Mat4 viewMatrix;
 	public final Mat4 projectionMatrix;
 	public final Mat4 inverseProjectionMatrix;
 	public final Mat4 viewProjectionMatrix;
 	public final Mat4 inverseViewProjectionMatrix;
 
-	public CachedCamera(T camera, Vec3 pos, Quat orientation, double metersPerUnit, Mat4 projectionMatrix) {
+	public CachedCamera(T camera, Vec3 pos, Quat orientation, double metersPerUnit, double nearPlane, double farPlane,
+			Mat4 projectionMatrix) {
 		this.uncached = camera;
 		this.pos = pos;
 		this.posTm = pos.mul(metersPerUnit / 1e12);
@@ -38,6 +43,9 @@ public class CachedCamera<T> {
 		this.forward = right.cross(up).normalize();
 		this.backward = this.forward.neg();
 
+		this.nearPlane = nearPlane;
+		this.farPlane = farPlane;
+
 		this.projectionMatrix = projectionMatrix;
 		this.inverseProjectionMatrix = this.projectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
 		this.viewMatrix = Mat4.fromBases(up, right, forward.neg(), pos).inverse().unwrapOr(Mat4.IDENTITY);
@@ -46,7 +54,8 @@ public class CachedCamera<T> {
 		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
 	}
 
-	public CachedCamera(T camera, Mat4 viewMatrix, Mat4 projectionMatrix, double metersPerUnit) {
+	public CachedCamera(T camera, Mat4 viewMatrix, Mat4 projectionMatrix, double metersPerUnit, double nearPlane,
+			double farPlane) {
 		this.uncached = camera;
 
 		this.viewMatrix = viewMatrix;
@@ -64,6 +73,9 @@ public class CachedCamera<T> {
 		this.left = this.right.neg();
 		this.forward = this.viewMatrix.basisZ();
 		this.backward = this.forward.neg();
+
+		this.nearPlane = nearPlane;
+		this.farPlane = farPlane;
 
 		this.orientation = Quat.fromAffineMatrix(this.viewMatrix);
 		this.metersPerUnit = metersPerUnit;

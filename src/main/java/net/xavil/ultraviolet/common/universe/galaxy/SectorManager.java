@@ -164,6 +164,10 @@ public final class SectorManager {
 		forceLoad(InactiveProfiler.INSTANCE, sectorTicket);
 	}
 
+	public boolean isLoaded(SectorTicket<?> sectorTicket) {
+		return sectorTicket.info.affectedSectors().iter().all(this::isComplete);
+	}
+
 	public void forceLoad(ProfilerFiller profiler, SectorTicket<?> sectorTicket) {
 		sectorTicket.info.affectedSectors().forEach(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
 			slot.waitingFutures.get(pos).ifSome(future -> future.join());
@@ -191,6 +195,8 @@ public final class SectorManager {
 		if (sector.initialElements.size() <= systemTicket.id.elementIndex()) {
 			return Maybe.none();
 		}
+		if (systemSlot.waitingFuture == null)
+			return Maybe.none();
 		final var system = systemSlot.waitingFuture.join();
 		applyFinished();
 		return system;
@@ -263,7 +269,7 @@ public final class SectorManager {
 			if (slot.waitingFuture != null && slot.waitingFuture.isDone()) {
 				final var systemOpt = slot.waitingFuture.join();
 				if (systemOpt.isNone()) {
-					Mod.LOGGER.warn("failed to generate system {}", slot.id);
+					Mod.LOGGER.error("failed to generate system {}", slot.id);
 					slot.generationFailed = true;
 				} else {
 					slot.system = systemOpt.unwrap();

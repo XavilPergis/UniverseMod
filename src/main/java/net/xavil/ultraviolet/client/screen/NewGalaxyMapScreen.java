@@ -46,7 +46,7 @@ public class NewGalaxyMapScreen extends HawkScreen3d {
 			final var initialPos = initial.map(i -> i.pos()).unwrapOr(Vec3.ZERO);
 			this.camera.focus.set(initialPos);
 	
-			this.layers.push(new ScreenLayerStars(this, galaxy, SectorTicketInfo.visual(initialPos)));
+			this.layers.push(new ScreenLayerStars(this, galaxy, SectorTicketInfo.visual(initialPos), Vec3.ZERO));
 		}
 
 		this.layers.push(new ScreenLayerSystemInfo(this, galaxy));

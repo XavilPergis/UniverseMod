@@ -10,7 +10,6 @@ import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
-import net.xavil.ultraviolet.client.screen.NewGalaxyMapScreen;
 import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
@@ -26,23 +25,26 @@ import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class ScreenLayerStars extends HawkScreen3d.Layer3d {
-	private final NewGalaxyMapScreen screen;
+	private final HawkScreen3d screen;
 	public final Galaxy galaxy;
 	private final SectorTicket<SectorTicketInfo.Multi> cameraTicket;
 	private final StarRenderManager starRenderer;
+	private final Vec3 originOffset;
 
-	public ScreenLayerStars(NewGalaxyMapScreen attachedScreen, Galaxy galaxy, SectorTicketInfo.Multi ticketInfo) {
-		super(attachedScreen, new CameraConfig(0.01, 1e6));
+	public ScreenLayerStars(HawkScreen3d attachedScreen, Galaxy galaxy, SectorTicketInfo.Multi ticketInfo,
+			Vec3 originOffset) {
+		super(attachedScreen, new CameraConfig(1e2, false, 1e8, false));
 		this.screen = attachedScreen;
 		this.galaxy = galaxy;
+		this.originOffset = originOffset;
 		this.cameraTicket = galaxy.sectorManager.createSectorTicket(this.disposer, ticketInfo);
-		this.starRenderer = new StarRenderManager(galaxy);
+		this.starRenderer = new StarRenderManager(galaxy, this.originOffset);
 	}
 
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
 		if (ClientConfig.get(ConfigKey.SECTOR_TICKET_AROUND_FOCUS))
 			return camera.focus;
-		return camera.pos.mul(camera.metersPerUnit / 1e12);
+		return camera.pos.sub(this.originOffset).mul(camera.metersPerUnit / 1e12);
 	}
 
 	@Override
@@ -138,42 +140,12 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 
 	@Override
 	public void render3d(Cached camera, float partialTick) {
-		// final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		// final var batcher = new BillboardBatcher(builder, 10000);
-
 		final var cullingCamera = getCullingCamera();
 		final var viewCenter = getStarViewCenterPos(cullingCamera);
 		cameraTicket.info.centerPos = viewCenter;
 		cameraTicket.info.multiplicitaveFactor = 2.0;
 
 		this.starRenderer.draw(camera);
-
-		// batcher.begin(camera);
-		// this.galaxy.sectorManager.enumerate(this.cameraTicket, sector -> {
-		// 	// if (sector.pos().level() != 0) return;
-		// 	final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
-		// 	final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
-		// 	if (!cullingCamera.isAabbInFrustum(min, max))
-		// 		return;
-		// 	final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
-		// 	// final var levelSize = GalaxySector.sizeForLevel(0);
-		// 	final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
-		// 	sector.initialElements.forEach(elem -> {
-		// 		if (elem.pos().distanceTo(viewCenter) > levelSize)
-		// 			return;
-		// 		final var toStar = elem.pos().sub(camPos);
-		// 		if (toStar.dot(cullingCamera.forward) <= 0)
-		// 			return;
-		// 		batcher.add(elem.info().primaryStar, elem.pos());
-		// 	});
-		// });
-		// batcher.end();
-
-		// if (this.selectedPos != null) {
-		// 	final var pos = this.selectedPos.mul(1e12 / camera.metersPerUnit);
-		// 	RenderHelper.renderUiBillboard(builder, camera, new TransformStack(), pos,
-		// 			0.02 * camera.pos.distanceTo(pos), Color.WHITE, RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-		// }
 	}
 
 }

@@ -130,6 +130,11 @@ public class StarSystemGeneratorImpl {
 			var starNode = StellarCelestialNode.fromMassAndAge(rng, starMass, this.info.systemAgeMyr);
 			// var protoDiscMass = starMass - starNode.massYg;
 			current = mergeStarNodes(current, starNode, rng.chance(0.9));
+			// ran out of places to put the star!
+			if (current == null) {
+				Mod.LOGGER.warn("could not place star due to overcrowding!");
+				break;
+			}
 		}
 
 		final var params = new SimulationParameters();

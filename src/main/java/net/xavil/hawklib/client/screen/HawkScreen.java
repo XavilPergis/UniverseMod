@@ -58,6 +58,10 @@ public abstract class HawkScreen extends Screen {
 			return false;
 		}
 
+		public boolean handleScroll(double mouseX, double mouseY, double scrollDelta) {
+			return false;
+		}
+
 		/**
 		 * This method is used to avoid renderign the minecraft world when it cannot
 		 * possibly be seen.
@@ -142,6 +146,8 @@ public abstract class HawkScreen extends Screen {
 	@Override
 	public final boolean mouseScrolled(double mouseX, double mouseY, double scrollDelta) {
 		if (super.mouseScrolled(mouseX, mouseY, scrollDelta))
+			return true;
+		if (dispatchEvent(layer -> layer.handleScroll(mouseX, mouseY, scrollDelta)))
 			return true;
 		return mouseScrolled(Vec2.from(mouseX, mouseY), scrollDelta);
 	}

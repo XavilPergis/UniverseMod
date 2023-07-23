@@ -8,6 +8,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.network.FriendlyByteBuf;
+import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
@@ -136,6 +137,35 @@ public final class Vec3i implements Hashable {
 			for (var y = min.y; y <= max.y; ++y)
 				for (var z = min.z; z <= max.z; ++z)
 					consumer.accept(new Vec3i(x, y, z));
+	}
+
+	public static Iterator<Vec3i> iterateInclusive(Vec3i min, Vec3i max) {
+		return new Iterator<Vec3i>() {
+			private int x = min.x, y = min.y, z = min.z;
+
+			@Override
+			public boolean hasNext() {
+				return this.y <= max.y;
+			}
+
+			@Override
+			public Vec3i next() {
+				final var res = new Vec3i(this.x, this.y, this.z);
+
+				this.x += 1;
+				if (this.x > max.x) {
+					this.x = min.x;
+					this.z += 1;
+					if (this.z > max.z) {
+						this.z = min.z;
+						this.y += 1;
+					}
+				}
+
+				return res;
+			}
+			
+		};
 	}
 
 }

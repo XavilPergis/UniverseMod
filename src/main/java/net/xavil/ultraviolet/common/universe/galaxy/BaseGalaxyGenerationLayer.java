@@ -47,10 +47,10 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		final var starsPerSector = sectorVolume * averageSectorDensity * ctx.starCountFactor;
 
 		int starAttemptCount = Mth.floor(starsPerSector);
-		if (starAttemptCount > MAXIMUM_STARS_PER_SECTOR) {
+		if (starAttemptCount > 3000) {
 			Mod.LOGGER.warn("star attempt count of {} exceeded limit of {}", starAttemptCount,
-					MAXIMUM_STARS_PER_SECTOR);
-			starAttemptCount = MAXIMUM_STARS_PER_SECTOR;
+					3000);
+			starAttemptCount = 3000;
 		}
 
 		int successfulAttempts = 0;
@@ -91,7 +91,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	}
 
-	public static final double MINIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 0.1;
+	public static final double MINIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 0.02;
 	public static final double MAXIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 30.0;
 
 	private double generateAvailableMass(Rng rng) {
@@ -105,7 +105,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public static double generateStarMass(Rng rng, double availableMass) {
 		availableMass = Math.min(MAXIMUM_STAR_MASS_YG, availableMass);
 		var massFactor = Math.pow(rng.uniformDouble(), 8);
-		var massYg = Mth.lerp(massFactor, MINIMUM_STAR_MASS_YG, availableMass);
+		var massYg = Mth.lerp(massFactor, Units.Yg_PER_Msol * 0.05, availableMass);
 		return massYg;
 	}
 

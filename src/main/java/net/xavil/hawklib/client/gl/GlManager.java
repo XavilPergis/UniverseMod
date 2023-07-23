@@ -15,7 +15,7 @@ public final class GlManager {
 	private final MutableList<GlState> freeStates = new Vector<>();
 
 	// the OpenGL state that needs to be restored after we pop our final state.
-	private GlState unmanagedState = null;
+	private GlState rootState = null;
 	private GlState current = null;
 	private GlStateSink currentSink = UnmanagedStateSink.INSTANCE;
 
@@ -32,11 +32,12 @@ public final class GlManager {
 
 	private void push() {
 		if (this.current == null) {
-			this.unmanagedState = fetchNewState();
-			this.unmanagedState.sync();
+			this.rootState = fetchNewState();
+			this.rootState.reset(null);
 		}
+
 		final var newState = fetchNewState();
-		newState.copyStateFrom(this.current == null ? this.unmanagedState : this.stack.last().unwrap());
+		newState.reset(this.current == null ? this.rootState : this.stack.last().unwrap());
 		this.stack.push(newState);
 		this.current = newState;
 		this.currentSink = this.current;
@@ -44,15 +45,15 @@ public final class GlManager {
 
 	private void pop() {
 		final var prev = this.stack.pop().unwrap();
+		prev.restorePrevious();
+
 		if (this.stack.isEmpty()) {
 			this.current = null;
 			this.currentSink = UnmanagedStateSink.INSTANCE;
-			this.unmanagedState.restore(prev);
-			this.unmanagedState = null;
+			this.freeStates.push(this.rootState);
+			this.rootState = null;
 		} else {
-			this.current = this.stack.last().unwrap();
-			this.current.restore(prev);
-			this.currentSink = this.current;
+			this.currentSink = this.current = this.stack.last().unwrap();
 		}
 		this.freeStates.push(prev);
 	}

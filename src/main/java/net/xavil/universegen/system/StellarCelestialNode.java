@@ -3,6 +3,7 @@ package net.xavil.universegen.system;
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.math.Color;
@@ -12,7 +13,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public static enum Type {
 		MAIN_SEQUENCE(true, 1, 1, 2, 2),
 		GIANT(true, 1, 1, 2, 2),
-		WHITE_DWARF(false, 1.1, 0.525, 5.5, 0.98),
+		WHITE_DWARF(true, 1.1, 0.525, 5.5, 0.98),
 		NEUTRON_STAR(false, 10, 1.4, 25, 1.9),
 		BLACK_HOLE(false, 30, 5, 100, 21);
 
@@ -49,40 +50,48 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 				node.temperatureK = 0;
 			} else if (this == WHITE_DWARF) {
 				// TODO: conservation of angular momentum (fast spinny :3)
-				// no active heating, so they radiate their heat away over time.
-				// i have no idea how the fuck this actually works so im just gonna fudge
-				// something
+				// white dwarf and neutron star cooling is apparently very complicated, and i
+				// have birdbrain, so im just completely winging (hehe) it. As far as i
+				// understand, at least for neutron stars, they have a period of very rapid
+				// cooling followed by a period of much slower cooling.
+
+				Assert.isTrue(ageMyr > mainSequenceLifetimeMyr);
 
 				final double coolingTime = ageMyr - mainSequenceLifetimeMyr;
-				final double Te = 2e-7;
-				final double coolingFactor = (1 - Te) * Math.exp(-0.004 * coolingTime) + Te;
-				node.temperatureK *= 1e3;
-				node.temperatureK *= coolingFactor;
+				final double fastCurve = Math.exp(-0.007 * coolingTime);
+				final double slowCurve = Math.exp(-0.0002 * coolingTime);
+				final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
+
+				node.temperatureK *= 10;
+				node.temperatureK *= coolingCurve;
 
 				node.radiusRsol *= 1e-2 + rng.uniformDouble(-2.5e-6, 2.5e-6);
-				final var temperatureTsol = node.temperatureK / Units.K_PER_Tsol;
-				node.luminosityLsol = Math.pow(node.radiusRsol, 2) * Math.pow(temperatureTsol, 4);
+				node.luminosityLsol = node.temperatureK / 1000;
 			} else if (this == NEUTRON_STAR) {
+				Assert.isTrue(ageMyr > mainSequenceLifetimeMyr);
+
 				final double coolingTime = ageMyr - mainSequenceLifetimeMyr;
-				final double Te = 2e-7;
-				final double coolingFactor = (1 - Te) * Math.exp(-0.004 * coolingTime) + Te;
-				node.temperatureK *= 1e4;
-				node.temperatureK *= coolingFactor;
+				final double fastCurve = Math.exp(-0.007 * coolingTime);
+				final double slowCurve = Math.exp(-0.0002 * coolingTime);
+				final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
+
+				node.temperatureK *= 20;
+				node.temperatureK *= coolingCurve;
 
 				node.radiusRsol *= 1e-5 + rng.uniformDouble(-2.5e-8, 2.5e-8);
-				final var temperatureTsol = node.temperatureK / Units.K_PER_Tsol;
-				node.luminosityLsol = Math.pow(node.radiusRsol, 2) * Math.pow(temperatureTsol, 4);
+				node.luminosityLsol = node.temperatureK / 2000;
 			} else if (this == GIANT) {
 				// idk
 				node.radiusRsol *= rng.uniformDouble(100, 200);
-				node.temperatureK *= 0.1;
+				node.temperatureK *= Mth.lerp(Math.pow(rng.uniformDouble(), 3.0), 0.2, 0.6);
 				node.luminosityLsol *= 10;
 			}
+
+			node.cachedColor = blackBodyColor(node.temperatureK);
 		}
 
 		private double curveMass(Rng rng, StellarCelestialNode node) {
-			var variance = Mth.lerp(rng.uniformDouble(), 0.0, -0.1 * node.massYg);
-			return this.curveSlope * node.massYg + this.curveYIntercept + variance;
+			return this.curveSlope * node.massYg + this.curveYIntercept;
 		}
 	}
 
@@ -109,6 +118,8 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public double luminosityLsol;
 	public double radiusRsol;
 	public double temperatureK;
+	public Color cachedColor;
+	public StarClass cachedStarClass;
 
 	public StellarCelestialNode(StellarCelestialNode.Type type, double massYg,
 			double luminosityLsol, double radiusRsol, double temperatureK) {
@@ -208,17 +219,52 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		return new StellarCelestialNode(type, m, l, r, temperature(r, l));
 	}
 
-	public final @Nullable StellarCelestialNode.StarClass starClass() {
+	private static record ClassificationInterval(
+			double minBound,
+			double maxBound,
+			String name) {
+	}
+
+	private static final ClassificationInterval[] CLASSIFICATION_TABLE = {
 		// @formatter:off
-		if (!this.type.hasSpectralClass)        return null;
-		if (this.massYg < Units.fromMsol(0.45)) return StarClass.M;
-		if (this.massYg < Units.fromMsol(0.8))  return StarClass.K;
-		if (this.massYg < Units.fromMsol(1.04)) return StarClass.G;
-		if (this.massYg < Units.fromMsol(1.4))  return StarClass.F;
-		if (this.massYg < Units.fromMsol(2.1))  return StarClass.A;
-		if (this.massYg < Units.fromMsol(16))   return StarClass.B;
-		                                        return StarClass.O;
+		new ClassificationInterval(0,     2400,   "L"),
+		new ClassificationInterval(2400,  3700,   "M"),
+		new ClassificationInterval(3700,  5200,   "K"),
+		new ClassificationInterval(5200,  6000,   "G"),
+		new ClassificationInterval(6000,  6500,   "F"),
+		new ClassificationInterval(6500,  10000,  "A"),
+		new ClassificationInterval(10000, 30000,  "B"),
+		new ClassificationInterval(30000, 100000, "O"),
 		// @formatter:on
+	};
+
+	public final @Nullable String getSpectralClassification() {
+		if (!this.type.hasSpectralClass)
+			return "Non-Spectral";
+
+		for (final var interval : CLASSIFICATION_TABLE) {
+			if (this.temperatureK >= interval.minBound && this.temperatureK < interval.maxBound) {
+				var num = Mth.inverseLerp(this.temperatureK, interval.minBound, interval.maxBound);
+				num = 10 * (1 - num);
+				var res = String.format("%s%.1f", interval.name, num);
+				switch (this.type) {
+					case GIANT -> {
+						return res + "III";
+					}
+					case MAIN_SEQUENCE -> {
+						return res + "V";
+					}
+					case WHITE_DWARF -> {
+						return "D" + res;
+					}
+					default -> {
+						Assert.isUnreachable();
+					}
+				}
+			}
+		}
+
+		return "Class O0";
 	}
 
 	public final double apparentBrightness(double distanceTm) {
@@ -228,26 +274,9 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	}
 
 	public Color getColor() {
-		var starClass = starClass();
-
-		// TODO: color based on temperature and not on star class!
-		if (starClass != null) {
-			// @formatter:off
-			if (this.massYg < Units.fromMsol(0.45)) return Color.rgb(1, 0.14, 0.05);
-			if (this.massYg < Units.fromMsol(0.8))  return Color.rgb(1, 0.2, 0.05);
-			if (this.massYg < Units.fromMsol(1.04)) return Color.rgb(0.6, 0.36, 0.12);
-			if (this.massYg < Units.fromMsol(1.4))  return Color.rgb(0.4, 0.4, 0.5);
-			if (this.massYg < Units.fromMsol(2.1))  return Color.rgb(0.3, 0.4, 0.7);
-			if (this.massYg < Units.fromMsol(16))   return Color.rgb(0.2, 0.3, 0.9);
-													return Color.rgb(0.1, 0.2, 1);
-			// @formatter:on
-			// return starClass.color;
-		} else if (this.type == StellarCelestialNode.Type.WHITE_DWARF) {
-			return Color.rgb(1, 1, 1);
-		} else if (this.type == StellarCelestialNode.Type.NEUTRON_STAR) {
-			return Color.rgb(0.4, 0.4, 1);
-		}
-		return Color.rgb(0, 1, 0);
+		if (this.cachedColor == null)
+			this.cachedColor = blackBodyColor(this.temperatureK);
+		return this.cachedColor;
 	}
 
 	@Override
@@ -260,6 +289,70 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		builder.append("radiusRsol=" + this.radiusRsol + ", ");
 		builder.append("]");
 		return builder.toString();
+	}
+
+	private static final double[] RED_POLYNOMIAL_COEFFICENTS = { 4.93596077e0, -1.29917429e0, 1.64810386e-01,
+			-1.16449912e-02, 4.86540872e-04, -1.19453511e-05, 1.59255189e-07, -8.89357601e-10 };
+	private static final double[] GREEN1_POLYNOMIAL_COEFFICENTS = { -4.95931720e-01, 1.08442658e0, -9.17444217e-01,
+			4.94501179e-01, -1.48487675e-01, 2.49910386e-02, -2.21528530e-03, 8.06118266e-05 };
+	private static final double[] GREEN2_POLYNOMIAL_COEFFICENTS = { 3.06119745e0, -6.76337896e-01, 8.28276286e-02,
+			-5.72828699e-03, 2.35931130e-04, -5.73391101e-06, 7.58711054e-08, -4.21266737e-10 };
+	private static final double[] BLUE_POLYNOMIAL_COEFFICENTS = { 4.93997706e-01, -8.59349314e-01, 5.45514949e-01,
+			-1.81694167e-01, 4.16704799e-02, -6.01602324e-03, 4.80731598e-04, -1.61366693e-05 };
+
+	// adapted from https://gist.github.com/stasikos/06b02d18f570fc1eaa9f
+	public static Color blackBodyColor(double temperatureK) {
+		// Used this: https://gist.github.com/paulkaplan/5184275 at the beginning
+		// based on
+		// http://stackoverflow.com/questions/7229895/display-temperature-as-a-color-with-c
+		// this answer: http://stackoverflow.com/a/24856307
+		// (so, just interpretation of pseudocode in Java)
+
+		double x = temperatureK / 1000.0;
+		if (x > 40)
+			x = 40;
+		double red;
+		double green;
+		double blue;
+
+		// R
+		if (temperatureK < 6527) {
+			red = 1;
+		} else {
+			red = poly(RED_POLYNOMIAL_COEFFICENTS, x);
+
+		}
+		// G
+		if (temperatureK < 850) {
+			green = 0;
+		} else if (temperatureK <= 6600) {
+			green = poly(GREEN1_POLYNOMIAL_COEFFICENTS, x);
+		} else {
+			green = poly(GREEN2_POLYNOMIAL_COEFFICENTS, x);
+		}
+		// B
+		if (temperatureK < 1900) {
+			blue = 0;
+		} else if (temperatureK < 6600) {
+			blue = poly(BLUE_POLYNOMIAL_COEFFICENTS, x);
+		} else {
+			blue = 1;
+		}
+
+		red = Mth.clamp(red, 0, 1);
+		blue = Mth.clamp(blue, 0, 1);
+		green = Mth.clamp(green, 0, 1);
+		return new Color(red, green, blue, 1).mul(0.5).withA(1);
+	}
+
+	private static double poly(double[] coefficients, double x) {
+		double result = coefficients[0];
+		double xn = x;
+		for (int i = 1; i < coefficients.length; i++) {
+			result += xn * coefficients[i];
+			xn *= x;
+		}
+		return result;
 	}
 
 }

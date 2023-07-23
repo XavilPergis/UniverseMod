@@ -9,7 +9,6 @@ import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
-import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.FlexibleVertexBuffer;
@@ -21,6 +20,8 @@ import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.universe.GalaxyTicket;
+import net.xavil.ultraviolet.debug.ClientConfig;
+import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class StarRenderManager implements Disposable {
@@ -38,10 +39,16 @@ public final class StarRenderManager implements Disposable {
 	 */
 	public double starSnapshotThreshold = 10000;
 	private double immediateStarsTimerTicks = -1;
+	/**
+	 * The position relative to the galaxy at which the coordinate system's origin
+	 * is placed.
+	 */
+	public Vec3 originOffset;
 
-	public StarRenderManager(Galaxy galaxy) {
+	public StarRenderManager(Galaxy galaxy, Vec3 originOffset) {
 		this.galaxyTicket = galaxy.parentUniverse.sectorManager.createGalaxyTicketManual(galaxy.galaxyId);
 		this.sectorTicket = galaxy.sectorManager.createSectorTicketManual(null);
+		this.originOffset = originOffset;
 	}
 
 	public void tick() {
@@ -51,20 +58,23 @@ public final class StarRenderManager implements Disposable {
 	}
 
 	public void draw(CachedCamera<?> camera) {
-		final var camPos = camera.pos.mul(camera.metersPerUnit / 1e12);
+		final var camPos = camera.posTm.add(this.originOffset);
 
 		if (this.sectorTicket.info == null)
 			this.sectorTicket.info = SectorTicketInfo.visual(camPos);
 		this.sectorTicket.info.centerPos = camPos;
 		this.sectorTicket.info.multiplicitaveFactor = 2.0;
 
-		buildStarsIfNeeded(camera);
-		if (this.immediateStarsTimerTicks != -1) {
+		if (ClientConfig.get(ConfigKey.FORCE_STAR_RENDERER_IMMEDIATE_MODE)) {
 			drawStarsImmediate(camera);
 		} else {
-			drawStarsFromBuffer(camera);
+			buildStarsIfNeeded(camera);
+			if (this.immediateStarsTimerTicks != -1) {
+				drawStarsImmediate(camera);
+			} else {
+				drawStarsFromBuffer(camera);
+			}
 		}
-		// drawStarsImmediate(camera);
 	}
 
 	private void buildStarsIfNeeded(CachedCamera<?> camera) {
@@ -78,8 +88,8 @@ public final class StarRenderManager implements Disposable {
 		if (this.immediateStarsTimerTicks > 0)
 			return;
 
-		this.immediateStarsTimerTicks = -1;
 		this.starSnapshotOrigin = camera.posTm;
+		this.immediateStarsTimerTicks = -1;
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
@@ -87,9 +97,9 @@ public final class StarRenderManager implements Disposable {
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
 			sector.initialElements.forEach(elem -> {
-				if (elem.pos().distanceTo(camera.posTm) > levelSize)
+				if (elem.pos().distanceTo(camera.posTm.add(this.originOffset)) > levelSize)
 					return;
-				RenderHelper.addBillboard(builder, camera, elem.info().primaryStar, elem.pos());
+				RenderHelper.addBillboard(builder, camera, elem.info().primaryStar, elem.pos().sub(this.originOffset));
 			});
 		});
 		this.starsBuffer.upload(builder.end());
@@ -99,8 +109,7 @@ public final class StarRenderManager implements Disposable {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var batcher = new BillboardBatcher(builder, 10000);
 
-		final var camPos = camera.pos.mul(camera.metersPerUnit / 1e12);
-
+		final var camPos = camera.posTm.add(this.originOffset);
 		batcher.begin(camera);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
@@ -114,15 +123,14 @@ public final class StarRenderManager implements Disposable {
 				final var toStar = elem.pos().sub(camPos);
 				if (toStar.dot(camera.forward) == 0)
 					return;
-				batcher.add(elem.info().primaryStar, elem.pos());
+				batcher.add(elem.info().primaryStar, elem.pos().sub(this.originOffset));
 			});
 		});
 		batcher.end();
 	}
 
 	private void drawStarsFromBuffer(CachedCamera<?> camera) {
-		final var shader = getShader(SHADER_STAR_BILLBOARD);
-		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
+		final var snapshot = camera.setupRenderMatrices();
 
 		{
 			final var poseStack = RenderSystem.getModelViewStack();
@@ -139,8 +147,12 @@ public final class StarRenderManager implements Disposable {
 			RenderSystem.applyModelViewMatrix();
 		}
 
+		final var shader = getShader(SHADER_STAR_BILLBOARD);
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 		BufferRenderer.setupDefaultShaderUniforms(shader);
 		this.starsBuffer.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
+
+		snapshot.restore();
 	}
 
 	@Override

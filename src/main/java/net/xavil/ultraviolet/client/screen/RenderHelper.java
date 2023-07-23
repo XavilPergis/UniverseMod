@@ -88,18 +88,13 @@ public final class RenderHelper {
 		// correct size. if the billboard texture were a circle with a diameter of the
 		// size of the image, then this would be 1. if the diameter were 1/2 the size,
 		// then this would be 2.
-		final double billboardFactor = 9.0;
+		final double billboardFactor = 8.0;
 
 		double radius = 0;
 		if (node instanceof StellarCelestialNode starNode) {
-			// radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e8;
 			radius = starNode.radiusRsol * Units.m_PER_Rsol / 1e12;
-			// if (radius > 1) radius = 1;
 		} else if (node instanceof PlanetaryCelestialNode planetNode) {
 			radius = planetNode.radiusRearth * Units.m_PER_Rearth / 1e12;
-			// if (planetNode.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
-			// radius *= 2e3;
-			// }
 		}
 
 		final var idealAngularRadius = (radius / distanceFromCameraTm);
@@ -112,10 +107,10 @@ public final class RenderHelper {
 					/ (4 * Math.PI * distanceFromCameraTm * distanceFromCameraTm);
 
 			if (apparentBrightness > brightnessThreshold && angularRadius > idealAngularRadius) {
-				angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.1);
-				angularRadius = Math.min(angularRadius, Math.toRadians(0.1));
+				angularRadius *= Math.pow(apparentBrightness / brightnessThreshold, 0.12);
+				angularRadius = Math.min(angularRadius, Math.toRadians(0.2));
 			} else if (angularRadius > idealAngularRadius) {
-				k *= Math.pow(apparentBrightness / brightnessThreshold, 0.08);
+				k *= Math.pow(apparentBrightness / brightnessThreshold, 0.07);
 			}
 		}
 
@@ -412,109 +407,6 @@ public final class RenderHelper {
 	// n.mulAssign(scale).addAssign(center).subAssign(camPos);
 	// builder.vertex(n).color(color).uv0(1, 1).endVertex();
 	// }
-
-	public static double getGridScale(OrbitCamera.Cached camera, double tmPerUnit, double scaleFactor,
-			float partialTick) {
-		var currentThreshold = tmPerUnit;
-		var scale = tmPerUnit;
-		for (var i = 0; i < 10; ++i) {
-			currentThreshold *= scaleFactor;
-			if (camera.uncached.scale.get(partialTick) > currentThreshold)
-				scale = currentThreshold;
-		}
-		return scale;
-	}
-
-	public static void renderGrid(VertexBuilder builder, OrbitCamera.Cached camera,
-			double tmPerUnit, double gridUnits, int scaleFactor, int gridLineCount, float partialTick) {
-		var focusPos = camera.focus.div(tmPerUnit);
-		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
-		renderGrid(builder, camera, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
-	}
-
-	public static final DrawState GRID_STATE = DrawState.builder()
-			.depthMask(false)
-			.enableCulling(false)
-			.enableAdditiveBlending()
-			.enableDepthTest(GlState.DepthFunc.LESS)
-			.build();
-
-	public static void renderGrid(VertexBuilder builder, CachedCamera<?> camera,
-			Vec3 focusPos, double gridDiameter, int subcellsPerCell, int gridLineCount) {
-		RenderSystem.lineWidth(1);
-		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		addGrid(builder, camera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
-		builder.end().draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), GRID_STATE);
-	}
-
-	public static void addGrid(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 focusPos,
-			double gridDiameter, int subcellsPerCell, int gridLineCount) {
-
-		var gridCellResolution = gridDiameter / gridLineCount;
-
-		var gridMinX = gridCellResolution * Math.floor(focusPos.x / gridCellResolution);
-		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
-
-		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.1f, a2 = 0.33f;
-		var color = new Color(r, g, b, 1);
-		final double gridFadeFactor = 2.3;
-
-		var gridOffset = gridCellResolution * gridLineCount / 2;
-
-		// NOTE: each line needs to be divided into sections, because the lines will
-		// become distorted if they are too long.
-		// X
-		for (var i = 1; i < gridLineCount; ++i) {
-			var z = gridMinZ + i * gridCellResolution - gridOffset;
-			double lx = gridMinX - gridOffset, hx = lx + gridDiameter;
-
-			var zMark = (int) Math.floor(gridMinZ / gridCellResolution + i - gridLineCount / 2);
-			var la = zMark % subcellsPerCell == 0 ? a2 : a1;
-
-			for (var j = 0; j < gridLineCount; ++j) {
-				var lt = j / (double) gridLineCount;
-				var ht = (j + 1) / (double) gridLineCount;
-				var lp = Vec3.from(Mth.lerp(lt, lx, hx), focusPos.y, z);
-				var hp = Vec3.from(Mth.lerp(ht, lx, hx), focusPos.y, z);
-
-				var ld = lp.distanceTo(focusPos);
-				var hd = hp.distanceTo(focusPos);
-				if (ld <= gridDiameter / gridFadeFactor) {
-					var rla = la * Mth.clamp(5 * Mth.inverseLerp(ld, gridDiameter / gridFadeFactor, 0), 0, 1);
-					var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter / gridFadeFactor, 0), 0, 1);
-					var start = camera.toCameraSpace(Vec3.from(Mth.lerp(lt, lx, hx), focusPos.y, z));
-					var end = camera.toCameraSpace(Vec3.from(Mth.lerp(ht, lx, hx), focusPos.y, z));
-					addLine(builder, start, end, color.withA(rla), color.withA(rha));
-				}
-			}
-		}
-		// Z
-		for (var i = 1; i < gridLineCount; ++i) {
-			var x = gridMinX + i * gridCellResolution - gridOffset;
-			double lz = gridMinZ - gridOffset, hz = lz + gridDiameter;
-
-			var xMark = (int) Math.floor(gridMinX / gridCellResolution + i - gridLineCount / 2);
-			var la = xMark % subcellsPerCell == 0 ? a2 : a1;
-
-			for (var j = 0; j < gridLineCount; ++j) {
-				var lt = j / (double) gridLineCount;
-				var ht = (j + 1) / (double) gridLineCount;
-				var lp = Vec3.from(x, focusPos.y, Mth.lerp(lt, lz, hz));
-				var hp = Vec3.from(x, focusPos.y, Mth.lerp(ht, lz, hz));
-
-				var ld = lp.distanceTo(focusPos);
-				var hd = hp.distanceTo(focusPos);
-				if (ld <= gridDiameter / gridFadeFactor) {
-					var rla = la * Mth.clamp(5 * Mth.inverseLerp(ld, gridDiameter / gridFadeFactor, 0), 0, 1);
-					var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter / gridFadeFactor, 0), 0, 1);
-					var start = camera.toCameraSpace(Vec3.from(x, focusPos.y, Mth.lerp(lt, lz, hz)));
-					var end = camera.toCameraSpace(Vec3.from(x, focusPos.y, Mth.lerp(ht, lz, hz)));
-					addLine(builder, start, end, color.withA(rla), color.withA(rha));
-				}
-			}
-		}
-
-	}
 
 	public static void addLine(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end,
 			Color color) {

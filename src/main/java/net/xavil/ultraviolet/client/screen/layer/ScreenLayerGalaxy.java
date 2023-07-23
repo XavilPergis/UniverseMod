@@ -6,7 +6,6 @@ import net.xavil.ultraviolet.client.UltravioletVertexFormats;
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
-import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
@@ -25,7 +24,7 @@ public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
 	
 	public ScreenLayerGalaxy(HawkScreen3d screen, Galaxy galaxy, Vec3 originOffset) {
 		// m/ly = 1e12 m/Tm * Tm/ly = m/ly
-		super(screen, new CameraConfig(0.01, 1e6));
+		super(screen, new CameraConfig(1e3, false, 1e15, false));
 		this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy);
 		this.originOffset = originOffset;
 	}
@@ -41,7 +40,7 @@ public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
 		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		this.galaxyRenderingContext.enumerate((pos, size) -> {
 			RenderHelper.addBillboard(builder, camera, new TransformStack(),
-					pos.sub(this.originOffset),
+					pos.sub(this.originOffset).mul(1e12 / camera.metersPerUnit),
 					size * (1e12 / camera.metersPerUnit),
 					Color.WHITE.withA(0.1));
 		});

@@ -140,8 +140,8 @@ public class SkyRenderer implements Disposable {
 		final var nearPlane = ClientConfig.get(ConfigKey.SKY_CAMERA_NEAR_PLANE);
 		final var farPlane = ClientConfig.get(ConfigKey.SKY_CAMERA_FAR_PLANE);
 		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
-				nearPlane, farPlane, false, partialTick);
-		return new CachedCamera<>(camera, invView, proj, 1e12);
+				nearPlane.floatValue(), farPlane.floatValue(), false, partialTick);
+		return new CachedCamera<>(camera, invView, proj, 1e12, nearPlane, farPlane);
 	}
 
 	private CachedCamera<?> createCubemapCamera(Object camera, TransformStack tfm, float partialTick) {
@@ -149,7 +149,7 @@ public class SkyRenderer implements Disposable {
 		final var nearPlane = ClientConfig.get(ConfigKey.SKY_CAMERA_NEAR_PLANE);
 		final var farPlane = ClientConfig.get(ConfigKey.SKY_CAMERA_FAR_PLANE);
 		final var proj = Mat4.perspectiveProjection(Math.PI, 1, nearPlane, farPlane);
-		return new CachedCamera<>(camera, invView, proj, 1e12);
+		return new CachedCamera<>(camera, invView, proj, 1e12, nearPlane, farPlane);
 	}
 
 	private void applyPlanetTransform(TransformStack tfm, CelestialNode node, double time, Vec2 coords,
@@ -278,7 +278,7 @@ public class SkyRenderer implements Disposable {
 		if (galaxy == null)
 			return;
 		if (this.starRenderer == null)
-			this.starRenderer = new StarRenderManager(galaxy);
+			this.starRenderer = new StarRenderManager(galaxy, Vec3.ZERO);
 		if (this.systemTicket == null)
 			this.systemTicket = galaxy.sectorManager.createSystemTicketManual(null);
 
@@ -310,7 +310,12 @@ public class SkyRenderer implements Disposable {
 		final var universe = MinecraftClientAccessor.getUniverse(this.client);
 
 		target.bind();
+		// final var skyColor = this.client.level.getSkyColor(this.client.gameRenderer.getMainCamera().getPosition(), partialTick);
+        // Vec3 vec3 = this.level.getSkyColor(this.minecraft.gameRenderer.getMainCamera().getPosition(), partialTick);
+
+		// target.clearColorAttachment("fragColor", new Color(skyColor.x, skyColor.y, skyColor.z, 1));
 		target.clear();
+		target.clearColorAttachment("fColor", new Color(0.1, 0.1, 0.12, 1));
 
 		// ticket management
 		final var location = EntityAccessor.getLocation(this.client.player);
@@ -514,25 +519,29 @@ public class SkyRenderer implements Disposable {
 
 		profiler.push("pushGlState");
 		GlManager.pushState();
-
-		profiler.popPush("hdr_setup");
+		profiler.pop();
+		
+		profiler.push("fboSetup");
 		if (this.hdrSpaceTarget == null) {
 			Mod.LOGGER.info("creating SkyRenderer framebuffer");
 			this.hdrSpaceTarget = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY);
-			this.hdrSpaceTarget.createColorTarget(GlFragmentWrites.COLOR, GlTexture.Format.RGBA32_FLOAT);
+			this.hdrSpaceTarget.createColorTarget(GlFragmentWrites.COLOR, GlTexture.Format.RGBA16_FLOAT);
 			this.hdrSpaceTarget.createDepthTarget(false, GlTexture.Format.DEPTH_UNSPECIFIED);
 			this.hdrSpaceTarget.enableAllColorAttachments();
 			this.hdrSpaceTarget.checkStatus();
 		}
-
-		profiler.popPush("framebuffer_setup");
+		profiler.pop();
+		
+		profiler.push("aaa");
 		final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
 		mainTarget.enableAllColorAttachments();
+		profiler.pop();
 		
-		profiler.popPush("draw");
+		profiler.push("draw");
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
 		// drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
 		drawCelestialObjects(camera, mainTarget, partialTick);
+		profiler.pop();
 
 		// TODO: draw atmosphere or something
 		// TODO: figure out how the fuck we're gonna make vanilla fog not look like
@@ -540,12 +549,13 @@ public class SkyRenderer implements Disposable {
 		// could maybe replace the vanilla fog shader with one that takes in a
 		// background image buffer and uses that as the fog color. idk.
 
-		profiler.popPush("teardown");
+		profiler.push("clear");
 		mainTarget.bind();
 		mainTarget.clearDepthAttachment(1.0f);
 		// mainTarget.enableAllColorAttachments();
+		profiler.pop();
 		
-		profiler.popPush("popGlState");
+		profiler.push("popGlState");
 		GlManager.popState();
 		profiler.pop();
 

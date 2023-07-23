@@ -111,13 +111,19 @@ public final class ConfigKey<T> {
 		return register(new ConfigKey<Double>(id, Type.DOUBLE, defaultValue, side));
 	}
 
+	public static ConfigKey<Integer> intKey(String id, int defaultValue, Side side) {
+		return register(new ConfigKey<Integer>(id, Type.INTEGER, defaultValue, side));
+	}
+
 	// @formatter:off
-	public static final ConfigKey<Boolean> SHOW_SECTOR_BOUNDARIES       = booleanKey("showSectorBoundaries",              false, Side.CLIENT);
-	public static final ConfigKey<Boolean> SECTOR_TICKET_AROUND_FOCUS   = booleanKey("sectorTicketAroundFocus",           false, Side.CLIENT);
-	public static final ConfigKey<Boolean> SHOW_ORBIT_PATH_SUBDIVISIONS = booleanKey("showOrbitPathSubdivisions",         false, Side.CLIENT);
-	public static final ConfigKey<Boolean> SHOW_ALL_ORBIT_PATH_LEVELS   = booleanKey("showAllOrbitPathSubdivisionLevels", false, Side.CLIENT);
-	public static final ConfigKey<Float>   SKY_CAMERA_NEAR_PLANE        = floatKey  ("skyCameraNearPlane",                1e-6f, Side.CLIENT);
-	public static final ConfigKey<Float>   SKY_CAMERA_FAR_PLANE         = floatKey  ("skyCameraFarPlane",                 1e5f,  Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_SECTOR_BOUNDARIES             = booleanKey("showSectorBoundaries",          false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SECTOR_TICKET_AROUND_FOCUS         = booleanKey("sectorTicketAroundFocus",       false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_LINE_LODS                     = booleanKey("showLineLods",                  false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_ALL_LINE_LODS                 = booleanKey("showAllLineLods",               false, Side.CLIENT);
+	public static final ConfigKey<Integer> GRID_LINE_SUBDIVISIONS             = intKey    ("gridLineSubdivisions",          2,     Side.CLIENT);
+	public static final ConfigKey<Double>  SKY_CAMERA_NEAR_PLANE              = doubleKey ("skyCameraNearPlane",            1e2,   Side.CLIENT);
+	public static final ConfigKey<Double>  SKY_CAMERA_FAR_PLANE               = doubleKey ("skyCameraFarPlane",             1e10,  Side.CLIENT);
+	public static final ConfigKey<Boolean> FORCE_STAR_RENDERER_IMMEDIATE_MODE = booleanKey("forceStarRendererImediateMode", false, Side.CLIENT);
 
 	public static final ConfigKey<Double>  MIN_GRAVITY       = doubleKey ("minGravity",      0.2,   Side.SERVER);
 	public static final ConfigKey<Double>  MAX_GRAVITY       = doubleKey ("maxGravity",      1.2,   Side.SERVER);

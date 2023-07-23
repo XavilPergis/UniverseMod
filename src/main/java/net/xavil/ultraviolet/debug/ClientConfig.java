@@ -8,8 +8,15 @@ import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 
 public final class ClientConfig {
 
-	public static final Color[] DEBUG_COLORS = { Color.RED, Color.GREEN, Color.BLUE, Color.CYAN, Color.MAGENTA,
-			Color.YELLOW, };
+	public static final Color[] DEBUG_COLORS;
+
+	static {
+		DEBUG_COLORS = new Color[10];
+		for (int i = 0; i < DEBUG_COLORS.length; ++i) {
+			final var hue = 360f * (i / (float) DEBUG_COLORS.length);
+			DEBUG_COLORS[i] = Color.fromHsva(hue, 1, 1, 1);
+		}
+	}
 
 	public static Color getDebugColor(int i) {
 		return DEBUG_COLORS[i % DEBUG_COLORS.length];

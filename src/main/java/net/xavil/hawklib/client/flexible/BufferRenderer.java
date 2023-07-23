@@ -9,8 +9,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.HawkShaders;
-// import static net.xavil.ultraviolet.client.Shaders.*;
-// import static net.xavil.ultraviolet.client.DrawStates.*;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlBuffer;
@@ -64,9 +62,9 @@ public final class BufferRenderer {
 
 	public static void setupCameraUniforms(ShaderProgram shader, CachedCamera<?> camera) {
 		shader.setUniform("uCameraPos", camera.pos);
-		shader.setUniform("uCameraNear", 0.0);
-		shader.setUniform("uCameraFar", 0.0);
-		shader.setUniform("uCameraFov", 0.0);
+		shader.setUniform("uCameraNear", camera.nearPlane);
+		shader.setUniform("uCameraFar", camera.farPlane);
+		// shader.setUniform("uCameraFov", 0.0);
 		shader.setUniform("uMetersPerUnit", camera.metersPerUnit);
 		shader.setUniform("uViewMatrix", camera.viewMatrix);
 		shader.setUniform("uProjectionMatrix", camera.projectionMatrix);
@@ -75,6 +73,11 @@ public final class BufferRenderer {
 
 	public static void setupDefaultShaderUniforms(ShaderProgram shader,
 			Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
+
+		// final var near = projectionMatrix.m23 / (projectionMatrix.m22 - 1.0);
+		// final var far = projectionMatrix.m23 / (projectionMatrix.m22 + 1.0);
+		// shader.setUniform("uCameraNear", near);
+		// shader.setUniform("uCameraFar", far);
 
 		shader.setUniform("uViewMatrix", Mat4Access.from(modelViewMatrix));
 		shader.setUniform("uProjectionMatrix", Mat4Access.from(projectionMatrix));

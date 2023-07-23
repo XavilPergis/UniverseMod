@@ -9,7 +9,6 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.xavil.hawklib.client.gl.GlBuffer.Type;
 import net.xavil.hawklib.client.gl.GlBuffer.UsageHint;
-import net.xavil.hawklib.client.gl.GlObject.ObjectType;
 import net.xavil.hawklib.client.gl.GlState.BlendEquation;
 import net.xavil.hawklib.client.gl.GlState.BlendFactor;
 import net.xavil.hawklib.client.gl.GlState.CullFace;
@@ -22,8 +21,6 @@ import net.xavil.hawklib.client.gl.texture.GlTexture;
 public final class UnmanagedStateSink implements GlStateSink {
 
 	public static final UnmanagedStateSink INSTANCE = new UnmanagedStateSink();
-
-	private final int[] tempNameHolder = new int[1];
 
 	private UnmanagedStateSink() {
 	}

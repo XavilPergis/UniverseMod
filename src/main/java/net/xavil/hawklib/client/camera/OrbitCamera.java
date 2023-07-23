@@ -75,8 +75,8 @@ public class OrbitCamera {
 		var window = Minecraft.getInstance().getWindow();
 		var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
 		return Mat4.perspectiveProjection(Math.toRadians(this.fovDeg), aspectRatio,
-				this.scale.get(partialTick) * config.nearPlane,
-				this.scale.get(partialTick) * config.farPlane);
+				config.getNear(this.scale.get(partialTick)),
+				config.getFar(this.scale.get(partialTick)));
 	}
 
 	private Quat getOrientationRaw(float partialTick) {
@@ -111,12 +111,15 @@ public class OrbitCamera {
 			this(camera, camera.focus.get(partialTick), camera.getPosRaw(partialTick),
 					camera.getOrientation(partialTick), camera.scale.get(partialTick),
 					camera.metersPerUnit,
-					camera.getProjectionMatrix(config, partialTick));
+					camera.getProjectionMatrix(config, partialTick),
+					config.getNear(camera.scale.get(partialTick)),
+					config.getFar(camera.scale.get(partialTick)));
 		}
 
 		public Cached(OrbitCamera camera, Vec3 focus, Vec3 pos, Quat orientation, double scale,
-				double metersPerUnit, Mat4 projectionMatrix) {
-			super(camera, pos, orientation, metersPerUnit, projectionMatrix);
+				double metersPerUnit, Mat4 projectionMatrix,
+				double nearPlane, double farPlane) {
+			super(camera, pos, orientation, metersPerUnit, nearPlane, farPlane, projectionMatrix);
 			this.focus = focus;
 			this.scale = scale;
 		}

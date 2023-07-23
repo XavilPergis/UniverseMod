@@ -17,6 +17,52 @@ public record Color(float r, float g, float b, float a) implements Hashable {
 	public static final Color YELLOW = new Color(1, 1, 0, 1);
 	public static final Color WHITE = new Color(1, 1, 1, 1);
 
+	public static Color fromPackedRgb(int rgb) {
+		float b = (rgb & 0xff) / 255f;
+		rgb >>>= 8;
+		float g = (rgb & 0xff) / 255f;
+		rgb >>>= 8;
+		float r = (rgb & 0xff) / 255f;
+		rgb >>>= 8;
+		return new Color(r, g, b, 1f);
+	}
+
+	public static Color fromPackedRgba(int rgba) {
+		float a = (rgba & 0xff) / 255f;
+		rgba >>>= 8;
+		float b = (rgba & 0xff) / 255f;
+		rgba >>>= 8;
+		float g = (rgba & 0xff) / 255f;
+		rgba >>>= 8;
+		float r = (rgba & 0xff) / 255f;
+		rgba >>>= 8;
+		return new Color(r, g, b, a);
+	}
+
+	// https://www.cs.rit.edu/~ncs/color/t_convert.html
+	public static Color fromHsva(float h, float s, float v, float a) {
+		if (s == 0) {
+			// achromatic (grey)
+			return new Color(v, v, v, a);
+		}
+
+		h /= 60; // sector 0 to 5
+		final int i = Mth.floor(h);
+		final float f = h - i; // fractional part of h
+		final float p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+
+		switch (i) {
+			// @formatter:off
+			case 0:  return new Color(v, t, p, a);
+			case 1:  return new Color(q, v, p, a);
+			case 2:  return new Color(p, v, t, a);
+			case 3:  return new Color(p, q, v, a);
+			case 4:  return new Color(t, p, v, a);
+			default: return new Color(v, p, q, a);
+			// @formatter:on
+		}
+	}
+
 	public Color withR(double r) {
 		return new Color(r, g, b, a);
 	}

@@ -56,7 +56,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	private PlanetRenderingContext renderContext = new PlanetRenderingContext();
 
 	public ScreenLayerSystem(HawkScreen3d attachedScreen, Galaxy galaxy, GalaxySectorId systemId) {
-		super(attachedScreen, new CameraConfig(0.01, 1e6));
+		super(attachedScreen, new CameraConfig(1e-6, false, 1000, false));
 		this.galaxy = galaxy;
 		this.ticket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId);
 		// this.systemRoot = this.ticket.forceLoad().unwrapOrNull();
@@ -226,7 +226,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		// var midpointIdeal = ellipse.pointFromTrueAnomaly(midpointAngle);
 		// var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
 
-		if (ClientConfig.get(ConfigKey.SHOW_ORBIT_PATH_SUBDIVISIONS)) {
+		if (ClientConfig.get(ConfigKey.SHOW_LINE_LODS)) {
 			color = ClientConfig.getDebugColor(maxDepth);
 		}
 
@@ -244,7 +244,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				addEllipseArc(builder, camera, cullingCamera, ellipse, color, angleL, angleH, maxDepth - 1, fadeOut);
 			}
 
-			if (ClientConfig.get(ConfigKey.SHOW_ALL_ORBIT_PATH_LEVELS)) {
+			if (ClientConfig.get(ConfigKey.SHOW_ALL_LINE_LODS)) {
 				RenderHelper.addLine(builder, camera,
 						endpointL.mul(1e12 / cullingCamera.metersPerUnit),
 						endpointH.mul(1e12 / cullingCamera.metersPerUnit),

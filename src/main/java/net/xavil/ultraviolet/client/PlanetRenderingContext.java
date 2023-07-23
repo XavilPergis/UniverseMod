@@ -118,8 +118,7 @@ public final class PlanetRenderingContext {
 
 		final var partialTick = this.client.getFrameTime();
 
-		var nodePosUnits = node.getPosition(partialTick).mul(1e12 / camera.metersPerUnit)
-				.add(this.origin.mul(1e12 / camera.metersPerUnit));
+		var nodePosUnits = node.getPosition(partialTick).add(this.origin).mul(1e12 / camera.metersPerUnit);
 
 		var distanceFromCamera = camera.pos.mul(1e12 / camera.metersPerUnit).distanceTo(nodePosUnits);
 		var distanceRatio = radiusM / (distanceFromCamera * camera.metersPerUnit);

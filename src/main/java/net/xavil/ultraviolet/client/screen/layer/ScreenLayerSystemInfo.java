@@ -8,7 +8,6 @@ import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
-import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.math.matrices.Vec2i;
@@ -22,25 +21,6 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 		super(attachedScreen);
 		this.galaxy = galaxy;
 		this.selectedSystemTicket = galaxy.sectorManager.createSystemTicket(disposer, null);
-	}
-
-	private String describeStar(StellarCelestialNode starNode) {
-		String starKind = "";
-		var starClass = starNode.starClass();
-		if (starClass != null) {
-			starKind += "Class " + starClass.name + " ";
-		}
-		if (starNode.type == StellarCelestialNode.Type.BLACK_HOLE) {
-			starKind += "Black Hole ";
-		} else if (starNode.type == StellarCelestialNode.Type.NEUTRON_STAR) {
-			starKind += "Neutron Star ";
-		} else if (starNode.type == StellarCelestialNode.Type.WHITE_DWARF) {
-			starKind += "White Dwarf ";
-		} else if (starNode.type == StellarCelestialNode.Type.GIANT) {
-			starKind += "Giant ";
-		}
-
-		return starKind;
 	}
 
 	private void drawInfo(PoseStack poseStack, @Nonnull GalaxySectorId selected) {
@@ -95,7 +75,7 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 		GlManager.pushState();
 		drawInfo(poseStack, selected);
 		GlManager.popState();
-		GlManager.currentState().sync();
+		// GlManager.currentState().invalidate();
 	}
 
 }

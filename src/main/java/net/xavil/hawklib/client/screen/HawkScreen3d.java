@@ -335,7 +335,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 	}
 
 	private static CameraConfig getDebugCameraConfig() {
-		return new CameraConfig(0.01, 1e6);
+		return new CameraConfig(0.01, true, 1e6, true);
 	}
 
 	@Override

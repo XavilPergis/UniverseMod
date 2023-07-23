@@ -290,19 +290,14 @@ public abstract sealed class CelestialNode permits
 		void addProperty(String name, String info);
 	}
 
-	private String describeStar(StellarCelestialNode starNode) {
+	public static String describeStar(StellarCelestialNode starNode) {
 		String starKind = "";
-		final var starClass = starNode.starClass();
-		if (starClass != null)
-			starKind += "Class " + starClass.name + " ";
 		if (starNode.type == StellarCelestialNode.Type.BLACK_HOLE)
 			starKind += "Black Hole ";
 		else if (starNode.type == StellarCelestialNode.Type.NEUTRON_STAR)
 			starKind += "Neutron Star ";
-		else if (starNode.type == StellarCelestialNode.Type.WHITE_DWARF)
-			starKind += "White Dwarf ";
-		else if (starNode.type == StellarCelestialNode.Type.GIANT)
-			starKind += "(Giant) ";
+		else
+			starKind = starNode.getSpectralClassification();
 		return starKind;
 	}
 

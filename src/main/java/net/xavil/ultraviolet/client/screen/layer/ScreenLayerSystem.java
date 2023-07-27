@@ -11,6 +11,7 @@ import net.minecraft.util.Mth;
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
+import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.camera.CameraConfig;
@@ -92,6 +93,48 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				this.client.player.connection.send(packet);
 			}
 			return true;
+		} else if (keyCode == GLFW.GLFW_KEY_RIGHT) {
+			final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
+			if (system != null) {
+				final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOrNull();
+				if (selectedId == null) {
+					insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE, 0);
+					insertBlackboard(BlackboardKeys.FOLLOWING_STAR_SYSTEM_NODE, 0);
+				} else {
+					for (int i = selectedId + 1;; ++i) {
+						final var node = system.rootNode.lookup(i);
+						if (node == null) {
+							i = 0;
+						}
+						if (!(node instanceof BinaryCelestialNode)) {
+							insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE, i);
+							insertBlackboard(BlackboardKeys.FOLLOWING_STAR_SYSTEM_NODE, i);
+							break;
+						}
+					}
+				}
+			}
+		} else if (keyCode == GLFW.GLFW_KEY_LEFT) {
+			final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
+			if (system != null) {
+				final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOrNull();
+				if (selectedId == null) {
+					insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE, 0);
+					insertBlackboard(BlackboardKeys.FOLLOWING_STAR_SYSTEM_NODE, 0);
+				} else {
+					for (int i = selectedId - 1;; --i) {
+						final var node = system.rootNode.lookup(i);
+						if (node == null) {
+							i = system.rootNode.getId();
+						}
+						if (!(node instanceof BinaryCelestialNode)) {
+							insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE, i);
+							insertBlackboard(BlackboardKeys.FOLLOWING_STAR_SYSTEM_NODE, i);
+							break;
+						}
+					}
+				}
+			}
 		} else if (keyCode == GLFW.GLFW_KEY_G) {
 			this.showGuides = !this.showGuides;
 		} else if (keyCode == GLFW.GLFW_KEY_J) {
@@ -180,17 +223,19 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			for (final var node : nodes.iterable()) {
 				this.renderContext.render(builder, camera, node, false);
 				if (this.showGuides)
-					showOrbitGuides(builder, camera, cullingCamera, node);
+					showOrbitGuides(builder, camera, cullingCamera, node, time);
 			}
 
 			// final var masses = new double[] { 0.4, 0.6, 1.0, 1.2, 2.0, 15, 17 };
 			// double d = 0.0, r = 1.0;
 			// for (int i = 0; i < masses.length; ++i) {
-			// 	final var node = new StellarCelestialNode(StellarCelestialNode.Type.MAIN_SEQUENCE, Units.fromMsol(masses[i]), 1, r, 1);
-			// 	node.position = node.lastPosition = new Vec3(d, 1, 0);
-			// 	this.renderContext.render(builder, camera, node, false);
-			// 	r *= 3;
-			// 	d += 2 * r * (Units.m_PER_Rsol / Units.TERA);
+			// final var node = new
+			// StellarCelestialNode(StellarCelestialNode.Type.MAIN_SEQUENCE,
+			// Units.fromMsol(masses[i]), 1, r, 1);
+			// node.position = node.lastPosition = new Vec3(d, 1, 0);
+			// this.renderContext.render(builder, camera, node, false);
+			// r *= 3;
+			// d += 2 * r * (Units.m_PER_Rsol / Units.TERA);
 			// }
 
 			this.renderContext.end();
@@ -284,30 +329,30 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	private void showOrbitGuides(VertexBuilder builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, CelestialNode node) {
+			OrbitCamera.Cached cullingCamera, CelestialNode node, double celestialTime) {
 		if (node instanceof BinaryCelestialNode binaryNode) {
-			showBinaryGuides(builder, camera, cullingCamera, binaryNode);
+			showBinaryGuides(builder, camera, cullingCamera, binaryNode, celestialTime);
 		} else {
 			final var info = node.getOrbitInfo();
 			if (info != null)
-				showUnaryGuides(builder, camera, cullingCamera, info);
+				showUnaryGuides(builder, camera, cullingCamera, info, celestialTime);
 		}
 	}
 
 	private void showBinaryGuides(VertexBuilder builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, BinaryCelestialNode node) {
+			OrbitCamera.Cached cullingCamera, BinaryCelestialNode node, double celestialTime) {
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 
 		if (!(node.getA() instanceof BinaryCelestialNode)) {
-			final var ellipse = node.getEllipseA(node.referencePlane);
+			final var ellipse = node.getEllipseA(node.referencePlane, celestialTime);
 			final var isSelected = selectedId != node.getA().getId();
 			final var color = getPathColor(BlackboardKeys.BINARY_PATH_COLOR, isSelected);
 			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 		}
 		if (!(node.getB() instanceof BinaryCelestialNode)) {
-			final var ellipse = node.getEllipseB(node.referencePlane);
+			final var ellipse = node.getEllipseB(node.referencePlane, celestialTime);
 			final var isSelected = selectedId != node.getB().getId();
 			final var color = getPathColor(BlackboardKeys.BINARY_PATH_COLOR, isSelected);
 			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
@@ -318,12 +363,12 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	private void showUnaryGuides(VertexBuilder builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, CelestialNodeChild<?> orbiter) {
+			OrbitCamera.Cached cullingCamera, CelestialNodeChild<?> orbiter, double celestialTime) {
 		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
 
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 
-		final var ellipse = orbiter.getEllipse();
+		final var ellipse = orbiter.getEllipse(celestialTime);
 		final var isSelected = selectedId != orbiter.node.getId();
 		final var color = getPathColor(BlackboardKeys.UNARY_PATH_COLOR, isSelected);
 		addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);

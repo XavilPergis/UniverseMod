@@ -15,7 +15,6 @@ import net.xavil.ultraviolet.common.universe.system.gen.SimulationParameters;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
@@ -173,8 +172,8 @@ public class StarSystemGeneratorImpl {
 		if (nodeLuminosity > 0) {
 			var stableInterval = getStableOrbitInterval(node, OrbitalPlane.ZERO);
 			var nodeMass = node.massYg / Units.Yg_PER_Msol;
-			var ctx = new AccreteContext(params, rng, nodeLuminosity, nodeMass, stableInterval);
-			
+			var ctx = new AccreteContext(params, rng, nodeLuminosity, nodeMass, this.info.systemAgeMyr, stableInterval);
+
 			var protoDisc = new ProtoplanetaryDisc(ctx);
 			try {
 				protoDisc.collapseDisc(node);
@@ -341,90 +340,20 @@ public class StarSystemGeneratorImpl {
 			binaryNode.setB(convertBinaryOrbits(binaryNode.getB()));
 			if (UNARY_ORBIT_THRESHOLD * binaryNode.getA().massYg > binaryNode.getB().massYg) {
 				final var unary = new CelestialNodeChild<>(binaryNode.getA(), binaryNode.getB(),
-						binaryNode.orbitalShapeB, binaryNode.orbitalPlane, 0);
+						binaryNode.orbitalShapeB, binaryNode.orbitalPlane, binaryNode.offset);
 				binaryNode.getA().insertChild(unary);
+
+				for (final var child : binaryNode.childOrbits()) {
+					final var newChildInfo = new CelestialNodeChild<>(binaryNode.getA(), child.node, child.orbitalShape,
+							child.orbitalPlane, child.offset);
+					binaryNode.getA().insertChild(newChildInfo);
+				}
+
 				return binaryNode.getA();
 			}
 		}
 
 		return node;
-	}
-
-	private double timeUntilTidallyLockedMya(CelestialNodeChild<?> orbit) {
-		if (orbit.node instanceof PlanetaryCelestialNode planetNode) {
-
-			var rigidity = planetNode.type.rigidity;
-			if (Double.isNaN(rigidity))
-				return Double.NaN;
-
-			var meanRadiusM = Units.m_PER_Rearth * planetNode.radiusRearth;
-
-			var denom = 1e9 * orbit.node.massYg * Math.pow(1e9 * orbit.parentNode.massYg, 2);
-			var lockingTime = 6 * Math.pow(orbit.orbitalShape.semiMajor() * 1e12, 6) * meanRadiusM * rigidity / denom;
-			return lockingTime / 1e4;
-		}
-		return Double.NaN;
-	}
-
-	private void determineOrbitalPlanes(CelestialNode node) {
-
-		var massMsol = node.massYg / Units.Yg_PER_Msol;
-		var stabilityLimit = Units.fromAu(1000000000000.0) * Math.pow(massMsol, 1.5) * 0.66;
-
-		var ta = 2 * Math.PI * Math.pow(rng.uniformDouble(), 4);
-		node.obliquityAngle = rng.uniformDouble(-ta, ta);
-
-		// earth speed: approx. 7e-5 rad/s
-		// conservation of angular momentum? small bodies might spin MUCH faster
-		node.rotationalPeriod = Mth.lerp(rng.uniformDouble(), 0.2 * 86400, 4 * 86400);
-		if (rng.uniformDouble() < 0.05)
-			node.rotationalPeriod *= -1;
-
-		if (node instanceof BinaryCelestialNode binaryNode) {
-			determineOrbitalPlanes(binaryNode.getA());
-			determineOrbitalPlanes(binaryNode.getB());
-
-			// basically, we want to determine if stars are in orbit because they formed in
-			// different cores with different orbital planes and found their ways into
-			// orbits, or if they formed as part of a disc fragmentation event.
-			if (binaryNode.orbitalShapeB.semiMajor() > stabilityLimit) {
-				binaryNode.orbitalPlane = randomOrbitalPlane(rng);
-			} else {
-				var t = 0.1 * Math.pow(binaryNode.orbitalShapeB.semiMajor() / stabilityLimit, 4);
-				binaryNode.orbitalPlane = OrbitalPlane.fromOrbitalElements(
-						2 * Math.PI * rng.uniformDouble(-t, t),
-						2 * Math.PI * rng.uniformDouble(-1, 1),
-						2 * Math.PI * rng.uniformDouble(-1, 1));
-			}
-			// binaryNode.orbitalPlane = OrbitalPlane.fromOrbitalElements(
-			// Math.PI / 8 * random.uniformDouble(-1, 1),
-			// 2 * Math.PI * random.uniformDouble(-1, 1),
-			// 2 * Math.PI * random.uniformDouble(-1, 1));
-		}
-		for (var childOrbit : node.childOrbits()) {
-			determineOrbitalPlanes(childOrbit.node);
-
-			var lockingTimeMya = timeUntilTidallyLockedMya(childOrbit);
-			var orbitalPeriod = Formulas.orbitalPeriod(childOrbit.orbitalShape.semiMajor(),
-					childOrbit.parentNode.massYg);
-			var lockingPercentage = Math.min(1, lockingTimeMya / this.info.systemAgeMyr);
-			node.rotationalPeriod = Mth.lerp(lockingPercentage, node.rotationalPeriod, orbitalPeriod);
-
-			if (childOrbit.orbitalShape.semiMajor() > stabilityLimit || childOrbit.orbitalShape.eccentricity() > 0.3) {
-				childOrbit.orbitalPlane = randomOrbitalPlane(rng);
-			} else {
-				var t = 0.1 * Math.pow(childOrbit.orbitalShape.semiMajor() / stabilityLimit, 4);
-				t += 0.2 * Math.pow(rng.uniformDouble(), 20);
-				childOrbit.orbitalPlane = OrbitalPlane.fromOrbitalElements(
-						2 * Math.PI * rng.uniformDouble(-t, t),
-						2 * Math.PI * rng.uniformDouble(-1, 1),
-						2 * Math.PI * rng.uniformDouble(-1, 1));
-			}
-			// childOrbit.orbitalPlane = OrbitalPlane.fromOrbitalElements(
-			// Math.PI / 32 * random.uniformDouble(-1, 1),
-			// 2 * Math.PI * random.uniformDouble(-1, 1),
-			// 2 * Math.PI * random.uniformDouble(-1, 1));
-		}
 	}
 
 	// 1. Molecular cloud fragment undergoes graivational collapse

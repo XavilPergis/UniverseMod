@@ -221,9 +221,8 @@ public final class PlanetRenderingContext {
 			return;
 
 		tfm.push();
-		var rotationalSpeed = -2.0 * Math.PI / node.rotationalPeriod;
 		tfm.prependRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
-		tfm.prependRotation(Quat.axisAngle(Vec3.YP, rotationalSpeed * this.celestialTime));
+		tfm.prependRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * this.celestialTime));
 
 		setupShaderCommon(camera, tfm, nodePosUnits, getShader(SHADER_PLANET));
 		setupShaderCommon(camera, tfm, nodePosUnits, getShader(SHADER_RING));

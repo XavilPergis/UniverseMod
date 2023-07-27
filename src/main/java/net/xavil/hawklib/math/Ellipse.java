@@ -4,19 +4,23 @@ import net.xavil.hawklib.math.matrices.Vec3;
 
 public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 
-	public static Ellipse fromOrbit(Vec3 focus, OrbitalPlane plane, OrbitalShape shape) {
-		return fromOrbit(focus, plane, shape, true);
+	public static Ellipse fromOrbit(Vec3 focus, OrbitalPlane plane, OrbitalShape shape, double precessionAngle) {
+		return fromOrbit(focus, plane, shape, precessionAngle, true);
 	}
 
-	public static Ellipse fromOrbit(Vec3 focus, OrbitalPlane plane, OrbitalShape shape, boolean rightFocus) {
-		var flipRight = rightFocus ? -1.0 : 1.0;
-		var rightDir = plane.rotationFromReference().transform(Vec3.XP).mul(flipRight);
-		var upDir = plane.rotationFromReference().transform(Vec3.ZP);
+	public static Ellipse fromOrbit(Vec3 focus, OrbitalPlane plane, OrbitalShape shape, double precessionAngle, boolean rightFocus) {
+		// var rotation = plane.rotationFromReference();
+		// rotation = Quat.axisAngle(plane.normal(), precessionAngle).hamiltonProduct(rotation);
+		var rotation = plane.rotationFromReference().hamiltonProduct(Quat.axisAngle(Vec3.YP, precessionAngle));
 
-		var semiMajor = shape.semiMajor();
-		var semiMinor = shape.semiMinor();
+		final var flipRight = rightFocus ? -1.0 : 1.0;
+		final var rightDir = rotation.transform(Vec3.XP).mul(flipRight);
+		final var upDir = rotation.transform(Vec3.ZP);
 
-		var center = focus.add(rightDir.mul(-shape.focalDistance()));
+		final var semiMajor = shape.semiMajor();
+		final var semiMinor = shape.semiMinor();
+
+		final var center = focus.add(rightDir.mul(-shape.focalDistance()));
 
 		return new Ellipse(center, rightDir.mul(semiMajor), upDir.mul(semiMinor));
 	}

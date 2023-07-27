@@ -1,5 +1,6 @@
 package net.xavil.hawklib.collections.impl.proxy;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -58,6 +59,16 @@ public final class MutableListProxy<T> implements MutableList<T> {
 	@Override
 	public T remove(int index) {
 		return this.wrapped.remove(index);
+	}
+
+	@Override
+	public T set(int index, T value) {
+		return this.wrapped.set(index, value);
+	}
+
+	@Override
+	public void sort(Comparator<? super T> comparator) {
+		this.wrapped.sort(comparator);
 	}
 
 }

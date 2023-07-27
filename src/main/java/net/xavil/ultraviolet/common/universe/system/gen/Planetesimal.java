@@ -1,21 +1,18 @@
 package net.xavil.ultraviolet.common.universe.system.gen;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
-
-import com.google.common.collect.Sets;
-
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
+import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
@@ -27,8 +24,10 @@ public class Planetesimal {
 	private double mass;
 	private OrbitalShape orbitalShape;
 	private Planetesimal moonOf = null;
-	private final List<Planetesimal> moons = new ArrayList<>();
-	private final List<Ring> rings = new ArrayList<>();
+	private double inclination;
+	private double rotationalRate;
+	private final MutableList<Planetesimal> moons = new Vector<>();
+	private final MutableList<Ring> rings = new Vector<>();
 
 	public record Ring(Interval interval, double mass, double eccentricity) {
 	}
@@ -38,7 +37,7 @@ public class Planetesimal {
 		this.id = ctx.nextPlanetesimalId++;
 	}
 
-	private Planetesimal(AccreteContext ctx, double semiMajor, Interval bounds) {
+	private Planetesimal(AccreteContext ctx, double semiMajor, double inclination, Interval bounds) {
 		this.ctx = ctx;
 		this.id = ctx.nextPlanetesimalId++;
 		// var semiMajor = ctx.rng.uniformDouble(bounds.lower(), bounds.higher());
@@ -46,6 +45,8 @@ public class Planetesimal {
 		Assert.isTrue(eccentricity >= 0 && eccentricity <= 1);
 		this.orbitalShape = new OrbitalShape(eccentricity, semiMajor);
 		this.mass = ctx.params.initialPlanetesimalMass;
+		this.inclination = inclination;
+		this.rotationalRate = ctx.rng.uniformDouble(0, 0.000872664626);
 	}
 
 	public double hillSphereRadius(double parentMass) {
@@ -53,16 +54,12 @@ public class Planetesimal {
 				* Math.cbrt(this.mass / (3 * parentMass));
 	}
 
-	public static Planetesimal random(AccreteContext ctx, double semiMajor, Interval bounds) {
-		return new Planetesimal(ctx, semiMajor, bounds);
+	public static Planetesimal random(AccreteContext ctx, double semiMajor, double inclination, Interval bounds) {
+		return new Planetesimal(ctx, semiMajor, inclination, bounds);
 	}
 
 	public static Planetesimal defaulted(AccreteContext ctx) {
 		return new Planetesimal(ctx);
-	}
-
-	private void emitUpdateEvent() {
-		this.ctx.debugConsumer.accept(new AccreteDebugEvent.PlanetesimalUpdated(this));
 	}
 
 	public int getId() {
@@ -80,7 +77,6 @@ public class Planetesimal {
 	public void setMass(double newMass) {
 		Assert.isTrue(newMass >= 0.0);
 		this.mass = newMass;
-		emitUpdateEvent();
 	}
 
 	public OrbitalShape getOrbitalShape() {
@@ -90,53 +86,37 @@ public class Planetesimal {
 	public void setOrbitalShape(OrbitalShape newOrbitalShape) {
 		this.orbitalShape = newOrbitalShape;
 		Assert.isTrue(newOrbitalShape.eccentricity() >= 0 && newOrbitalShape.eccentricity() <= 1);
-		emitUpdateEvent();
 	}
 
 	public Iterable<Planetesimal> getMoons() {
-		return this.moons;
+		return this.moons.iterable();
 	}
 
 	public void addMoon(Planetesimal newMoon) {
-		this.moons.add(newMoon);
+		this.moons.push(newMoon);
 		newMoon.moonOf = this;
-		// this.ctx.debugConsumer.accept(new
-		// AccreteDebugEvent.OrbitalParentChanged(this, newMoon));
 	}
 
 	public void clearMoons() {
 		this.moons.clear();
 	}
 
-	public void transformMoons(BiConsumer<List<Planetesimal>, List<Planetesimal>> consumer) {
-		var prev = List.copyOf(this.moons);
+	public void transformMoons(BiConsumer<MutableList<Planetesimal>, MutableList<Planetesimal>> consumer) {
+		final var prev = MutableList.copyOf(this.moons);
 		this.moons.clear();
 		consumer.accept(prev, this.moons);
 
-		for (var moon : this.moons) {
+		for (var moon : this.moons.iterable()) {
 			moon.moonOf = this;
-		}
-
-		if (this.ctx.debugConsumer.shouldEmitEvents()) {
-			var prevSet = prev.stream().map(p -> p.id).collect(Collectors.toSet());
-			var curSet = this.moons.stream().map(p -> p.id).collect(Collectors.toSet());
-			var added = Sets.difference(curSet, prevSet);
-			var removed = Sets.difference(prevSet, curSet);
-			if (!added.isEmpty() || !removed.isEmpty()) {
-				this.ctx.debugConsumer.accept(new AccreteDebugEvent.UpdateOrbits(this.id, added, removed));
-			}
 		}
 	}
 
 	public Iterable<Ring> getRings() {
-		return this.rings;
+		return this.rings.iterable();
 	}
 
 	public void addRing(Ring newRing) {
-		this.rings.add(newRing);
-		if (this.ctx.debugConsumer.shouldEmitEvents()) {
-			this.ctx.debugConsumer.accept(new AccreteDebugEvent.RingAdded(this, newRing));
-		}
+		this.rings.push(newRing);
 	}
 
 	public static OrbitalShape calculateCombinedOrbitalShape(Planetesimal a, Planetesimal b) {
@@ -247,31 +227,59 @@ public class Planetesimal {
 		return Double.NaN;
 	}
 
+	private double timeUntilTidallyLockedMyr(PlanetaryCelestialNode node, double parentMassYg, double semiMajorTm) {
+		if (Double.isNaN(node.type.rigidity))
+			return Double.NaN;
+
+		final var meanRadiusM = Units.m_PER_Rearth * node.radiusRearth;
+		final var denom = 1e9 * node.massYg * Math.pow(1e9 * parentMassYg, 2);
+		final var lockingTime = 6 * Math.pow(semiMajorTm * 1e12, 6) * meanRadiusM * node.type.rigidity / denom;
+		return lockingTime / 1e4;
+	}
+
 	public void convertToPlanetNode(CelestialNode parent) {
 		if (this.mass < 3.0 * this.ctx.params.initialPlanetesimalMass)
 			return;
 
-		var type = canSweepGas() ? PlanetaryCelestialNode.Type.GAS_GIANT : PlanetaryCelestialNode.Type.ROCKY_WORLD;
-		var radiusRearth = this.getRadius() * Units.KILO / Units.m_PER_Rearth;
-		var node = new PlanetaryCelestialNode(type, this.mass * Units.Yg_PER_Msol, radiusRearth, 300);
-		node.rotationalPeriod = Mth.lerp(this.ctx.rng.uniformDouble(), 0.2 * 86400, 4 * 86400);
-		node.obliquityAngle = this.ctx.rng.uniformDouble(-2.0 * Math.PI, 2.0 * Math.PI);
+		final var radiusRearth = this.getRadius() * Units.KILO / Units.m_PER_Rearth;
+		final var massYg = this.mass * Units.Yg_PER_Msol;
+		final var shape = new OrbitalShape(this.orbitalShape.eccentricity(),
+				this.orbitalShape.semiMajor() * Units.Tm_PER_au);
+		final var plane = OrbitalPlane.fromInclination(this.inclination, this.ctx.rng);
 
-		for (var ring : this.rings) {
-			// Mod.LOGGER.info("RING!!!");
-			var intervalTm = new Interval(ring.interval.lower() * Units.Tm_PER_au,
-					ring.interval.higher() * Units.Tm_PER_au);
-			node.addRing(
-					new CelestialRing(OrbitalPlane.ZERO, ring.eccentricity, intervalTm, ring.mass * Units.Yg_PER_Msol));
+		final PlanetaryCelestialNode node;
+		if (canSweepGas()) {
+			// gas giant track
+			node = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, massYg, radiusRearth, 300);
+			node.rotationalRate = 0; // TODO
+		} else {
+			// terrestrial planet track
+			// TODO: different world types
+			node = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, massYg, radiusRearth, 300);
+			final var lockingTime = timeUntilTidallyLockedMyr(node, parent.massYg, shape.semiMajor());
+			final var lockingPercent = Math.min(1.0, this.ctx.stellarAgeMyr / lockingTime);
+			final var orbitalRate = 2.0 * Math.PI / Formulas.orbitalPeriod(shape.semiMajor(), node.massYg);
+			node.rotationalRate = Mth.lerp(lockingPercent, this.rotationalRate, orbitalRate);
+
+			// TODO: try to apply tidal locking to the parent node too
 		}
 
-		var shape = new OrbitalShape(this.orbitalShape.eccentricity(), this.orbitalShape.semiMajor() * Units.Tm_PER_au);
-		var plane = OrbitalPlane.fromOrbitalElements(0, this.ctx.rng.uniformDouble(0, 2.0 * Math.PI),
-				this.ctx.rng.uniformDouble(0, 2.0 * Math.PI));
-		var orbit = new CelestialNodeChild<>(parent, node, shape, plane, this.ctx.rng.uniformDouble(0, 2.0 * Math.PI));
+		node.obliquityAngle = this.ctx.rng.uniformDouble(-2.0 * Math.PI, 2.0 * Math.PI);
+
+		for (final var ring : this.rings.iterable()) {
+			// Mod.LOGGER.info("RING!!! {}, parent = {}", this, parent);
+			final var intervalTm = ring.interval.mul(Units.Tm_PER_au);
+			final var ringMassYg = ring.mass * Units.Yg_PER_Msol;
+			node.addRing(new CelestialRing(OrbitalPlane.ZERO, ring.eccentricity, intervalTm, ringMassYg));
+		}
+
+		// this random offset distributes the celestial bodies randomly around their
+		// orbits, so that they don't all form a straight line.
+		final var offset = this.ctx.rng.uniformDouble(0, 2.0 * Math.PI);
+		final var orbit = new CelestialNodeChild<>(parent, node, shape, plane, offset);
 		parent.insertChild(orbit);
 
-		for (var moon : this.moons) {
+		for (final var moon : this.moons.iterable()) {
 			moon.convertToPlanetNode(node);
 		}
 	}
@@ -299,15 +307,14 @@ public class Planetesimal {
 	// if (iterationsRemaining-- <= 0)
 	// break;
 	// this.mass += dustBands.sweep(ctx, this);
-	// emitUpdateEvent();
 	// }
 
 	// }
 
 	public Ring asRing() {
 		final var radiusAu = this.getRadius() / Units.km_PER_au;
-		final var ringInner = this.orbitalShape.semiMajor() - radiusAu;
-		final var ringOuter = this.orbitalShape.semiMajor() + radiusAu;
+		final var ringInner = this.orbitalShape.semiMajor() - 5.0 * radiusAu;
+		final var ringOuter = this.orbitalShape.semiMajor() + 5.0 * radiusAu;
 		return new Ring(new Interval(ringInner, ringOuter), mass, this.orbitalShape.eccentricity());
 	}
 

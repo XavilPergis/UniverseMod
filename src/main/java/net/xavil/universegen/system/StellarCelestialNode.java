@@ -66,7 +66,13 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 				node.temperatureK *= coolingCurve;
 
 				node.radiusRsol *= 1e-2 + rng.uniformDouble(-2.5e-6, 2.5e-6);
-				node.luminosityLsol = node.temperatureK / 1000;
+
+				// treat the white dwarf as an ideal black body and apply the Stefan–Boltzmann
+				// law
+				final var radiantExitance = Units.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(node.temperatureK, 4.0);
+				final var radiusM = node.radiusRsol * Units.m_PER_Rsol;
+				final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
+				node.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
 			} else if (this == NEUTRON_STAR) {
 				Assert.isTrue(ageMyr > mainSequenceLifetimeMyr);
 
@@ -79,7 +85,12 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 				node.temperatureK *= coolingCurve;
 
 				node.radiusRsol *= 1e-5 + rng.uniformDouble(-2.5e-8, 2.5e-8);
-				node.luminosityLsol = node.temperatureK / 2000;
+
+				final var radiantExitance = Units.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(node.temperatureK, 4.0);
+				final var radiusM = node.radiusRsol * Units.m_PER_Rsol;
+				final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
+				node.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
+				// node.luminosityLsol = node.temperatureK / 2000;
 			} else if (this == GIANT) {
 				// idk
 				node.radiusRsol *= rng.uniformDouble(100, 200);

@@ -21,12 +21,12 @@ public class CelestialNodeChild<T extends CelestialNode> {
 		this.offset = offset;
 	}
 
-	public Ellipse getEllipse(OrbitalPlane referencePlane) {
+	public Ellipse getEllipse(OrbitalPlane referencePlane, double celestialTime) {
 		var plane = this.orbitalPlane.withReferencePlane(referencePlane);
-		return Ellipse.fromOrbit(this.parentNode.position, plane, this.orbitalShape, false);
+		return Ellipse.fromOrbit(this.parentNode.position, plane, this.orbitalShape, this.node.apsidalRate * celestialTime, false);
 	}
 
-	public Ellipse getEllipse() {
-		return getEllipse(this.parentNode.referencePlane);
+	public Ellipse getEllipse(double celestialTime) {
+		return getEllipse(this.parentNode.referencePlane, celestialTime);
 	}
 }

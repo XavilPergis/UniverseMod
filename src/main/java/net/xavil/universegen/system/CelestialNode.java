@@ -36,11 +36,13 @@ public abstract sealed class CelestialNode permits
 
 	public Vec3 position = Vec3.ZERO, lastPosition = Vec3.ZERO;
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
+	// the rate of orbital precession
+	public double apsidalRate; // rad/s
 
 	public double massYg; // Yg
 	// TODO: these quantities are meaningless for binary orbits!
 	public double obliquityAngle; // rad
-	public double rotationalPeriod; // s
+	public double rotationalRate; // rad/s
 
 	public CelestialNode(double massYg) {
 		this.massYg = massYg;
@@ -253,8 +255,8 @@ public abstract sealed class CelestialNode permits
 
 		if (this instanceof BinaryCelestialNode binaryNode) {
 			final var combinedShape = binaryNode.getCombinedShape();
-			final var ellipseA = binaryNode.getEllipseA(referencePlane);
-			final var ellipseB = binaryNode.getEllipseB(referencePlane);
+			final var ellipseA = binaryNode.getEllipseA(referencePlane, time);
+			final var ellipseB = binaryNode.getEllipseB(referencePlane, time);
 			binaryNode.getA().position = getOrbitalPosition(ellipseA, combinedShape, false, time);
 			binaryNode.getB().position = getOrbitalPosition(ellipseB, combinedShape, true, time);
 			final var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
@@ -274,7 +276,7 @@ public abstract sealed class CelestialNode permits
 	}
 
 	public Vec3 getOrbitalPosition(OrbitalPlane plane, OrbitalShape shape, boolean reverse, double time) {
-		final var ellipse = Ellipse.fromOrbit(this.position, plane, shape, reverse);
+		final var ellipse = Ellipse.fromOrbit(this.position, plane, shape, this.apsidalRate * time, reverse);
 		return getOrbitalPosition(ellipse, shape, reverse, time);
 	}
 
@@ -307,7 +309,7 @@ public abstract sealed class CelestialNode permits
 
 		// consumer.accept("Mass", String.format("%.2f Yg", this.massYg));
 		consumer.addProperty("Obliquity", String.format("%.2f rad", this.obliquityAngle));
-		consumer.addProperty("Rotational Period", String.format("%.2f s", this.rotationalPeriod));
+		consumer.addProperty("Rotational Rate", String.format("%.2f rad/s", this.rotationalRate));
 
 		// TODO: inclination n stuff
 
@@ -351,7 +353,8 @@ public abstract sealed class CelestialNode permits
 		var z = nbt.getDouble("z");
 		var position = Vec3.from(x, y, z);
 		var obliquityAngle = nbt.getDouble("obliquity");
-		var rotationalPeriod = nbt.getDouble("rotational_period");
+		var rotationalRate = nbt.getDouble("rotational_rate");
+		var apsidalRate = nbt.getDouble("apsidal_rate");
 		var nodeType = nbt.getString("node_type");
 
 		var referencePlane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, nbt.get("reference_plane"))
@@ -388,7 +391,8 @@ public abstract sealed class CelestialNode permits
 		node.referencePlane = referencePlane;
 		node.id = id;
 		node.obliquityAngle = obliquityAngle;
-		node.rotationalPeriod = rotationalPeriod;
+		node.rotationalRate = rotationalRate;
+		node.apsidalRate = apsidalRate;
 
 		final var rings = nbt.getList("rings", Tag.TAG_COMPOUND);
 		for (int i = 0; i < rings.size(); ++i) {
@@ -431,7 +435,8 @@ public abstract sealed class CelestialNode permits
 		nbt.putDouble("y", node.position.y);
 		nbt.putDouble("z", node.position.z);
 		nbt.putDouble("obliquity", node.obliquityAngle);
-		nbt.putDouble("rotational_period", node.rotationalPeriod);
+		nbt.putDouble("rotational_rate", node.rotationalRate);
+		nbt.putDouble("apsidal_rate", node.apsidalRate);
 
 		OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, node.referencePlane)
 				.resultOrPartial(Mod.LOGGER::error)

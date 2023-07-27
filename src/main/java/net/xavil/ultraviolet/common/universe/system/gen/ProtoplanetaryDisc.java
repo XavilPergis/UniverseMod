@@ -1,17 +1,16 @@
 package net.xavil.ultraviolet.common.universe.system.gen;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
-import java.util.Set;
+import java.util.Comparator;
 import java.util.function.BiConsumer;
-import java.util.stream.Collectors;
 
-import com.google.common.collect.Sets;
+import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
+import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalShape;
@@ -36,17 +35,31 @@ import net.xavil.hawklib.math.OrbitalShape;
 // - allow moon-moon captures under certain circumstances
 public class ProtoplanetaryDisc {
 	public final AccreteContext ctx;
-	public final List<Planetesimal> planetesimals = new ArrayList<>();
+	public final MutableList<Planetesimal> planetesimals = new Vector<>();
 	public final DustBands dustBands;
 	public final Interval planetesimalBounds;
+	private int iterationsRemaining = 10000;
 
 	public ProtoplanetaryDisc(AccreteContext ctx) {
 		this.ctx = ctx;
 		this.planetesimalBounds = planetesimalBounds(ctx);
-		var dustBandInterval = initialDustBandInterval(ctx);
-		this.dustBands = new DustBands(dustBandInterval, ctx.debugConsumer);
+		final var maxThickness = this.planetesimalBounds.higher();
+		final var discThickness = ctx.rng.uniformDouble(0.05 * maxThickness, maxThickness);
+		final var dustBandInterval = initialDustBandInterval(ctx);
+		this.dustBands = new DustBands(dustBandInterval, discThickness);
+	}
 
-		ctx.debugConsumer.accept(new AccreteDebugEvent.Initialize(dustBandInterval, planetesimalBounds));
+	private void doSweep(Planetesimal planetesimal, boolean sweepAll) {
+		while (this.dustBands.hasDust(planetesimal.sweptDustLimits())) {
+			final var sweptMass = this.dustBands.sweep(this.ctx, planetesimal);
+			planetesimal.setMass(planetesimal.getMass() + sweptMass);
+			// if (!sweepAll && this.ctx.rng.chance(0.05))
+			// break;
+		}
+	}
+
+	private boolean shouldContinuePlacing() {
+		return this.dustBands.hasDust(this.planetesimalBounds);
 	}
 
 	public void collapseDisc(CelestialNode rootNode) {
@@ -55,94 +68,133 @@ public class ProtoplanetaryDisc {
 
 		// Distribute planetary masses
 
-		for (int i = 0; i < 100; ++i) {
-			var dustySemiMajor = this.ctx.rng.uniformDouble(this.planetesimalBounds);
-			var planetesimal = Planetesimal.random(this.ctx, dustySemiMajor, this.planetesimalBounds);
+		while (shouldContinuePlacing() && this.iterationsRemaining >= 0) {
+			this.iterationsRemaining -= 1;
 
-			if (this.dustBands.hasDust(planetesimal.sweptDustLimits())) {
-				if (ctx.debugConsumer.shouldEmitEvents()) {
-					ctx.debugConsumer.accept(new AccreteDebugEvent.PlanetesimalCreated(ctx, planetesimal));
-					ctx.debugConsumer
-							.accept(new AccreteDebugEvent.UpdateOrbits(-1, Set.of(planetesimal.getId()), Set.of()));
-				}
-				this.planetesimals.add(planetesimal);
+			// generate planetesimal
+			final var dustySemiMajor = this.ctx.rng.uniformDouble(this.planetesimalBounds);
+			var heightAboveDiscCenter = this.ctx.rng.uniformDoubleAround(0, this.dustBands.bandThickness);
+			// heightAboveDiscCenter = Math.signum(heightAboveDiscCenter) *
+			// Math.pow(Math.abs(heightAboveDiscCenter), 2.0);
+			// final var inclination = Math.atan(heightAboveDiscCenter / dustySemiMajor);
+			final var inclination = 0;
+			final var planetesimal = Planetesimal.random(this.ctx, dustySemiMajor, inclination,
+					this.planetesimalBounds);
+
+			// allow protoplanet seed to accumulate dust and gas before moving onto the
+			// others. There is a certain percent chance on each sweep step that the
+			// planetesimal does not continue to accrete mass, allowing others to sweep more
+			// instead.
+			doSweep(planetesimal, false);
+			this.planetesimals.shuffle(this.ctx.rng);
+			for (final var other : this.planetesimals.iterable()) {
+				doSweep(other, false);
 			}
+			this.planetesimals.push(planetesimal);
+			transformPlanetesimals((prev, next) -> coalescePlanetesimals(this.ctx, prev, next));
 		}
 
-		var iterationsRemaining = 10000;
-		while (iterationsRemaining-- >= 0) {
-			Collections.shuffle(this.planetesimals);
-			for (var other : this.planetesimals) {
-				var sweptMass = this.dustBands.sweep(ctx, other);
-				other.setMass(other.getMass() + sweptMass);
-			}
-			transformPlanetesimals((prev, next) -> coalescePlanetesimals(ctx, prev, next));
+		// clean up any leftovers i guess
+		for (final var other : this.planetesimals.iterable()) {
+			doSweep(other, true);
 		}
 
-		for (var planet : this.planetesimals) {
-			planet.convertToPlanetNode(rootNode);
-		}
+		// TODO: catastrophic events (rogue planets n stuff)
+		// TODO: planetary migration
 
 		// Post Accretion
 		// Process Planets
+
+		for (final var planet : this.planetesimals.iterable()) {
+			planet.convertToPlanetNode(rootNode);
+		}
 	}
 
-	public void transformPlanetesimals(BiConsumer<List<Planetesimal>, List<Planetesimal>> consumer) {
-		var prev = List.copyOf(this.planetesimals);
+	public void transformPlanetesimals(BiConsumer<MutableList<Planetesimal>, MutableList<Planetesimal>> consumer) {
+		this.planetesimals.sort(Comparator.comparingDouble(planetesimal -> planetesimal.getOrbitalShape().semiMajor()));
+		final var prev = MutableList.copyOf(this.planetesimals);
 		this.planetesimals.clear();
 		consumer.accept(prev, this.planetesimals);
-
-		if (this.ctx.debugConsumer.shouldEmitEvents()) {
-			var prevSet = prev.stream().map(p -> p.getId()).collect(Collectors.toSet());
-			var curSet = this.planetesimals.stream().map(p -> p.getId()).collect(Collectors.toSet());
-			var added = Sets.difference(curSet, prevSet);
-			var removed = Sets.difference(prevSet, curSet);
-			if (!added.isEmpty() || !removed.isEmpty()) {
-				this.ctx.debugConsumer.accept(new AccreteDebugEvent.UpdateOrbits(-1, added, removed));
-			}
-		}
 	}
 
 	public void coalescePlanetesimals(AccreteContext ctx,
-			List<Planetesimal> prevPlanets, List<Planetesimal> newPlanets) {
-		int i = 0;
-		while (i < prevPlanets.size()) {
-			var current = prevPlanets.get(i++);
-			while (i < prevPlanets.size()) {
-				var next = prevPlanets.get(i);
+			MutableList<Planetesimal> prevBodies, MutableList<Planetesimal> nextBodies) {
 
-				// no intersection with the next planetesimal, just let the outer loop carry on
-				// merging from its new position
-				if (!current.effectLimits().intersects(next.effectLimits()))
-					break;
-
-				i += 1;
-				handlePlanetesimalIntersection(ctx, current, next);
-				current = current.getMass() >= next.getMass() ? current : next;
+		boolean isFirstIteration = true;
+		boolean didCoalesce;
+		do {
+			if (!isFirstIteration) {
+				prevBodies.clear();
+				prevBodies.extend(nextBodies);
+				nextBodies.clear();
 			}
-			newPlanets.add(current);
-		}
+
+			didCoalesce = false;
+			int i = 0;
+			while (i < prevBodies.size()) {
+				var current = prevBodies.get(i++);
+				while (i < prevBodies.size()) {
+					final var next = prevBodies.get(i);
+
+					// no intersection with the next planetesimal, just let the outer loop carry on
+					// merging from its new position
+					if (!current.effectLimits().intersects(next.effectLimits()))
+						break;
+
+					i += 1;
+					final var coalesced = handlePlanetesimalIntersection(ctx, current, next);
+					current = coalesced != null ? coalesced : current;
+					didCoalesce = true;
+				}
+				nextBodies.push(current);
+			}
+
+			isFirstIteration = false;
+		} while (didCoalesce);
 	}
 
-	public void handlePlanetesimalIntersection(AccreteContext ctx, Planetesimal a, Planetesimal b) {
+	/**
+	 * Merge two planetisimals that have overlapping gravitational influences. This
+	 * will not necessarily result in a collision, but rather may result in a binary
+	 * system, or a capture of a moon.
+	 * 
+	 * @return The combined planetesimal. This may be one of the arguments.
+	 */
+	@Nullable
+	public Planetesimal handlePlanetesimalIntersection(AccreteContext ctx, Planetesimal a, Planetesimal b) {
 		final var larger = a.getMass() >= b.getMass() ? a : b;
 		final var smaller = a.getMass() >= b.getMass() ? b : a;
-		var rocheLimit = rocheLimit(larger.getMass(), smaller.getMass(), smaller.getRadius());
+		final var rocheLimit = rocheLimit(larger.getMass(), smaller.getMass(), smaller.getRadius());
 		if (Math.abs(a.getOrbitalShape().semiMajor() - b.getOrbitalShape().semiMajor()) <= rocheLimit / 2.0) {
+			// TODO: currently, all moons of `smaller` are completely discarded
 			handlePlanetesimalCollision(ctx, a, b);
 		} else {
-			captureMoon(ctx, a, b);
+			// ejection could maybe create objects like Eris and Haumea
+			// TODO: this is not based on anything other than "objects get ejected
+			// sometimes"
+			// chance to eject planetesimal
+			if (!ctx.rng.chance(0.2)) {
+				captureMoon(ctx, a, b);
+			} else {
+				// maybe perturb orbit of larger planetesimal
+				// maybe eject both bodies in some circumstances
+			}
 		}
+		return larger;
 	}
 
+	// TODO: moons might attain their own debris disc and have a recursive accretion
+	// process
 	public void captureMoon(AccreteContext ctx, Planetesimal a, Planetesimal b) {
 		final var larger = a.getMass() >= b.getMass() ? a : b;
 		final var smaller = a.getMass() >= b.getMass() ? b : a;
 
+		// TODO: maybe we could do something more interesting than transferring
+		// everything to moons of the new parent
 		larger.transformMoons((prevL, newL) -> smaller.transformMoons((prevS, newS) -> {
-			newL.addAll(prevL);
-			newL.addAll(prevS);
-			newL.add(smaller);
+			newL.extend(prevL);
+			newL.extend(prevS);
+			newL.push(smaller);
 		}));
 
 		larger.setOrbitalShape(Planetesimal.calculateCombinedOrbitalShape(a, b));
@@ -151,8 +203,16 @@ public class ProtoplanetaryDisc {
 		var hillSphereRadius = larger.hillSphereRadius(ctx.stellarMassMsol);
 		Assert.isTrue(hillSphereRadius > 0);
 
+		// orbital chaos ensues
+		larger.getMoons().forEach(moon -> {
+			final var semiMajorT = Math.pow(ctx.rng.uniformDouble(), 2);
+			final var randomSemiMajor = Mth.lerp(semiMajorT, 0, hillSphereRadius);
+			moon.setOrbitalShape(new OrbitalShape(moon.getOrbitalShape().eccentricity(), randomSemiMajor));
+		});
+
+		// resolve chaos
 		larger.transformMoons((prevMoons, newMoons) -> {
-			for (var moon : prevMoons) {
+			for (var moon : prevMoons.iterable()) {
 				var semiMajorT = Math.pow(ctx.rng.uniformDouble(), 2);
 				var randomSemiMajor = Mth.lerp(semiMajorT, 0, hillSphereRadius);
 				var randomEccentricity = Planetesimal.randomEccentricity(ctx);
@@ -162,11 +222,9 @@ public class ProtoplanetaryDisc {
 						* (larger.getRadius() / Units.km_PER_au)) {
 					handlePlanetesimalCollision(ctx, larger, moon);
 				} else if (moon.getOrbitalShape().periapsisDistance() <= 2 * rocheLimit) {
-					final var ring = moon.asRing();
-					ctx.debugConsumer.accept(new AccreteDebugEvent.RingAdded(moon, ring));
-					larger.addRing(ring);
+					larger.addRing(moon.asRing());
 				} else {
-					newMoons.add(moon);
+					newMoons.push(moon);
 				}
 			}
 		});

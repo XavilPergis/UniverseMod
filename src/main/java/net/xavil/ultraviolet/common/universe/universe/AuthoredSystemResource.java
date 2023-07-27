@@ -111,7 +111,7 @@ public class AuthoredSystemResource extends SimpleJsonResourceReloadListener {
 		public StellarCelestialNode makeStarNode(StellarCelestialNode.Type type) {
 			final var node = new StellarCelestialNode(type, mass, luminosity, radius, temperature);
 			node.obliquityAngle = obliquity;
-			node.rotationalPeriod = rotationPeriod;
+			node.rotationalRate = 2.0 * Math.PI / rotationPeriod;
 			return node;
 		}
 	}
@@ -132,7 +132,7 @@ public class AuthoredSystemResource extends SimpleJsonResourceReloadListener {
 		public PlanetaryCelestialNode makePlanetNode(PlanetaryCelestialNode.Type type) {
 			final var node = new PlanetaryCelestialNode(type, mass, radius, temperature);
 			node.obliquityAngle = obliquity;
-			node.rotationalPeriod = rotationPeriod;
+			node.rotationalRate = 2.0 * Math.PI / rotationPeriod;
 			return node;
 		}
 	}
@@ -169,7 +169,7 @@ public class AuthoredSystemResource extends SimpleJsonResourceReloadListener {
 			// 	final var temperature = GsonHelper.getAsDouble(obj, "temperature", 0.0);
 			// 	final var node = new PlanetaryCelestialNode(type, mass, radius, temperature);
 			// 	node.obliquityAngle = GsonHelper.getAsDouble(obj, "obliquity", 0.0);
-			// 	node.rotationalPeriod = GsonHelper.getAsDouble(obj, "rotation_period", 0.0);
+			// 	node.rotationalRate = GsonHelper.getAsDouble(obj, "rotation_period", 0.0);
 			// 	yield node;
 			// }
 			default -> null;

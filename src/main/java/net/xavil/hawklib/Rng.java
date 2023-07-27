@@ -10,6 +10,10 @@ public interface Rng {
 
 	double uniformDouble(double minBound, double maxBound);
 
+	default double uniformDoubleAround(double center, double spread) {
+		return uniformDouble(center - spread, center + spread);
+	}
+
 	default double uniformDouble() {
 		return uniformDouble(0, 1);
 	}

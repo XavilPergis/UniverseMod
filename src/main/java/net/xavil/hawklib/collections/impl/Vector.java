@@ -1,5 +1,7 @@
 package net.xavil.hawklib.collections.impl;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -161,6 +163,14 @@ public final class Vector<T> implements MutableList<T> {
 	}
 
 	@Override
+	public T set(int index, T value) {
+		Assert.isTrue(index < this.size);
+		final var old = this.elements[index];
+		this.elements[index] = value;
+		return old;
+	}
+
+	@Override
 	public void optimize() {
 		if (this.elements.length == this.size)
 			return;
@@ -180,6 +190,16 @@ public final class Vector<T> implements MutableList<T> {
 	public void forEach(Consumer<? super T> consumer) {
 		for (int i = 0; i < this.size; ++i)
 			consumer.accept(this.elements[i]);
+	}
+
+	@Override
+	public void sort(Comparator<? super T> comparator) {
+		Arrays.sort(this.elements, comparator);
+	}
+
+	@Override
+	public T[] toArray() {
+		return Arrays.copyOf(this.elements, this.size);
 	}
 
 	public Vector<T> copy() {

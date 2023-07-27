@@ -57,14 +57,14 @@ public final class BinaryCelestialNode extends CelestialNode {
 				this.orbitalShapeA.semiMajor() + this.orbitalShapeB.semiMajor());
 	}
 
-	public Ellipse getEllipseA(OrbitalPlane referencePlane) {
+	public Ellipse getEllipseA(OrbitalPlane referencePlane, double celestialTime) {
 		final var plane = this.orbitalPlane.withReferencePlane(referencePlane);
-		return Ellipse.fromOrbit(this.position, plane, orbitalShapeA, false);
+		return Ellipse.fromOrbit(this.position, plane, orbitalShapeA, this.apsidalRate * celestialTime, false);
 	}
 
-	public Ellipse getEllipseB(OrbitalPlane referencePlane) {
+	public Ellipse getEllipseB(OrbitalPlane referencePlane, double celestialTime) {
 		final var plane = this.orbitalPlane.withReferencePlane(referencePlane);
-		return Ellipse.fromOrbit(this.position, plane, orbitalShapeB, true);
+		return Ellipse.fromOrbit(this.position, plane, orbitalShapeB, this.apsidalRate * celestialTime, true);
 	}
 
 	@Override

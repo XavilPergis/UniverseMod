@@ -16,8 +16,11 @@ public record Interval(double lower, double higher) {
 	}
 
 	public boolean intersects(Interval other) {
-		return this.contains(other.lower) || this.contains(other.higher)
-				|| other.contains(this.lower) || other.contains(this.higher);
+		if (this.lower < other.higher && this.higher > other.lower)
+			return true;
+		return false;
+		// return this.contains(other.lower) || this.contains(other.higher)
+		// 		|| other.contains(this.lower) || other.contains(this.higher);
 	}
 
 	public boolean contains(Interval other) {
@@ -25,7 +28,11 @@ public record Interval(double lower, double higher) {
 	}
 
 	public boolean contains(double value) {
-		return value >= this.lower && value <= this.higher;
+		return value >= this.lower && value < this.higher;
+	}
+
+	public Interval mul(double scale) {
+		return new Interval(scale * this.lower, scale * this.higher);
 	}
 
 }

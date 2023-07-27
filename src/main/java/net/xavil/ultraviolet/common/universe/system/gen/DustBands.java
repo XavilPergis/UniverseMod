@@ -18,12 +18,12 @@ public class DustBands {
 
 	}
 
-	public final AccreteDebugEvent.Consumer debugConsumer;
 	public final List<Band> bands = new ArrayList<>();
+	public final double bandThickness;
 
-	public DustBands(Interval initialInterval, AccreteDebugEvent.Consumer debugConsumer) {
+	public DustBands(Interval initialInterval, double bandThickness) {
 		this.bands.add(new Band(initialInterval, true, true));
-		this.debugConsumer = debugConsumer;
+		this.bandThickness = bandThickness;
 	}
 
 	public boolean hasDust(Interval interval) {
@@ -87,10 +87,8 @@ public class DustBands {
 			}
 		}
 
-		if (changedAnything) {
-			this.debugConsumer.accept(new AccreteDebugEvent.Sweep(interval, removeGas, removeDust));
+		if (changedAnything)
 			defragment();
-		}
 	}
 
 	public void removeMaterial(Interval interval, boolean removeGas) {

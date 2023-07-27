@@ -168,11 +168,9 @@ public class SkyRenderer implements Disposable {
 		final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
 		final var longitudeOffset = Mth.clampedLerp(-Math.PI, Math.PI, tz);
 
-		final var rotationalSpeed = -2 * Math.PI / node.rotationalPeriod;
-
 		tfm.appendRotation(Quat.axisAngle(Vec3.YP, latitudeOffset));
 		tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
-		tfm.appendRotation(Quat.axisAngle(Vec3.YP, rotationalSpeed * time));
+		tfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * time));
 		tfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
 
 		tfm.appendTranslation(node.getPosition(partialTick));

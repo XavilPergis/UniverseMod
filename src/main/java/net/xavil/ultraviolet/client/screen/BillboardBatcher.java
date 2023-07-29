@@ -1,25 +1,18 @@
 package net.xavil.ultraviolet.client.screen;
 
-import net.minecraft.client.Minecraft;
-
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
-import net.xavil.hawklib.client.HawkRendering;
-import net.xavil.hawklib.client.HawkShaders;
+import com.mojang.blaze3d.vertex.DefaultVertexFormat;
+
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
-import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.hawklib.client.gl.texture.GlTexture2d;
-import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Vec3;
-import net.xavil.ultraviolet.client.UltravioletVertexFormats;
+import net.xavil.ultraviolet.client.StarRenderManager;
 
 public final class BillboardBatcher {
-	private final Minecraft client = Minecraft.getInstance();
-
 	public final VertexBuilder builder;
 	public final int billboardsPerBatch;
 	private CachedCamera<?> camera;
@@ -32,30 +25,20 @@ public final class BillboardBatcher {
 	}
 
 	public void begin(CachedCamera<?> camera) {
-		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		builder.begin(PrimitiveType.POINT_QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		this.camera = camera;
 	}
 
 	public void end() {
 		final var shader = getShader(SHADER_STAR_BILLBOARD);
-		// shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
-		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
+		StarRenderManager.setupStarShader(shader, this.camera);
 		builder.end().draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 
 		this.current = 0;
 	}
 
 	public void add(StellarCelestialNode node, Vec3 pos) {
-		// RenderHelper.addBillboard(builder, this.camera, new TransformStack(), node, pos.mul(1e12 / this.camera.metersPerUnit));
-		RenderHelper.addBillboard(builder, this.camera, node, pos);
-
-		// var color = Color.WHITE;
-		// if (node instanceof StellarCelestialNode starNode) {
-		// 	color = starNode.getColor();
-		// }
-		// RenderHelper.addBillboardWorldspace(builder, camera.pos, camera.up, camera.left,
-		// 		pos.mul(1e12 / camera.metersPerUnit), 1, color);
-
+		RenderHelper.addStarPoint(builder, node, pos.mul(1e12 / camera.metersPerUnit).sub(camera.pos));
 
 		this.current += 1;
 		if (this.current > this.billboardsPerBatch) {

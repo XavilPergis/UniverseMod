@@ -8,11 +8,13 @@ import net.xavil.hawklib.math.matrices.Vec3;
 
 public class StarSystem {
 
+	public final String name;
 	public final Galaxy parentGalaxy;
 	public final Vec3 pos;
 	public CelestialNode rootNode;
 
-	public StarSystem(Galaxy parentGalaxy, Vec3 pos, CelestialNode rootNode) {
+	public StarSystem(String name, Galaxy parentGalaxy, Vec3 pos, CelestialNode rootNode) {
+		this.name = name;
 		this.parentGalaxy = parentGalaxy;
 		this.pos = pos;
 		this.rootNode = rootNode;
@@ -21,19 +23,17 @@ public class StarSystem {
 	public static class Info {
 		public double systemAgeMyr;
 		public double remainingMass;
-		public String name;
 		public double primaryStarProtoDiscMass;
 		public StellarCelestialNode primaryStar;
 
-		public Info(double systemAgeMya, double remainingMass, double primaryStarProtoDiscMass, String name, StellarCelestialNode primaryStar) {
+		public Info(double systemAgeMya, double remainingMass, double primaryStarProtoDiscMass, StellarCelestialNode primaryStar) {
 			this.systemAgeMyr = systemAgeMya;
 			this.remainingMass = remainingMass;
 			this.primaryStarProtoDiscMass = primaryStarProtoDiscMass;
-			this.name = name;
 			this.primaryStar = primaryStar;
 		}
 
-		public static Info custom(double systemAge, String name, StarSystem system) {
+		public static Info custom(double systemAge, StarSystem system) {
 			StellarCelestialNode primaryStar = null;
 			for (var child : system.rootNode.selfAndChildren().iterable()) {
 				if (child instanceof StellarCelestialNode starNode) {
@@ -44,7 +44,7 @@ public class StarSystem {
 				}
 			}
 			Assert.isTrue(primaryStar != null);
-			return new Info(systemAge, 0, 0, name, primaryStar);
+			return new Info(systemAge, 0, 0, primaryStar);
 		}
 	}
 

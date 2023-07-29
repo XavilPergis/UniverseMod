@@ -21,7 +21,7 @@ import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 // this could probably be more efficient by writing to a persistent-mapped buffer.
 public final class VertexBuilder implements FlexibleVertexConsumer {
 
-	private static final int GROWTH_SIZE = 0x200000;
+	private static final int GROWTH_SIZE = 0x400000;
 	private static final Logger LOGGER = LogUtils.getLogger();
 
 	private int vertexStartByteOffset = 0;
@@ -278,8 +278,9 @@ public final class VertexBuilder implements FlexibleVertexConsumer {
 		try {
 			emitVertex();
 		} catch (Throwable t) {
-			var msg = "Buffer Builder Error";
-			msg += "Current Capacity: " + this.buffer.capacity();
+			var msg = "Buffer Builder Error:\n";
+			msg += String.format("Current Capacity: %d ", this.buffer.capacity());
+			msg += String.format("Current Offset: %d ", this.vertexByteOffset);
 			throw new RuntimeException(msg, t);
 		}
 	}
@@ -406,7 +407,8 @@ public final class VertexBuilder implements FlexibleVertexConsumer {
 			return;
 		final var oldSize = this.buffer.capacity();
 		final var newSize = oldSize + roundUp(additionalBytes);
-		LOGGER.info("Needed to grow FlexibleBufferBuilder buffer: Old size {} bytes, new size {} bytes.",
+		// final var newSize = (int) (oldSize + 1.5 * oldSize);
+		LOGGER.info("Needed to grow VertexBuilder buffer: Old size {} bytes, new size {} bytes.",
 				oldSize, newSize);
 		this.buffer = MemoryTracker.resize(this.buffer, newSize);
 		this.buffer.rewind();

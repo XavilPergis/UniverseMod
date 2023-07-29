@@ -31,20 +31,7 @@ public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
 	
 	@Override
 	public void render3d(OrbitCamera.Cached camera, float partialTick) {
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-
-		final var shader = getShader(SHADER_GALAXY_PARTICLE);
-		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
-
-		this.galaxyRenderingContext.build();
-		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
-		this.galaxyRenderingContext.enumerate((pos, size) -> {
-			RenderHelper.addBillboard(builder, camera, new TransformStack(),
-					pos.sub(this.originOffset).mul(1e12 / camera.metersPerUnit),
-					size * (1e12 / camera.metersPerUnit),
-					Color.WHITE.withA(0.1));
-		});
-		builder.end().draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
+		this.galaxyRenderingContext.draw(camera, this.originOffset);
 	}
 
 }

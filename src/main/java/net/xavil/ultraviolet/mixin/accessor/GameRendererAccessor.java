@@ -11,7 +11,7 @@ public interface GameRendererAccessor {
 
 	double ultraviolet_getFov(Camera activeRenderInfo, float partialTicks, boolean useFOVSetting);
 
-	Mat4 ultraviolet_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation, float partialTick);
+	Mat4 ultraviolet_makeProjectionMatrix(double near, double far, boolean applyViewBobTranslation, float partialTick);
 
 	ShaderProgram ultraviolet_getShader(ResourceLocation id);
 
@@ -37,7 +37,7 @@ public interface GameRendererAccessor {
 		return ((GameRendererAccessor) renderer).ultraviolet_getFov(activeRenderInfo, partialTicks, useFOVSetting);
 	}
 
-	static Mat4 makeProjectionMatrix(GameRenderer renderer, float near, float far, boolean applyViewBobTranslation,
+	static Mat4 makeProjectionMatrix(GameRenderer renderer, double near, double far, boolean applyViewBobTranslation,
 			float partialTick) {
 		return ((GameRendererAccessor) renderer).ultraviolet_makeProjectionMatrix(near, far, applyViewBobTranslation,
 				partialTick);

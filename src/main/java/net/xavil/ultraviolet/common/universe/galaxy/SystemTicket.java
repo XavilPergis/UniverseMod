@@ -1,5 +1,7 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
+import javax.annotation.Nullable;
+
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
@@ -21,6 +23,14 @@ public final class SystemTicket implements Disposable {
 
 	public Maybe<StarSystem> forceLoad() {
 		return this.attachedManager.forceLoad(this);
+	}
+
+	@Nullable
+	public StarSystem get() {
+		if (this.attachedManager.isSystemLoaded(this.id)) {
+			return this.attachedManager.getSystem(this.id).unwrapOrNull();
+		}
+		return null;
 	}
 
 	public boolean isLoaded() {

@@ -15,6 +15,7 @@ public enum PrimitiveType {
 	// @formatter:off
 	// points do not actually use the GL_POINTS primitive type, and are instead expanded into quads.
 	POINT_QUADS     (GL32C.GL_TRIANGLES,      4, 4, 3, null,                               VertexFormat.Mode.QUADS),
+	POINTS          (GL32C.GL_POINTS,         1, 1, 0, null,                               VertexFormat.Mode.TRIANGLES),
 
 	LINES           (GL32C.GL_TRIANGLES,      2, 2, 1, VertexFormat.Mode.LINES,            VertexFormat.Mode.LINES),
 	LINE_STRIP      (GL32C.GL_TRIANGLE_STRIP, 2, 1, 1, VertexFormat.Mode.LINE_STRIP,       VertexFormat.Mode.LINE_STRIP),

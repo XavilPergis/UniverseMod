@@ -21,6 +21,8 @@ uniform   int uCameraType;
 #define uCameraNegZ (-uViewMatrix[2].xyz)
 #define uCameraPosZ ( uViewMatrix[2].xyz)
 
+uniform vec2 uScreenSize;
+
 uniform float uTime;
 
 #endif

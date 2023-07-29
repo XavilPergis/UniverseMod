@@ -237,4 +237,8 @@ public final class GlManager {
 	public static void bufferData(GlBuffer.Type target, ByteBuffer data, GlBuffer.UsageHint usage) {
 		INSTANCE.currentSink.bufferData(target, data, usage);
 	}
+
+	public static void enableProgramPointSize(boolean enable) {
+		INSTANCE.currentSink.enableProgramPointSize(enable);
+	}
 }

@@ -79,27 +79,33 @@ public final class ModDebugCommand {
 		}
 	}
 
+	private static <T> void executeConfigGetCommand(ConfigKey<T> key, CommandContext<CommandSourceStack> ctx)
+			throws CommandSyntaxException {
+		final var value = getCommonDebug(ctx).get(key, ctx.getSource().getPlayerOrException());
+		final var message = String.format(
+				"config value '%s' is set to '%s'",
+				key.keyId, value);
+		ctx.getSource().sendSuccess(new TextComponent(message), true);
+	}
+
 	private static LiteralArgumentBuilder<CommandSourceStack> createConfigSubcommand() {
 		final var builders = new Object() {
-			// LiteralArgumentBuilder<CommandSourceStack> get = literal("get");
 			LiteralArgumentBuilder<CommandSourceStack> set = literal("set");
+			LiteralArgumentBuilder<CommandSourceStack> get = literal("get");
 			// LiteralArgumentBuilder<CommandSourceStack> unset = literal("unset");
 		};
 
 		ConfigKey.enumerate(key -> {
-			// builders.get.then(literal(value.keyId).executes(ctx -> {
-			// final var message = String.format(
-			// "config value '%s' is currently '%s'",
-			// value.keyId, ModDebug.get(value));
-			// ctx.getSource().sendSuccess(new TextComponent(message), true);
-			// return 1;
-			// }));
 			builders.set.then(literal(key.keyId).then(argument("value", key.type.argumentType).executes(ctx -> {
 				executeConfigSetCommand(key, ctx);
 				return 1;
 			})));
+			builders.get.then(literal(key.keyId).executes(ctx -> {
+				executeConfigGetCommand(key, ctx);
+				return 1;
+			}));
 		});
-		final var builder = literal("config").then(builders.set);
+		final var builder = literal("config").then(builders.set).then(builders.get);
 		return builder;
 	}
 

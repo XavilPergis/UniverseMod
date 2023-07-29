@@ -26,9 +26,17 @@ public final class Vector<T> implements MutableList<T> {
 		this.elements = makeArray(initialCapacity);
 	}
 
-	private Vector(T[] elements, int size, float growthFactor) {
+	public static <T> Vector<T> fromElements(T... initialElements) {
+		return new Vector<>(initialElements, initialElements.length);
+	}
+
+	private Vector(T[] elements, int size) {
 		this.elements = elements;
 		this.size = size;
+	}
+
+	private Vector(T[] elements, int size, float growthFactor) {
+		this(elements, size);
 		this.growthFactor = growthFactor;
 	}
 
@@ -194,12 +202,35 @@ public final class Vector<T> implements MutableList<T> {
 
 	@Override
 	public void sort(Comparator<? super T> comparator) {
-		Arrays.sort(this.elements, comparator);
+		Arrays.sort(this.elements, 0, this.size, comparator);
 	}
 
 	@Override
-	public T[] toArray() {
-		return Arrays.copyOf(this.elements, this.size);
+	public T[] toArray(Class<T> innerType) {
+		return Arrays.copyOf(this.elements, this.size, (Class<T[]>) innerType.arrayType());
+	}
+
+	private static final int BIG_ARRAY_CUTOFF = 32;
+
+	@Override
+	public String toString() {
+		final var builder = new StringBuilder();
+		builder.append("[");
+		if (this.size > 0) {
+			builder.append(this.elements[0]);
+			final var limit = Math.min(this.size, BIG_ARRAY_CUTOFF);
+			for (int i = 1; i < limit; ++i) {
+				builder.append(", ");
+				builder.append(this.elements[i]);
+			}
+			if (this.size > BIG_ARRAY_CUTOFF) {
+				builder.append(", ... <");
+				builder.append(this.size - BIG_ARRAY_CUTOFF);
+				builder.append(" more>");
+			}
+		}
+		builder.append("]");
+		return builder.toString();
 	}
 
 	public Vector<T> copy() {

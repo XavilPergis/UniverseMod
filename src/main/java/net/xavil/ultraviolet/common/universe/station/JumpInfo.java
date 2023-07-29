@@ -1,6 +1,7 @@
 package net.xavil.ultraviolet.common.universe.station;
 
 import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 
 public final class JumpInfo implements Disposable {
@@ -14,7 +15,9 @@ public final class JumpInfo implements Disposable {
 	}
 
 	public void tick() {
-		this.jump.travel(100000);
+		// 299792458
+		final double speed = 100;
+		this.jump.travel(speed * Units.Tm_PER_ly * 0.05);
 	}
 
 	public boolean complete() {

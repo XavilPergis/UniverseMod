@@ -1,12 +1,10 @@
 package net.xavil.ultraviolet.client.screen;
 
-import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.util.Mth;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlState;
@@ -18,9 +16,7 @@ import net.xavil.ultraviolet.client.UltravioletVertexFormats;
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
-import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.camera.CachedCamera;
-import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
@@ -76,6 +72,10 @@ public final class RenderHelper {
 		// addBillboard(builder, camera, tfm, node, d, nodePos.mul(1e12 /
 		// camera.metersPerUnit));
 		addBillboard(builder, camera, node, d, np);
+	}
+
+	public static void addStarPoint(FlexibleVertexConsumer builder, StellarCelestialNode node, Vec3 pos) {
+		builder.vertex(pos).color(node.getColor()).uv0((float) node.luminosityLsol, 0).endVertex();
 	}
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, CelestialNode node,
@@ -234,13 +234,13 @@ public final class RenderHelper {
 	public static void renderUiBillboard(DrawState drawState, VertexBuilder builder,
 			CachedCamera<?> camera, TransformStack tfm,
 			Vec3 center, double scale, Color color, ResourceLocation texture, ShaderProgram shader) {
-				// CLIENT.getTextureManager().getTexture(texture).setFilter(true, false);
-				// RenderSystem.setShaderTexture(0, texture);
-				// GlManager.enableBlend(true);
-				// GlManager.blendFunc(GlState.BlendFactor.SRC_ALPHA, GlState.BlendFactor.ONE);
-				// GlManager.depthMask(false);
-				// GlManager.enableDepthTest(false);
-				// GlManager.enableCull(false);
+		// CLIENT.getTextureManager().getTexture(texture).setFilter(true, false);
+		// RenderSystem.setShaderTexture(0, texture);
+		// GlManager.enableBlend(true);
+		// GlManager.blendFunc(GlState.BlendFactor.SRC_ALPHA, GlState.BlendFactor.ONE);
+		// GlManager.depthMask(false);
+		// GlManager.enableDepthTest(false);
+		// GlManager.enableCull(false);
 		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR_TEX);
 		addBillboard(builder, camera, tfm, center, scale, color);
 		builder.end().draw(shader, drawState);

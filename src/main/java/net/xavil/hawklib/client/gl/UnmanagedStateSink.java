@@ -194,4 +194,13 @@ public final class UnmanagedStateSink implements GlStateSink {
 	public void bufferData(Type target, ByteBuffer data, UsageHint usage) {
 		GlStateManager._glBufferData(target.id, data, usage.id);
 	}
+
+	@Override
+	public void enableProgramPointSize(boolean enable) {
+		if (enable) {
+			GL32C.glEnable(GL32C.GL_PROGRAM_POINT_SIZE);
+		} else {
+			GL32C.glDisable(GL32C.GL_PROGRAM_POINT_SIZE);
+		}
+	}
 }

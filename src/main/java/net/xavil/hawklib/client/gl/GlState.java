@@ -1,21 +1,13 @@
 package net.xavil.hawklib.client.gl;
 
 import java.nio.ByteBuffer;
-import java.util.Arrays;
-
 import javax.annotation.Nullable;
 
-import org.lwjgl.opengl.GL;
 import org.lwjgl.opengl.GL32C;
-import org.lwjgl.opengl.GL45C;
 import org.lwjgl.system.MemoryStack;
-
-import com.mojang.blaze3d.platform.GlStateManager;
-import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.xavil.hawklib.client.gl.shader.ShaderStage;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
-import net.xavil.hawklib.client.gl.texture.GlTexture.Type;
 
 public final class GlState implements GlStateSink {
 
@@ -339,6 +331,9 @@ public final class GlState implements GlStateSink {
 
 	private EnableFlag logicOpEnabled = null; // default: EnableFlag.DISABLED
 	private LogicOp logicOp = null; // default: LogicOp.COPY
+
+	// other
+	private EnableFlag programPointSizeEnabled = null;
 
 	// Integer.MIN_VALUE is a "vacant" sentinil value.
 	private int viewportX = Integer.MIN_VALUE;
@@ -1073,4 +1068,20 @@ public final class GlState implements GlStateSink {
 		bindBuffer(GlBuffer.Type.ARRAY, prevBinding);
 	}
 
+	@Override
+	public void enableProgramPointSize(boolean enable) {
+		if (this.parentState.programPointSizeEnabled == null) {
+			this.parentState.programPointSizeEnabled = EnableFlag.from(isProgramPointSizeEnabled());
+		}
+		if (EnableFlag.needsSync(this.programPointSizeEnabled, enable)) {
+			UNMANAGED.enableProgramPointSize(enable);
+			this.programPointSizeEnabled = EnableFlag.from(enable);
+		}
+	}
+
+	public boolean isProgramPointSizeEnabled() {
+		if (this.programPointSizeEnabled == null)
+			this.programPointSizeEnabled = EnableFlag.from(GL32C.glIsEnabled(GL32C.GL_PROGRAM_POINT_SIZE));
+		return this.programPointSizeEnabled != EnableFlag.DISABLED;
+	}
 }

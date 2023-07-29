@@ -74,4 +74,6 @@ public interface GlStateSink {
 
 	void bufferData(GlBuffer.Type target, ByteBuffer data, GlBuffer.UsageHint usage);
 
+	void enableProgramPointSize(boolean enable);
+
 }

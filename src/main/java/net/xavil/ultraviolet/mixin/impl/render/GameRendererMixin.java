@@ -142,7 +142,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	// any particularly easy way to do that...
 
 	@Override
-	public Mat4 ultraviolet_makeProjectionMatrix(float near, float far, boolean applyViewBobTranslation,
+	public Mat4 ultraviolet_makeProjectionMatrix(double near, double far, boolean applyViewBobTranslation,
 			float partialTick) {
 		final var projectionStack = new PoseStack();
 		final var fov = this.getFov(this.mainCamera, partialTick, true);
@@ -153,7 +153,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 			projectionStack.translate(this.zoomX, -this.zoomY, 0);
 			projectionStack.scale(this.zoom, this.zoom, 1f);
 		}
-		final var projectionMatrix = Matrix4f.perspective(fov, aspectRatio, near, far);
+		final var projectionMatrix = Matrix4f.perspective(fov, aspectRatio, (float) near, (float) far);
 		projectionStack.last().pose().multiply(projectionMatrix);
 
 		this.bobHurt(projectionStack, partialTick);

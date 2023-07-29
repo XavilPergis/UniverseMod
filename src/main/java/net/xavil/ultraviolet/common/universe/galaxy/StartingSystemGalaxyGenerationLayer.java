@@ -57,8 +57,8 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		Mod.LOGGER.error("could not find suitable starting system location!");
 		this.startingSystemPos = Vec3.ZERO;
 		this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, this.startingSystemPos);
-		this.startingSystem = new StarSystem(this.parentGalaxy, this.startingSystemPos, this.startingNode);
-		this.startingSystemInfo = StarSystem.Info.custom(4600, "Sol", this.startingSystem);
+		this.startingSystem = new StarSystem("Sol", this.parentGalaxy, this.startingSystemPos, this.startingNode);
+		this.startingSystemInfo = StarSystem.Info.custom(4600, this.startingSystem);
 	}
 
 	private void findElementIndex() {

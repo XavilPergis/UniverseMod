@@ -49,24 +49,19 @@ public interface MutableList<T> extends MutableCollection, ImmutableList<T> {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
 	default void sort(Comparator<? super T> comparator) {
-		final T[] elems = this.toArray();
-		Arrays.sort(elems, comparator);
+		final Object[] elems = new Object[this.size()];
+		for (int i = 0; i < this.size(); ++i)
+			elems[i] = this.get(i);
+		Arrays.sort((T[]) elems, comparator);
 		for (int i = 0; i < elems.length; ++i)
-			this.set(i, elems[i]);
+			this.set(i, (T) elems[i]);
 	}
 
 	@Override
 	default MutableList<T> hint(CollectionHint hint) {
 		return this;
-	}
-
-	default T[] toArray() {
-		@SuppressWarnings("unchecked")
-		final T[] elems = (T[]) new Object[this.size()];
-		for (int i = 0; i < this.size(); ++i)
-			elems[i] = this.get(i);
-		return elems;
 	}
 
 	static <T> MutableList<T> proxy(List<T> list) {

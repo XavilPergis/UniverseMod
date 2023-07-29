@@ -19,7 +19,7 @@ import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 
 public final class BufferRenderer {
 
-	public static final VertexBuilder IMMEDIATE_BUILDER = new VertexBuilder(0x200000);
+	public static final VertexBuilder IMMEDIATE_BUILDER = new VertexBuilder(0x400000);
 	public static final FlexibleVertexBuffer IMMEDIATE_BUFFER = new FlexibleVertexBuffer();
 
 	public static void draw(ShaderProgram shader, VertexBuilder.BuiltBuffer buffer, DrawState drawState) {
@@ -81,6 +81,9 @@ public final class BufferRenderer {
 
 		shader.setUniform("uViewMatrix", Mat4Access.from(modelViewMatrix));
 		shader.setUniform("uProjectionMatrix", Mat4Access.from(projectionMatrix));
+
+		final var window = Minecraft.getInstance().getWindow();
+		shader.setUniform("uScreenSize", (float) window.getWidth(), (float) window.getHeight());
 
 		setupDefaultVanillaUniforms(shader.getWrappedVanillaShader());
 	}

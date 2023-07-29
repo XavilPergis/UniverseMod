@@ -2,6 +2,7 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 
 import java.util.function.Consumer;
 
+import net.minecraft.util.Mth;
 import net.xavil.hawklib.collections.interfaces.ImmutableSet;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -14,7 +15,7 @@ public abstract sealed class SectorTicketInfo {
 	}
 
 	public static Multi visual(Vec3 centerPos) {
-		return new Multi(centerPos, GalaxySector.BASE_SIZE_Tm, 0.0, 2.0);
+		return new Multi(centerPos, GalaxySector.BASE_SIZE_Tm);
 	}
 
 	public static Single single(SectorPos pos) {
@@ -72,19 +73,38 @@ public abstract sealed class SectorTicketInfo {
 	public static final class Multi extends SectorTicketInfo {
 		public Vec3 centerPos;
 		public double baseRadius;
-		public double additiveFactor;
-		public double multiplicitaveFactor;
 
-		public Multi(Vec3 centerPos, double baseRadius, double additiveFactor, double multiplicitaveFactor) {
+		public Multi(Vec3 centerPos, double baseRadius) {
 			this.centerPos = centerPos;
 			this.baseRadius = baseRadius;
-			this.additiveFactor = additiveFactor;
-			this.multiplicitaveFactor = multiplicitaveFactor;
 		}
 
 		@Override
 		public Multi copy() {
-			return new Multi(centerPos, baseRadius, additiveFactor, multiplicitaveFactor);
+			return new Multi(centerPos, baseRadius);
+		}
+
+		// https://stackoverflow.com/questions/28343716/sphere-intersection-test-of-aabb
+		boolean sphereAabb(Vec3 sphereCenter, double sphereRadius, Vec3 aabbMin, Vec3 aabbMax) {
+			double d = 0.0;
+			if (sphereCenter.x < aabbMin.x)
+				d += Mth.square(sphereCenter.x - aabbMin.x);
+			else if (sphereCenter.x > aabbMax.x)
+				d += Mth.square(sphereCenter.x - aabbMax.x);
+			if (sphereCenter.y < aabbMin.y)
+				d += Mth.square(sphereCenter.y - aabbMin.y);
+			else if (sphereCenter.y > aabbMax.y)
+				d += Mth.square(sphereCenter.y - aabbMax.y);
+			if (sphereCenter.z < aabbMin.z)
+				d += Mth.square(sphereCenter.z - aabbMin.z);
+			else if (sphereCenter.z > aabbMax.z)
+				d += Mth.square(sphereCenter.z - aabbMax.z);
+			return d <= sphereRadius * sphereRadius;
+		}
+
+		private boolean isInside(SectorPos pos) {
+			final var radius = this.baseRadius * (1 << pos.level());
+			return sphereAabb(this.centerPos, radius, pos.minBound(), pos.maxBound());
 		}
 
 		@Override
@@ -94,9 +114,12 @@ public abstract sealed class SectorTicketInfo {
 				final var level2 = level;
 				final var curMin = GalaxySector.levelCoordsForPos(level, this.centerPos.sub(Vec3.broadcast(radiusCur)));
 				final var curMax = GalaxySector.levelCoordsForPos(level, this.centerPos.add(Vec3.broadcast(radiusCur)));
-				Vec3i.iterateInclusive(curMin, curMax, pos -> consumer.accept(new SectorPos(level2, pos)));
-				radiusCur *= this.multiplicitaveFactor;
-				radiusCur += this.additiveFactor;
+				Vec3i.iterateInclusive(curMin, curMax, pos -> {
+					final var spos = new SectorPos(level2, pos);
+					if (isInside(spos))
+						consumer.accept(spos);
+				});
+				radiusCur *= 2.0;
 			}
 		}
 
@@ -122,16 +145,22 @@ public abstract sealed class SectorTicketInfo {
 					if (!curMin.equals(prevMin) || !curMax.equals(prevMax)) {
 						final var levelCur = MutableSet.<SectorPos>hashSet();
 						final var levelPrev = MutableSet.<SectorPos>hashSet();
-						Vec3i.iterateInclusive(curMin, curMax, pos -> levelCur.insert(new SectorPos(level2, pos)));
-						Vec3i.iterateInclusive(prevMin, prevMax, pos -> levelPrev.insert(new SectorPos(level2, pos)));
+						Vec3i.iterateInclusive(curMin, curMax, pos -> {
+							final var spos = new SectorPos(level2, pos);
+							if (isInside(spos))
+								levelCur.insert(spos);
+						});
+						Vec3i.iterateInclusive(prevMin, prevMax, pos -> {
+							final var spos = new SectorPos(level2, pos);
+							if (isInside(spos))
+								levelPrev.insert(spos);
+						});
 						added.extend(levelCur.difference(levelPrev));
 						removed.extend(levelPrev.difference(levelCur));
 					}
 
-					radiusCur *= this.multiplicitaveFactor;
-					radiusCur += this.additiveFactor;
-					radiusPrev *= multi.multiplicitaveFactor;
-					radiusPrev += multi.additiveFactor;
+					radiusCur *= 2.0;
+					radiusPrev *= 2.0;
 				}
 				return new Diff(added, removed);
 			}
@@ -142,9 +171,7 @@ public abstract sealed class SectorTicketInfo {
 		public boolean equals(Object obj) {
 			if (obj instanceof Multi other) {
 				return this.centerPos.equals(other.centerPos)
-						&& this.baseRadius == other.baseRadius
-						&& this.additiveFactor == other.additiveFactor
-						&& this.multiplicitaveFactor == other.multiplicitaveFactor;
+						&& this.baseRadius == other.baseRadius;
 			}
 			return false;
 		}

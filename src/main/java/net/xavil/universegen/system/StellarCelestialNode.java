@@ -42,7 +42,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 
 		public void transformToFinalProperties(Rng rng, double ageMyr, double mainSequenceLifetimeMyr,
 				StellarCelestialNode node) {
-			node.massYg = curveMass(rng, node);
+			// node.massYg = curveMass(rng, node);
 
 			if (this == BLACK_HOLE) {
 				node.luminosityLsol = 0;
@@ -95,14 +95,15 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 				// idk
 				node.radiusRsol *= rng.uniformDouble(100, 200);
 				node.temperatureK *= Mth.lerp(Math.pow(rng.uniformDouble(), 3.0), 0.2, 0.6);
-				node.luminosityLsol *= 10;
+				node.luminosityLsol *= Mth.lerp(Math.pow(rng.uniformDouble(), 2.0), 1.0, 10.0);
 			}
 
 			node.cachedColor = blackBodyColor(node.temperatureK);
 		}
 
 		private double curveMass(Rng rng, StellarCelestialNode node) {
-			return this.curveSlope * node.massYg + this.curveYIntercept;
+			return node.massYg;
+			// return this.curveSlope * node.massYg + this.curveYIntercept;
 		}
 	}
 
@@ -130,7 +131,6 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public double radiusRsol;
 	public double temperatureK;
 	public Color cachedColor;
-	public StarClass cachedStarClass;
 
 	public StellarCelestialNode(StellarCelestialNode.Type type, double massYg,
 			double luminosityLsol, double radiusRsol, double temperatureK) {
@@ -233,21 +233,31 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	private static record ClassificationInterval(
 			double minBound,
 			double maxBound,
+			StarClass starClass,
 			String name) {
 	}
 
 	private static final ClassificationInterval[] CLASSIFICATION_TABLE = {
 		// @formatter:off
-		new ClassificationInterval(0,     2400,   "L"),
-		new ClassificationInterval(2400,  3700,   "M"),
-		new ClassificationInterval(3700,  5200,   "K"),
-		new ClassificationInterval(5200,  6000,   "G"),
-		new ClassificationInterval(6000,  6500,   "F"),
-		new ClassificationInterval(6500,  10000,  "A"),
-		new ClassificationInterval(10000, 30000,  "B"),
-		new ClassificationInterval(30000, 100000, "O"),
+		new ClassificationInterval(0,     2400,   null,        "L"),
+		new ClassificationInterval(2400,  3700,   StarClass.M, "M"),
+		new ClassificationInterval(3700,  5200,   StarClass.K, "K"),
+		new ClassificationInterval(5200,  6000,   StarClass.G, "G"),
+		new ClassificationInterval(6000,  6500,   StarClass.F, "F"),
+		new ClassificationInterval(6500,  10000,  StarClass.A, "A"),
+		new ClassificationInterval(10000, 30000,  StarClass.B, "B"),
+		new ClassificationInterval(30000, 100000, StarClass.O, "O"),
 		// @formatter:on
 	};
+
+	@Nullable
+	public final StarClass getStarClass() {
+		for (final var interval : CLASSIFICATION_TABLE) {
+			if (this.temperatureK >= interval.minBound && this.temperatureK < interval.maxBound)
+				return interval.starClass;
+		}
+		return null;
+	}
 
 	public final @Nullable String getSpectralClassification() {
 		if (!this.type.hasSpectralClass)

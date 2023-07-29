@@ -125,6 +125,16 @@ public final class ConfigKey<T> {
 	public static final ConfigKey<Double>  SKY_CAMERA_FAR_PLANE               = doubleKey ("skyCameraFarPlane",             1e10,  Side.CLIENT);
 	public static final ConfigKey<Boolean> FORCE_STAR_RENDERER_IMMEDIATE_MODE = booleanKey("forceStarRendererImediateMode", false, Side.CLIENT);
 
+	public static final ConfigKey<Integer> GALAXY_PARTILE_ATTEMPT_COUNT = intKey("galaxyParticleAttemptCount", 1000000, Side.CLIENT);
+	public static final ConfigKey<Integer> GALAXY_PARTILE_MAX_PARTICLES = intKey("galaxyParticleMaxParticles", 2500,    Side.CLIENT);
+
+	public static final ConfigKey<Float> STAR_SHADER_STAR_MIN_SIZE           = floatKey("starShaderStarMinSize",          5f,    Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_STAR_MAX_SIZE           = floatKey("starShaderStarMaxSize",          8f,    Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_STAR_SIZE_SQUASH_FACTOR = floatKey("starShaderStarSizeSquashFactor", 250f,  Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_STAR_BRIGHTNESS_FACTOR  = floatKey("starShaderStarBrightnessFactor", 2e10f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_DIM_STAR_MIN_ALPHA      = floatKey("starShaderDimStarMinAlpha",      0.1f,  Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_DIM_STAR_EXPONENT       = floatKey("starShaderDimStarExponent",      0.1f,  Side.CLIENT);
+
 	public static final ConfigKey<Double>  MIN_GRAVITY       = doubleKey ("minGravity",      0.2,   Side.SERVER);
 	public static final ConfigKey<Double>  MAX_GRAVITY       = doubleKey ("maxGravity",      1.2,   Side.SERVER);
 	public static final ConfigKey<Boolean> USE_FIXED_GRAVITY = booleanKey("useFixedGravity", false, Side.SERVER);

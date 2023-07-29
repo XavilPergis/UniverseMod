@@ -8,6 +8,9 @@ import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.math.matrices.Vec2i;
@@ -53,14 +56,38 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 		};
 
 		holder.emit("System " + systemId, 0xffffffff);
-		this.galaxy.sectorManager.getInitial(selected).ifSome(info -> {
-			final var system = info.info();
+		final var system = this.selectedSystemTicket.get();
+		if (system == null) {
+			holder.emit("§c[generating]§r", 0xffffffff);
+			holder.height += 10;
+		} else {
 			holder.emit(String.format("§9§l§n%s§r", system.name), 0xffffffff);
 			holder.height += 10;
-			system.primaryStar.describe((prop, value) -> {
-				holder.emit(String.format("§9%s§r: %s", prop, value), 0xffffffff);
-			});
-		});
+
+			final var res = new StringBuilder("§l");
+			for (final var node : system.rootNode.selfAndChildren().iterable()) {
+				if (node instanceof StellarCelestialNode starNode) {
+					res.append(starNode.getSpectralClassification());
+					res.append(' ');
+				}
+			}
+			res.append("§r");
+			holder.emit(res.toString(), 0xffffffff);
+			holder.height += 10;
+
+			for (final var node : system.rootNode.selfAndChildren().iterable()) {
+				if (node instanceof StellarCelestialNode) {
+					final var massLine = String.format("- * §9§lMass§r: %.4e Yg (%.2f M☉)", node.massYg, node.massYg / Units.Yg_PER_Msol);
+					holder.emit(massLine, 0xffffffff);
+				} else if (node instanceof PlanetaryCelestialNode) {
+					var massLine = String.format("-   §9§lMass§r: %.4e Yg (%.2f Mⴲ)", node.massYg, node.massYg / Units.Yg_PER_Mearth);
+					if (node.massYg > 0.01 * Units.Yg_PER_Msol) {
+						massLine += String.format(" (%.2f M☉)", node.massYg / Units.Yg_PER_Msol);
+					}
+					holder.emit(massLine, 0xffffffff);
+				}
+			}
+		}
 	}
 
 	@Override

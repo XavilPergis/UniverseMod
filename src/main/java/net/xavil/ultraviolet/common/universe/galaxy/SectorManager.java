@@ -1,5 +1,6 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Consumer;
 
@@ -23,7 +24,9 @@ public final class SectorManager {
 
 	public final class SectorTicketTracker {
 		public final SectorTicket<?> loanedTicket;
-		private Maybe<? extends SectorTicketInfo> prevInfo = Maybe.none();
+		private SectorTicketInfo prevInfo = null;
+
+		private MutableSet<SectorPos> prevSectors = MutableSet.hashSet(), newSectors = MutableSet.hashSet();
 
 		public SectorTicketTracker(SectorTicket<?> loanedTicket) {
 			this.loanedTicket = loanedTicket;
@@ -31,19 +34,35 @@ public final class SectorManager {
 
 		public void update(MutableSet<SectorPos> toLoad, MutableSet<SectorPos> toUnload) {
 			final var prev = this.prevInfo;
-			final var cur = Maybe.fromNullable(this.loanedTicket.info);
-			if (prev.equals(cur))
+			final var cur = this.loanedTicket.info;
+			if (Objects.equals(prev, cur))
 				return;
-			if (prev.isNone() && cur.isSome()) {
-				toLoad.extend(this.loanedTicket.info.affectedSectors());
-			} else if (prev.isSome() && cur.isNone()) {
-				toUnload.extend(this.loanedTicket.info.affectedSectors());
+			if (prev == null && cur != null) {
+				this.loanedTicket.info.enumerateAffectedSectors(toLoad::insert);
+			} else if (prev != null && cur == null) {
+				this.loanedTicket.info.enumerateAffectedSectors(toUnload::insert);
 			} else {
-				final var diff = this.loanedTicket.info.diff(prev.unwrap());
-				toLoad.extend(diff.added());
-				toUnload.extend(diff.removed());
+				this.newSectors.clear();
+				this.loanedTicket.info.enumerateAffectedSectors(this.newSectors::insert);
+
+				this.prevSectors.forEach(sector -> {
+					if (!this.newSectors.contains(sector))
+						toUnload.insert(sector);
+				});
+				this.newSectors.forEach(sector -> {
+					if (!this.prevSectors.contains(sector))
+						toLoad.insert(sector);
+				});
+
+				var tmp = this.newSectors;
+				this.newSectors = this.prevSectors;
+				this.prevSectors = tmp;
+
+				// final var diff = this.loanedTicket.info.diff(prev);
+				// toLoad.extend(diff.added());
+				// toUnload.extend(diff.removed());
 			}
-			this.prevInfo = cur.isSome() ? Maybe.some(cur.unwrap().copy()) : Maybe.none();
+			this.prevInfo = cur != null ? cur.copy() : null;
 		}
 	}
 
@@ -87,7 +106,7 @@ public final class SectorManager {
 							final var elements = galaxy.generateSectorElements(pos);
 							synchronized (sector) {
 								if (!Thread.interrupted())
-									sector.initialElements = elements;
+									sector.elements = elements;
 							}
 							return sector;
 						}));
@@ -99,11 +118,8 @@ public final class SectorManager {
 			final var sector = this.sector.lookupSubtree(pos);
 			if (sector == null) {
 				Mod.LOGGER.error("tried to remove null sector {}", pos);
-			} else {
-				synchronized (sector) {
-					this.waitingFutures.remove(pos).ifSome(future -> future.cancel(true));
-				}
 			}
+			this.waitingFutures.remove(pos).ifSome(future -> future.cancel(true));
 			if (this.sector.unload(pos)) {
 				sectorMap.remove(pos.rootCoords());
 			}
@@ -192,7 +208,7 @@ public final class SectorManager {
 			sectorSlot.waitingFutures.get(sectorPos).unwrap().join();
 			Assert.isTrue(sector.isComplete());
 		}
-		if (sector.initialElements.size() <= systemTicket.id.elementIndex()) {
+		if (sector.elements.size() <= systemTicket.id.elementIndex()) {
 			return Maybe.none();
 		}
 		if (systemSlot.waitingFuture == null)
@@ -281,10 +297,12 @@ public final class SectorManager {
 	}
 
 	private Maybe<StarSystem> generateSystem(GalaxySector sector, GalaxySectorId id) {
-		if (id.elementIndex() >= sector.initialElements.size())
+		if (id.elementIndex() >= sector.elements.size())
 			return Maybe.none();
 		try {
-			return Maybe.some(this.galaxy.generateFullSystem(sector, sector.initialElements.get(id.elementIndex())));
+			final var elem = new GalaxySector.SectorElementHolder();
+			sector.elements.load(elem, id.elementIndex());
+			return Maybe.some(this.galaxy.generateFullSystem(sector, elem));
 		} catch (Throwable t) {
 			Mod.LOGGER.error("failed to generate system because of an exception!");
 			t.printStackTrace();
@@ -350,13 +368,22 @@ public final class SectorManager {
 		return slot.map(s -> s.sector.lookupSubtree(pos)).filter(sector -> sector.isComplete());
 	}
 
-	public Maybe<GalaxySector.InitialElement> getInitial(GalaxySectorId id) {
-		return this.sectorMap.get(id.sectorPos().rootCoords()).flatMap(slot -> {
-			final var sector = slot.sector.lookupSubtree(id.sectorPos());
-			if (!sector.isComplete())
-				return Maybe.none();
-			return Maybe.some(sector.lookupInitial(id.elementIndex()));
-		});
+	// public Maybe<GalaxySector.InitialElement> getInitial(GalaxySectorId id) {
+	// 	return this.sectorMap.get(id.sectorPos().rootCoords()).flatMap(slot -> {
+	// 		final var sector = slot.sector.lookupSubtree(id.sectorPos());
+	// 		if (!sector.isComplete())
+	// 			return Maybe.none();
+	// 		return Maybe.some(sector.lookupInitial(id.elementIndex()));
+	// 	});
+	// }
+	public boolean loadElement(GalaxySector.SectorElementHolder out, GalaxySectorId id) {
+		final var slot = this.sectorMap.getOrNull(id.sectorPos().rootCoords());
+		if (slot == null) return false;
+		final var sector = slot.sector.lookupSubtree(id.sectorPos());
+		if (!sector.isComplete())
+			return false;
+		sector.loadElement(out, id.elementIndex());
+		return true;
 	}
 
 	public Maybe<StarSystem> getSystem(GalaxySectorId id) {

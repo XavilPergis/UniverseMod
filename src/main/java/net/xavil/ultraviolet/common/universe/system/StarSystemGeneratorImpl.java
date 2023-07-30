@@ -9,6 +9,7 @@ import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.BaseGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
+import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.system.gen.AccreteContext;
 import net.xavil.ultraviolet.common.universe.system.gen.ProtoplanetaryDisc;
 import net.xavil.ultraviolet.common.universe.system.gen.SimulationParameters;
@@ -30,12 +31,12 @@ public class StarSystemGeneratorImpl {
 
 	protected final Rng rng;
 	protected final Galaxy galaxy;
-	protected final StarSystem.Info info;
+	protected final GalaxySector.SectorElementHolder info;
 	protected double remainingMass;
 
 	protected final double maximumSystemRadius;
 
-	public StarSystemGeneratorImpl(Rng rng, Galaxy galaxy, StarSystem.Info info) {
+	public StarSystemGeneratorImpl(Rng rng, Galaxy galaxy, GalaxySector.SectorElementHolder info) {
 		this.rng = rng;
 		this.galaxy = galaxy;
 		this.info = info;
@@ -114,19 +115,18 @@ public class StarSystemGeneratorImpl {
 	}
 
 	public CelestialNode generate() {
-		var remainingMass = this.info.remainingMass;
+		final var remainingMass = this.info.massYg * this.rng.uniformDouble(0.0, 0.2);
 
-		CelestialNode current = this.info.primaryStar;
+		CelestialNode current = StellarCelestialNode.fromMassAndAge(this.info.massYg, this.info.systemAgeMyr);
 		Assert.isTrue(current != null);
 
 		for (var i = 0; i < 32; ++i) {
 			if (this.rng.chance(0.4))
 				break;
-			var massLimit = Math.min(remainingMass, this.info.primaryStar.massYg);
-			var starMass = BaseGalaxyGenerationLayer.generateStarMass(this.rng, massLimit);
+			var starMass = BaseGalaxyGenerationLayer.generateStarMass(this.rng);
 			if (remainingMass < starMass)
 				break;
-			var starNode = StellarCelestialNode.fromMassAndAge(rng, starMass, this.info.systemAgeMyr);
+			var starNode = StellarCelestialNode.fromMassAndAge(starMass, this.info.systemAgeMyr);
 			// var protoDiscMass = starMass - starNode.massYg;
 			current = mergeStarNodes(current, starNode, rng.chance(0.9));
 			// ran out of places to put the star!

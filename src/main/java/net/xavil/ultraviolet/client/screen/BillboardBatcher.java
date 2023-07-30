@@ -37,9 +37,7 @@ public final class BillboardBatcher {
 		this.current = 0;
 	}
 
-	public void add(StellarCelestialNode node, Vec3 pos) {
-		RenderHelper.addStarPoint(builder, node, pos.mul(1e12 / camera.metersPerUnit).sub(camera.pos));
-
+	public void emitIfNeeded() {
 		this.current += 1;
 		if (this.current > this.billboardsPerBatch) {
 			end();

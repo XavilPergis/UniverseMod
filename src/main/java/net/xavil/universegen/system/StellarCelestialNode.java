@@ -4,106 +4,23 @@ import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
-import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.matrices.Vec3;
 
 public non-sealed class StellarCelestialNode extends CelestialNode {
 
 	public static enum Type {
-		MAIN_SEQUENCE(true, 1, 1, 2, 2),
-		GIANT(true, 1, 1, 2, 2),
-		WHITE_DWARF(true, 1.1, 0.525, 5.5, 0.98),
-		NEUTRON_STAR(false, 10, 1.4, 25, 1.9),
-		BLACK_HOLE(false, 30, 5, 100, 21);
+		MAIN_SEQUENCE(true),
+		GIANT(true),
+		WHITE_DWARF(true),
+		NEUTRON_STAR(false),
+		BLACK_HOLE(false);
 
 		public final boolean hasSpectralClass;
 
-		private final double curveSlope;
-		private final double curveYIntercept;
-
-		private Type(boolean hasSpectralClass,
-				double initialMass0, double finalMass0,
-				double initialMass1, double finalMass1) {
-			initialMass0 = Units.fromMsol(initialMass0);
-			finalMass0 = Units.fromMsol(finalMass0);
-			initialMass1 = Units.fromMsol(initialMass1);
-			finalMass1 = Units.fromMsol(finalMass1);
+		private Type(boolean hasSpectralClass) {
 			this.hasSpectralClass = hasSpectralClass;
-			this.curveSlope = (finalMass1 - finalMass0) / (initialMass1 - initialMass0);
-			this.curveYIntercept = finalMass0 - this.curveSlope * initialMass0;
-		}
-
-		private static final double C2_m2_PER_s2 = Units.SPEED_OF_LIGHT_m_PER_s * Units.SPEED_OF_LIGHT_m_PER_s;
-		private static final double SCHWARZSCHILD_FACTOR_m_PER_kg = 2.0 * Units.GRAVITATIONAL_CONSTANT_m3_PER_kg_s2
-				/ C2_m2_PER_s2;
-		private static final double SCHWARZSCHILD_FACTOR_Rsol_PER_Yg = SCHWARZSCHILD_FACTOR_m_PER_kg
-				* (Units.YOTTA / Units.KILO) / Units.m_PER_Rsol;
-
-		public void transformToFinalProperties(Rng rng, double ageMyr, double mainSequenceLifetimeMyr,
-				StellarCelestialNode node) {
-			// node.massYg = curveMass(rng, node);
-
-			if (this == BLACK_HOLE) {
-				node.luminosityLsol = 0;
-				node.radiusRsol = node.massYg * SCHWARZSCHILD_FACTOR_Rsol_PER_Yg;
-				node.temperatureK = 0;
-			} else if (this == WHITE_DWARF) {
-				// TODO: conservation of angular momentum (fast spinny :3)
-				// white dwarf and neutron star cooling is apparently very complicated, and i
-				// have birdbrain, so im just completely winging (hehe) it. As far as i
-				// understand, at least for neutron stars, they have a period of very rapid
-				// cooling followed by a period of much slower cooling.
-
-				Assert.isTrue(ageMyr > mainSequenceLifetimeMyr);
-
-				final double coolingTime = ageMyr - mainSequenceLifetimeMyr;
-				final double fastCurve = Math.exp(-0.007 * coolingTime);
-				final double slowCurve = Math.exp(-0.0002 * coolingTime);
-				final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
-
-				node.temperatureK *= 10;
-				node.temperatureK *= coolingCurve;
-
-				node.radiusRsol *= 1e-2 + rng.uniformDouble(-2.5e-6, 2.5e-6);
-
-				// treat the white dwarf as an ideal black body and apply the Stefan–Boltzmann
-				// law
-				final var radiantExitance = Units.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(node.temperatureK, 4.0);
-				final var radiusM = node.radiusRsol * Units.m_PER_Rsol;
-				final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
-				node.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
-			} else if (this == NEUTRON_STAR) {
-				Assert.isTrue(ageMyr > mainSequenceLifetimeMyr);
-
-				final double coolingTime = ageMyr - mainSequenceLifetimeMyr;
-				final double fastCurve = Math.exp(-0.007 * coolingTime);
-				final double slowCurve = Math.exp(-0.0002 * coolingTime);
-				final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
-
-				node.temperatureK *= 20;
-				node.temperatureK *= coolingCurve;
-
-				node.radiusRsol *= 1e-5 + rng.uniformDouble(-2.5e-8, 2.5e-8);
-
-				final var radiantExitance = Units.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(node.temperatureK, 4.0);
-				final var radiusM = node.radiusRsol * Units.m_PER_Rsol;
-				final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
-				node.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
-				// node.luminosityLsol = node.temperatureK / 2000;
-			} else if (this == GIANT) {
-				// idk
-				node.radiusRsol *= rng.uniformDouble(100, 200);
-				node.temperatureK *= Mth.lerp(Math.pow(rng.uniformDouble(), 3.0), 0.2, 0.6);
-				node.luminosityLsol *= Mth.lerp(Math.pow(rng.uniformDouble(), 2.0), 1.0, 10.0);
-			}
-
-			node.cachedColor = blackBodyColor(node.temperatureK);
-		}
-
-		private double curveMass(Rng rng, StellarCelestialNode node) {
-			return node.massYg;
-			// return this.curveSlope * node.massYg + this.curveYIntercept;
 		}
 	}
 
@@ -130,7 +47,6 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public double luminosityLsol;
 	public double radiusRsol;
 	public double temperatureK;
-	public Color cachedColor;
 
 	public StellarCelestialNode(StellarCelestialNode.Type type, double massYg,
 			double luminosityLsol, double radiusRsol, double temperatureK) {
@@ -172,58 +88,134 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT_W_PER_m2_K4), 0.25);
 	}
 
-	// private static @Nullable StellarCelestialNode generateStarNode(Random random,
-	// double systemAgeMya, double massYg) {
-	// final var starLifetime =
-	// StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
-
-	// // angular_momentum/angular_velocity = mass * radius^2
-
-	// // TODO: conservation of angular momentum when star changes mass or radius
-	// var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
-	// if (systemAgeMya > starLifetime) {
-	// if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
-	// targetType = StellarCelestialNode.Type.WHITE_DWARF;
-	// } else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
-	// targetType = StellarCelestialNode.Type.NEUTRON_STAR;
-	// } else {
-	// targetType = StellarCelestialNode.Type.BLACK_HOLE;
-	// }
-	// } else if (systemAgeMya > starLifetime * 0.8) {
-	// targetType = StellarCelestialNode.Type.GIANT;
-	// }
-
-	// var node = StellarCelestialNode.fromMass(random, targetType, massYg);
-	// return node;
-	// }
-
 	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.fromMsol(10);
 	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = Units.fromMsol(25);
+	private static final double C2_m2_PER_s2 = Units.SPEED_OF_LIGHT_m_PER_s * Units.SPEED_OF_LIGHT_m_PER_s;
+	private static final double SCHWARZSCHILD_FACTOR_m_PER_kg = 2.0 * Units.GRAVITATIONAL_CONSTANT_m3_PER_kg_s2
+			/ C2_m2_PER_s2;
+	private static final double SCHWARZSCHILD_FACTOR_Rsol_PER_Yg = SCHWARZSCHILD_FACTOR_m_PER_kg
+			* (Units.YOTTA / Units.KILO) / Units.m_PER_Rsol;
 
-	public static StellarCelestialNode fromMassAndAge(Rng rng, double massYg, double ageMyr) {
-		final var mainSequenceLifetimeMyr = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
+	public static final class Properties {
 
-		var targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
-		if (ageMyr <= mainSequenceLifetimeMyr) {
-			targetType = StellarCelestialNode.Type.MAIN_SEQUENCE;
-		} else if (ageMyr <= mainSequenceLifetimeMyr * 2) {
-			targetType = StellarCelestialNode.Type.GIANT;
-		} else {
-			if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
-				targetType = StellarCelestialNode.Type.WHITE_DWARF;
-			} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
-				targetType = StellarCelestialNode.Type.NEUTRON_STAR;
+		public double massYg;
+		public double ageMyr;
+
+		public Type type;
+		public double mainSequenceLifetimeMyr;
+		public double luminosityLsol;
+		public double radiusRsol;
+		public double temperatureK;
+
+		// TODO: redo this to be less bad lol
+		public void load(double massYg, double ageMyr) {
+			this.massYg = massYg;
+			this.ageMyr = ageMyr;
+
+			this.mainSequenceLifetimeMyr = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
+
+			this.luminosityLsol = mainSequenceLuminosityFromMass(massYg);
+			this.radiusRsol = mainSequenceRadiusFromMass(massYg);	
+			this.temperatureK = temperature(this.radiusRsol, this.luminosityLsol);
+
+			if (ageMyr <= this.mainSequenceLifetimeMyr) {
+				doMainSequenceTrack();
+			} else if (ageMyr <= this.mainSequenceLifetimeMyr * 2) {
+				doGiantTrack();
 			} else {
-				targetType = StellarCelestialNode.Type.BLACK_HOLE;
+				if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
+					doWhiteDwarfTrack();
+				} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
+					doNeutronStarTrack();
+				} else {
+					doBlackHoleTrack();
+				}
 			}
+
 		}
 
-		final var node = StellarCelestialNode.fromMass(rng, targetType, massYg);
-		targetType.transformToFinalProperties(rng, ageMyr, mainSequenceLifetimeMyr, node);
+		private void doMainSequenceTrack() {
+			this.type = Type.MAIN_SEQUENCE;
+		}
+
+		private void doGiantTrack() {
+			this.type = Type.GIANT;
+			// TODO: figure out actual quantities here. tbh this whole thing should be
+			// rewritten.
+			this.radiusRsol *= 100;
+			this.temperatureK *= 0.3;
+			this.luminosityLsol *= 3.0;
+		}
+
+		private void doWhiteDwarfTrack() {
+			this.type = Type.WHITE_DWARF;
+			// TODO: conservation of angular momentum (fast spinny :3)
+			// white dwarf and neutron star cooling is apparently very complicated, and i
+			// have birdbrain, so im just completely winging (hehe) it. As far as i
+			// understand, at least for neutron stars, they have a period of very rapid
+			// cooling followed by a period of much slower cooling.
+
+			Assert.isTrue(this.ageMyr > this.mainSequenceLifetimeMyr);
+
+			final double coolingTime = ageMyr - this.mainSequenceLifetimeMyr;
+			final double fastCurve = Math.exp(-0.007 * coolingTime);
+			final double slowCurve = Math.exp(-0.0002 * coolingTime);
+			final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
+
+			this.temperatureK *= 10;
+			this.temperatureK *= coolingCurve;
+			this.radiusRsol *= 1e-2;
+
+			// treat the white dwarf as an ideal black body and apply the Stefan–Boltzmann
+			// law
+			final var radiantExitance = Units.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(this.temperatureK, 4.0);
+			final var radiusM = this.radiusRsol * Units.m_PER_Rsol;
+			final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
+			this.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
+		}
+
+		private void doNeutronStarTrack() {
+			this.type = Type.NEUTRON_STAR;
+			Assert.isTrue(ageMyr > this.mainSequenceLifetimeMyr);
+
+			final double coolingTime = ageMyr - this.mainSequenceLifetimeMyr;
+			final double fastCurve = Math.exp(-0.007 * coolingTime);
+			final double slowCurve = Math.exp(-0.0002 * coolingTime);
+			final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
+
+			this.temperatureK *= 20;
+			this.temperatureK *= coolingCurve;
+			this.radiusRsol *= 1e-5;
+
+			final var radiantExitance = Units.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(this.temperatureK, 4.0);
+			final var radiusM = this.radiusRsol * Units.m_PER_Rsol;
+			final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
+			this.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
+		}
+
+		private void doBlackHoleTrack() {
+			this.type = Type.BLACK_HOLE;
+			this.luminosityLsol = 0;
+			this.radiusRsol = this.massYg * SCHWARZSCHILD_FACTOR_Rsol_PER_Yg;
+			this.temperatureK = 0;
+		}
+	}
+
+	public static StellarCelestialNode fromProperties(Properties properties) {
+		final var node = StellarCelestialNode.fromMass(properties.type, properties.massYg);
+		node.luminosityLsol = properties.luminosityLsol;
+		node.radiusRsol = properties.radiusRsol;
+		node.temperatureK = properties.temperatureK;
 		return node;
 	}
 
-	public static StellarCelestialNode fromMass(Rng rng, StellarCelestialNode.Type type, double massYg) {
+	public static StellarCelestialNode fromMassAndAge(double massYg, double ageMyr) {
+		final var properties = new Properties();
+		properties.load(massYg, ageMyr);
+		return fromProperties(properties);
+	}
+
+	public static StellarCelestialNode fromMass(StellarCelestialNode.Type type, double massYg) {
 		var m = massYg;
 		var l = mainSequenceLuminosityFromMass(massYg);
 		var r = mainSequenceRadiusFromMass(massYg);
@@ -263,6 +255,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		if (!this.type.hasSpectralClass)
 			return "Non-Spectral";
 
+		// this is dum, write an actual star classifier and use the HR diagram instead
 		for (final var interval : CLASSIFICATION_TABLE) {
 			if (this.temperatureK >= interval.minBound && this.temperatureK < interval.maxBound) {
 				var num = Mth.inverseLerp(this.temperatureK, interval.minBound, interval.maxBound);
@@ -294,12 +287,6 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		// P / 4 * pi * r^2
 	}
 
-	public Color getColor() {
-		if (this.cachedColor == null)
-			this.cachedColor = blackBodyColor(this.temperatureK);
-		return this.cachedColor;
-	}
-
 	@Override
 	public String toString() {
 		var builder = new StringBuilder("StellarBodyNode " + this.id);
@@ -321,50 +308,11 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	private static final double[] BLUE_POLYNOMIAL_COEFFICENTS = { 4.93997706e-01, -8.59349314e-01, 5.45514949e-01,
 			-1.81694167e-01, 4.16704799e-02, -6.01602324e-03, 4.80731598e-04, -1.61366693e-05 };
 
-	// adapted from https://gist.github.com/stasikos/06b02d18f570fc1eaa9f
-	public static Color blackBodyColor(double temperatureK) {
-		// Used this: https://gist.github.com/paulkaplan/5184275 at the beginning
-		// based on
-		// http://stackoverflow.com/questions/7229895/display-temperature-as-a-color-with-c
-		// this answer: http://stackoverflow.com/a/24856307
-		// (so, just interpretation of pseudocode in Java)
-
-		double x = temperatureK / 1000.0;
-		if (x > 40)
-			x = 40;
-		double red;
-		double green;
-		double blue;
-
-		// R
-		if (temperatureK < 6527) {
-			red = 1;
-		} else {
-			red = poly(RED_POLYNOMIAL_COEFFICENTS, x);
-
-		}
-		// G
-		if (temperatureK < 850) {
-			green = 0;
-		} else if (temperatureK <= 6600) {
-			green = poly(GREEN1_POLYNOMIAL_COEFFICENTS, x);
-		} else {
-			green = poly(GREEN2_POLYNOMIAL_COEFFICENTS, x);
-		}
-		// B
-		if (temperatureK < 1900) {
-			blue = 0;
-		} else if (temperatureK < 6600) {
-			blue = poly(BLUE_POLYNOMIAL_COEFFICENTS, x);
-		} else {
-			blue = 1;
-		}
-
-		red = Mth.clamp(red, 0, 1);
-		blue = Mth.clamp(blue, 0, 1);
-		green = Mth.clamp(green, 0, 1);
-		return new Color(red, green, blue, 1).mul(0.5).withA(1);
-	}
+	// this value should be as small as possible while still giving good results.
+	// smaller values mean more cache hits when doing lots of random table lookups.
+	// i did not test 256 for fitness, i just picked it at random.
+	private static final int BLACK_BODY_COLOR_TABLE_SIZE = 256;
+	private static final float[] BLACK_BODY_COLOR_TABLE;
 
 	private static double poly(double[] coefficients, double x) {
 		double result = coefficients[0];
@@ -374,6 +322,72 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 			xn *= x;
 		}
 		return result;
+	}
+
+	static {
+		// adapted from https://gist.github.com/stasikos/06b02d18f570fc1eaa9f
+		BLACK_BODY_COLOR_TABLE = new float[3 * BLACK_BODY_COLOR_TABLE_SIZE];
+		for (int i = 0; i < BLACK_BODY_COLOR_TABLE_SIZE; ++i) {
+			double x = 40.0 * (i / (float) BLACK_BODY_COLOR_TABLE_SIZE);
+			double temperatureK = 1000.0 * x;
+
+			double red, green, blue;
+
+			// R
+			if (temperatureK < 6527) {
+				red = 1;
+			} else {
+				red = poly(RED_POLYNOMIAL_COEFFICENTS, x);
+			}
+			// G
+			if (temperatureK < 850) {
+				green = 0;
+			} else if (temperatureK <= 6600) {
+				green = poly(GREEN1_POLYNOMIAL_COEFFICENTS, x);
+			} else {
+				green = poly(GREEN2_POLYNOMIAL_COEFFICENTS, x);
+			}
+			// B
+			if (temperatureK < 1900) {
+				blue = 0;
+			} else if (temperatureK < 6600) {
+				blue = poly(BLUE_POLYNOMIAL_COEFFICENTS, x);
+			} else {
+				blue = 1;
+			}
+
+			red = Mth.clamp(red, 0, 1);
+			blue = Mth.clamp(blue, 0, 1);
+			green = Mth.clamp(green, 0, 1);
+
+			int idx = 3 * i;
+			BLACK_BODY_COLOR_TABLE[idx++] = (float) red;
+			BLACK_BODY_COLOR_TABLE[idx++] = (float) green;
+			BLACK_BODY_COLOR_TABLE[idx++] = (float) blue;
+		}
+	}
+
+	public static void blackBodyColorFromTable(Vec3.Mutable out, double temperatureK) {
+		// clamp to 39999 so `fi` is never exactly 1, which would cause an out of bounds
+		// access to BLACK_BODY_COLOR_TABLE
+		final var fi = BLACK_BODY_COLOR_TABLE_SIZE * Math.min(temperatureK, 40000) / 40000;
+		final int i = Mth.floor(fi);
+		final var frac = fi - i;
+		if (i >= BLACK_BODY_COLOR_TABLE_SIZE - 1) {
+			out.x = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 3];
+			out.y = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 2];
+			out.z = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 1];
+			return;
+		}
+		out.x = Mth.lerp(frac, BLACK_BODY_COLOR_TABLE[3 * i + 0], BLACK_BODY_COLOR_TABLE[3 * i + 3]);
+		out.y = Mth.lerp(frac, BLACK_BODY_COLOR_TABLE[3 * i + 1], BLACK_BODY_COLOR_TABLE[3 * i + 4]);
+		out.z = Mth.lerp(frac, BLACK_BODY_COLOR_TABLE[3 * i + 2], BLACK_BODY_COLOR_TABLE[3 * i + 5]);
+	}
+
+	public Color getColor() {
+		final var res = new Vec3.Mutable();
+		blackBodyColorFromTable(res, this.temperatureK);
+		return new Color(res.x, res.y, res.z, 1.0);
 	}
 
 }

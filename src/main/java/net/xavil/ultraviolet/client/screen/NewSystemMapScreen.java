@@ -15,6 +15,7 @@ import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGrid;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerStars;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerSystem;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
+import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
@@ -34,11 +35,9 @@ public class NewSystemMapScreen extends HawkScreen3d {
 		this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId.galaxySector());
 		galaxy.sectorManager.forceLoad(this.systemTicket);
 
-		final var pos = galaxy.sectorManager.getInitial(systemId.galaxySector()).unwrap().pos();
-
 		this.layers.push(new ScreenLayerBackground(this, Color.BLACK));
 		this.layers.push(new ScreenLayerGrid(this));
-		this.layers.push(new ScreenLayerGalaxy(this, galaxy, pos));
+		this.layers.push(new ScreenLayerGalaxy(this, galaxy, system.pos));
 		this.layers.push(new ScreenLayerStars(this, galaxy, SectorTicketInfo.visual(system.pos), system.pos));
 		this.layers.push(new ScreenLayerSystem(this, galaxy, systemId.galaxySector()));
 	}

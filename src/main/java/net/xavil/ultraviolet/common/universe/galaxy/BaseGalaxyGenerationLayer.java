@@ -9,6 +9,7 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.NameTemplate;
 import net.xavil.ultraviolet.common.universe.DensityFields;
+import net.xavil.ultraviolet.common.universe.DoubleField3;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.system.StarSystemGeneratorImpl;
 import net.xavil.universegen.LinearSpline;
@@ -16,6 +17,7 @@ import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
@@ -35,7 +37,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	public static final int LEVEL_COUNT = GalaxySector.ROOT_LEVEL + 1;
-	public static final int SECTOR_ELEMENT_LIMIT = 10000;
+	public static final int SECTOR_ELEMENT_LIMIT = 3000;
 
 	// @formatter:off
 	// TODO: this should be an initial mass function
@@ -54,7 +56,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		double sectorsPerRootSector = 0.0;
 		for (var level = 0; level <= GalaxySector.ROOT_LEVEL; ++level)
 			sectorsPerRootSector += Math.pow(8.0, GalaxySector.ROOT_LEVEL - level);
-		
+
 		Mod.LOGGER.info("[galaxygen] sectorsPerRootSector: {}", sectorsPerRootSector);
 
 		final var intervals = new Vector<Interval>();
@@ -86,40 +88,104 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		return Math.pow(8.0, GalaxySector.ROOT_LEVEL - level) / SECTORS_PER_ROOT_SECTOR;
 	}
 
+	private static class InterpolatedField implements DoubleField3 {
+		public final Vec3 min, max;
+		public final double nnn, nnp, npn, npp, pnn, pnp, ppn, ppp;
+
+		public InterpolatedField(DoubleField3 field, Vec3 min, Vec3 max) {
+			this.min = min;
+			this.max = max;
+			this.nnn = field.sample(min.x, min.y, min.z);
+			this.nnp = field.sample(min.x, min.y, max.z);
+			this.npn = field.sample(min.x, max.y, min.z);
+			this.npp = field.sample(min.x, max.y, max.z);
+			this.pnn = field.sample(max.x, min.y, min.z);
+			this.pnp = field.sample(max.x, min.y, max.z);
+			this.ppn = field.sample(max.x, max.y, min.z);
+			this.ppp = field.sample(max.x, max.y, max.z);
+		}
+
+		public double sample(double tx, double ty, double tz) {
+			// trilinear interpolation
+			final var xnn = Mth.lerp(tx, this.nnn, this.pnn);
+			final var xnp = Mth.lerp(tx, this.nnp, this.pnp);
+			final var xpn = Mth.lerp(tx, this.npn, this.ppn);
+			final var xpp = Mth.lerp(tx, this.npp, this.ppp);
+			final var yn = Mth.lerp(ty, xnn, xpn);
+			final var yp = Mth.lerp(ty, xnp, xpp);
+			return Mth.lerp(tz, yn, yp);
+		}
+
+		@Override
+		public double sample(Vec3Access pos) {
+			final var tx = Mth.inverseLerp(pos.x(), this.min.x, this.max.x);
+			final var ty = Mth.inverseLerp(pos.y(), this.min.y, this.max.y);
+			final var tz = Mth.inverseLerp(pos.z(), this.min.z, this.max.z);
+			return sample(tx, ty, tz);
+		}
+
+	}
+
+	private static class GenerationInfo {
+		public final Context ctx;
+
+		public final DoubleField3 stellarDensity;
+		public final DoubleField3 stellarAge;
+		public final double averageSectorDensity;
+		public final int starAttemptCount;
+
+		public GenerationInfo(Context ctx) {
+			this.ctx = ctx;
+
+			final var fields = ctx.galaxy.densityFields;
+			this.stellarDensity = new InterpolatedField(fields.stellarDensity, ctx.volumeMin, ctx.volumeMax);
+			this.stellarAge = new InterpolatedField(fields.minAgeFactor, ctx.volumeMin, ctx.volumeMax);
+			// this.stellarDensity = fields.stellarDensity;
+			// this.stellarAge = fields.minAgeFactor;
+
+			// since we're using trilinear interpolation, there's likely an analytic
+			// solution to the average density of the sector. but i forgor all of my high
+			// school calculus and dont know how to find it.
+			double sectorDensitySum = 0.0;
+			for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
+				final double tx = ctx.rng.uniformDouble(), ty = ctx.rng.uniformDouble(), tz = ctx.rng.uniformDouble();
+				sectorDensitySum += stellarDensity.sample(tx, ty, tz) * 0.2;
+			}
+
+			this.averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
+			final var sectorSideLengths = ctx.volumeMax.sub(ctx.volumeMin);
+			final var sectorVolume = sectorSideLengths.x * sectorSideLengths.y * sectorSideLengths.z;
+			final var starsPerSector = sectorVolume * this.averageSectorDensity * levelCoverage(ctx.level);
+
+			int starAttemptCount = Mth.floor(starsPerSector);
+			if (starAttemptCount > 5000) {
+				Mod.LOGGER.warn(
+						"star attempt count of {} exceeded limit of {}", starAttemptCount,
+						5000);
+				starAttemptCount = 5000;
+			}
+
+			this.starAttemptCount = starAttemptCount;
+		}
+	}
+
 	@Override
-	public void generateInto(Context ctx, Sink sink) {
-		final var volumeSeed = ctx.random.nextInt();
-
-		var sectorDensitySum = 0.0;
-		for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
-			final var samplePos = Vec3.random(ctx.random, ctx.volumeMin, ctx.volumeMax);
-			sectorDensitySum += this.densityFields.stellarDensity.sample(samplePos) * 0.05;
-		}
-
-		final var averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
-		final var sectorSideLengths = ctx.volumeMin.sub(ctx.volumeMax).abs();
-		final var sectorVolume = sectorSideLengths.x * sectorSideLengths.y * sectorSideLengths.z;
-		// final var starsPerSector = sectorVolume * averageSectorDensity *
-		// ctx.starCountFactor;
-		final var starFactor = levelCoverage(ctx.level);
-		final var starsPerSector = sectorVolume * averageSectorDensity * starFactor;
-		// final var starsPerSector = 500;
-
-		int starAttemptCount = Mth.floor(starsPerSector);
-		if (starAttemptCount > 3000) {
-			Mod.LOGGER.warn("star attempt count of {} exceeded limit of {}", starAttemptCount,
-					3000);
-			starAttemptCount = 3000;
-		}
+	public void generateInto(Context ctx, GalaxySector.PackedSectorElements elements) {
+		final var volumeSeed = ctx.rng.uniformInt();
+		final var info = new GenerationInfo(ctx);
 
 		// TODO: find total sector mass and keep track of it as we generate star
 		// systems.
 
-		int successfulAttempts = 0;
-		for (var i = 0; i < starAttemptCount; ++i) {
-			final var infoSeed = ctx.random.nextLong();
-			final var systemSeed = systemSeed(volumeSeed, i);
+		final var starProps = new StellarCelestialNode.Properties();
+		final var elem = new GalaxySector.SectorElementHolder();
+		elem.generationLayer = this.layerId;
 
+		final int startIndex = elements.size();
+		elements.beginWriting(info.starAttemptCount);
+		
+		int offset = 0;
+		for (var i = 0; i < info.starAttemptCount; ++i) {
 			// I think this retry behavior is warranted. We do a coarse esimate of the
 			// average density of the sector, and then multiply that with the sector volume
 			// to get the approximate amount of stars we expect to see in the sector. Say we
@@ -134,73 +200,82 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			// "on or off" density field, as it generally causes placement attempts to
 			// "migrate" towards areas of higher densities.
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
-				final var systemPos = Vec3.random(ctx.random, ctx.volumeMin, ctx.volumeMax);
-				final var density = this.densityFields.stellarDensity.sample(systemPos) * 0.05;
-
-				if (density < ctx.random.nextDouble(0.0, averageSectorDensity))
-					continue;
-
-				final var initial = generateStarSystemInfo(systemPos, infoSeed, ctx.level);
-				sink.accept(systemPos, initial, systemSeed);
-				successfulAttempts += 1;
-				break;
+				Vec3.loadRandom(elem.systemPosTm, ctx.rng, ctx.volumeMin, ctx.volumeMax);
+				final var density = info.stellarDensity.sample(elem.systemPosTm) * 0.2;
+				if (density >= ctx.rng.uniformDouble(0.0, info.averageSectorDensity)) {
+					generateStarSystemInfo(elem, starProps, info);
+					elem.systemSeed = systemSeed(volumeSeed, i);
+					elements.store(elem, startIndex + offset);
+					offset += 1;
+					break;
+				}
 			}
 		}
 
-		Mod.LOGGER.trace("[galaxygen] average stellar density: {}", averageSectorDensity);
-		Mod.LOGGER.trace("[galaxygen] star placement attempt count: {}", starAttemptCount);
-		Mod.LOGGER.trace("[galaxygen] successful star placements: {}", successfulAttempts);
+		elements.endWriting(offset);
 
+		Mod.LOGGER.trace("[galaxygen] average stellar density: {}", info.averageSectorDensity);
+		Mod.LOGGER.trace("[galaxygen] star placement attempt count: {}", info.starAttemptCount);
+		Mod.LOGGER.trace("[galaxygen] successful star placements: {}", offset);
 	}
 
 	public static final double MINIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 0.02;
 	public static final double MAXIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 30.0;
 
-	// private double generateAvailableMass(Rng rng) {
-	// // maybe some sort of unbounded distribution would work best here. like maybe
-	// // find a way to use an IMF
-	// var t = Math.pow(rng.uniformDouble(), 3);
-	// var massYg = Mth.lerp(t, Units.Yg_PER_Msol * 0.1, Units.Yg_PER_Msol * 200.0);
-	// return massYg;
-	// }
-
-	public static double generateStarMass(Rng rng, double availableMass, int level) {
+	public static double generateStarMassForLevel(Rng rng, int level) {
 		final var massT = rng.uniformDouble(LEVEL_MASS_INTERVALS[level]);
 		return Units.Yg_PER_Msol * STAR_MASS_SPLINE.sample(massT);
 	}
 
-	public static double generateStarMass(Rng rng, double availableMass) {
+	public static double generateStarMass(Rng rng) {
 		return Units.Yg_PER_Msol * STAR_MASS_SPLINE.sample(rng.uniformDouble());
 	}
 
 	// Basic system info
-	private StarSystem.Info generateStarSystemInfo(Vec3 systemPos, long seed, int level) {
-		final var rng = Rng.wrap(new Random(seed));
+	// the position to sample everything at is contained in the element holder
+	private void generateStarSystemInfo(GalaxySector.SectorElementHolder elem, StellarCelestialNode.Properties props, GenerationInfo info) {
+		final var rng = Rng.wrap(new Random(info.ctx.rng.uniformLong()));
 
-		final var minSystemAgeFactor = Math.min(1, this.densityFields.minAgeFactor.sample(systemPos));
+		final var minSystemAgeFactor = Math.min(1, info.stellarAge.sample(elem.systemPosTm));
 		final var systemAgeFactor = Math.pow(rng.uniformDouble(), 2);
-		final var systemAgeMyr = this.parentGalaxy.info.ageMya * Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
+		final var systemAgeMyr = this.parentGalaxy.info.ageMya
+				* Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
 
-		final var starMass = generateStarMass(rng, 0, level);
-		// final var starMass = generateStarMass(rng, 0);
-
-		final var primaryStar = StellarCelestialNode.fromMassAndAge(rng, starMass, systemAgeMyr);
-		final var remainingMass = rng.uniformDouble(0.001, 0.05) * starMass;
-
-		return new StarSystem.Info(systemAgeMyr, remainingMass, starMass - primaryStar.massYg, primaryStar);
+		final var starMass = generateStarMassForLevel(rng, info.ctx.level);
+		
+		props.load(starMass, systemAgeMyr);
+		elem.massYg = starMass;
+		elem.systemAgeMyr = systemAgeMyr;
+		elem.luminosityLsol = props.luminosityLsol;
+		elem.temperatureK = props.temperatureK;
 	}
+	// private StarSystem.Info generateStarSystemInfo(GenerationInfo info, Vec3Access pos) {
+	// 	final var rng = Rng.wrap(new Random(info.ctx.rng.uniformLong()));
+
+	// 	final var minSystemAgeFactor = Math.min(1, info.stellarAge.sample(pos));
+	// 	final var systemAgeFactor = Math.pow(rng.uniformDouble(), 2);
+	// 	final var systemAgeMyr = this.parentGalaxy.info.ageMya
+	// 			* Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
+
+	// 	final var starMass = generateStarMassForLevel(rng, info.ctx.level);
+	// 	// final var starMass = generateStarMass(rng);
+	// 	final var primaryStar = StellarCelestialNode.fromMassAndAge(rng, starMass, systemAgeMyr);
+	// 	final var remainingMass = rng.uniformDouble(0.001, 0.05) * starMass;
+
+	// 	return new StarSystem.Info(systemAgeMyr, remainingMass, primaryStar);
+	// }
 
 	@Override
-	public StarSystem generateFullSystem(GalaxySector.InitialElement elem) {
-		final var rng = Rng.wrap(new Random(elem.seed()));
+	public StarSystem generateFullSystem(GalaxySector.SectorElementHolder elem) {
+		final var rng = Rng.wrap(new Random(elem.systemSeed));
 
-		final var systemGenerator = new StarSystemGeneratorImpl(rng, this.parentGalaxy, elem.info());
+		final var systemGenerator = new StarSystemGeneratorImpl(rng, this.parentGalaxy, elem);
 		final var rootNode = systemGenerator.generate();
 		rootNode.assignIds();
 
 		final var name = NameTemplate.SECTOR_NAME.generate(rng);
 
-		return new StarSystem(name, this.parentGalaxy, elem.pos(), rootNode);
+		return new StarSystem(name, this.parentGalaxy, elem.systemPosTm.xyz(), rootNode);
 	}
 
 }

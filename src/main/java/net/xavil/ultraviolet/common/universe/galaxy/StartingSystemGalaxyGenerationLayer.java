@@ -8,6 +8,7 @@ import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.matrices.Vec3;
 
@@ -18,12 +19,10 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	public final int startingNodeId;
 	public StarSystem startingSystem;
-	public StarSystem.Info startingSystemInfo;
+	private final GalaxySector.SectorElementHolder startingSystemInfo = new GalaxySector.SectorElementHolder();
 
 	private boolean isLocationChosen = false;
 	private final CelestialNode startingNode;
-	private Vec3 startingSystemPos = Vec3.ZERO;
-	// private Vec3i startingSystemCoords = Vec3i.ZERO;
 	private SectorPos startingSystemSectorPos;
 	private int elementIndex = -1;
 
@@ -33,32 +32,62 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		this.startingNode = startingNode;
 	}
 
-	private void chooseStartingLocation() {
-		if (this.isLocationChosen)
-			return;
-		this.isLocationChosen = true;
+	private static StellarCelestialNode findPrimaryStar(StarSystem system) {
+		StellarCelestialNode primaryStar = null;
+		for (var child : system.rootNode.selfAndChildren().iterable()) {
+			if (child instanceof StellarCelestialNode starNode) {
+				if (primaryStar == null)
+					primaryStar = starNode;
+				else if (starNode.luminosityLsol > primaryStar.luminosityLsol)
+					primaryStar = starNode;
+			}
+		}
+		return primaryStar;
+	}
+
+	private boolean pickLocation(Vec3.Mutable out) {
 		final var random = new Random(this.parentGalaxy.parentUniverse.getUniqueUniverseSeed() + 10);
 		final var densityFields = this.parentGalaxy.densityFields;
 
+		// TODO: fix this. currently, it always fails
 		for (int i = 0; i < STARTING_LOCATION_SAMPLE_ATTEMPTS; ++i) {
 			final var samplePos = Vec3.random(random,
 					Vec3.broadcast(-densityFields.galaxyRadius),
 					Vec3.broadcast(densityFields.galaxyRadius));
 			final var density = densityFields.stellarDensity.sample(samplePos);
 			if (STARTING_LOCATION_ACCEPTABLE_DENSITY.contains(density)) {
-				this.startingSystemPos = samplePos;
-				this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, samplePos);
-				Mod.LOGGER.info("placing starting system in sector at {} (in sector {})",
-					this.startingSystemPos, this.startingSystemSectorPos.levelCoords());
-				return;
+				out.load(samplePos);
+				return true;
 			}
 		}
-
 		Mod.LOGGER.error("could not find suitable starting system location!");
-		this.startingSystemPos = Vec3.ZERO;
-		this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, this.startingSystemPos);
-		this.startingSystem = new StarSystem("Sol", this.parentGalaxy, this.startingSystemPos, this.startingNode);
-		this.startingSystemInfo = StarSystem.Info.custom(4600, this.startingSystem);
+		out.load(Vec3.ZERO);
+		return false;
+	}
+
+	private void chooseStartingLocation() {
+		if (this.isLocationChosen)
+			return;
+		this.isLocationChosen = true;
+
+		final var startingSystemPos = new Vec3.Mutable();
+		this.startingSystemInfo.systemPosTm = startingSystemPos;
+
+		pickLocation(startingSystemPos);
+
+		this.startingSystemSectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL,
+				startingSystemPos.xyz());
+
+		Mod.LOGGER.info("placing starting system in sector at {} (in sector {})",
+				startingSystemPos, this.startingSystemSectorPos.levelCoords());
+
+		this.startingSystem = new StarSystem("Sol", this.parentGalaxy, startingSystemPos.xyz(), this.startingNode);
+		final var primaryStar = findPrimaryStar(this.startingSystem);
+		this.startingSystemInfo.luminosityLsol = primaryStar.luminosityLsol;
+		this.startingSystemInfo.massYg = primaryStar.massYg;
+		this.startingSystemInfo.systemAgeMyr = 4600;
+		this.startingSystemInfo.systemSeed = 0;
+		this.startingSystemInfo.temperatureK = primaryStar.temperatureK;
 	}
 
 	private void findElementIndex() {
@@ -68,12 +97,18 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public void generateInto(Context ctx, Sink sink) {
+	public void generateInto(Context ctx, GalaxySector.PackedSectorElements elements) {
 		chooseStartingLocation();
-		final var pos = this.startingSystemPos;
 		if (!this.startingSystemSectorPos.equals(ctx.pos))
 			return;
-		this.elementIndex = sink.accept(pos, this.startingSystemInfo, 0);
+
+		elements.beginWriting(1);
+		final var info = new GalaxySector.SectorElementHolder();
+		info.loadCopyOf(this.startingSystemInfo);
+		info.generationLayer = this.layerId;
+		elements.store(info, elements.size());
+		this.elementIndex = elements.size();
+		elements.endWriting(1);
 	}
 
 	public SystemNodeId getStartingSystemId() {
@@ -84,7 +119,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public StarSystem generateFullSystem(GalaxySector.InitialElement elem) {
+	public StarSystem generateFullSystem(GalaxySector.SectorElementHolder elem) {
 		return this.startingSystem;
 	}
 

@@ -50,18 +50,24 @@ public class FlexibleVertexBuffer implements Disposable {
 
 		setupVertexBuffer(buffer, usage);
 
+		// the vertex format of the data inside this buffer may have changed since we
+		// last uploaded! We have to tear down all the vertex state we set up previously
+		// in that case.
 		if (this.format != null)
 			this.format.clearBufferState();
+
+		// this has to go after `setupVertexBuffer`, because `glVertexAttribPointer`
+		// uses the currently-bound vertex buffer as the source of vertex data.
 		buffer.format.setupBufferState();
 		this.format = buffer.format;
 
 		setupIndexBuffer(buffer, usage);
-
-		GlManager.bindVertexArray(0);
-
+		
 		// signals to the VertexBuilder that this buffer came from that it may reuse
 		// this buffer's memory.
 		buffer.close();
+
+		GlManager.bindVertexArray(0);
 	}
 
 	private void setupVertexBuffer(VertexBuilder.BuiltBuffer buffer, GlBuffer.UsageHint usage) {

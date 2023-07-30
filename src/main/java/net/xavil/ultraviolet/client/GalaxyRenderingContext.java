@@ -87,7 +87,8 @@ public class GalaxyRenderingContext implements Disposable {
 		this.pointsBuffer.upload(builder.end());
 		this.isInitialized = true;
 
-		Mod.LOGGER.info("built galaxy dust buffer: {} placements, density in [{},{}]", lowestSeenDensity, highestSeenDensity);
+		Mod.LOGGER.info("built galaxy dust buffer: {} placements, density in [{},{}]", successfulPlacements,
+				lowestSeenDensity, highestSeenDensity);
 	}
 
 	private boolean needsRebuild(double metersPerUnit) {
@@ -99,7 +100,7 @@ public class GalaxyRenderingContext implements Disposable {
 		final var attemptCount2 = ClientConfig.get(ConfigKey.GALAXY_PARTILE_ATTEMPT_COUNT);
 		res |= this.attemptCount != attemptCount2;
 		this.attemptCount = attemptCount2;
-		
+
 		final var particleLimit2 = ClientConfig.get(ConfigKey.GALAXY_PARTILE_MAX_PARTICLES);
 		res |= this.particleLimit != particleLimit2;
 		this.particleLimit = particleLimit2;

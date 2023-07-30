@@ -23,6 +23,7 @@ import net.xavil.ultraviolet.common.universe.universe.GalaxyTicket;
 import net.xavil.ultraviolet.debug.ClientConfig;
 import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
+import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class StarRenderManager implements Disposable {
@@ -60,11 +61,15 @@ public final class StarRenderManager implements Disposable {
 		return this.sectorTicket;
 	}
 
+	private double getRadius() {
+		return 1.5;
+	}
+
 	public void draw(CachedCamera<?> camera, Vec3 centerPos) {
 		if (this.sectorTicket.info == null)
 			this.sectorTicket.info = SectorTicketInfo.visual(centerPos);
 		this.sectorTicket.info.centerPos = centerPos;
-		this.sectorTicket.info.baseRadius = 1.5 * GalaxySector.BASE_SIZE_Tm;
+		this.sectorTicket.info.baseRadius = getRadius() * GalaxySector.BASE_SIZE_Tm;
 
 		if (ClientConfig.get(ConfigKey.FORCE_STAR_RENDERER_IMMEDIATE_MODE)) {
 			drawStarsImmediate(camera, centerPos);
@@ -79,6 +84,8 @@ public final class StarRenderManager implements Disposable {
 		}
 	}
 
+	// TODO: build stars when all the sectors are finished generating instead of
+	// having a fixed cooldown
 	private void buildStarsIfNeeded(CachedCamera<?> camera, Vec3 centerPos) {
 		if (this.starSnapshotOrigin != null
 				&& centerPos.distanceTo(this.starSnapshotOrigin) < this.starSnapshotThreshold) {
@@ -93,18 +100,27 @@ public final class StarRenderManager implements Disposable {
 		this.starSnapshotOrigin = centerPos;
 		this.immediateStarsTimerTicks = -1;
 
+		final var colorHolder = new Vec3.Mutable();
+		final var elem = new GalaxySector.SectorElementHolder();
+
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		this.sectorTicket.attachedManager.forceLoad(this.sectorTicket);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
-			final var levelSize = 1.5 * GalaxySector.sizeForLevel(sector.pos().level());
-			sector.initialElements.forEach(elem -> {
-				if (elem.pos().distanceTo(centerPos) > levelSize)
-					return;
-				RenderHelper.addStarPoint(builder, elem.info().primaryStar,
-						elem.pos().add(this.originOffset).sub(this.starSnapshotOrigin)
-								.mul(1e12 / camera.metersPerUnit));
-			});
+			final var levelSize = this.sectorTicket.info.baseRadius * (1 << sector.level);
+			for (int i = 0; i < sector.elements.size(); ++i) {
+				sector.elements.load(elem, i);
+				if (elem.systemPosTm.distanceTo(centerPos) > levelSize)
+					continue;
+				StellarCelestialNode.blackBodyColorFromTable(colorHolder, elem.temperatureK);
+				elem.systemPosTm
+						.addAssign(this.originOffset)
+						.mulAssign(1e12 / camera.metersPerUnit);
+				builder.vertex(elem.systemPosTm)
+						.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
+						.uv0((float) elem.luminosityLsol, 0)
+						.endVertex();
+			}
 		});
 		this.starsBuffer.upload(builder.end());
 	}
@@ -113,6 +129,10 @@ public final class StarRenderManager implements Disposable {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var batcher = new BillboardBatcher(builder, 10000);
 
+		final var colorHolder = new Vec3.Mutable();
+		final var toStar = new Vec3.Mutable();
+		final var elem = new GalaxySector.SectorElementHolder();
+
 		// final var camPos = camera.posTm.add(this.originOffset);
 		batcher.begin(camera);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
@@ -120,16 +140,39 @@ public final class StarRenderManager implements Disposable {
 			// final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
 			// if (!camera.isAabbInFrustum(min, max))
 			// return;
-			final var levelSize = 1.5 * GalaxySector.sizeForLevel(sector.pos().level());
-			// if (sector.pos().level() != 0) return;
-			sector.initialElements.forEach(elem -> {
-				if (elem.pos().distanceTo(centerPos) > levelSize)
-					return;
-				final var toStar = elem.pos().sub(centerPos);
+			final var levelSize = this.sectorTicket.info.baseRadius * (1 << sector.level);
+			// if (sector.level != 0) return;
+
+			for (int i = 0; i < sector.elements.size(); ++i) {
+				sector.elements.load(elem, i);
+				if (elem.systemPosTm.distanceTo(centerPos) > levelSize)
+					continue;
+				toStar.load(elem.systemPosTm).subAssign(centerPos);
 				if (toStar.dot(camera.forward) == 0)
 					return;
-				batcher.add(elem.info().primaryStar, elem.pos().add(this.originOffset));
-			});
+				// RenderHelper.addStarPoint(builder, elem.info().primaryStar,
+				// elem.pos().add(this.originOffset).mul(1e12 /
+				// camera.metersPerUnit).sub(camera.pos));
+				final var aaaaaa = new Vec3.Mutable(elem.systemPosTm);
+				StellarCelestialNode.blackBodyColorFromTable(colorHolder, elem.temperatureK);
+				elem.systemPosTm.addAssign(this.originOffset)
+						.mulAssign(1e12 / camera.metersPerUnit)
+						.subAssign(camera.pos);
+				builder.vertex(elem.systemPosTm)
+						.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
+						.uv0((float) elem.luminosityLsol, 0)
+						.endVertex();
+
+				batcher.emitIfNeeded();
+			}
+			// sector.initialElements.forEach(elem -> {
+			// if (elem.pos().distanceTo(centerPos) > levelSize)
+			// return;
+			// final var toStar = elem.pos().sub(centerPos);
+			// if (toStar.dot(camera.forward) == 0)
+			// return;
+			// batcher.add(elem.info().primaryStar, elem.pos().add(this.originOffset));
+			// });
 		});
 		batcher.end();
 	}
@@ -141,9 +184,9 @@ public final class StarRenderManager implements Disposable {
 			final var poseStack = RenderSystem.getModelViewStack();
 			poseStack.setIdentity();
 
-			final var offset = this.starSnapshotOrigin.mul(1e12 / camera.metersPerUnit).sub(centerPos);
 			poseStack.mulPose(camera.orientation.toMinecraft());
-			poseStack.translate(offset.x, offset.y, offset.z);
+			poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
+			// poseStack.translate(org.x, org.y, org.z);
 			final var inverseViewRotationMatrix = poseStack.last().normal().copy();
 			if (inverseViewRotationMatrix.invert()) {
 				RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);

@@ -15,6 +15,7 @@ import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGrid;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerStars;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerSystemInfo;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
+import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.hawklib.math.Color;
@@ -38,15 +39,17 @@ public class NewGalaxyMapScreen extends HawkScreen3d {
 			final var tempTicket = galaxy.sectorManager.createSectorTicket(tempDisposer,
 					SectorTicketInfo.single(systemToFocus.sectorPos()));
 			galaxy.sectorManager.forceLoad(tempTicket);
-			final var initial = galaxy.sectorManager.getInitial(systemToFocus);
-			if (initial.isNone()) {
+
+			final var elem = new GalaxySector.SectorElementHolder();
+			var pos = Vec3.ZERO;
+			if (galaxy.sectorManager.loadElement(elem, systemToFocus)) {
+				pos = elem.systemPosTm.xyz();
+			} else {
 				Mod.LOGGER.error("Tried to open starmap to nonexistent id {}", systemToFocus);
 			}
-	
-			final var initialPos = initial.map(i -> i.pos()).unwrapOr(Vec3.ZERO);
-			this.camera.focus.set(initialPos);
-	
-			this.layers.push(new ScreenLayerStars(this, galaxy, SectorTicketInfo.visual(initialPos), Vec3.ZERO));
+
+			this.camera.focus.set(pos);
+			this.layers.push(new ScreenLayerStars(this, galaxy, SectorTicketInfo.visual(pos), Vec3.ZERO));
 		}
 
 		this.layers.push(new ScreenLayerSystemInfo(this, galaxy));

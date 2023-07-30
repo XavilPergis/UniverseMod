@@ -7,6 +7,7 @@ import java.util.Random;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.Rng;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
@@ -14,10 +15,7 @@ import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.universegen.system.CelestialNode;
-import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.hash.FastHasher;
-import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class Galaxy {
@@ -64,28 +62,26 @@ public class Galaxy {
 		this.sectorManager.tick(profiler);
 	}
 
-	public ImmutableList<GalaxySector.InitialElement> generateSectorElements(SectorPos pos) {
-		final var random = new Random(sectorSeed(pos));
+	public void generateSectorElements(GalaxySector.PackedSectorElements out, SectorPos pos) {
+		final var random = Rng.wrap(new Random(sectorSeed(pos)));
+		final var ctx = new GalaxyGenerationLayer.Context(this, random, pos);
 
-		final var starFactor = 1.0 / Math.pow(1 << pos.level(), 3.0);
-		final var ctx = new GalaxyGenerationLayer.Context(this, random, starFactor, pos, new Interval(0, 1));
-
-		final var elements = new Vector<GalaxySector.InitialElement>();
 		for (int i = 0; i < this.generationLayers.size(); ++i) {
 			final var genLayer = this.generationLayers.get(i);
-			final var i2 = i;
-			genLayer.generateInto(ctx, (systemPos, info, seed) -> {
-				final var index = elements.size();
-				elements.push(new GalaxySector.InitialElement(systemPos, info, seed, i2));
-				return index;
-			});
+			genLayer.generateInto(ctx, out);
 		}
-		elements.optimize();
+
+		out.shrinkToFit();
+	}
+
+	public GalaxySector.PackedSectorElements generateSectorElements(SectorPos pos) {
+		final var elements = new GalaxySector.PackedSectorElements(pos.minBound());
+		generateSectorElements(elements, pos);
 		return elements;
 	}
 
-	public StarSystem generateFullSystem(GalaxySector sector, GalaxySector.InitialElement elem) {
-		return this.generationLayers.get(elem.generationLayer()).generateFullSystem(elem);
+	public StarSystem generateFullSystem(GalaxySector sector, GalaxySector.SectorElementHolder elem) {
+		return this.generationLayers.get(elem.generationLayer).generateFullSystem(elem);
 	}
 
 	public Maybe<StarSystem> loadSystem(Disposable.Multi disposer, GalaxySectorId id) {
@@ -98,7 +94,11 @@ public class Galaxy {
 	}
 
 	public Maybe<Vec3> getSystemPos(GalaxySectorId id) {
-		return this.sectorManager.getInitial(id).map(info -> info.pos());
+		final var elem = new GalaxySector.SectorElementHolder();
+		if (this.sectorManager.loadElement(elem, id)) {
+			return Maybe.some(elem.systemPosTm.xyz());
+		}
+		return Maybe.none();
 	}
 
 	public Maybe<CelestialNode> getSystemNode(GalaxySectorId id, int nodeId) {

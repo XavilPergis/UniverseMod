@@ -48,6 +48,15 @@ public interface Vec3Access {
 		return Math.sqrt(lengthSquared());
 	}
 
+	default void projectOnto(Vec3.Mutable out, Vec3Access other) {
+		if (out == other)
+			throw new IllegalArgumentException("input and ouput must not refer to the same object.");
+		out.load(other);
+		final var b = out.divAssign(Math.sqrt(out.lengthSquared()));
+		final var dot = this.dot(b);
+		b.mulAssign(dot);
+	}
+
 	// #region Swizzle Operations
 	// @formatter:off
 	default Vec2 xx() {return new Vec2(x(),x());}

@@ -133,9 +133,9 @@ public final class ServerUniverse extends Universe {
 			CelestialNode startingNode) {
 	}
 
-	private StartingSystem startingSystem(Rng rng) {
+	private StartingSystem startingSystem() {
 		// NOTE: reference plane is the ecliptic plane
-		final var sol = StellarCelestialNode.fromMass(rng, StellarCelestialNode.Type.MAIN_SEQUENCE, Units.fromMsol(1));
+		final var sol = StellarCelestialNode.fromMass(StellarCelestialNode.Type.MAIN_SEQUENCE, Units.fromMsol(1));
 		sol.obliquityAngle = Math.toRadians(7.25);
 		sol.rotationalRate = 2.90307e-6;
 
@@ -241,7 +241,7 @@ public final class ServerUniverse extends Universe {
 	public void prepare() {
 		final var rng = Rng.wrap(new Random(getUniqueUniverseSeed() + 4));
 
-		var startingSystem = startingSystem(rng);
+		var startingSystem = startingSystem();
 		startingSystem.rootNode.assignIds();
 
 		var rootNode = startingSystem.rootNode;

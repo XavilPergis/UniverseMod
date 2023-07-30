@@ -11,6 +11,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.core.Position;
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
@@ -62,6 +63,13 @@ public final class Vec3 implements Hashable, Vec3Access {
 		var x = random.nextDouble(min.x, max.x);
 		var y = random.nextDouble(min.y, max.y);
 		var z = random.nextDouble(min.z, max.z);
+		return new Vec3(x, y, z);
+	}
+
+	public static Vec3 random(Rng random, Vec3 min, Vec3 max) {
+		var x = random.uniformDouble(min.x, max.x);
+		var y = random.uniformDouble(min.y, max.y);
+		var z = random.uniformDouble(min.z, max.z);
 		return new Vec3(x, y, z);
 	}
 
@@ -167,6 +175,13 @@ public final class Vec3 implements Hashable, Vec3Access {
 				Mth.lerp(delta, a.z, b.z));
 	}
 
+	public static Vec3 inverseLerp(double delta, Vec3 a, Vec3 b) {
+		return new Vec3(
+				Mth.inverseLerp(delta, a.x, b.x),
+				Mth.inverseLerp(delta, a.y, b.y),
+				Mth.inverseLerp(delta, a.z, b.z));
+	}
+
 	public Vec3i floor() {
 		return Vec3i.from(Mth.floor(x), Mth.floor(y), Mth.floor(z));
 	}
@@ -197,9 +212,22 @@ public final class Vec3 implements Hashable, Vec3Access {
 	public void appendHash(Hasher hasher) {
 		hasher.appendDouble(this.x).appendDouble(this.y).appendDouble(this.z);
 	}
+
+	public static void loadRandom(Mutable out, Rng rng, Vec3Access min, Vec3Access max) {
+		out.x = rng.uniformDouble(min.x(), max.x());
+		out.y = rng.uniformDouble(min.y(), max.y());
+		out.z = rng.uniformDouble(min.z(), max.z());
+	}
 	
 	public static final class Mutable implements Hashable, Vec3Access {
 		public double x, y, z;
+
+		public Mutable() {
+		}
+
+		public Mutable(Vec3Access other) {
+			this(other.x(), other.y(), other.z());
+		}
 
 		public Mutable(double x, double y, double z) {
 			this.x = x;

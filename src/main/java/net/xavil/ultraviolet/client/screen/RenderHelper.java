@@ -74,9 +74,8 @@ public final class RenderHelper {
 		addBillboard(builder, camera, node, d, np);
 	}
 
-	public static void addStarPoint(FlexibleVertexConsumer builder, StellarCelestialNode node, Vec3 pos) {
-		builder.vertex(pos).color(node.getColor()).uv0((float) node.luminosityLsol, 0).endVertex();
-	}
+	// public static void addStarPoint(FlexibleVertexConsumer builder, StellarCelestialNode node, Vec3 pos) {
+	// }
 
 	public static void addBillboard(FlexibleVertexConsumer builder, CachedCamera<?> camera, CelestialNode node,
 			Vec3 pos) {

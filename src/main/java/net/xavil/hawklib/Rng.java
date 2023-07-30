@@ -8,6 +8,8 @@ public interface Rng {
 
 	int uniformInt(int minBound, int maxBound);
 
+	long uniformLong(long minBound, long maxBound);
+
 	double uniformDouble(double minBound, double maxBound);
 
 	default double uniformDoubleAround(double center, double spread) {
@@ -18,8 +20,12 @@ public interface Rng {
 		return uniformDouble(0, 1);
 	}
 
-	default double uniformInt() {
-		return uniformInt(0, 1);
+	default int uniformInt() {
+		return uniformInt(Integer.MIN_VALUE, Integer.MAX_VALUE);
+	}
+
+	default long uniformLong() {
+		return uniformLong(Long.MIN_VALUE, Long.MAX_VALUE);
 	}
 
 	default double uniformDouble(Interval interval) {
@@ -44,6 +50,23 @@ public interface Rng {
 				if (minBound == maxBound)
 					return minBound;
 				return random.nextInt(minBound, maxBound);
+			}
+
+			@Override
+			public int uniformInt() {
+				return random.nextInt();
+			}
+
+			@Override
+			public long uniformLong(long minBound, long maxBound) {
+				if (minBound == maxBound)
+					return minBound;
+				return random.nextLong(minBound, maxBound);
+			}
+
+			@Override
+			public long uniformLong() {
+				return random.nextLong();
 			}
 		};
 	}

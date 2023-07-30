@@ -111,19 +111,18 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			final var aaaaaaaaa = new Histogram(new Interval(0, 16), 32);
 			final var rng = Rng.wrap(new Random());
 			for (int i = 0; i < 1000000; ++i) {
-				aaaaaaaaa.insert(BaseGalaxyGenerationLayer.generateStarMass(rng, 0) / Units.Yg_PER_Msol);
+				aaaaaaaaa.insert(BaseGalaxyGenerationLayer.generateStarMass(rng) / Units.Yg_PER_Msol);
 			}
 			final var ticket = this.starRenderer.getSectorTicket();
 			this.galaxy.sectorManager.forceLoad(ticket);
+			final var elem = new GalaxySector.SectorElementHolder();
 			ticket.attachedManager.enumerate(ticket, sector -> {
-				sector.initialElements.iter().enumerate().forEach(elem -> {
-					final var star = elem.item.info().primaryStar;
-					if (star.type == StellarCelestialNode.Type.MAIN_SEQUENCE || star.type == StellarCelestialNode.Type.GIANT) {
-						massHistogram.insert(star.massYg / Units.Yg_PER_Msol);
-						temperatureHistogram.insert(star.temperatureK);
-						luminosityHistogram.insert(star.luminosityLsol);
-					}
-				});
+				for (int i = 0; i < sector.elements.size(); ++i) {
+					sector.elements.load(elem, i);
+					massHistogram.insert(elem.massYg / Units.Yg_PER_Msol);
+					temperatureHistogram.insert(elem.temperatureK);
+					luminosityHistogram.insert(elem.luminosityLsol);
+				}
 			});
 			aaaaaaaaa.display();
 			massHistogram.display();
@@ -200,27 +199,30 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			if (!ray.intersectAABB(min, max))
 				return;
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
-			// final var levelSize = GalaxySector.sizeForLevel(0);
-			sector.initialElements.iter().enumerate().forEach(elem -> {
-				if (elem.item.pos().distanceTo(viewCenter) > levelSize)
-					return;
 
-				final var elemPos = elem.item.pos().mul(1e12 / camera.metersPerUnit);
-				final var distance = ray.origin().distanceTo(elemPos);
+			final var elem = new GalaxySector.SectorElementHolder();
+			final var pos = elem.systemPosTm;
+			final var proj = new Vec3.Mutable(0, 0, 0);
+			for (int i = 0; i < sector.elements.size(); ++i) {
+				sector.elements.load(elem, i);
 
-				// final var distance = ray.origin().distanceTo(elemPos);
-				if (!ray.intersectsSphere(elemPos, 0.02 * distance))
-					return;
+				if (pos.distanceTo(viewCenter) > levelSize)
+					continue;
 
-				final var elemPosRayRel = elemPos.sub(ray.origin());
-				final var proj = elemPosRayRel.projectOnto(ray.dir());
-				final var projDist = elemPosRayRel.distanceTo(proj);
+				final var distance = ray.origin().distanceTo(pos);
+				if (!ray.intersectsSphere(pos, 0.02 * distance))
+					continue;
+
+				pos.subAssign(ray.origin());
+				pos.projectOnto(proj, ray.dir());
+				final var projDist = pos.distanceTo(proj);
 				if (projDist < closest.distance) {
 					closest.distance = projDist;
 					closest.sectorPos = sector.pos();
-					closest.sectorIndex = elem.index;
+					closest.sectorIndex = i;
 				}
-			});
+			}
+
 		});
 
 		if (closest.sectorIndex == -1)
@@ -241,10 +243,15 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		if (ClientConfig.get(ConfigKey.SHOW_SECTOR_BOUNDARIES)) {
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 			builder.begin(PrimitiveType.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-			ticket.info.enumerateAffectedSectors(pos -> {
-				final Vec3 s = pos.minBound(), e = pos.maxBound();
-				final var color = ClientConfig.getDebugColor(pos.level()).withA(0.2);
-
+			ticket.attachedManager.enumerate(ticket, sector -> {
+				if (!this.galaxy.sectorManager.isComplete(sector.pos()))
+					return;
+				if (sector.elements.size() == 0)
+					return;
+	
+				final Vec3 s = sector.pos().minBound(), e = sector.pos().maxBound();
+				final var color = ClientConfig.getDebugColor(sector.pos().level()).withA(0.2);
+	
 				final var nnn = new Vec3(s.x, s.y, s.z);
 				final var nnp = new Vec3(s.x, s.y, e.z);
 				final var npn = new Vec3(s.x, e.y, s.z);
@@ -253,7 +260,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				final var pnp = new Vec3(e.x, s.y, e.z);
 				final var ppn = new Vec3(e.x, e.y, s.z);
 				final var ppp = new Vec3(e.x, e.y, e.z);
-
+	
 				// X
 				RenderHelper.addLine(builder, camera, nnn, pnn, color);
 				RenderHelper.addLine(builder, camera, nnp, pnp, color);
@@ -270,6 +277,8 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				RenderHelper.addLine(builder, camera, ppn, ppp, color);
 				RenderHelper.addLine(builder, camera, pnn, pnp, color);
 			});
+			// ticket.info.enumerateAffectedSectors(pos -> {
+			// });
 			builder.end().draw(HawkShaders.getVanillaShader(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES),
 					HawkDrawStates.DRAW_STATE_ADDITIVE_BLENDING);
 		}

@@ -4,13 +4,18 @@ import java.util.function.DoubleBinaryOperator;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public interface DoubleField3 {
 
 	/**
 	 * @param position The point to sample the field at.
 	 */
-	double sample(Vec3 pos);
+	default double sample(Vec3Access pos) {
+		return sample(pos.x(), pos.y(), pos.z());
+	}
+
+	double sample(double x, double y, double z);
 
 	default DoubleField3 optimize() {
 		return this;
@@ -28,7 +33,7 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
+		public double sample(double x, double y, double z) {
 			return this.value;
 		}
 
@@ -88,9 +93,9 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
+		public double sample(double x, double y, double z) {
 			return this.offset + this.amplitude * SimplexNoise.noise(
-					this.scale * pos.x, this.scale * pos.y, this.scale * pos.z, this.seed);
+					this.scale * x, this.scale * y, this.scale * z, this.seed);
 		}
 
 		@Override
@@ -146,8 +151,8 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
-			return a.sample(pos) + b.sample(pos);
+		public double sample(double x, double y, double z) {
+			return a.sample(x, y, z) + b.sample(x, y, z);
 		}
 
 		@Override
@@ -287,8 +292,8 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
-			return a.sample(pos) - b.sample(pos);
+		public double sample(double x, double y, double z) {
+			return a.sample(x, y, z) - b.sample(x, y, z);
 		}
 
 		@Override
@@ -318,8 +323,8 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
-			return a.sample(pos) * b.sample(pos);
+		public double sample(double x, double y, double z) {
+			return a.sample(x, y, z) * b.sample(x, y, z);
 		}
 
 		@Override
@@ -362,8 +367,8 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
-			return a.sample(pos) / b.sample(pos);
+		public double sample(double x, double y, double z) {
+			return a.sample(x, y, z) / b.sample(x, y, z);
 		}
 
 		@Override
@@ -410,8 +415,8 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
-			return Math.pow(this.base.sample(pos), this.exponent.sample(pos));
+		public double sample(double x, double y, double z) {
+			return Math.pow(this.base.sample(x, y, z), this.exponent.sample(x, y, z));
 		}
 
 		@Override
@@ -444,8 +449,8 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
-			return a.sample(pos.mul(this.s));
+		public double sample(double x, double y, double z) {
+			return a.sample(this.s.x * x, this.s.y * y, this.s.z * z);
 		}
 
 		@Override
@@ -492,10 +497,10 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
-			final var value = this.a.sample(pos);
-			final var min = this.min.sample(pos);
-			final var max = this.max.sample(pos);
+		public double sample(double x, double y, double z) {
+			final var value = this.a.sample(x, y, z);
+			final var min = this.min.sample(x, y, z);
+			final var max = this.max.sample(x, y, z);
 			return value > max ? max : value < min ? min : value;
 		}
 
@@ -527,10 +532,10 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public double sample(Vec3 pos) {
-			final var t = this.t.sample(pos);
-			final var a = this.a.sample(pos);
-			final var b = this.b.sample(pos);
+		public double sample(double x, double y, double z) {
+			final var t = this.t.sample(x, y, z);
+			final var a = this.a.sample(x, y, z);
+			final var b = this.b.sample(x, y, z);
 			return a + t * (b - a);
 		}
 
@@ -550,7 +555,8 @@ public interface DoubleField3 {
 	// }
 
 	static DoubleField3 spokes(double spokeCount, double spokeCurveExponent) {
-		return pos -> {
+		return (x, y, z) -> {
+			final var pos = new Vec3(x, y, z);
 			final var angleFromCenter = Math.atan2(pos.x, pos.z);
 			final var t = Math.abs(Math.cos(angleFromCenter * spokeCount));
 			return Math.pow(t, spokeCurveExponent);
@@ -559,7 +565,8 @@ public interface DoubleField3 {
 
 	default DoubleField3 spiralAboutY(double twistFactor) {
 		final var f = 2 * Math.PI * twistFactor;
-		return pos -> {
+		return (x, y, z) -> {
+			final var pos = new Vec3(x, y, z);
 			final var projectedLen = pos.x * pos.x + pos.z * pos.z;
 			final var twistedPos = pos.rotateY(f * projectedLen);
 			return this.sample(twistedPos);
@@ -574,12 +581,15 @@ public interface DoubleField3 {
 	 * @return
 	 */
 	static DoubleField3 sphereCloud(double radius) {
-		return pos -> (double) Math.max(0, 1 - pos.length() / radius);
+		return (x, y, z) -> {
+			final var length = Math.sqrt(x * x + y * y + z * z);
+			return (double) Math.max(0, 1 - length / radius);
+		};
 	}
 
 	static DoubleField3 sphereMask(double radius) {
 		final var r2 = radius * radius;
-		return pos -> pos.lengthSquared() > r2 ? 0 : 1;
+		return (x, y, z) -> x * x + y * y + z * z > r2 ? 0 : 1;
 	}
 
 	// larger values for falloff mean a less prominent falloff. a falloff of 1 means
@@ -590,9 +600,9 @@ public interface DoubleField3 {
 		final double densityAtFalloffH = 0.01;
 		final double k = height / Math.log(1.0 / densityAtFalloffH);
 
-		return pos -> {
-			final var projectedLen = Math.sqrt(pos.x * pos.x + pos.z * pos.z);
-			var hf = Math.exp(-Math.abs(pos.y) / k);
+		return (x, y, z) -> {
+			final var projectedLen = Math.sqrt(x * x + z * z);
+			var hf = Math.exp(-Math.abs(y) / k);
 			var rf = Mth.clamp((radius - projectedLen) / rFalloff, 0, 1);
 			return rf * hf;
 		};
@@ -600,7 +610,7 @@ public interface DoubleField3 {
 
 	static DoubleField3 cylinderMask(double radius, double height) {
 		final var r2 = radius * radius;
-		return pos -> pos.x * pos.x + pos.z * pos.z > r2 || pos.y > height || pos.y < -height ? 0 : 1;
+		return (x, y, z) -> x * x + z * z > r2 || y > height || y < -height ? 0 : 1;
 	}
 
 	// default DoubleField3 translate(Vec3 newOrigin) {

@@ -1,5 +1,7 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
+import java.util.Arrays;
+
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.Util;
 import net.xavil.ultraviolet.Mod;
@@ -27,10 +29,113 @@ public final class GalaxySector {
 	private int referenceCount = 0;
 	private int flags = 0;
 	public final int x, y, z;
-	public volatile ImmutableList<InitialElement> initialElements = null;
+	public volatile PackedSectorElements elements = null;
 	private Branch branch = null;
 
-	public record InitialElement(Vec3 pos, StarSystem.Info info, long seed, int generationLayer) {
+	public static final class SectorElementHolder {
+		public Vec3.Mutable systemPosTm = new Vec3.Mutable();
+		public long systemSeed;
+		public int generationLayer;
+		// primary star info
+		public double systemAgeMyr;
+		public double massYg;
+		// these are essentially cached versions of the information you can derive from
+		// the seed, age, and mass.
+		public double luminosityLsol;
+		public double temperatureK;
+
+		public void loadCopyOf(SectorElementHolder other) {
+			this.systemPosTm = new Vec3.Mutable(other.systemPosTm);
+			this.systemSeed = other.systemSeed;
+			this.generationLayer = other.generationLayer;
+			this.systemAgeMyr = other.systemAgeMyr;
+			this.massYg = other.massYg;
+			this.luminosityLsol = other.luminosityLsol;
+			this.temperatureK = other.temperatureK;
+		}
+	}
+
+	public static final class PackedSectorElements {
+		public static final int FLOAT_ELEMENT_COUNT = 7;
+		public static final int INT_ELEMENT_COUNT = 3;
+
+		public final Vec3 sectorOrigin;
+
+		// NOTE: position is stored relative to `sectorOrigin`
+		// x y z age mass luminosity temperature
+		private float[] floatBuffer = null;
+		// systemseed
+		private int[] intBuffer = null;
+
+		private int size = 0, capacity = 0;
+
+		public PackedSectorElements(Vec3 sectorOrigin) {
+			this.sectorOrigin = sectorOrigin;
+		}
+
+		public int size() {
+			return this.size;
+		}
+
+		public int capacity() {
+			return this.capacity;
+		}
+
+		public void load(SectorElementHolder out, int i) {
+			int fi = i * FLOAT_ELEMENT_COUNT;
+			out.systemPosTm.x = this.floatBuffer[fi++] + this.sectorOrigin.x;
+			out.systemPosTm.y = this.floatBuffer[fi++] + this.sectorOrigin.y;
+			out.systemPosTm.z = this.floatBuffer[fi++] + this.sectorOrigin.z;
+			out.systemAgeMyr = this.floatBuffer[fi++];
+			out.massYg = this.floatBuffer[fi++];
+			out.luminosityLsol = this.floatBuffer[fi++];
+			out.temperatureK = this.floatBuffer[fi++];
+			int li = i * INT_ELEMENT_COUNT;
+			out.generationLayer = this.intBuffer[li++];
+			out.systemSeed = (long) this.intBuffer[li++];
+			out.systemSeed |= ((long) this.intBuffer[li++]) << 32;
+		}
+
+		public void store(SectorElementHolder in, int i) {
+			int fi = i * FLOAT_ELEMENT_COUNT;
+			this.floatBuffer[fi++] = (float) (in.systemPosTm.x - this.sectorOrigin.x);
+			this.floatBuffer[fi++] = (float) (in.systemPosTm.y - this.sectorOrigin.y);
+			this.floatBuffer[fi++] = (float) (in.systemPosTm.z - this.sectorOrigin.z);
+			this.floatBuffer[fi++] = (float) in.systemAgeMyr;
+			this.floatBuffer[fi++] = (float) in.massYg;
+			this.floatBuffer[fi++] = (float) in.luminosityLsol;
+			this.floatBuffer[fi++] = (float) in.temperatureK;
+			int li = i * INT_ELEMENT_COUNT;
+			this.intBuffer[li++] = in.generationLayer;
+			this.intBuffer[li++] = (int) (in.systemSeed);
+			this.intBuffer[li++] = (int) (in.systemSeed >>> 32);
+		}
+
+		public void beginWriting(int requestedSlots) {
+			final var desiredCapacity = this.size + requestedSlots;
+			if (desiredCapacity <= this.capacity)
+				return;
+			if (this.capacity == 0) {
+				this.floatBuffer = new float[FLOAT_ELEMENT_COUNT * requestedSlots];
+				this.intBuffer = new int[INT_ELEMENT_COUNT * requestedSlots];
+				this.capacity = requestedSlots;
+			} else {
+				final var newCapacity = Math.max(2 * this.capacity, desiredCapacity);
+				this.floatBuffer = Arrays.copyOf(this.floatBuffer, FLOAT_ELEMENT_COUNT * newCapacity);
+				this.intBuffer = Arrays.copyOf(this.intBuffer, INT_ELEMENT_COUNT * newCapacity);
+			}
+		}
+
+		public void endWriting(int usedSlots) {
+			this.size += usedSlots;
+		}
+
+		public void shrinkToFit() {
+			if (this.floatBuffer != null)
+				this.floatBuffer = Arrays.copyOf(this.floatBuffer, FLOAT_ELEMENT_COUNT * this.size);
+			if (this.intBuffer != null)
+				this.intBuffer = Arrays.copyOf(this.intBuffer, INT_ELEMENT_COUNT * this.size);
+		}
 	}
 
 	public record Branch(
@@ -63,27 +168,10 @@ public final class GalaxySector {
 		return pos.div(sizeForLevel(level)).floor();
 	}
 
-	// public void setInitialElements(ImmutableList<InitialElement> initialElements) {
-	// 	if (!isLoaded()) {
-	// 		Mod.LOGGER.warn("tried to set initial elements of unloaded sector ({}, {}, {})", x, y, z);
-	// 		return;
-	// 	}
-	// 	if (this.initialElements != null) {
-	// 		Mod.LOGGER.warn(
-	// 				"tried to set initial elements of sector ({}, {}, {}), but the sector already had {} elements", x,
-	// 				y, z, this.initialElements.size());
-	// 		return;
-	// 	}
-	// 	this.initialElements = initialElements;
-	// }
-
-	// public ImmutableList<InitialElement> getInitialElements() {
-	// 	return this.initialElements;
-	// }
-
 	public boolean isComplete() {
-		return isLoaded() && this.initialElements != null;
+		return isLoaded() && this.elements != null;
 	}
+
 	public boolean isLoaded() {
 		return this.referenceCount > 0;
 	}
@@ -92,13 +180,16 @@ public final class GalaxySector {
 		this.flags &= ~MASK_FLAG_GENERATION_STARTED;
 		this.flags |= generationStarted ? 0 : MASK_FLAG_GENERATION_STARTED;
 	}
+
 	public boolean isGenerationStarted() {
 		return (this.flags & MASK_FLAG_GENERATION_STARTED) != 0;
 	}
+
 	public void setGenerationFinished(boolean generationFinished) {
 		this.flags &= ~MASK_FLAG_GENERATION_FINISHED;
 		this.flags |= generationFinished ? 0 : MASK_FLAG_GENERATION_FINISHED;
 	}
+
 	public boolean isGenerationFinished() {
 		return (this.flags & MASK_FLAG_GENERATION_FINISHED) != 0;
 	}
@@ -184,9 +275,12 @@ public final class GalaxySector {
 				setGenerationStarted(false);
 				setGenerationFinished(false);
 				if (--this.referenceCount == 0)
-					this.initialElements = null;
+					this.elements = null;
 			} else {
 				Mod.LOGGER.error("tried to unload a sector with a reference count of 0.");
+				setGenerationStarted(false);
+				setGenerationFinished(false);
+				this.elements = null;
 			}
 		}
 
@@ -239,12 +333,12 @@ public final class GalaxySector {
 		return null;
 	}
 
-	public InitialElement lookupInitial(SectorPos pos, int subnodeIndex) {
-		return lookupSubtree(pos).initialElements.get(subnodeIndex);
+	public void loadElement(SectorElementHolder out, SectorPos pos, int subnodeIndex) {
+		lookupSubtree(pos).elements.load(out, subnodeIndex);
 	}
 
-	public InitialElement lookupInitial(int subnodeIndex) {
-		return this.initialElements.get(subnodeIndex);
+	public void loadElement(SectorElementHolder out, int subnodeIndex) {
+		this.elements.load(out, subnodeIndex);
 	}
 
 	public boolean isAtPos(SectorPos pos) {

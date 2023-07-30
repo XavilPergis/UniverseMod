@@ -229,6 +229,35 @@ public final class VertexBuilder implements FlexibleVertexConsumer {
 		this.buffer = MemoryTracker.create(maxFaceCount * 6);
 	}
 
+	private static int roundUp(int bytesToGrow) {
+		int growthBucketSize = GROWTH_SIZE;
+		if (bytesToGrow == 0)
+			return growthBucketSize;
+		if (bytesToGrow < 0)
+			growthBucketSize = -growthBucketSize;
+		int bytesAboveBucketStart = bytesToGrow % growthBucketSize;
+		if (bytesAboveBucketStart == 0)
+			return bytesToGrow;
+		return bytesToGrow + growthBucketSize - bytesAboveBucketStart;
+	}
+
+	private void ensureBufferCapacity(int additionalBytes) {
+		if (this.vertexByteOffset + additionalBytes <= this.buffer.capacity())
+			return;
+		final var oldSize = this.buffer.capacity();
+		final var newSize = oldSize + roundUp(additionalBytes);
+		// final var newSize = (int) (oldSize + 1.5 * oldSize);
+		LOGGER.info("Needed to grow VertexBuilder buffer: Old size {} bytes, new size {} bytes.",
+				oldSize, newSize);
+		this.buffer = MemoryTracker.resize(this.buffer, newSize);
+		// for some reason, glfw seems to allocate but not initialize a ByteBuffer
+		// instance, and write all the important fields except for postion.
+		this.buffer.position(0);
+		// the element holders store references to the previous buffer, we need to
+		// invalidate those.
+		this.dispatch.setup(this.currentVertexFormat, this.buffer);
+	}
+
 	public void begin(PrimitiveType mode, VertexFormat format) {
 		this.dispatch.setup(format, this.buffer);
 		this.currentVertexFormat = format;
@@ -280,6 +309,7 @@ public final class VertexBuilder implements FlexibleVertexConsumer {
 		} catch (Throwable t) {
 			var msg = "Buffer Builder Error:\n";
 			msg += String.format("Current Capacity: %d ", this.buffer.capacity());
+			msg += String.format("Current Limit: %d ", this.buffer.limit());
 			msg += String.format("Current Offset: %d ", this.vertexByteOffset);
 			throw new RuntimeException(msg, t);
 		}
@@ -388,30 +418,6 @@ public final class VertexBuilder implements FlexibleVertexConsumer {
 		dispatch.normalHolder.c1 = (float) norm.y();
 		dispatch.normalHolder.c2 = (float) norm.z();
 		return this;
-	}
-
-	private static int roundUp(int bytesToGrow) {
-		int growthBucketSize = GROWTH_SIZE;
-		if (bytesToGrow == 0)
-			return growthBucketSize;
-		if (bytesToGrow < 0)
-			growthBucketSize = -growthBucketSize;
-		int bytesAboveBucketStart = bytesToGrow % growthBucketSize;
-		if (bytesAboveBucketStart == 0)
-			return bytesToGrow;
-		return bytesToGrow + growthBucketSize - bytesAboveBucketStart;
-	}
-
-	private void ensureBufferCapacity(int additionalBytes) {
-		if (this.vertexByteOffset + additionalBytes <= this.buffer.capacity())
-			return;
-		final var oldSize = this.buffer.capacity();
-		final var newSize = oldSize + roundUp(additionalBytes);
-		// final var newSize = (int) (oldSize + 1.5 * oldSize);
-		LOGGER.info("Needed to grow VertexBuilder buffer: Old size {} bytes, new size {} bytes.",
-				oldSize, newSize);
-		this.buffer = MemoryTracker.resize(this.buffer, newSize);
-		this.buffer.rewind();
 	}
 
 }

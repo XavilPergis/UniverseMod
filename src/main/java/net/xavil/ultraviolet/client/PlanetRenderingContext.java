@@ -133,7 +133,7 @@ public final class PlanetRenderingContext {
 			builder.begin(VertexFormat.Mode.QUADS, UltravioletVertexFormats.PLANET_VERTEX_FORMAT);
 			addNormSphere(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits, tintColor);
 			final var shader = getShader(SHADER_STAR);
-			shader.setUniform("uStarColor", node.getColor());
+			shader.setUniform("uStarColor", node.getColor().withA(0.7));
 			shader.setUniform("uTime", this.celestialTime % 10000.0);
 			builder.end().draw(shader, DRAW_STATE_NO_CULL);
 		}

@@ -32,8 +32,6 @@ public abstract sealed class SectorTicketInfo {
 
 	public abstract void enumerateAffectedSectors(Consumer<SectorPos> consumer);
 
-	public abstract Diff diff(SectorTicketInfo prev);
-
 	public static final class Single extends SectorTicketInfo {
 		public SectorPos sector;
 
@@ -54,14 +52,6 @@ public abstract sealed class SectorTicketInfo {
 		@Override
 		public void enumerateAffectedSectors(Consumer<SectorPos> consumer) {
 			consumer.accept(this.sector);
-		}
-
-		@Override
-		public Diff diff(SectorTicketInfo prev) {
-			if (prev instanceof Single single) {
-				return new Diff(ImmutableSet.of(this.sector), ImmutableSet.of(single.sector));
-			}
-			return Diff.EMPTY;
 		}
 
 		@Override
@@ -121,50 +111,6 @@ public abstract sealed class SectorTicketInfo {
 				});
 				radiusCur *= 2.0;
 			}
-		}
-
-		@Override
-		public Diff diff(SectorTicketInfo prev) {
-			if (prev instanceof Multi multi) {
-				double radiusCur = this.baseRadius;
-				double radiusPrev = multi.baseRadius;
-				final var added = MutableSet.<SectorPos>hashSet();
-				final var removed = MutableSet.<SectorPos>hashSet();
-				for (int level = 0; level <= GalaxySector.ROOT_LEVEL; ++level) {
-					final var level2 = level;
-
-					final var curMin = GalaxySector.levelCoordsForPos(level,
-							this.centerPos.sub(Vec3.broadcast(radiusCur)));
-					final var curMax = GalaxySector.levelCoordsForPos(level,
-							this.centerPos.add(Vec3.broadcast(radiusCur)));
-					final var prevMin = GalaxySector.levelCoordsForPos(level,
-							multi.centerPos.sub(Vec3.broadcast(radiusPrev)));
-					final var prevMax = GalaxySector.levelCoordsForPos(level,
-							multi.centerPos.add(Vec3.broadcast(radiusPrev)));
-
-					if (!curMin.equals(prevMin) || !curMax.equals(prevMax)) {
-						final var levelCur = MutableSet.<SectorPos>hashSet();
-						final var levelPrev = MutableSet.<SectorPos>hashSet();
-						Vec3i.iterateInclusive(curMin, curMax, pos -> {
-							final var spos = new SectorPos(level2, pos);
-							if (isInside(spos))
-								levelCur.insert(spos);
-						});
-						Vec3i.iterateInclusive(prevMin, prevMax, pos -> {
-							final var spos = new SectorPos(level2, pos);
-							if (isInside(spos))
-								levelPrev.insert(spos);
-						});
-						added.extend(levelCur.difference(levelPrev));
-						removed.extend(levelPrev.difference(levelCur));
-					}
-
-					radiusCur *= 2.0;
-					radiusPrev *= 2.0;
-				}
-				return new Diff(added, removed);
-			}
-			return Diff.EMPTY;
 		}
 
 		@Override

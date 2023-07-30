@@ -31,7 +31,7 @@ void main() {
 	n = pow(n, 0.2);
 	n = 1.0 - n;
 
-	vec3 starColor = uStarColor.rgb + 0.05;
+	vec3 starColor = uStarColor.a * uStarColor.rgb + 0.05;
 	vec3 col = 4.0 * starColor * n;
 	vec3 toEye = normalize(uCameraPos - posWorld);
 	col += 3.0 * starColor * fresnelFactor(toEye, normWorld, 6.0);

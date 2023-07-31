@@ -202,7 +202,7 @@ public final class ModDebugCommand {
 		stationOpt.ifSome(station -> {
 			if (station.level instanceof ServerLevel newLevel) {
 				for (final var entity : entities) {
-					final var spawnPos = Vec3.from(0, 128, 0);
+					final var spawnPos = new Vec3(0, 128, 0);
 					Mod.teleportEntityToWorld(entity, newLevel, spawnPos, 0, 0);
 				}
 			}

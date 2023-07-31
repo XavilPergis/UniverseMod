@@ -132,8 +132,8 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 			for (var j = 0; j < gridLineCount; ++j) {
 				var lt = j / (double) gridLineCount;
 				var ht = (j + 1) / (double) gridLineCount;
-				var lp = Vec3.from(Mth.lerp(lt, lx, hx), focusPos.y, z);
-				// var hp = Vec3.from(Mth.lerp(ht, lx, hx), focusPos.y, z);
+				var lp = new Vec3(Mth.lerp(lt, lx, hx), focusPos.y, z);
+				// var hp = new Vec3(Mth.lerp(ht, lx, hx), focusPos.y, z);
 
 				var ld = lp.distanceTo(focusPos);
 				// var hd = hp.distanceTo(focusPos);
@@ -142,8 +142,8 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 					// gridFadeFactor, 0), 0, 1);
 					// var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter /
 					// gridFadeFactor, 0), 0, 1);
-					var start = camera.toCameraSpace(Vec3.from(Mth.lerp(lt, lx, hx), focusPos.y, z));
-					var end = camera.toCameraSpace(Vec3.from(Mth.lerp(ht, lx, hx), focusPos.y, z));
+					var start = camera.toCameraSpace(new Vec3(Mth.lerp(lt, lx, hx), focusPos.y, z));
+					var end = camera.toCameraSpace(new Vec3(Mth.lerp(ht, lx, hx), focusPos.y, z));
 					// RenderHelper.addLine(builder, start, end, color.withA(rla),
 					// color.withA(rha));
 					// addSubdividedLine(builder, start, end, color.withA(rla), color.withA(rha));
@@ -162,8 +162,8 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 			for (var j = 0; j < gridLineCount; ++j) {
 				var lt = j / (double) gridLineCount;
 				var ht = (j + 1) / (double) gridLineCount;
-				var lp = Vec3.from(x, focusPos.y, Mth.lerp(lt, lz, hz));
-				// var hp = Vec3.from(x, focusPos.y, Mth.lerp(ht, lz, hz));
+				var lp = new Vec3(x, focusPos.y, Mth.lerp(lt, lz, hz));
+				// var hp = new Vec3(x, focusPos.y, Mth.lerp(ht, lz, hz));
 
 				var ld = lp.distanceTo(focusPos);
 				// var hd = hp.distanceTo(focusPos);
@@ -172,8 +172,8 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 					// gridFadeFactor, 0), 0, 1);
 					// var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter /
 					// gridFadeFactor, 0), 0, 1);
-					var start = camera.toCameraSpace(Vec3.from(x, focusPos.y, Mth.lerp(lt, lz, hz)));
-					var end = camera.toCameraSpace(Vec3.from(x, focusPos.y, Mth.lerp(ht, lz, hz)));
+					var start = camera.toCameraSpace(new Vec3(x, focusPos.y, Mth.lerp(lt, lz, hz)));
+					var end = camera.toCameraSpace(new Vec3(x, focusPos.y, Mth.lerp(ht, lz, hz)));
 					// RenderHelper.addLine(builder, start, end, color.withA(rla),
 					// color.withA(rha));
 					addSubdividedLine(builder, camera, cullingCamera, color.withA(la), start, end);

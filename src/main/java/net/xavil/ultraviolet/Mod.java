@@ -234,11 +234,9 @@ public class Mod implements ModInitializer {
 	}
 
 	private static class PacketInfo {
-		public final ServerPlayer sender;
 		private String prefix;
 
 		public PacketInfo(ServerPlayer sender) {
-			this.sender = sender;
 			final var playerName = sender.getGameProfile().getName();
 			final var playerUuid = sender.getStringUUID();
 			this.prefix = "[" + playerUuid + " | " + playerName + "]";

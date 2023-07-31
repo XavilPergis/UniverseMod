@@ -13,7 +13,7 @@ public abstract class AbstractArrowMixin {
 
 	@Redirect(method = "tick()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/projectile/AbstractArrow;setDeltaMovement(DDD)V", ordinal = 0))
 	private void modifyDeltaMovement(AbstractArrow entity, double x, double y, double z) {
-		EntityAccessor.applyGravity(entity, Vec3.from(x, y, z));
+		EntityAccessor.applyGravity(entity, new Vec3(x, y, z));
 	}
 
 }

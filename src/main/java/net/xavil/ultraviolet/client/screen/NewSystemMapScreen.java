@@ -15,7 +15,6 @@ import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGrid;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerStars;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerSystem;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
-import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;

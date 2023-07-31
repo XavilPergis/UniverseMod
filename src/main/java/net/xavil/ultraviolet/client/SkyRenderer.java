@@ -1,8 +1,6 @@
 package net.xavil.ultraviolet.client;
 
 import java.util.Objects;
-import java.util.Random;
-
 import javax.annotation.Nullable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -12,23 +10,16 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 
-import static net.xavil.hawklib.client.HawkDrawStates.*;
-import static net.xavil.ultraviolet.client.UltravioletShaders.*;
-
 import net.xavil.hawklib.Disposable;
-import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
-import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.PrimitiveType;
-import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.Location;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
@@ -94,7 +85,7 @@ public class SkyRenderer implements Disposable {
 		// offset = Vec3.from(0, 10000000, 0);
 		// tfm = new TransformStack();
 		tfm.push();
-		tfm.appendTranslation(Vec3.from(n, 0.01 * n, 0));
+		tfm.appendTranslation(new Vec3(n, 0.01 * n, 0));
 		tfm.appendTranslation(offset);
 		tfm.prependRotation(CachedCamera.orientationFromMinecraftCamera(camera).inverse());
 		final var invView = tfm.get();
@@ -288,7 +279,7 @@ public class SkyRenderer implements Disposable {
 			final var profiler2 = Minecraft.getInstance().getProfiler();
 			profiler2.push("id:" + node.getId());
 			if (EntityAccessor.getLocation(this.client.player) instanceof Location.World loc) {
-				final var skip = loc.id.nodeId() == node.getId();
+				// final var skip = loc.id.nodeId() == node.getId();
 				ctx.render(builder, camera, node, false);
 			} else {
 				ctx.render(builder, camera, node, false);

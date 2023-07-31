@@ -19,7 +19,6 @@ import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.ImmutableList;
-import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -135,7 +134,7 @@ public abstract class Universe implements Disposable {
 		var x = random.nextDouble(0, VOLUME_LENGTH_ZM);
 		var y = random.nextDouble(0, VOLUME_LENGTH_ZM);
 		var z = random.nextDouble(0, VOLUME_LENGTH_ZM);
-		return Vec3.from(x, y, z);
+		return new Vec3(x, y, z);
 	}
 
 	// galaxies per Zm^3

@@ -29,8 +29,8 @@ public abstract sealed class CelestialNode permits
 	public static final int UNASSINED_ID = -1;
 
 	protected int id = UNASSINED_ID;
-	protected @Nullable BinaryCelestialNode parentBinaryNode = null;
-	protected @Nullable CelestialNodeChild<?> parentUnaryNode = null;
+	protected BinaryCelestialNode parentBinaryNode = null;
+	protected CelestialNodeChild<?> parentUnaryNode = null;
 	protected final List<CelestialNodeChild<?>> childNodes = new ArrayList<>();
 	protected final List<CelestialRing> rings = new ArrayList<>();
 
@@ -351,7 +351,7 @@ public abstract sealed class CelestialNode permits
 		var x = nbt.getDouble("x");
 		var y = nbt.getDouble("y");
 		var z = nbt.getDouble("z");
-		var position = Vec3.from(x, y, z);
+		var position = new Vec3(x, y, z);
 		var obliquityAngle = nbt.getDouble("obliquity");
 		var rotationalRate = nbt.getDouble("rotational_rate");
 		var apsidalRate = nbt.getDouble("apsidal_rate");
@@ -385,6 +385,10 @@ public abstract sealed class CelestialNode permits
 			var radius = nbt.getDouble("radius");
 			var temperature = nbt.getDouble("temperature");
 			node = new PlanetaryCelestialNode(type, massYg, radius, temperature);
+		}
+
+		if (node == null) {
+			throw new RuntimeException("failed to parse celestial node");
 		}
 
 		node.position = position;

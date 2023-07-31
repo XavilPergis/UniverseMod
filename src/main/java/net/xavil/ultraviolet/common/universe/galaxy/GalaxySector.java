@@ -5,8 +5,6 @@ import java.util.Arrays;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.Util;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
 
@@ -347,7 +345,7 @@ public final class GalaxySector {
 	}
 
 	public SectorPos pos() {
-		return new SectorPos(this.level, Vec3i.from(this.x, this.y, this.z));
+		return new SectorPos(this.level, new Vec3i(this.x, this.y, this.z));
 	}
 
 }

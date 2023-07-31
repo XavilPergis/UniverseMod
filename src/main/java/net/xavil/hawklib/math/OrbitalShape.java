@@ -32,6 +32,7 @@ public record OrbitalShape(double eccentricity, double semiMajor) {
 		return Math.sqrt(a * a - b * b);
 	}
 
+	@SuppressWarnings("null")
 	public static final Codec<OrbitalShape> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.DOUBLE.fieldOf("eccentricity").forGetter(OrbitalShape::eccentricity),
 			Codec.DOUBLE.fieldOf("semi_major_axis").forGetter(OrbitalShape::semiMajor))

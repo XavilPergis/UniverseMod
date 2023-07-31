@@ -21,7 +21,7 @@ public interface MutableMultiMap<K, V> extends MutableCollection, ImmutableMulti
 
 	static <K, V> MutableMultiMapProxy<K, V> hashMultiMap() {
 		return new MutableMultiMapProxy<>(
-				() -> MutableMap.proxy(new Object2ObjectOpenHashMap<>()),
+				MutableMap.proxy(new Object2ObjectOpenHashMap<>()),
 				() -> MutableSet.proxy(new ObjectOpenHashSet<>()));
 	}
 }

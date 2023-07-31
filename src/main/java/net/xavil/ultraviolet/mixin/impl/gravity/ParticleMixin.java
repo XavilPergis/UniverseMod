@@ -44,7 +44,7 @@ public abstract class ParticleMixin {
 
 	@Inject(method = "tick()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/particle/Particle;move(DDD)V"))
 	private void applyCustomGravity(CallbackInfo info) {
-		final var pos = Vec3.from(x, y, z);
+		final var pos = new Vec3(x, y, z);
 		final var gravity = EntityAccessor.getGravityAt(this.level, pos).unwrapOr(Vec3.YN);
 		this.xd += 0.04 * ((double) this.gravity) * gravity.x;
 		this.yd += 0.04 * ((double) this.gravity) * gravity.y;

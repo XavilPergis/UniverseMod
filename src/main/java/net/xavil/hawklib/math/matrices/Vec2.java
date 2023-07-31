@@ -19,6 +19,7 @@ public final class Vec2 implements Hashable, Vec2Access {
 	public static final Vec2 YN = new Vec2(0, -1);
 	public static final Vec2 YP = new Vec2(0, 1);
 
+	@SuppressWarnings("null")
 	public static final Codec<Vec2> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.DOUBLE.fieldOf("x").forGetter(v -> v.x),
 			Codec.DOUBLE.fieldOf("y").forGetter(v -> v.y))

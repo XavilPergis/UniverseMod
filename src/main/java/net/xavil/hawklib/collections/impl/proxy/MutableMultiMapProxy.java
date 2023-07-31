@@ -12,16 +12,10 @@ import net.xavil.hawklib.collections.iterator.Iterator;
 public final class MutableMultiMapProxy<K, V> implements MutableMultiMap<K, V> {
 
 	private final MutableMap<K, MutableSet<V>> proxy;
-	private final Supplier<MutableMap<K, MutableSet<V>>> proxyFactory;
 	private final Supplier<MutableSet<V>> setFactory;
 
-	public MutableMultiMapProxy(Supplier<MutableMap<K, MutableSet<V>>> proxyFactory, Supplier<MutableSet<V>> setFactory) {
-		this(proxyFactory.get(), proxyFactory, setFactory);
-	}
-
-	private MutableMultiMapProxy(MutableMap<K, MutableSet<V>> proxy, Supplier<MutableMap<K, MutableSet<V>>> proxyFactory, Supplier<MutableSet<V>> setFactory) {
+	public MutableMultiMapProxy(MutableMap<K, MutableSet<V>> proxy, Supplier<MutableSet<V>> setFactory) {
 		this.proxy = proxy;
-		this.proxyFactory = proxyFactory;
 		this.setFactory = setFactory;
 	}
 

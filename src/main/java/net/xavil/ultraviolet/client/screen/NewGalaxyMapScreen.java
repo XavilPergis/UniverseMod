@@ -3,7 +3,6 @@ package net.xavil.ultraviolet.client.screen;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.xavil.hawklib.Disposable;
-import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.client.camera.CameraConfig;
@@ -22,7 +21,6 @@ import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class NewGalaxyMapScreen extends HawkScreen3d {
-	private final Galaxy galaxy;
 
 	public NewGalaxyMapScreen(Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
 		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12),
@@ -34,7 +32,6 @@ public class NewGalaxyMapScreen extends HawkScreen3d {
 		this.layers.push(new ScreenLayerGrid(this));
 		this.layers.push(new ScreenLayerGalaxy(this, galaxy, Vec3.ZERO));
 
-		this.galaxy = galaxy;
 		try (final var tempDisposer = Disposable.scope()) {
 			final var tempTicket = galaxy.sectorManager.createSectorTicket(tempDisposer,
 					SectorTicketInfo.single(systemToFocus.sectorPos()));

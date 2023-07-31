@@ -5,7 +5,6 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 
 import org.apache.commons.lang3.StringUtils;
 
@@ -59,12 +58,10 @@ public class NameTemplate {
 	}
 
 	private static class ParsingContext {
-		public final PatternTable table;
 		public final String input;
 		public int cursor = 0;
 
-		public ParsingContext(PatternTable table, String input) {
-			this.table = table;
+		public ParsingContext(String input) {
 			this.input = input;
 		}
 
@@ -186,7 +183,7 @@ public class NameTemplate {
 	}
 
 	public static NameTemplate compile(PatternTable table, String template) {
-		var ctx = new ParsingContext(table, template);
+		var ctx = new ParsingContext(template);
 		var node = compileRoot(ctx).optimize();
 		return new NameTemplate(table, node);
 	}

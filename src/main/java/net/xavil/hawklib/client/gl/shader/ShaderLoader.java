@@ -48,6 +48,7 @@ public final class ShaderLoader {
 		public final String input;
 		public int index = 0;
 
+		@SuppressWarnings("unused")
 		public int line = 1, col = 0;
 		public boolean onlyWhitespaceOnLine = true;
 

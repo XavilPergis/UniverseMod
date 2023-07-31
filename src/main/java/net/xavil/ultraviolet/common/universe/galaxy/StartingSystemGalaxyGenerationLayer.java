@@ -56,12 +56,12 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 					Vec3.broadcast(densityFields.galaxyRadius));
 			final var density = densityFields.stellarDensity.sample(samplePos);
 			if (STARTING_LOCATION_ACCEPTABLE_DENSITY.contains(density)) {
-				out.load(samplePos);
+				Vec3.set(out, samplePos);
 				return true;
 			}
 		}
 		Mod.LOGGER.error("could not find suitable starting system location!");
-		out.load(Vec3.ZERO);
+		Vec3.set(out, Vec3.ZERO);
 		return false;
 	}
 

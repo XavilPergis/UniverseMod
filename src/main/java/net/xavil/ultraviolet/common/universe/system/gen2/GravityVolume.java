@@ -119,7 +119,7 @@ public class GravityVolume {
 					else if (this.nnn instanceof Leaf node) {
 						double lx = this.lower.x, ly = this.lower.y, lz = this.lower.z;
 						double hx = this.center.x, hy = this.center.y, hz = this.center.z;
-						var newBranch = new Branch(Vec3.from(lx, ly, lz), Vec3.from(hx, hy, hz));
+						var newBranch = new Branch(new Vec3(lx, ly, lz), new Vec3(hx, hy, hz));
 						newBranch.insert(node);
 						newBranch.insert(toInsert);
 						this.nnn = newBranch;
@@ -133,7 +133,7 @@ public class GravityVolume {
 					else if (this.nnp instanceof Leaf node) {
 						double lx = this.lower.x, ly = this.lower.y, lz = this.center.z;
 						double hx = this.center.x, hy = this.center.y, hz = this.upper.z;
-						var newBranch = new Branch(Vec3.from(lx, ly, lz), Vec3.from(hx, hy, hz));
+						var newBranch = new Branch(new Vec3(lx, ly, lz), new Vec3(hx, hy, hz));
 						newBranch.insert(node);
 						newBranch.insert(toInsert);
 						this.nnp = newBranch;
@@ -147,7 +147,7 @@ public class GravityVolume {
 					else if (this.npn instanceof Leaf node) {
 						double lx = this.lower.x, ly = this.center.y, lz = this.lower.z;
 						double hx = this.center.x, hy = this.upper.y, hz = this.center.z;
-						var newBranch = new Branch(Vec3.from(lx, ly, lz), Vec3.from(hx, hy, hz));
+						var newBranch = new Branch(new Vec3(lx, ly, lz), new Vec3(hx, hy, hz));
 						newBranch.insert(node);
 						newBranch.insert(toInsert);
 						this.npn = newBranch;
@@ -161,7 +161,7 @@ public class GravityVolume {
 					else if (this.npp instanceof Leaf node) {
 						double lx = this.lower.x, ly = this.center.y, lz = this.center.z;
 						double hx = this.center.x, hy = this.upper.y, hz = this.upper.z;
-						var newBranch = new Branch(Vec3.from(lx, ly, lz), Vec3.from(hx, hy, hz));
+						var newBranch = new Branch(new Vec3(lx, ly, lz), new Vec3(hx, hy, hz));
 						newBranch.insert(node);
 						newBranch.insert(toInsert);
 						this.npp = newBranch;
@@ -175,7 +175,7 @@ public class GravityVolume {
 					else if (this.pnn instanceof Leaf node) {
 						double lx = this.center.x, ly = this.lower.y, lz = this.lower.z;
 						double hx = this.upper.x, hy = this.center.y, hz = this.center.z;
-						var newBranch = new Branch(Vec3.from(lx, ly, lz), Vec3.from(hx, hy, hz));
+						var newBranch = new Branch(new Vec3(lx, ly, lz), new Vec3(hx, hy, hz));
 						newBranch.insert(node);
 						newBranch.insert(toInsert);
 						this.pnn = newBranch;
@@ -189,7 +189,7 @@ public class GravityVolume {
 					else if (this.pnp instanceof Leaf node) {
 						double lx = this.center.x, ly = this.lower.y, lz = this.center.z;
 						double hx = this.upper.x, hy = this.center.y, hz = this.upper.z;
-						var newBranch = new Branch(Vec3.from(lx, ly, lz), Vec3.from(hx, hy, hz));
+						var newBranch = new Branch(new Vec3(lx, ly, lz), new Vec3(hx, hy, hz));
 						newBranch.insert(node);
 						newBranch.insert(toInsert);
 						this.pnp = newBranch;
@@ -203,7 +203,7 @@ public class GravityVolume {
 					else if (this.ppn instanceof Leaf node) {
 						double lx = this.center.x, ly = this.center.y, lz = this.lower.z;
 						double hx = this.upper.x, hy = this.upper.y, hz = this.center.z;
-						var newBranch = new Branch(Vec3.from(lx, ly, lz), Vec3.from(hx, hy, hz));
+						var newBranch = new Branch(new Vec3(lx, ly, lz), new Vec3(hx, hy, hz));
 						newBranch.insert(node);
 						newBranch.insert(toInsert);
 						this.ppn = newBranch;
@@ -217,7 +217,7 @@ public class GravityVolume {
 					else if (this.ppp instanceof Leaf node) {
 						double lx = this.center.x, ly = this.center.y, lz = this.center.z;
 						double hx = this.upper.x, hy = this.upper.y, hz = this.upper.z;
-						var newBranch = new Branch(Vec3.from(lx, ly, lz), Vec3.from(hx, hy, hz));
+						var newBranch = new Branch(new Vec3(lx, ly, lz), new Vec3(hx, hy, hz));
 						newBranch.insert(node);
 						newBranch.insert(toInsert);
 						this.ppp = newBranch;

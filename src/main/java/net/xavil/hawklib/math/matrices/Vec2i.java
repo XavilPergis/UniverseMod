@@ -17,6 +17,7 @@ public class Vec2i implements Hashable {
 	public static final Vec2i YN = new Vec2i(0, -1);
 	public static final Vec2i YP = new Vec2i(0, 1);
 
+	@SuppressWarnings("null")
 	public static final Codec<Vec2i> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.INT.fieldOf("x").forGetter(v -> v.x),
 			Codec.INT.fieldOf("y").forGetter(v -> v.y))

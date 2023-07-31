@@ -11,20 +11,6 @@ public interface Vec3Access {
 	double z();
 	// @formatter:on
 
-	default net.minecraft.world.phys.Vec3 asMinecraft() {
-		return new net.minecraft.world.phys.Vec3(x(), y(), z());
-	}
-
-	static Vec3Access from(net.minecraft.world.phys.Vec3 vec) {
-		return new Vec3Access() {
-			// @formatter:off
-			@Override public double x() { return vec.x; }
-			@Override public double y() { return vec.y; }
-			@Override public double z() { return vec.z; }
-			// @formatter:on
-		};
-	}
-
 	default double dot(Vec3Access other) {
 		return this.x() * other.x() + this.y() * other.y() + this.z() * other.z();
 	}
@@ -46,15 +32,6 @@ public interface Vec3Access {
 
 	default double length() {
 		return Math.sqrt(lengthSquared());
-	}
-
-	default void projectOnto(Vec3.Mutable out, Vec3Access other) {
-		if (out == other)
-			throw new IllegalArgumentException("input and ouput must not refer to the same object.");
-		out.load(other);
-		final var b = out.divAssign(Math.sqrt(out.lengthSquared()));
-		final var dot = this.dot(b);
-		b.mulAssign(dot);
 	}
 
 	// #region Swizzle Operations

@@ -1,9 +1,6 @@
 package net.xavil.hawklib.client;
 
-import com.google.common.collect.ImmutableMap;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormatElement;
 
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
@@ -11,11 +8,9 @@ import net.minecraft.resources.ResourceLocation;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
-import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.RenderTexture;
 
 public final class HawkRendering {
 
@@ -39,14 +34,9 @@ public final class HawkRendering {
 				Iterator<String> shaderDefines);
 	}
 
-	private static final RenderTexture.StaticDescriptor DESC = RenderTexture.StaticDescriptor.create(builder -> {
-		builder.colorFormat = GlTexture.Format.RGBA32_FLOAT;
-	});
-
 	/**
 	 * {@code input} may be a texture that is written to by {@code output}.
 	 * 
-	 * @param state  The current GL state
 	 * @param output The framebuffer to write the post-processing results to
 	 * @param input  The source image to apply the post-processing effects to
 	 */

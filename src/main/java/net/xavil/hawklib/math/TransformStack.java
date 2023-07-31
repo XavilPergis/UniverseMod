@@ -1,7 +1,5 @@
 package net.xavil.hawklib.math;
 
-import javax.annotation.Nonnull;
-
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
@@ -64,7 +62,7 @@ public final class TransformStack {
 		return Mat4.mul(this.current, vec);
 	}
 
-	public @Nonnull Mat4 get() {
+	public Mat4 get() {
 		if (this.cached == null) {
 			this.cached = this.current.asImmutable();
 		}

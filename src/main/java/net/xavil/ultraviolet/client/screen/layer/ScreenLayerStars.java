@@ -34,7 +34,6 @@ import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.debug.ClientConfig;
 import net.xavil.ultraviolet.debug.ConfigKey;
-import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Vec2;
@@ -213,8 +212,8 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				if (!ray.intersectsSphere(pos, 0.02 * distance))
 					continue;
 
-				pos.subAssign(ray.origin());
-				pos.projectOnto(proj, ray.dir());
+				Vec3.sub(pos, pos, ray.origin());
+				Vec3.projectOnto(proj, pos, ray.dir());
 				final var projDist = pos.distanceTo(proj);
 				if (projDist < closest.distance) {
 					closest.distance = projDist;

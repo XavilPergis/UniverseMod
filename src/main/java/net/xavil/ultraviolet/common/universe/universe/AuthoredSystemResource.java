@@ -16,7 +16,6 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 

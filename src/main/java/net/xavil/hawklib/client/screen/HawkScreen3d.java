@@ -110,7 +110,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 		final var dragScale = this.camera.scale.get(partialTick) * (this.camera.metersPerUnit / 1e12) * 0.0035;
 
 		horiz = invert && this.camera.pitch.get(partialTick) < 0 ? horiz.withY(-horiz.y) : horiz;
-		final var offset = Vec3.from(horiz.x, 0, horiz.y)
+		final var offset = new Vec3(horiz.x, 0, horiz.y)
 				.rotateY(-this.camera.yaw.get(partialTick))
 				.add(0, vert, 0).mul(dragScale);
 		if (offset.length() > 0) {
@@ -222,14 +222,14 @@ public abstract class HawkScreen3d extends HawkScreen {
 		final var frustumPoints = new Vec3[8];
 		// @formatter:off
 		int i = 0;
-		frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1, -1, -1));
-		frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1, -1,  1));
-		frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1,  1, -1));
-		frustumPoints[i++] = camera.ndcToWorld(Vec3.from(-1,  1,  1));
-		frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1, -1, -1));
-		frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1, -1,  1));
-		frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1,  1, -1));
-		frustumPoints[i++] = camera.ndcToWorld(Vec3.from( 1,  1,  1));
+		frustumPoints[i++] = camera.ndcToWorld(new Vec3(-1, -1, -1));
+		frustumPoints[i++] = camera.ndcToWorld(new Vec3(-1, -1,  1));
+		frustumPoints[i++] = camera.ndcToWorld(new Vec3(-1,  1, -1));
+		frustumPoints[i++] = camera.ndcToWorld(new Vec3(-1,  1,  1));
+		frustumPoints[i++] = camera.ndcToWorld(new Vec3( 1, -1, -1));
+		frustumPoints[i++] = camera.ndcToWorld(new Vec3( 1, -1,  1));
+		frustumPoints[i++] = camera.ndcToWorld(new Vec3( 1,  1, -1));
+		frustumPoints[i++] = camera.ndcToWorld(new Vec3( 1,  1,  1));
 		// @formatter:on
 		return frustumPoints;
 	}

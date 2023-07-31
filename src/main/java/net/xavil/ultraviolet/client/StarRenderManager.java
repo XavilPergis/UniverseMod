@@ -113,9 +113,8 @@ public final class StarRenderManager implements Disposable {
 				if (elem.systemPosTm.distanceTo(centerPos) > levelSize)
 					continue;
 				StellarCelestialNode.blackBodyColorFromTable(colorHolder, elem.temperatureK);
-				elem.systemPosTm
-						.addAssign(this.originOffset)
-						.mulAssign(1e12 / camera.metersPerUnit);
+				Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
+				Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 / camera.metersPerUnit);
 				builder.vertex(elem.systemPosTm)
 						.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
 						.uv0((float) elem.luminosityLsol, 0)
@@ -147,17 +146,14 @@ public final class StarRenderManager implements Disposable {
 				sector.elements.load(elem, i);
 				if (elem.systemPosTm.distanceTo(centerPos) > levelSize)
 					continue;
-				toStar.load(elem.systemPosTm).subAssign(centerPos);
+				Vec3.set(toStar, elem.systemPosTm);
+				Vec3.sub(toStar, toStar, centerPos);
 				if (toStar.dot(camera.forward) == 0)
 					return;
-				// RenderHelper.addStarPoint(builder, elem.info().primaryStar,
-				// elem.pos().add(this.originOffset).mul(1e12 /
-				// camera.metersPerUnit).sub(camera.pos));
-				final var aaaaaa = new Vec3.Mutable(elem.systemPosTm);
 				StellarCelestialNode.blackBodyColorFromTable(colorHolder, elem.temperatureK);
-				elem.systemPosTm.addAssign(this.originOffset)
-						.mulAssign(1e12 / camera.metersPerUnit)
-						.subAssign(camera.pos);
+				Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
+				Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 / camera.metersPerUnit);
+				Vec3.sub(elem.systemPosTm, elem.systemPosTm, camera.pos);
 				builder.vertex(elem.systemPosTm)
 						.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
 						.uv0((float) elem.luminosityLsol, 0)
@@ -165,14 +161,6 @@ public final class StarRenderManager implements Disposable {
 
 				batcher.emitIfNeeded();
 			}
-			// sector.initialElements.forEach(elem -> {
-			// if (elem.pos().distanceTo(centerPos) > levelSize)
-			// return;
-			// final var toStar = elem.pos().sub(centerPos);
-			// if (toStar.dot(camera.forward) == 0)
-			// return;
-			// batcher.add(elem.info().primaryStar, elem.pos().add(this.originOffset));
-			// });
 		});
 		batcher.end();
 	}

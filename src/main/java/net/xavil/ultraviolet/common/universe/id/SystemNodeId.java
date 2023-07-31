@@ -4,6 +4,8 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 public record SystemNodeId(SystemId system, int nodeId) {
+
+	@SuppressWarnings("null")
 	public static final Codec<SystemNodeId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			SystemId.CODEC.fieldOf("system").forGetter(SystemNodeId::system),
 			Codec.INT.fieldOf("id").forGetter(SystemNodeId::nodeId))

@@ -17,12 +17,10 @@ import net.xavil.hawklib.math.matrices.Vec2i;
 
 public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 
-	private final Galaxy galaxy;
 	private final SystemTicket selectedSystemTicket;
 
 	public ScreenLayerSystemInfo(HawkScreen attachedScreen, Galaxy galaxy) {
 		super(attachedScreen);
-		this.galaxy = galaxy;
 		this.selectedSystemTicket = galaxy.sectorManager.createSystemTicket(disposer, null);
 	}
 

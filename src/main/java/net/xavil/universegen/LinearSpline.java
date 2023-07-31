@@ -6,7 +6,6 @@ import java.util.List;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
-import net.xavil.ultraviolet.Mod;
 
 public class LinearSpline {
 

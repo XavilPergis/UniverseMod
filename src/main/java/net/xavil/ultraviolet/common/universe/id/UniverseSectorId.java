@@ -7,6 +7,8 @@ import net.xavil.hawklib.Util;
 import net.xavil.hawklib.math.matrices.Vec3i;
 
 public record UniverseSectorId(Vec3i sectorPos, int id) {
+
+	@SuppressWarnings("null")
 	public static final Codec<UniverseSectorId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Vec3i.CODEC.fieldOf("pos").forGetter(UniverseSectorId::sectorPos),
 			Codec.INT.fieldOf("id").forGetter(UniverseSectorId::id))

@@ -46,10 +46,10 @@ public class ScreenLayerBackground extends HawkScreen.Layer2d {
 
 	private static void fillGradient(Matrix4f matrix, VertexBuilder builder, int x1, int y1, int x2, int y2,
 			int z, Color colorA, Color colorB) {
-		final var nn = Vec3.from(x1, y1, z).transformBy(matrix);
-		final var np = Vec3.from(x1, y2, z).transformBy(matrix);
-		final var pn = Vec3.from(x2, y1, z).transformBy(matrix);
-		final var pp = Vec3.from(x2, y2, z).transformBy(matrix);
+		final var nn = new Vec3(x1, y1, z).transformBy(matrix);
+		final var np = new Vec3(x1, y2, z).transformBy(matrix);
+		final var pn = new Vec3(x2, y1, z).transformBy(matrix);
+		final var pp = new Vec3(x2, y2, z).transformBy(matrix);
 		builder.vertex(pn).color(colorA).endVertex();
 		builder.vertex(nn).color(colorA).endVertex();
 		builder.vertex(np).color(colorB).endVertex();

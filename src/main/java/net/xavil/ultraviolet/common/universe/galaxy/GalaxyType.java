@@ -9,17 +9,19 @@ import net.xavil.hawklib.math.matrices.Vec3;
 
 public enum GalaxyType {
 
+	// TODO: sattelite galaxies n stuff
+
 	SPIRAL("spiral") {
 
-		private DoubleField3 globularClusters(Random random) {
-			final var noiseSeed = 100.0 * random.nextDouble();
-			final var scale = random.nextDouble(0.08, 0.12);
+		// private DoubleField3 globularClusters(Random random) {
+		// 	final var noiseSeed = 100.0 * random.nextDouble();
+		// 	final var scale = random.nextDouble(0.08, 0.12);
 
-			final var a = DoubleField3.simplexNoise(noiseSeed).mulPos(scale);
-			return a.sub(0.9999999).clamp().mul(100.0);
-			// float sum = noise(s * pos);
-			// return 100.0 * clamp(sum - 0.9999999, 0.0, 1.0);
-		}
+		// 	final var a = DoubleField3.simplexNoise(noiseSeed).mulPos(scale);
+		// 	return a.sub(0.9999999).clamp().mul(100.0);
+		// 	// float sum = noise(s * pos);
+		// 	// return 100.0 * clamp(sum - 0.9999999, 0.0, 1.0);
+		// }
 
 		@Override
 		public DensityFields createDensityFields(double galaxyAge, Random random) {
@@ -47,8 +49,8 @@ public enum GalaxyType {
 			// var noise =
 			// DoubleField3.simplexNoise(random.nextDouble()).mulPos(Units.LY_PER_TM / 5f);
 
-			final var galaxySquish = Vec3.from(ellipticalFactor, galacticCoreSquishFactor, 1);
-			final var discSquish = Vec3.from(ellipticalFactor, 1, 1);
+			final var galaxySquish = new Vec3(ellipticalFactor, galacticCoreSquishFactor, 1);
+			final var discSquish = new Vec3(ellipticalFactor, 1, 1);
 
 			// (i think) central bulge is full of mostly quite old stars orbiting somewhat
 			// chaotically around the central black hole.

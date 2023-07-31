@@ -30,7 +30,7 @@ public interface EntityAccessor {
 
 		if (config.get(ConfigKey.USE_FIXED_GRAVITY)) {
 			final var gravity = config.get(ConfigKey.FIXED_GRAVITY);
-			return Maybe.some(Vec3.from(0, -gravity, 0));
+			return Maybe.some(new Vec3(0, -gravity, 0));
 		}
 
 		final var location = ((LevelAccessor) level).ultraviolet_getLocation();
@@ -43,7 +43,7 @@ public interface EntityAccessor {
 					final var minGravity = config.get(ConfigKey.MIN_GRAVITY);
 					final var maxGravity = config.get(ConfigKey.MAX_GRAVITY);
 					gravity = Mth.clamp(gravity, minGravity, maxGravity);
-					return Maybe.some(Vec3.from(0, -gravity, 0));
+					return Maybe.some(new Vec3(0, -gravity, 0));
 				}
 			} else if (location instanceof Location.Station loc) {
 				return universe.getStation(loc.id).map(st -> st.getGavityAt(pos));
@@ -53,7 +53,7 @@ public interface EntityAccessor {
 	}
 
 	static Maybe<Vec3> getEntityGravity(Entity entity) {
-		return getGravityAt(entity.getLevel(), Vec3Access.from(entity.position()));
+		return getGravityAt(entity.getLevel(), Vec3.from(entity.position()));
 	}
 
 	static void applyGravity(Entity entity, Vec3 vanillaAcceleration) {
@@ -61,9 +61,9 @@ public interface EntityAccessor {
 		if (gravity.isSome()) {
 			final var gravityStrength = entity.getDeltaMovement().y - vanillaAcceleration.y;
 			final var scaledGravity = gravity.unwrap().mul(gravityStrength);
-			entity.setDeltaMovement(entity.getDeltaMovement().add(scaledGravity.asMinecraft()));
+			entity.setDeltaMovement(entity.getDeltaMovement().add(Vec3.toMinecraft(scaledGravity)));
 		} else {
-			entity.setDeltaMovement(vanillaAcceleration.asMinecraft());
+			entity.setDeltaMovement(Vec3.toMinecraft(vanillaAcceleration));
 		}
 	}
 

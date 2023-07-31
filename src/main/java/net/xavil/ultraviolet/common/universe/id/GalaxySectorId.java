@@ -27,6 +27,7 @@ public record GalaxySectorId(Vec3i levelCoords, int packedInfo) {
 		return from(pos.level(), pos.levelCoords(), elementIndex);
 	}
 
+	@SuppressWarnings("null")
 	public static final Codec<GalaxySectorId> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Vec3i.CODEC.fieldOf("pos").forGetter(GalaxySectorId::levelCoords),
 			Codec.INT.fieldOf("packed_info").forGetter(GalaxySectorId::packedInfo))

@@ -11,9 +11,7 @@ import net.minecraft.util.Mth;
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
-import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
-import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
@@ -240,8 +238,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 			this.renderContext.end();
 
-			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
-			final var selectedNode = system.rootNode.lookup(selectedId);
+			// final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
+			// final var selectedNode = system.rootNode.lookup(selectedId);
 			// if (selectedNode != null) {
 			// final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
 			// RenderHelper.renderUiBillboard(builder, camera, new TransformStack(), pos,

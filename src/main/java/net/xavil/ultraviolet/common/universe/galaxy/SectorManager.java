@@ -330,6 +330,7 @@ public final class SectorManager {
 		return disposer.attach(createSectorTicketManual(info));
 	}
 
+	@SuppressWarnings("unchecked")
 	public <T extends SectorTicketInfo> SectorTicket<T> createSectorTicketManual(T info) {
 		final var ticket = new SectorTicket<>(this, info == null ? null : info.copy());
 		this.trackedTickets.push(new SectorTicketTracker(ticket));

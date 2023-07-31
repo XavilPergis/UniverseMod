@@ -9,7 +9,6 @@ import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.hawklib.math.Interval;
@@ -73,7 +72,7 @@ public class ProtoplanetaryDisc {
 
 			// generate planetesimal
 			final var dustySemiMajor = this.ctx.rng.uniformDouble(this.planetesimalBounds);
-			var heightAboveDiscCenter = this.ctx.rng.uniformDoubleAround(0, this.dustBands.bandThickness);
+			// var heightAboveDiscCenter = this.ctx.rng.uniformDoubleAround(0, this.dustBands.bandThickness);
 			// heightAboveDiscCenter = Math.signum(heightAboveDiscCenter) *
 			// Math.pow(Math.abs(heightAboveDiscCenter), 2.0);
 			// final var inclination = Math.atan(heightAboveDiscCenter / dustySemiMajor);

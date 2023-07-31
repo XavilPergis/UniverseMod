@@ -2,12 +2,9 @@ package net.xavil.hawklib.math.matrices;
 
 import java.util.function.Consumer;
 
-import javax.annotation.Nullable;
-
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import net.minecraft.network.FriendlyByteBuf;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
@@ -23,6 +20,7 @@ public final class Vec3i implements Hashable {
 	public static final Vec3i ZN = new Vec3i(0, 0, -1);
 	public static final Vec3i ZP = new Vec3i(0, 0, 1);
 
+	@SuppressWarnings("null")
 	public static final Codec<Vec3i> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.INT.fieldOf("x").forGetter(v -> v.x),
 			Codec.INT.fieldOf("y").forGetter(v -> v.y),
@@ -37,20 +35,16 @@ public final class Vec3i implements Hashable {
 		this.z = z;
 	}
 
-	public static Vec3i from(int x, int y, int z) {
-		return new Vec3i(x, y, z);
-	}
-
 	public Vec3 lowerCorner() {
-		return Vec3.from(x, y, z);
+		return new Vec3(x, y, z);
 	}
 
 	public Vec3 upperCorner() {
-		return Vec3.from(x + 1, y + 1, z + 1);
+		return new Vec3(x + 1, y + 1, z + 1);
 	}
 
 	public Vec3 center() {
-		return Vec3.from(x + 0.5, y + 0.5, z + 0.5);
+		return new Vec3(x + 0.5, y + 0.5, z + 0.5);
 	}
 
 	public Vec3i add(int x, int y, int z) {

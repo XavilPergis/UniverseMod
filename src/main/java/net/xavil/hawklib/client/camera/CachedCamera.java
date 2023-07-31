@@ -4,7 +4,6 @@ import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Camera;
-import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Mat4;
@@ -109,14 +108,14 @@ public class CachedCamera<T> {
 		// return true;
 		final var boxPoints = new Vec3[8];
 		int i = 0;
-		boxPoints[i++] = worldToNdc(Vec3.from(min.x, min.y, min.z));
-		boxPoints[i++] = worldToNdc(Vec3.from(min.x, min.y, max.z));
-		boxPoints[i++] = worldToNdc(Vec3.from(min.x, max.y, min.z));
-		boxPoints[i++] = worldToNdc(Vec3.from(min.x, max.y, max.z));
-		boxPoints[i++] = worldToNdc(Vec3.from(max.x, min.y, min.z));
-		boxPoints[i++] = worldToNdc(Vec3.from(max.x, min.y, max.z));
-		boxPoints[i++] = worldToNdc(Vec3.from(max.x, max.y, min.z));
-		boxPoints[i++] = worldToNdc(Vec3.from(max.x, max.y, max.z));
+		boxPoints[i++] = worldToNdc(new Vec3(min.x, min.y, min.z));
+		boxPoints[i++] = worldToNdc(new Vec3(min.x, min.y, max.z));
+		boxPoints[i++] = worldToNdc(new Vec3(min.x, max.y, min.z));
+		boxPoints[i++] = worldToNdc(new Vec3(min.x, max.y, max.z));
+		boxPoints[i++] = worldToNdc(new Vec3(max.x, min.y, min.z));
+		boxPoints[i++] = worldToNdc(new Vec3(max.x, min.y, max.z));
+		boxPoints[i++] = worldToNdc(new Vec3(max.x, max.y, min.z));
+		boxPoints[i++] = worldToNdc(new Vec3(max.x, max.y, max.z));
 
 		boolean nx = true, px = true;
 		boolean ny = true, py = true;
@@ -149,7 +148,7 @@ public class CachedCamera<T> {
 		final var x = (2.0 * mousePos.x) / window.getGuiScaledWidth() - 1.0;
 		final var y = 1.0 - (2.0 * mousePos.y) / window.getGuiScaledHeight();
 
-		var dir = Vec3.from(x, y, -1);
+		var dir = new Vec3(x, y, -1);
 		dir = dir.transformBy(this.inverseProjectionMatrix);
 		dir = this.orientation.inverse().transform(dir);
 		return new Ray(this.pos, dir);

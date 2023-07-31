@@ -15,6 +15,7 @@ import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.GlObject;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3i;
@@ -300,18 +301,18 @@ public final class ShaderProgram extends GlObject {
 		public int currentTextureUnit = 0;
 	}
 
-	private static class UniformSlot {
+	public static class UniformSlot {
 		public final UniformType type;
 		public final String name;
 		public final int size;
 		public final int location;
 
-		public boolean isDirty = false;
-		public int[] intValues = null;
-		public float[] floatValues = null;
-		public GlTexture textureValue = null;
+		private boolean isDirty = false;
+		private int[] intValues = null;
+		private float[] floatValues = null;
+		private GlTexture textureValue = null;
 
-		public long lastTypeMismatchTime = Long.MIN_VALUE;
+		private long lastTypeMismatchTime = Long.MIN_VALUE;
 
 		public UniformSlot(UniformType type, String name, int size, int location) {
 			this.type = type;
@@ -343,19 +344,19 @@ public final class ShaderProgram extends GlObject {
 			}
 		}
 
-		public boolean setTexture(GlTexture texture) {
+		private boolean setTexture(GlTexture texture) {
 			final var old = this.textureValue;
 			this.textureValue = texture;
 			return texture != old;
 		}
 
-		public boolean setInt(int i, int value) {
+		private boolean setInt(int i, int value) {
 			final var old = this.intValues[i];
 			this.intValues[i] = value;
 			return value != old;
 		}
 
-		public boolean setFloat(int i, float value) {
+		private boolean setFloat(int i, float value) {
 			final var old = this.floatValues[i];
 			this.floatValues[i] = value;
 			return value != old;
@@ -422,7 +423,7 @@ public final class ShaderProgram extends GlObject {
 			return true;
 		}
 
-		public void upload(UploadContext ctx) {
+		private void upload(UploadContext ctx) {
 			if (this.type.componentType != ComponentType.SAMPLER && !this.isDirty)
 				return;
 			if (uploadSampler(ctx)) {
@@ -436,7 +437,7 @@ public final class ShaderProgram extends GlObject {
 		}
 	}
 
-	private static final class AttributeSlot {
+	public static final class AttributeSlot {
 		public final String name;
 		public final VertexFormatElement element;
 
@@ -459,6 +460,14 @@ public final class ShaderProgram extends GlObject {
 
 	public VertexFormat format() {
 		return this.format;
+	}
+
+	public Iterator<UniformSlot> uniforms() {
+		return this.uniforms.values();
+	}
+
+	public Iterator<AttributeSlot> attributes() {
+		return this.attributes.values();
 	}
 
 	public GlFragmentWrites fragmentWrites() {
@@ -515,7 +524,7 @@ public final class ShaderProgram extends GlObject {
 			if (attrib.getUsage() == VertexFormatElement.Usage.PADDING)
 				continue;
 			if (bind)
-			GL32C.glBindAttribLocation(this.id, i, attribName);
+				GL32C.glBindAttribLocation(this.id, i, attribName);
 			this.attributes.insert(attribName, new AttributeSlot(attribName, attrib));
 		}
 	}
@@ -745,7 +754,7 @@ public final class ShaderProgram extends GlObject {
 	public void setUniform(String uniformName, Vec4Access v) {
 		setUniform(uniformName, v.x(), v.y(), v.z(), v.w());
 	}
-	
+
 	public void setUniform(String uniformName, Color color) {
 		setUniform(uniformName, color.r(), color.g(), color.b(), color.a());
 	}

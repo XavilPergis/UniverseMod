@@ -16,6 +16,7 @@ public final class Quat implements Hashable {
 	public static final Quat ZERO = new Quat(0, 0, 0, 0);
 	public static final Quat IDENTITY = new Quat(1, 0, 0, 0);
 
+	@SuppressWarnings("null")
 	public static final Codec<Quat> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.DOUBLE.fieldOf("w").forGetter(v -> v.w),
 			Codec.DOUBLE.fieldOf("i").forGetter(v -> v.i),
@@ -98,7 +99,7 @@ public final class Quat implements Hashable {
 		final var halfAngle = Math.acos(this.w);
 		final var h = 1 / Mth.fastInvSqrt(1 - this.w * this.w);
 		final var n = h * 2 * halfAngle;
-		return Vec3.from(n * i, n * j, n * k);
+		return new Vec3(n * i, n * j, n * k);
 	}
 
 	// returns a quaternion that applies `rhs` first, then `this`
@@ -127,7 +128,7 @@ public final class Quat implements Hashable {
 	}
 
 	public Vec3 ijk() {
-		return Vec3.from(i, j, k);
+		return new Vec3(i, j, k);
 	}
 
 	public Vec3 transform(Vec3 vec) {

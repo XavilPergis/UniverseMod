@@ -15,6 +15,7 @@ import net.xavil.hawklib.math.matrices.interfaces.Vec4Access;
 
 public final class Vec4 implements Hashable, Vec4Access {
 
+	@SuppressWarnings("null")
 	public static final Codec<Vec4> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.DOUBLE.fieldOf("x").forGetter(v -> v.x),
 			Codec.DOUBLE.fieldOf("y").forGetter(v -> v.y),
@@ -58,7 +59,7 @@ public final class Vec4 implements Hashable, Vec4Access {
 	// @formatter:on
 
 	public Vec3 perspectiveDivision() {
-		return Vec3.from(x / w, y / w, z / w);
+		return new Vec3(x / w, y / w, z / w);
 	}
 
 	public Vec4 normalize() {

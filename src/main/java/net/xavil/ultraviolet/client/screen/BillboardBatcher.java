@@ -8,8 +8,6 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
-import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.client.StarRenderManager;
 
 public final class BillboardBatcher {

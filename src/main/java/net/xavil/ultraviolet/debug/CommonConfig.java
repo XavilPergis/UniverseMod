@@ -8,7 +8,6 @@ import net.minecraft.server.level.ServerPlayer;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
-import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 
 public final class CommonConfig {

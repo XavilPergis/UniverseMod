@@ -5,7 +5,6 @@ import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.universegen.system.CelestialNode;

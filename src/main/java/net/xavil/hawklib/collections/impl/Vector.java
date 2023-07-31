@@ -26,6 +26,7 @@ public final class Vector<T> implements MutableList<T> {
 		this.elements = makeArray(initialCapacity);
 	}
 
+	@SafeVarargs
 	public static <T> Vector<T> fromElements(T... initialElements) {
 		return new Vector<>(initialElements, initialElements.length);
 	}
@@ -206,6 +207,7 @@ public final class Vector<T> implements MutableList<T> {
 	}
 
 	@Override
+	@SuppressWarnings("unchecked")
 	public T[] toArray(Class<T> innerType) {
 		return Arrays.copyOf(this.elements, this.size, (Class<T[]>) innerType.arrayType());
 	}

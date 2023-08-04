@@ -11,6 +11,7 @@ import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalPlane;
@@ -246,24 +247,36 @@ public class Planetesimal {
 				this.orbitalShape.semiMajor() * Units.Tm_PER_au);
 		final var plane = OrbitalPlane.fromInclination(this.inclination, this.ctx.rng);
 
-		final PlanetaryCelestialNode node;
+		final CelestialNode node;
 		if (canSweepGas()) {
-			// gas giant track
-			node = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, massYg, radiusRearth, 300);
-			node.rotationalRate = 0; // TODO
+			if (massYg >= 0.08 * Units.Yg_PER_Msol) {
+				// star track
+				node = StellarCelestialNode.fromMassAndAge(massYg, this.ctx.stellarAgeMyr);
+			} else if (massYg >= 13 * Units.Yg_PER_Mjupiter) {
+				// brown dwarf track
+				// TODO
+				node = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, massYg, radiusRearth, 300);
+				node.rotationalRate = 0; // TODO
+			} else {
+				// gas giant track
+				node = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, massYg, radiusRearth, 300);
+				node.rotationalRate = 0; // TODO
+			}
 		} else {
 			// terrestrial planet track
 			// TODO: different world types
-			node = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, massYg, radiusRearth, 300);
-			final var lockingTime = timeUntilTidallyLockedMyr(node, parent.massYg, shape.semiMajor());
+			final var pnode = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, massYg, radiusRearth, 300);
+			final var lockingTime = timeUntilTidallyLockedMyr(pnode, parent.massYg, shape.semiMajor());
 			final var lockingPercent = Math.min(1.0, this.ctx.stellarAgeMyr / lockingTime);
-			final var orbitalRate = 2.0 * Math.PI / Formulas.orbitalPeriod(shape.semiMajor(), node.massYg);
-			node.rotationalRate = Mth.lerp(lockingPercent, this.rotationalRate, orbitalRate);
+			final var orbitalRate = 2.0 * Math.PI / Formulas.orbitalPeriod(shape.semiMajor(), pnode.massYg);
+			pnode.rotationalRate = Mth.lerp(lockingPercent, this.rotationalRate, orbitalRate);
 
 			// TODO: try to apply tidal locking to the parent node too
+			node = pnode;
 		}
 
-		node.obliquityAngle = this.ctx.rng.uniformDouble(-2.0 * Math.PI, 2.0 * Math.PI);
+		this.ctx.rng.uniformDouble(-2.0 * Math.PI, 2.0 * Math.PI);
+		node.obliquityAngle = 0;
 
 		for (final var ring : this.rings.iterable()) {
 			// Mod.LOGGER.info("RING!!! {}, parent = {}", this, parent);

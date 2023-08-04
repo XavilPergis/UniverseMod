@@ -1,6 +1,7 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
 import java.util.function.Consumer;
+import java.util.function.Predicate;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.collections.interfaces.ImmutableSet;
@@ -30,7 +31,14 @@ public abstract sealed class SectorTicketInfo {
 		return sectors;
 	}
 
-	public abstract void enumerateAffectedSectors(Consumer<SectorPos> consumer);
+	public void enumerateAllAffectedSectors(Consumer<SectorPos> consumer) {
+		enumerateAffectedSectors(pos -> {
+			consumer.accept(pos);
+			return true;
+		});
+	}
+
+	public abstract void enumerateAffectedSectors(Predicate<SectorPos> consumer);
 
 	public static final class Single extends SectorTicketInfo {
 		public SectorPos sector;
@@ -50,8 +58,8 @@ public abstract sealed class SectorTicketInfo {
 		}
 
 		@Override
-		public void enumerateAffectedSectors(Consumer<SectorPos> consumer) {
-			consumer.accept(this.sector);
+		public void enumerateAffectedSectors(Predicate<SectorPos> consumer) {
+			consumer.test(this.sector);
 		}
 
 		@Override
@@ -98,17 +106,23 @@ public abstract sealed class SectorTicketInfo {
 		}
 
 		@Override
-		public void enumerateAffectedSectors(Consumer<SectorPos> consumer) {
+		public void enumerateAffectedSectors(Predicate<SectorPos> consumer) {
 			double radiusCur = this.baseRadius;
 			for (int level = 0; level <= GalaxySector.ROOT_LEVEL; ++level) {
 				final var level2 = level;
 				final var curMin = GalaxySector.levelCoordsForPos(level, this.centerPos.sub(Vec3.broadcast(radiusCur)));
 				final var curMax = GalaxySector.levelCoordsForPos(level, this.centerPos.add(Vec3.broadcast(radiusCur)));
-				Vec3i.iterateInclusive(curMin, curMax, pos -> {
-					final var spos = new SectorPos(level2, pos);
-					if (isInside(spos))
-						consumer.accept(spos);
-				});
+
+				for (var x = curMin.x; x <= curMax.x; ++x) {
+					for (var y = curMin.y; y <= curMax.y; ++y) {
+						for (var z = curMin.z; z <= curMax.z; ++z) {
+							final var pos = new Vec3i(x, y, z);
+							final var spos = new SectorPos(level2, pos);
+							if (isInside(spos) && !consumer.test(spos))
+								return;
+						}
+					}
+				}
 				radiusCur *= 2.0;
 			}
 		}

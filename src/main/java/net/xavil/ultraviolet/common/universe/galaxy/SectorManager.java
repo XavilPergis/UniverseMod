@@ -180,8 +180,15 @@ public final class SectorManager {
 		forceLoad(InactiveProfiler.INSTANCE, sectorTicket);
 	}
 
-	public boolean isLoaded(SectorTicket<?> sectorTicket) {
-		return sectorTicket.info.affectedSectors().iter().all(this::isComplete);
+	public boolean isComplete(SectorTicket<?> sectorTicket) {
+		final var res = new Object() {
+			boolean complete = true;
+		};
+		sectorTicket.info.enumerateAffectedSectors(pos -> {
+			res.complete &= isComplete(pos);
+			return res.complete;
+		});
+		return res.complete;
 	}
 
 	public void forceLoad(ProfilerFiller profiler, SectorTicket<?> sectorTicket) {
@@ -401,7 +408,7 @@ public final class SectorManager {
 	public void enumerate(SectorTicket<?> ticket, Consumer<GalaxySector> sectorConsumer) {
 		if (ticket.info == null)
 			return;
-		ticket.info.enumerateAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
+		ticket.info.enumerateAllAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
 			final var sector = slot.sector.lookupSubtree(pos);
 			if (sector != null && sector.isComplete())
 				sectorConsumer.accept(sector);

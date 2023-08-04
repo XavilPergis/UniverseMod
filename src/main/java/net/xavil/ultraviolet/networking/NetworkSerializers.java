@@ -16,7 +16,7 @@ import net.minecraft.nbt.TagTypes;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.xavil.hawklib.math.matrices.Vec3i;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
@@ -222,46 +222,46 @@ public class NetworkSerializers {
 		}
 	};
 
-	public static final NetworkSerializer<Location> LOCATION = new NetworkSerializer<Location>() {
+	public static final NetworkSerializer<WorldType> WORLD_TYPE = new NetworkSerializer<WorldType>() {
 
-		enum LocationKind {
+		enum WorldTypeKind {
 			UNKNOWN, WORLD, STATION,
 		}
 
-		private static final NetworkSerializer<LocationKind> KIND = forEnum(LocationKind.class);
+		private static final NetworkSerializer<WorldTypeKind> KIND = forEnum(WorldTypeKind.class);
 
 		@Override
-		public void write(FriendlyByteBuf buf, Location value) {
+		public void write(FriendlyByteBuf buf, WorldType value) {
 			buf.writeBoolean(value == null);
 			if (value == null)
 				return;
-			if (value instanceof Location.Unknown) {
-				KIND.write(buf, LocationKind.UNKNOWN);
-			} else if (value instanceof Location.World world) {
-				KIND.write(buf, LocationKind.WORLD);
+			if (value instanceof WorldType.Unknown) {
+				KIND.write(buf, WorldTypeKind.UNKNOWN);
+			} else if (value instanceof WorldType.SystemNode world) {
+				KIND.write(buf, WorldTypeKind.WORLD);
 				SYSTEM_NODE_ID.write(buf, world.id);
-			} else if (value instanceof Location.Station station) {
-				KIND.write(buf, LocationKind.STATION);
+			} else if (value instanceof WorldType.Station station) {
+				KIND.write(buf, WorldTypeKind.STATION);
 				buf.writeInt(station.id);
 			}
 		}
 
 		@Override
 		@Nullable
-		public Location read(FriendlyByteBuf buf) {
+		public WorldType read(FriendlyByteBuf buf) {
 			if (buf.readBoolean())
 				return null;
 
 			final var type = KIND.read(buf);
-			if (type == LocationKind.UNKNOWN) {
-				return Location.UNKNOWN;
-			} else if (type == LocationKind.WORLD) {
+			if (type == WorldTypeKind.UNKNOWN) {
+				return WorldType.UNKNOWN;
+			} else if (type == WorldTypeKind.WORLD) {
 				final var systemNodeId = SYSTEM_NODE_ID.read(buf);
 				if (systemNodeId == null)
 					return null;
-				return new Location.World(systemNodeId);
-			} else if (type == LocationKind.WORLD) {
-				return new Location.Station(buf.readInt());
+				return new WorldType.SystemNode(systemNodeId);
+			} else if (type == WorldTypeKind.WORLD) {
+				return new WorldType.Station(buf.readInt());
 			}
 			return null;
 		}

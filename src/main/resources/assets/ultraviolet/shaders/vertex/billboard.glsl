@@ -6,6 +6,7 @@ VARYING_V2F vec4 vertexColor;
 
 #ifdef IS_VERTEX_STAGE
 #include [ultraviolet:common_uniforms.glsl]
+#include [ultraviolet:lib/noise.glsl]
 
 in vec3 Position;
 in vec4 Color;
@@ -34,10 +35,19 @@ vec3 offsetFacingCamera(vec3 posView, vec2 vertexOffset) {
 	return billboardSize() * (vertexOffset.x * right + vertexOffset.y * up);
 }
 
+vec2 rotate(vec2 v, float a) {
+	float s = sin(a);
+	float c = cos(a);
+	mat2 m = mat2(c, s, -s, c);
+	return m * v;
+}
+
 void main() {
 	vec4 posView = uViewMatrix * vec4(Position, 1.0);
 	vec2 uv = uv();
 	vec2 off = vec2(2.0 * uv - 1.0);
+
+	off = rotate(off, rand(float(gl_VertexID)));
 
 #if defined(BILLBOARD_KIND_VIEW_ALIGNED)
 	posView.xyz += offsetViewAligned(off);

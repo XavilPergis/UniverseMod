@@ -159,9 +159,6 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 			int starAttemptCount = Mth.floor(starsPerSector);
 			if (starAttemptCount > 5000) {
-				Mod.LOGGER.warn(
-						"star attempt count of {} exceeded limit of {}", starAttemptCount,
-						5000);
 				starAttemptCount = 5000;
 			}
 

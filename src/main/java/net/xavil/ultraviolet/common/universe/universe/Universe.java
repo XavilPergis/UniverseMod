@@ -140,6 +140,7 @@ public abstract class Universe implements Disposable {
 	// galaxies per Zm^3
 	private static double sampleDensity(Vec3 volumeOffsetZm) {
 		// TODO: use a noise field or something
+		// ridged noise would probably work well, to sorta emulate galactic filaments
 		return 3.88;
 	}
 
@@ -179,6 +180,7 @@ public abstract class Universe implements Disposable {
 		final var info = new Galaxy.Info();
 		final var typeIndex = random.nextInt(GalaxyType.values().length);
 		info.type = GalaxyType.values()[typeIndex];
+		// info.type = GalaxyType.ELLIPTICAL;
 		info.ageMya = random.nextInt(100, 10000);
 
 		return info;

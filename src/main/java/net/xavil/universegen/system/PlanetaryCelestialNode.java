@@ -12,7 +12,6 @@ import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.xavil.hawklib.Units;
-import net.xavil.ultraviolet.common.dimension.DimensionCreationProperties;
 
 public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 
@@ -72,14 +71,13 @@ public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 				BlockTags.INFINIBURN_OVERWORLD, DimensionType.OVERWORLD_EFFECTS, 0.0f));
 	}
 
-	public Supplier<DimensionCreationProperties> dimensionProperties(MinecraftServer server) {
+	public Supplier<LevelStem> dimensionProperties(MinecraftServer server) {
 		if (!this.type.isLandable)
 			return null;
 		return () -> {
 			var registryAccess = server.registryAccess();
 			var generator = WorldGenSettings.makeDefaultOverworld(registryAccess, new Random().nextLong());
-			var levelStem = new LevelStem(dimensionType(server), generator);
-			return DimensionCreationProperties.basic(levelStem);
+			return new LevelStem(dimensionType(server), generator);
 		};
 	}
 

@@ -4,7 +4,7 @@ import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Maybe;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
@@ -17,12 +17,12 @@ public interface EntityAccessor {
 		return ((LevelAccessor) entity.level).ultraviolet_getUniverse();
 	}
 
-	static Location getLocation(Entity entity) {
-		return ((LevelAccessor) entity.level).ultraviolet_getLocation();
+	static WorldType getWorldType(Entity entity) {
+		return LevelAccessor.getWorldType(entity.level);
 	}
 
 	static int getStation(Entity entity) {
-		return ((LevelAccessor) entity.level).ultraviolet_getLocation() instanceof Location.Station loc ? loc.id : -1;
+		return LevelAccessor.getWorldType(entity.level) instanceof WorldType.Station type ? type.id : -1;
 	}
 
 	static Maybe<Vec3> getGravityAt(Level level, Vec3Access pos) {
@@ -33,11 +33,11 @@ public interface EntityAccessor {
 			return Maybe.some(new Vec3(0, -gravity, 0));
 		}
 
-		final var location = ((LevelAccessor) level).ultraviolet_getLocation();
-		final var universe = ((LevelAccessor) level).ultraviolet_getUniverse();
-		if (universe != null && location != null) {
-			if (location instanceof Location.World loc) {
-				final var node = universe.getSystemNode(loc.id).unwrapOrNull();
+		final var type = LevelAccessor.getWorldType(level);
+		final var universe = LevelAccessor.getUniverse(level);
+		if (universe != null && type != null) {
+			if (type instanceof WorldType.SystemNode ty) {
+				final var node = universe.getSystemNode(ty.id).unwrapOrNull();
 				if (node instanceof PlanetaryCelestialNode planetNode) {
 					var gravity = planetNode.surfaceGravityEarthRelative();
 					final var minGravity = config.get(ConfigKey.MIN_GRAVITY);
@@ -45,8 +45,8 @@ public interface EntityAccessor {
 					gravity = Mth.clamp(gravity, minGravity, maxGravity);
 					return Maybe.some(new Vec3(0, -gravity, 0));
 				}
-			} else if (location instanceof Location.Station loc) {
-				return universe.getStation(loc.id).map(st -> st.getGavityAt(pos));
+			} else if (type instanceof WorldType.Station ty) {
+				return universe.getStation(ty.id).map(st -> st.getGavityAt(pos));
 			}
 		}
 		return Maybe.none();

@@ -8,9 +8,11 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
+import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -22,18 +24,22 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.PathfinderMob;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.level.ChunkPos;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.dimension.LevelStem;
+import net.minecraft.world.level.storage.DimensionDataStorage;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
+import net.xavil.ultraviolet.common.PerLevelData;
 import net.xavil.ultraviolet.common.block.ModBlocks;
-import net.xavil.ultraviolet.common.dimension.DimensionCreationProperties;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.item.StarmapItem;
 import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
 import net.xavil.ultraviolet.debug.ModDebugCommand;
+import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.ultraviolet.networking.ModNetworking;
@@ -46,7 +52,7 @@ import net.xavil.ultraviolet.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundStationJumpBeginPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSyncCelestialTimePacket;
-import net.xavil.ultraviolet.networking.s2c.ClientboundUniverseInfoPacket;
+import net.xavil.ultraviolet.networking.s2c.ClientboundUniverseSyncPacket;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -79,7 +85,7 @@ public class Mod implements ModInitializer {
 
 		ModNetworking.REGISTER_PACKETS_EVENT.register(acceptor -> {
 			// @formatter:off
-			acceptor.clientboundPlay.register(ClientboundUniverseInfoPacket.class, ClientboundUniverseInfoPacket::new);
+			acceptor.clientboundPlay.register(ClientboundUniverseSyncPacket.class, ClientboundUniverseSyncPacket::new);
 			acceptor.clientboundPlay.register(ClientboundOpenStarmapPacket.class, ClientboundOpenStarmapPacket::new);
 			acceptor.clientboundPlay.register(ClientboundChangeSystemPacket.class, ClientboundChangeSystemPacket::new);
 			acceptor.clientboundPlay.register(ClientboundSyncCelestialTimePacket.class, ClientboundSyncCelestialTimePacket::new);
@@ -97,6 +103,10 @@ public class Mod implements ModInitializer {
 
 		CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
 			ModDebugCommand.register(dispatcher, dedicated);
+		});
+
+		ServerWorldEvents.LOAD.register((server, level) -> {
+			Mod.LOGGER.error("LOAD {}", level);
 		});
 	}
 
@@ -120,7 +130,7 @@ public class Mod implements ModInitializer {
 		}
 	}
 
-	private static Maybe<Supplier<DimensionCreationProperties>> getDimProperties(MinecraftServer server,
+	private static Maybe<Supplier<LevelStem>> getDimProperties(MinecraftServer server,
 			CelestialNode node) {
 		if (node instanceof PlanetaryCelestialNode planetNode)
 			return Maybe.fromNullable(planetNode.dimensionProperties(server));
@@ -128,15 +138,15 @@ public class Mod implements ModInitializer {
 	}
 
 	private static ServerLevel createWorld(MinecraftServer server, SystemNodeId id,
-			Supplier<DimensionCreationProperties> props) {
+			Supplier<LevelStem> props) {
 		final var manager = DynamicDimensionManager.get(server);
 		final var universe = MinecraftServerAccessor.getUniverse(server);
 
 		final var key = DynamicDimensionManager.getKey(id.uniqueName());
 		final var newLevel = manager.getOrCreateLevel(key, props);
 
-		((LevelAccessor) newLevel).ultraviolet_setUniverse(universe);
-		((LevelAccessor) newLevel).ultraviolet_setLocation(new Location.World(id));
+		LevelAccessor.setUniverse(newLevel, universe);
+		LevelAccessor.setWorldType(newLevel, new WorldType.SystemNode(id));
 
 		return newLevel;
 	}
@@ -173,7 +183,6 @@ public class Mod implements ModInitializer {
 		final var opLevel = sender.server.getOperatorUserPermissionLevel();
 		if (!sender.hasPermissions(opLevel))
 			return;
-		
 	}
 
 	public static void handlePacket(ServerPlayer sender, ServerboundTeleportToLocationPacket packet) {
@@ -189,12 +198,12 @@ public class Mod implements ModInitializer {
 			return;
 		}
 
-		if (packet.location instanceof Location.Unknown) {
+		if (packet.location instanceof WorldType.Unknown) {
 			info.warn("tried to teleport to an unknown location!");
 			return;
-		} else if (packet.location instanceof Location.World world) {
+		} else if (packet.location instanceof WorldType.SystemNode world) {
 			teleportToWorld(sender, world.id);
-		} else if (packet.location instanceof Location.Station station) {
+		} else if (packet.location instanceof WorldType.Station station) {
 			teleportToStation(sender, station.id);
 		}
 
@@ -299,6 +308,96 @@ public class Mod implements ModInitializer {
 		if (entity instanceof PathfinderMob mob) {
 			mob.getNavigation().stop();
 		}
+	}
+
+	public static void syncPlayer(ServerPlayer player) {
+		final var universe = MinecraftServerAccessor.getUniverse(player.server);
+
+		final var syncPacket = new ClientboundUniverseSyncPacket();
+		// seeds
+		syncPacket.commonSeed = universe.getCommonUniverseSeed();
+		syncPacket.uniqueSeed = universe.getUniqueUniverseSeed();
+		// starting system info
+		final var ssg = universe.getStartingSystemGenerator();
+		syncPacket.startingId = ssg.getStartingSystemId();
+		syncPacket.startingSystemNbt = CelestialNode.writeNbt(ssg.startingSystem.rootNode);
+		// current info
+		syncPacket.worldType = EntityAccessor.getWorldType(player);
+		player.connection.send(syncPacket);
+
+		universe.syncTime(player, true);
+	}
+
+	private static void stemRecoveryFailed(MinecraftServer server, PerLevelData perLevelData, ResourceKey<Level> key) {
+		if (perLevelData.levelStem != null) {
+			throw new IllegalStateException();
+		}
+
+		// FIXME: this is a destructive operation, it should not be automatically
+		// applied! But it seems like a lot of work to give an option to exit out and
+		// fix the world file...
+		Mod.LOGGER.error(
+				"Unable to recover level stem for level '{}'! Defaulting to overworld level stem...",
+				key.location());
+		final var stemRegistry =server.getWorldData().worldGenSettings().dimensions();
+		perLevelData.levelStem = stemRegistry.get(LevelStem.OVERWORLD);
+		perLevelData.setDirty();
+	}
+
+	private static void recoverStem(MinecraftServer server, PerLevelData perLevelData, ResourceKey<Level> key) {
+		if (perLevelData.levelStem != null) {
+			throw new IllegalStateException();
+		}
+
+		Mod.LOGGER.error("Level '{}' has no saved level stem!", key.location());
+
+		// FIXME: recover stations with no level stems. This needs station data to be
+		// persisted first, though.
+		if (perLevelData.worldType instanceof WorldType.SystemNode type) {
+			final var universe = MinecraftServerAccessor.getUniverse(server);
+			try (final var disposer = Disposable.scope()) {
+				final var node = universe.loadSystem(disposer, type.id.system())
+						.flatMap(system -> Maybe.fromNullable(system.rootNode.lookup(type.id.nodeId())))
+						.unwrapOrNull();
+
+				if (node == null) {
+					Mod.LOGGER.error("Node ID '{}' did not correspond to any system node!");
+					return;
+				}
+				if (node instanceof PlanetaryCelestialNode planetNode) {
+					final var props = planetNode.dimensionProperties(server);
+					if (props == null) {
+						Mod.LOGGER.error("Node ID '{}' was not a landable planet node!");
+						return;
+					}
+					perLevelData.levelStem = props.get();
+					perLevelData.setDirty();
+					Mod.LOGGER.info("Successfully recovered level stem for level '{}'!", key.location());
+				} else {
+					Mod.LOGGER.error("Node ID '{}' was not a planet node!");
+					return;
+				}
+			}
+		}
+	}
+
+	public static ServerLevel loadDynamicLevel(MinecraftServer server, ResourceKey<Level> key) {
+		final var storageSource = MinecraftServerAccessor.getStorageSource(server);
+		final var dataFolder = storageSource.getDimensionPath(key).resolve("data").toFile();
+		final var dataStorage = new DimensionDataStorage(dataFolder, server.getFixerUpper());
+
+		final var perLevelData = dataStorage.get(PerLevelData::load, PerLevelData.ID);
+		if (perLevelData == null) {
+			return null;
+		}
+
+		if (perLevelData.levelStem == null)
+			recoverStem(server, perLevelData, key);
+		if (perLevelData.levelStem == null)
+			stemRecoveryFailed(server, perLevelData, key);
+
+		final var dimManager = MinecraftServerAccessor.getDimensionManager(server);
+		return dimManager.getOrCreateLevel(key, () -> perLevelData.levelStem);
 	}
 
 }

@@ -10,6 +10,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
@@ -20,8 +21,9 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.WorldData;
+import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
 import net.xavil.ultraviolet.debug.CommonConfig;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
@@ -62,6 +64,8 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 		if (this.universe != null)
 			this.universe.tick(this.profiler, false);
 		this.commonDebug.flush();
+		if (this.dynamicDimensionManager != null)
+			this.dynamicDimensionManager.tick();
 	}
 
 	@Inject(method = "createLevels", at = @At("HEAD"))
@@ -90,7 +94,18 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 	private void prepareStartingVolume(CallbackInfo info) {
 		final var overworld = ((MinecraftServer) (Object) this).overworld();
 		final var startingId = this.universe.getStartingSystemGenerator().getStartingSystemId();
-		((LevelAccessor) overworld).ultraviolet_setUniverse(this.universe);
-		LevelAccessor.setLocation(overworld, new Location.World(startingId));
+		LevelAccessor.setUniverse(overworld, this.universe);
+		LevelAccessor.setWorldType(overworld, new WorldType.SystemNode(startingId));
+	}
+
+	@Inject(method = "getLevel", at = @At("HEAD"), cancellable = true)
+	private void loadDynamicLevelIfNeeded(ResourceKey<Level> dimension, CallbackInfoReturnable<ServerLevel> info) {
+		if (!ultraviolet_getLevels().containsKey(dimension)) {
+			// NOTE: this calls into DynamicDimensionManager, which will insder the new
+			// level into the server's level list, but to be ase, we will also do it here.
+			final var level = Mod.loadDynamicLevel((MinecraftServer) (Object) this, dimension);
+			ultraviolet_getLevels().put(dimension, level);
+			info.setReturnValue(level);
+		}
 	}
 }

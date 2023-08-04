@@ -30,7 +30,7 @@ public abstract class ServerPlayerMixin extends Player {
 	@Inject(method = "setLevel", at = @At("TAIL"))
 	public void changeLevel(ServerLevel level, CallbackInfo info) {
 		if (this.connection != null) {
-			final var packet = new ClientboundChangeSystemPacket(LevelAccessor.getLocation(level));
+			final var packet = new ClientboundChangeSystemPacket(LevelAccessor.getWorldType(level));
 			this.connection.send(packet);
 		}
 	}

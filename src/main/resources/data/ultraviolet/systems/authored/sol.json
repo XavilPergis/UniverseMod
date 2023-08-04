@@ -1,4 +1,5 @@
 {
+	"ecliptic_reference": "earth",
 	"root": {
 		"type": "star",
 		"id": "sol",

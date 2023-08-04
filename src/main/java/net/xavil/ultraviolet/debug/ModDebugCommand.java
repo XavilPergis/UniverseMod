@@ -19,7 +19,7 @@ import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation.OrbitingCelestialBody;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
@@ -142,7 +142,7 @@ public final class ModDebugCommand {
 	private static int executeStationAdd(CommandContext<CommandSourceStack> ctx) {
 		final var level = ctx.getSource().getLevel();
 		final var universe = LevelAccessor.getUniverse(level);
-		final var location = LevelAccessor.getLocation(level);
+		final var location = LevelAccessor.getWorldType(level);
 		final var name = StringArgumentType.getString(ctx, "name");
 
 		if (universe.getStationByName(name).isSome()) {
@@ -151,13 +151,13 @@ public final class ModDebugCommand {
 			return 1;
 		}
 
-		if (location instanceof Location.World loc) {
+		if (location instanceof WorldType.SystemNode loc) {
 			final var sloc = OrbitingCelestialBody.createDefault(universe, loc.id);
 			if (sloc.isSome()) {
 				universe.createStation(name, sloc.unwrap());
 				ctx.getSource().sendSuccess(new TextComponent("created station around node " + loc.id), true);
 			}
-		} else if (location instanceof Location.Station loc) {
+		} else if (location instanceof WorldType.Station loc) {
 			universe.getStation(loc.id).ifSome(station -> {
 				if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
 					final var newSloc = OrbitingCelestialBody.createDefault(universe, sloc.id);

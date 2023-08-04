@@ -206,14 +206,6 @@ public final class PlanetRenderingContext {
 		var distanceFromCamera = camera.pos.mul(1e12 / camera.metersPerUnit).distanceTo(nodePosUnits);
 		var distanceRatio = radiusM / (distanceFromCamera * camera.metersPerUnit);
 
-		if (distanceRatio < 0.01) {
-			// // TODO: tint
-			// tfm.push();
-			// tfm.prependTranslation(this.origin);
-			// RenderHelper.renderStarBillboard(builder, camera, tfm, node);
-			// tfm.pop();
-		}
-
 		if (distanceRatio < 0.0001)
 			return;
 

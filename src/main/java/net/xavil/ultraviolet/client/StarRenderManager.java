@@ -38,7 +38,7 @@ public final class StarRenderManager implements Disposable {
 	 * the background stars are rebuilt.
 	 */
 	public double starSnapshotThreshold = 10000;
-	private double immediateStarsTimerTicks = -1;
+	private boolean drawImmediate = true;
 	/**
 	 * The position relative to the galaxy at which the coordinate system's origin
 	 * is placed.
@@ -52,9 +52,6 @@ public final class StarRenderManager implements Disposable {
 	}
 
 	public void tick() {
-		if (this.immediateStarsTimerTicks > 0) {
-			this.immediateStarsTimerTicks -= 1;
-		}
 	}
 
 	public SectorTicket<SectorTicketInfo.Multi> getSectorTicket() {
@@ -76,7 +73,7 @@ public final class StarRenderManager implements Disposable {
 			this.starSnapshotOrigin = null;
 		} else {
 			buildStarsIfNeeded(camera, centerPos);
-			if (this.immediateStarsTimerTicks != -1) {
+			if (this.drawImmediate) {
 				drawStarsImmediate(camera, centerPos);
 			} else {
 				drawStarsFromBuffer(camera, centerPos);
@@ -87,25 +84,23 @@ public final class StarRenderManager implements Disposable {
 	// TODO: build stars when all the sectors are finished generating instead of
 	// having a fixed cooldown
 	private void buildStarsIfNeeded(CachedCamera<?> camera, Vec3 centerPos) {
+		// don't rebuild if we don't need to
 		if (this.starSnapshotOrigin != null
 				&& centerPos.distanceTo(this.starSnapshotOrigin) < this.starSnapshotThreshold) {
-			this.immediateStarsTimerTicks = -1;
 			return;
 		}
-		if (this.immediateStarsTimerTicks == -1)
-			this.immediateStarsTimerTicks = 10;
-		if (this.immediateStarsTimerTicks > 0)
+
+		this.drawImmediate = true;
+		if (!this.sectorTicket.attachedManager.isComplete(this.sectorTicket))
 			return;
 
 		this.starSnapshotOrigin = centerPos;
-		this.immediateStarsTimerTicks = -1;
 
 		final var colorHolder = new Vec3.Mutable();
 		final var elem = new GalaxySector.SectorElementHolder();
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
-		this.sectorTicket.attachedManager.forceLoad(this.sectorTicket);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			final var levelSize = this.sectorTicket.info.baseRadius * (1 << sector.level);
 			for (int i = 0; i < sector.elements.size(); ++i) {
@@ -122,25 +117,24 @@ public final class StarRenderManager implements Disposable {
 			}
 		});
 		this.starsBuffer.upload(builder.end());
+		this.drawImmediate = false;
 	}
 
 	private void drawStarsImmediate(CachedCamera<?> camera, Vec3 centerPos) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		final var batcher = new BillboardBatcher(builder, 10000);
 
 		final var colorHolder = new Vec3.Mutable();
 		final var toStar = new Vec3.Mutable();
 		final var elem = new GalaxySector.SectorElementHolder();
 
-		// final var camPos = camera.posTm.add(this.originOffset);
-		batcher.begin(camera);
+		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			// final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
 			// final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
 			// if (!camera.isAabbInFrustum(min, max))
 			// return;
 			final var levelSize = this.sectorTicket.info.baseRadius * (1 << sector.level);
-			// if (sector.level != 0) return;
 
 			for (int i = 0; i < sector.elements.size(); ++i) {
 				sector.elements.load(elem, i);
@@ -158,11 +152,12 @@ public final class StarRenderManager implements Disposable {
 						.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
 						.uv0((float) elem.luminosityLsol, 0)
 						.endVertex();
-
-				batcher.emitIfNeeded();
 			}
 		});
-		batcher.end();
+
+		final var shader = getShader(SHADER_STAR_BILLBOARD);
+		StarRenderManager.setupStarShader(shader, camera);
+		builder.end().draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 	}
 
 	private void drawStarsFromBuffer(CachedCamera<?> camera, Vec3 centerPos) {
@@ -193,10 +188,8 @@ public final class StarRenderManager implements Disposable {
 	}
 
 	public static void setupStarShader(ShaderProgram shader, CachedCamera<?> camera) {
-		final var universe = MinecraftClientAccessor.getUniverse(Minecraft.getInstance());
+		final var universe = MinecraftClientAccessor.getUniverse();
 		final var partialTick = Minecraft.getInstance().getFrameTime();
-		// shader.setUniformSampler("uBillboardTexture",
-		// GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 		shader.setUniform("uMetersPerUnit", camera.metersPerUnit);
 		shader.setUniform("uTime", universe.getCelestialTime(partialTick));

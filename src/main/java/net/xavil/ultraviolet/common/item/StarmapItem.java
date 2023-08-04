@@ -9,7 +9,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Maybe;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
@@ -27,11 +27,11 @@ public class StarmapItem extends Item {
 	}
 
 	private Maybe<SystemNodeId> getSystemToOpen(ServerLevel level) {
-		final var location = LevelAccessor.getLocation(level);
+		final var location = LevelAccessor.getWorldType(level);
 		final var universe = LevelAccessor.getUniverse(level);
-		if (location instanceof Location.World world) {
+		if (location instanceof WorldType.SystemNode world) {
 			return Maybe.some(world.id);
-		} else if (location instanceof Location.Station station) {
+		} else if (location instanceof WorldType.Station station) {
 			return universe.getStation(station.id).flatMap(s -> {
 				if (s.getLocation() instanceof StationLocation.OrbitingCelestialBody orbiting) {
 					return Maybe.some(orbiting.id);

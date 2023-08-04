@@ -21,6 +21,7 @@
 	],
 	"client": [
 		"MinecraftClientMixin",
+		"LightTextureMixin",
 		"render.GameRendererMixin",
 		"render.LevelRendererMixin",
 		"render.PostChainMixin",

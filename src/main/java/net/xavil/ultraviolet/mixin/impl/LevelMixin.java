@@ -9,8 +9,8 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Disposable;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.common.ModSavedData;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.PerLevelData;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.ultraviolet.debug.ConfigProvider;
@@ -19,7 +19,7 @@ import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 @Mixin(Level.class)
 public abstract class LevelMixin implements LevelAccessor {
 
-	private Location location = null;
+	private WorldType type = null;
 	private Universe universe = null;
 
 	private Disposable.Multi disposer = new Disposable.Multi();
@@ -27,19 +27,19 @@ public abstract class LevelMixin implements LevelAccessor {
 	private ConfigProvider configProvider;
 
 	@Override
-	public Location ultraviolet_getLocation() {
-		return this.location;
+	public WorldType ultraviolet_getType() {
+		return this.type;
 	}
 
 	@Override
-	public void ultraviolet_setLocation(Location id) {
+	public void ultraviolet_setType(WorldType id) {
 		@SuppressWarnings("resource")
 		final var self = (Level) (Object) this;
-		if (id == null || id.equals(this.location))
+		if (id == null || id.equals(this.type))
 			return;
-		this.location = id;
+		this.type = id;
 
-		if (this.location instanceof Location.World world) {
+		if (this.type instanceof WorldType.SystemNode world) {
 			// NOTE: all worlds posses a ticket that keeps themselves loaded.
 			try (final var disposer = Disposable.scope()) {
 				final var sysId = world.id.system();
@@ -50,11 +50,10 @@ public abstract class LevelMixin implements LevelAccessor {
 			}
 		}
 		if (self instanceof ServerLevel serverLevel) {
-			final var savedData = serverLevel.getDataStorage()
-					.computeIfAbsent(ModSavedData::load, () -> new ModSavedData(location), "universe_id");
-			if (!location.equals(savedData.location)) {
-				savedData.location = location;
-				savedData.setDirty(true);
+			final var savedData = PerLevelData.get(serverLevel);
+			if (!type.equals(savedData.worldType)) {
+				savedData.worldType = type;
+				savedData.setDirty();
 			}
 		}
 	}

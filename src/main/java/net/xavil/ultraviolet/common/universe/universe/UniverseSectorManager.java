@@ -369,7 +369,7 @@ public final class UniverseSectorManager {
 	}
 
 	public void enumerate(SectorTicket<?> ticket, Consumer<UniverseSector> sectorConsumer) {
-		ticket.info.enumerateAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords())
+		ticket.info.enumerateAllAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords())
 				.ifSome(slot -> sectorConsumer.accept(slot.sector)));
 	}
 

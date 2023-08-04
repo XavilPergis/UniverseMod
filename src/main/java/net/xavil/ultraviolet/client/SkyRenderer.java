@@ -1,7 +1,6 @@
 package net.xavil.ultraviolet.client;
 
 import java.util.Objects;
-import javax.annotation.Nullable;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
@@ -20,7 +19,7 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
@@ -49,7 +48,7 @@ public class SkyRenderer implements Disposable {
 	public GlFramebuffer hdrSpaceTarget = null;
 	public GlFramebuffer postProcessTarget = null;
 
-	private Location previousLocation = null;
+	private WorldType previousLocation = null;
 
 	private SystemTicket systemTicket = null;
 	private GalaxyTicket galaxyTicket = null;
@@ -120,33 +119,29 @@ public class SkyRenderer implements Disposable {
 		tfm.appendTranslation(node.getPosition(partialTick));
 	}
 
-	@Nullable
-	private TransformStack createCameraTransform(Camera camera, Location location, float partialTick) {
-		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+	public boolean applyCelestialTransform(TransformStack tfm, Vec2 worldPosXZ, WorldType location, float partialTick) {
+		final var universe = MinecraftClientAccessor.getUniverse();
 		final var time = universe.getCelestialTime(partialTick);
-		if (location instanceof Location.World loc) {
+		if (location instanceof WorldType.SystemNode loc) {
 			final var sys = universe.getSystem(loc.id.system()).unwrapOrNull();
 			if (sys == null)
-				return null;
+				return false;
 			final var node = sys.rootNode.lookup(loc.id.nodeId());
 			if (node == null)
-				return null;
-			final var srcCamPos = Vec3.from(camera.getPosition());
-			final var tfm = new TransformStack();
-			applyPlanetTransform(tfm, node, time, srcCamPos.xz(), partialTick);
+				return false;
+			applyPlanetTransform(tfm, node, time, worldPosXZ, partialTick);
 			tfm.appendTranslation(sys.pos);
-			return tfm;
-		} else if (location instanceof Location.Station loc) {
+			return true;
+		} else if (location instanceof WorldType.Station loc) {
 			final var station = universe.getStation(loc.id).unwrapOrNull();
 			if (station == null)
-				return null;
+				return false;
 			final var p = station.getPos(partialTick);
-			final var tfm = new TransformStack();
 			tfm.appendRotation(station.orientation.inverse());
 			tfm.appendTranslation(p);
-			return tfm;
+			return true;
 		}
-		return null;
+		return false;
 	}
 
 	private void createTickets(Universe universe, UniverseSectorId galaxyId) {
@@ -161,10 +156,10 @@ public class SkyRenderer implements Disposable {
 			this.systemTicket = galaxy.sectorManager.createSystemTicketManual(null);
 
 		if (this.galaxyRenderingContext == null)
-			this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy);
+			this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy.densityFields);
 	}
 
-	private void disposeTickets() {
+	public void disposeTickets() {
 		if (this.galaxyTicket != null) {
 			this.galaxyTicket.close();
 			this.galaxyTicket = null;
@@ -185,18 +180,18 @@ public class SkyRenderer implements Disposable {
 
 	private void drawCelestialObjects(Camera srcCamera, GlFramebuffer target, float partialTick) {
 		final var profiler = Minecraft.getInstance().getProfiler();
-		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		final var universe = MinecraftClientAccessor.getUniverse();
 
 		target.bind();
 		target.clear();
 		target.clearColorAttachment("fColor", new Color(0.1, 0.1, 0.12, 1));
 
 		// ticket management
-		final var location = EntityAccessor.getLocation(this.client.player);
+		final var location = EntityAccessor.getWorldType(this.client.player);
 		if (!Objects.equals(previousLocation, location))
 			disposeTickets();
 
-		if (location instanceof Location.Station loc) {
+		if (location instanceof WorldType.Station loc) {
 			final var station = universe.getStation(loc.id).unwrapOrNull();
 			if (station != null) {
 				if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
@@ -207,7 +202,7 @@ public class SkyRenderer implements Disposable {
 					this.systemTicket.id = sloc.targetNode.galaxySector();
 				}
 			}
-		} else if (location instanceof Location.World loc) {
+		} else if (location instanceof WorldType.SystemNode loc) {
 			createTickets(universe, loc.id.universeSector());
 			this.systemTicket.id = loc.id.galaxySector();
 		}
@@ -215,7 +210,9 @@ public class SkyRenderer implements Disposable {
 		if (this.galaxyTicket == null)
 			return;
 
-		final var cameraTransform = createCameraTransform(srcCamera, location, partialTick);
+		final var cameraTransform = new TransformStack();
+		final var xz = new Vec2(srcCamera.getPosition().x, srcCamera.getPosition().z);
+		applyCelestialTransform(cameraTransform, xz, location, partialTick);
 		
 		// render
 		final var galaxy = this.galaxyTicket.forceLoad().unwrapOrNull();
@@ -254,7 +251,7 @@ public class SkyRenderer implements Disposable {
 	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, StarSystem system,
 			float partialTick) {
 		final var profiler = Minecraft.getInstance().getProfiler();
-		final var universe = MinecraftClientAccessor.getUniverse(this.client);
+		final var universe = MinecraftClientAccessor.getUniverse();
 		final var time = universe.getCelestialTime(partialTick);
 
 		profiler.push("camera");
@@ -278,7 +275,7 @@ public class SkyRenderer implements Disposable {
 		system.rootNode.visit(node -> {
 			final var profiler2 = Minecraft.getInstance().getProfiler();
 			profiler2.push("id:" + node.getId());
-			if (EntityAccessor.getLocation(this.client.player) instanceof Location.World loc) {
+			if (EntityAccessor.getWorldType(this.client.player) instanceof WorldType.SystemNode loc) {
 				// final var skip = loc.id.nodeId() == node.getId();
 				ctx.render(builder, camera, node, false);
 			} else {

@@ -6,7 +6,6 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
-import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
@@ -14,8 +13,6 @@ import com.mojang.blaze3d.pipeline.RenderTarget;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.main.GameConfig;
-import net.minecraft.network.Connection;
-import net.minecraft.network.protocol.Packet;
 import net.minecraft.server.packs.resources.ReloadableResourceManager;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.hawklib.client.screen.HawkScreen;
@@ -69,16 +66,6 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 		return shouldRender;
 	}
 
-	// id prefer to just inject at TAIL but one of the parameters is an unnameable
-	// type :(
-	// TODO: use an access widener perhaps?
-	@Redirect(method = "doLoadLevel", at = @At(value = "INVOKE", target = "Lnet/minecraft/network/Connection;send(Lnet/minecraft/network/protocol/Packet;)V"))
-	private void onInit(Connection connection, Packet<?> packet) {
-		// we don't actually want to fuck with the packet or anything
-		connection.send(packet);
-		this.universe = new ClientUniverse((Minecraft) (Object) this);
-	}
-
 	@Inject(method = "runTick", at = @At(value = "INVOKE_STRING", target = "Lnet/minecraft/util/profiling/ProfilerFiller;push(Ljava/lang/String;)V", args = "ldc=blit"))
 	private void updateTemporaryTextures(boolean renderLevel, CallbackInfo info) {
 		RenderTexture.tick();
@@ -86,12 +73,20 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 
 	@Inject(method = "clearLevel(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("TAIL"))
 	private void onClearLevel(Screen screen, CallbackInfo info) {
+		if (this.universe != null)
+			this.universe.close();
 		this.universe = null;
+		SkyRenderer.INSTANCE.disposeTickets();
 	}
 
 	@Override
 	public ClientUniverse ultraviolet_getUniverse() {
-		return universe;
+		return this.universe;
+	}
+
+	@Override
+	public void ultraviolet_setUniverse(ClientUniverse universe) {
+		this.universe = universe;
 	}
 
 }

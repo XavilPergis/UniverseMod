@@ -10,7 +10,7 @@ import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundStationJumpBeginPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSyncCelestialTimePacket;
-import net.xavil.ultraviolet.networking.s2c.ClientboundUniverseInfoPacket;
+import net.xavil.ultraviolet.networking.s2c.ClientboundUniverseSyncPacket;
 import net.xavil.universegen.system.CelestialNode;
 
 public final class ClientUniverse extends Universe {
@@ -24,8 +24,8 @@ public final class ClientUniverse extends Universe {
 
 	protected SystemTicket startingSystemTicket = null;
 
-	public ClientUniverse(Minecraft client) {
-		this.client = client;
+	public ClientUniverse() {
+		this.client = Minecraft.getInstance();
 	}
 
 	@Override
@@ -48,7 +48,7 @@ public final class ClientUniverse extends Universe {
 		return null;
 	}
 
-	public void updateFromInfoPacket(ClientboundUniverseInfoPacket packet) {
+	public void updateFromInfoPacket(ClientboundUniverseSyncPacket packet) {
 		this.commonUniverseSeed = packet.commonSeed;
 		this.uniqueUniverseSeed = packet.uniqueSeed;
 

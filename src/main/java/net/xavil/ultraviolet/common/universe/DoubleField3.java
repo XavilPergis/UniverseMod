@@ -37,35 +37,39 @@ public interface DoubleField3 {
 			return this.value;
 		}
 
-		private DoubleField3 transform(DoubleField3 b, DoubleBinaryOperator op) {
+		@Override
+		public DoubleField3 add(DoubleField3 b) {
 			if (b instanceof UniformField other)
-				return new UniformField(op.applyAsDouble(this.value, other.value));
+				return new UniformField(this.value + other.value);
 			return DoubleField3.super.add(b);
 		}
 
 		@Override
-		public DoubleField3 add(DoubleField3 b) {
-			return transform(b, (va, vb) -> va + vb);
-		}
-
-		@Override
 		public DoubleField3 sub(DoubleField3 b) {
-			return transform(b, (va, vb) -> va - vb);
+			if (b instanceof UniformField other)
+				return new UniformField(this.value - other.value);
+			return DoubleField3.super.sub(b);
 		}
 
 		@Override
 		public DoubleField3 mul(DoubleField3 b) {
-			return transform(b, (va, vb) -> va * vb);
+			if (b instanceof UniformField other)
+				return new UniformField(this.value * other.value);
+			return DoubleField3.super.mul(b);
 		}
 
 		@Override
 		public DoubleField3 withNumerator(DoubleField3 b) {
-			return transform(b, (va, vb) -> vb / va);
+			if (b instanceof UniformField other)
+				return new UniformField(other.value / this.value);
+			return DoubleField3.super.withNumerator(b);
 		}
 
 		@Override
 		public DoubleField3 withDenominator(DoubleField3 b) {
-			return transform(b, (va, vb) -> va / vb);
+			if (b instanceof UniformField other)
+				return new UniformField(this.value / other.value);
+			return DoubleField3.super.withDenominator(b);
 		}
 
 		@Override
@@ -334,6 +338,7 @@ public interface DoubleField3 {
 			if (na instanceof UniformField ua && na instanceof UniformField ub) {
 				return uniform(ua.value * ub.value);
 			}
+			// TODO: n^a * n^b = n^(a + b)
 			return new Mul(na, nb);
 		}
 	}
@@ -426,7 +431,6 @@ public interface DoubleField3 {
 			if (na instanceof UniformField ua && na instanceof UniformField ub) {
 				return uniform(ua.value * ub.value);
 			}
-			// n^a * n^b = n^(a + b)
 			return new Pow(na, nb);
 		}
 	}
@@ -506,14 +510,6 @@ public interface DoubleField3 {
 
 	}
 
-	// static DoubleField3 min(DoubleField3 a, DoubleField3 b) {
-	// return pos -> Math.min(a.sample(pos), b.sample(pos));
-	// }
-
-	// static DoubleField3 max(DoubleField3 a, DoubleField3 b) {
-	// return pos -> Math.max(a.sample(pos), b.sample(pos));
-	// }
-
 	default DoubleField3 lerp(double min, double max) {
 		return lerp(uniform(min), uniform(max));
 	}
@@ -550,9 +546,9 @@ public interface DoubleField3 {
 		}
 	}
 
-	// static DoubleField3 random() {
-	// return pos -> new Random(FastHasher.hash(pos)).nextDouble();
-	// }
+	default DoubleField3 neg() {
+		return uniform(0).sub(this);
+	}
 
 	static DoubleField3 spokes(double spokeCount, double spokeCurveExponent) {
 		return (x, y, z) -> {
@@ -563,13 +559,16 @@ public interface DoubleField3 {
 		};
 	}
 
-	default DoubleField3 spiralAboutY(double twistFactor) {
-		final var f = 2 * Math.PI * twistFactor;
+	default DoubleField3 spiralAboutY(double spiralFactor, double radius) {
 		return (x, y, z) -> {
-			final var pos = new Vec3(x, y, z);
-			final var projectedLen = pos.x * pos.x + pos.z * pos.z;
-			final var twistedPos = pos.rotateY(f * projectedLen);
-			return this.sample(twistedPos);
+			final var len = Math.sqrt(x * x + z * z) / radius;
+			final var angle = 2.0 * Math.PI * spiralFactor * Math.pow(1.0 - len, 2.0);
+
+			final double c = Math.cos(angle), s = Math.sin(angle);
+			final var nx = x * c + z * s;
+			final var nz = z * c - x * s;
+
+			return this.sample(nx, y, nz);
 		};
 	}
 
@@ -584,6 +583,84 @@ public interface DoubleField3 {
 		return (x, y, z) -> {
 			final var length = Math.sqrt(x * x + y * y + z * z);
 			return (double) Math.max(0, 1 - length / radius);
+		};
+	}
+
+	// static DoubleField3 lineSegment(Vec3Access start, Vec3Access end, double
+	// radius) {
+	// return (x, y, z) -> {
+	// return 0;
+	// };
+	// }
+
+	static DoubleField3 sdfPoint(Vec3Access P) {
+		return (x, y, z) -> {
+			final var dx = Math.pow(P.x() - x, 2.0);
+			final var dy = Math.pow(P.y() - y, 2.0);
+			final var dz = Math.pow(P.z() - z, 2.0);
+			return Math.sqrt(dx + dy + dz);
+		};
+	}
+
+	// static DoubleField3 sdfLineSegment(Vec3Access A, Vec3Access B) {
+	// final var BsubA = new Vec3(B).sub(A);
+	// final var BsubAlen2 = BsubA.lengthSquared();
+	// return (x, y, z) -> {
+	// final double PsubAx = x - A.x(), PsubAy = y - A.y(), PsubAz = z - A.z();
+	// final var h = Mth.clamp((PsubAx * BsubA.x + PsubAy * BsubA.y + PsubAz *
+	// BsubA.z) / BsubAlen2, 0, 1);
+	// final var dx = PsubAx - BsubA.x * h;
+	// final var dy = PsubAy - BsubA.y * h;
+	// final var dz = PsubAz - BsubA.z * h;
+	// return Math.sqrt(dx * dx + dy * dy + dz * dz);
+	// };
+	// }
+
+	static DoubleField3 sdfLineSegment(final Vec3 a, final Vec3 b) {
+		return (x, y, z) -> {
+			final var v = new Vec3(x, y, z);
+			final var ab = b.sub(a);
+			final var av = v.sub(a);
+
+			if (av.dot(ab) <= 0.0) // Point is lagging behind start of the segment, so perpendicular distance is
+									// not viable.
+				return av.length(); // Use distance to start of segment instead.
+
+			final var bv = v.sub(b);
+
+			if (bv.dot(ab) >= 0.0) // Point is advanced past the end of the segment, so perpendicular distance is
+									// not viable.
+				return bv.length(); // Use distance to end of the segment instead.
+
+			return (ab.cross(av)).length() / ab.length(); // Perpendicular distance of point to segment.
+		};
+	}
+
+	// static DoubleField3 sdfLineSegment(Vec3Access A, Vec3Access B) {
+	// return (x, y, z) -> {
+	// final var P = new Vec3(x, y, z);
+	// final var BsubA = new Vec3(B).sub(A);
+	// // final var PsubA = P.sub(A);
+	// final var h = Mth.clamp(P.projectOnto(BsubA).length(), 0, 1);
+	// final var Q = Vec3.lerp(h, A, B);
+	// return P.distanceTo(Q);
+	// // return PsubA;
+	// };
+	// }
+
+	/**
+	 * This method turns an SDF into a "cloud". The surface and inside of the SDF is
+	 * mapped to 1, and {@code r} units from the surface is mapped to 0, linearly
+	 * interpolating for intermediate values.
+	 * 
+	 * @param r The maximum distance from the surface of the SDF that his cloud will
+	 *          be greater than 0.
+	 * @return The remapped field.
+	 */
+	default DoubleField3 sdfCloud(double r) {
+		return (x, y, z) -> {
+			final var n = this.sample(x, y, z);
+			return 1.0 - Mth.clamp(n / r, 0, 1);
 		};
 	}
 
@@ -612,44 +689,4 @@ public interface DoubleField3 {
 		final var r2 = radius * radius;
 		return (x, y, z) -> x * x + z * z > r2 || y > height || y < -height ? 0 : 1;
 	}
-
-	// default DoubleField3 translate(Vec3 newOrigin) {
-	// return pos -> this.sample(newOrigin.add(pos));
-	// }
-
-	// default DoubleField3 scale(double scale) {
-	// return pos -> this.sample(pos.mul(scale));
-	// }
-
-	// default DoubleField3 scale(double xScale, double yScale, double zScale) {
-	// return pos -> this.sample(pos.mul(Vec3.from(xScale, yScale, zScale)));
-	// }
-
-	// default DoubleField3 scale(Vec3 scale) {
-	// return pos -> this.sample(pos.mul(scale));
-	// }
-
-	// default DoubleField3 rotate(Vec3 axis, double angle) {
-	// return pos -> this.sample(rotateVector(axis, angle, pos));
-	// }
-
-	// static Vec3 rotateVector(Vec3 axis, double angle, Vec3 v) {
-	// // https://en.wikipedia.org/wiki/Rodrigues%27_rotation_formula
-	// return v.mul(Math.cos(angle))
-	// .add(axis.cross(v).mul(Math.sin(angle)))
-	// .add(axis.mul(axis.dot(v) * (1 - Math.cos(angle))));
-	// }
-
-	// default DoubleField3 map(DoubleUnaryOperator mapper) {
-	// return pos -> mapper.applyAsDouble(this.sample(pos));
-	// }
-
-	// default DoubleField3 curveExp(double base) {
-	// return pos -> (Math.pow(base, this.sample(pos)) - 1) / (base - 1);
-	// }
-
-	// default DoubleField3 curvePoly(double exponent) {
-	// return pos -> Math.pow(this.sample(pos), exponent);
-	// }
-
 }

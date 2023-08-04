@@ -16,22 +16,12 @@ import net.xavil.hawklib.math.OrbitalShape;
 
 // TODO: this simulation is okay enough, but the algorithm is from the 80's and doesnt include more recent developments in astrophysics and whatnot.
 //
-// some results that i would like to be able to see:
-// - moonmoons
-// - binary orbits
-//
-// some things i think the algorithm lacks:
-// - disc dissipation from stellar winds is missing
-//     - this might be modelled by the dust density function in some way, but its invariant to time, soooooo...
-// - does not take local metallicity or available mass into account
-// - cannot generate asteroid belts
-// - assumes a single-star system layout
-// - does not track inclination of planetesimals' orbits
-// - can sometimes generate stars that are larger than the primary star
-//
-// some ideas for improvment:
-// - weight moon orbits closer to their barent object, so it looks bigger and prettier in the sky
-// - allow moon-moon captures under certain circumstances
+// - photoevaporation dissipating gas from the inner star system much faster than the outer star system, causing the inner star system to mainly be compose of terrestrial planets.
+// - photoevaporation depleting gas from the whole star system, causing planets that form in the outer star system later on in development to have low-mass atmospheres, or barely any atmospheres at all (basically, objects like neptune and uranus)
+// - gravitational resonances disrupting the formation of planets, creating asteroid belts
+// - hot jupiters
+// - high-mass terrestrial worlds in the outer star system
+// - planetary migration
 public class ProtoplanetaryDisc {
 	public final AccreteContext ctx;
 	public final MutableList<Planetesimal> planetesimals = new Vector<>();
@@ -72,7 +62,8 @@ public class ProtoplanetaryDisc {
 
 			// generate planetesimal
 			final var dustySemiMajor = this.ctx.rng.uniformDouble(this.planetesimalBounds);
-			// var heightAboveDiscCenter = this.ctx.rng.uniformDoubleAround(0, this.dustBands.bandThickness);
+			// var heightAboveDiscCenter = this.ctx.rng.uniformDoubleAround(0,
+			// this.dustBands.bandThickness);
 			// heightAboveDiscCenter = Math.signum(heightAboveDiscCenter) *
 			// Math.pow(Math.abs(heightAboveDiscCenter), 2.0);
 			// final var inclination = Math.atan(heightAboveDiscCenter / dustySemiMajor);

@@ -24,7 +24,7 @@ public class NewGalaxyMapScreen extends HawkScreen3d {
 
 	public NewGalaxyMapScreen(Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
 		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12),
-				1e3, 1e8);
+				1e3, 1e9);
 
 		BlackboardKeys.SELECTED_STAR_SYSTEM.insert(blackboard, systemToFocus);
 

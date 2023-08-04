@@ -24,25 +24,6 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		}
 	}
 
-	public static enum StarClass {
-		O("O", Color.rgb(0, 0, 1)),
-		B("B", Color.rgb(0.1, 0.2, 1)),
-		A("A", Color.rgb(0.2, 0.4, 1)),
-		F("F", Color.rgb(0.8, 0.8, 0.9)),
-		G("G", Color.rgb(1, 0.8, 0.5)),
-		K("K", Color.rgb(1, 0.5, 0.1)),
-		M("M", Color.rgb(1, 0.2, 0.1));
-
-		public final String name;
-		// FIXME: color is based on star temperature, not star class!
-		public final Color color;
-
-		private StarClass(String name, Color color) {
-			this.name = name;
-			this.color = color;
-		}
-	}
-
 	public StellarCelestialNode.Type type;
 	public double luminosityLsol;
 	public double radiusRsol;
@@ -225,31 +206,21 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	private static record ClassificationInterval(
 			double minBound,
 			double maxBound,
-			StarClass starClass,
 			String name) {
 	}
 
 	private static final ClassificationInterval[] CLASSIFICATION_TABLE = {
 		// @formatter:off
-		new ClassificationInterval(0,     2400,   null,        "L"),
-		new ClassificationInterval(2400,  3700,   StarClass.M, "M"),
-		new ClassificationInterval(3700,  5200,   StarClass.K, "K"),
-		new ClassificationInterval(5200,  6000,   StarClass.G, "G"),
-		new ClassificationInterval(6000,  6500,   StarClass.F, "F"),
-		new ClassificationInterval(6500,  10000,  StarClass.A, "A"),
-		new ClassificationInterval(10000, 30000,  StarClass.B, "B"),
-		new ClassificationInterval(30000, 100000, StarClass.O, "O"),
+		new ClassificationInterval(0,     2400,   "L"),
+		new ClassificationInterval(2400,  3700,   "M"),
+		new ClassificationInterval(3700,  5200,   "K"),
+		new ClassificationInterval(5200,  6000,   "G"),
+		new ClassificationInterval(6000,  6500,   "F"),
+		new ClassificationInterval(6500,  10000,  "A"),
+		new ClassificationInterval(10000, 30000,  "B"),
+		new ClassificationInterval(30000, 100000, "O"),
 		// @formatter:on
 	};
-
-	@Nullable
-	public final StarClass getStarClass() {
-		for (final var interval : CLASSIFICATION_TABLE) {
-			if (this.temperatureK >= interval.minBound && this.temperatureK < interval.maxBound)
-				return interval.starClass;
-		}
-		return null;
-	}
 
 	public final @Nullable String getSpectralClassification() {
 		if (!this.type.hasSpectralClass)

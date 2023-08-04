@@ -21,7 +21,6 @@ import net.xavil.ultraviolet.debug.ClientConfig;
 import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.ultraviolet.debug.ConfigProvider;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
-import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 
 @Mixin(ClientLevel.class)
 public abstract class ClientLevelMixin extends Level {
@@ -38,18 +37,12 @@ public abstract class ClientLevelMixin extends Level {
 
 	@Inject(method = "<init>", at = @At("TAIL"))
 	private void setConfigProvider(CallbackInfo info) {
-		((LevelAccessor) (Object) this).ultraviolet_setConfigProvider(new ConfigProvider() {
+		LevelAccessor.setConfigProvider(this, new ConfigProvider() {
 			@Override
 			public <T> T get(ConfigKey<T> key) {
 				return ClientConfig.get(key);
 			}
 		});
-	}
-
-	@Inject(method = "<init>", at = @At("TAIL"))
-	private void setSystemNodeId(CallbackInfo info) {
-		final var universe = MinecraftClientAccessor.getUniverse(Minecraft.getInstance());
-		((LevelAccessor) (Object) this).ultraviolet_setUniverse(universe);
 	}
 
 }

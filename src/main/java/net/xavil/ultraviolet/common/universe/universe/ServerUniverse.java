@@ -3,8 +3,11 @@ package net.xavil.ultraviolet.common.universe.universe;
 import java.util.OptionalLong;
 import java.util.Random;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.core.Holder;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
@@ -16,14 +19,15 @@ import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.common.dimension.DimensionCreationProperties;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
+import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
+import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
@@ -100,12 +104,11 @@ public final class ServerUniverse extends Universe {
 		final var key = DynamicDimensionManager.getKey("station_" + name);
 		final var newLevel = manager.getOrCreateLevel(key, () -> {
 			final var generator = EmptyChunkGenerator.create(this.server.registryAccess());
-			final var levelStem = new LevelStem(Holder.direct(STATION_DIM_TYPE), generator);
-			return DimensionCreationProperties.basic(levelStem);
+			return new LevelStem(Holder.direct(STATION_DIM_TYPE), generator);
 		});
 
-		((LevelAccessor) newLevel).ultraviolet_setUniverse(universe);
-		((LevelAccessor) newLevel).ultraviolet_setLocation(new Location.Station(id));
+		LevelAccessor.setUniverse(newLevel, universe);
+		LevelAccessor.setWorldType(newLevel, new WorldType.Station(id));
 
 		return newLevel;
 	}
@@ -127,6 +130,13 @@ public final class ServerUniverse extends Universe {
 		syncPacket.celestialTimeRate = this.celestialTimeRate;
 		syncPacket.isDiscontinuous = isDiscontinuous;
 		this.server.getPlayerList().broadcastAll(syncPacket);
+	}
+
+	public void syncTime(ServerPlayer player, boolean isDiscontinuous) {
+		final var syncPacket = new ClientboundSyncCelestialTimePacket(this.celestialTime);
+		syncPacket.celestialTimeRate = this.celestialTimeRate;
+		syncPacket.isDiscontinuous = isDiscontinuous;
+		player.connection.send(syncPacket);
 	}
 
 	private record StartingSystem(double systemAgeMya, String name, CelestialNode rootNode,
@@ -270,6 +280,11 @@ public final class ServerUniverse extends Universe {
 					startingId.system().galaxySector());
 			galaxy.sectorManager.forceLoad(this.startingSystemTicket);
 		}
+	}
+
+	public Maybe<StarSystem> loadSystem(Disposable.Multi disposer, SystemId id) {
+		return this.loadGalaxy(disposer, id.universeSector())
+				.flatMap(galaxy -> galaxy.loadSystem(disposer, id.galaxySector()));
 	}
 
 }

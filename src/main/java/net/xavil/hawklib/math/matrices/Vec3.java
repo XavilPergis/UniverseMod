@@ -179,18 +179,18 @@ public final class Vec3 implements Hashable, Vec3Access {
 		return Math.abs(a.x - b.x) * Math.abs(a.y - b.y) * Math.abs(a.z - b.z);
 	}
 
-	public static Vec3 lerp(double delta, Vec3 a, Vec3 b) {
+	public static Vec3 lerp(double delta, Vec3Access a, Vec3Access b) {
 		return new Vec3(
-				Mth.lerp(delta, a.x, b.x),
-				Mth.lerp(delta, a.y, b.y),
-				Mth.lerp(delta, a.z, b.z));
+				Mth.lerp(delta, a.x(), b.x()),
+				Mth.lerp(delta, a.y(), b.y()),
+				Mth.lerp(delta, a.z(), b.z()));
 	}
 
-	public static Vec3 inverseLerp(double delta, Vec3 a, Vec3 b) {
+	public static Vec3 inverseLerp(double delta, Vec3Access a, Vec3Access b) {
 		return new Vec3(
-				Mth.inverseLerp(delta, a.x, b.x),
-				Mth.inverseLerp(delta, a.y, b.y),
-				Mth.inverseLerp(delta, a.z, b.z));
+				Mth.inverseLerp(delta, a.x(), b.x()),
+				Mth.inverseLerp(delta, a.y(), b.y()),
+				Mth.inverseLerp(delta, a.z(), b.z()));
 	}
 
 	public Vec3i floor() {

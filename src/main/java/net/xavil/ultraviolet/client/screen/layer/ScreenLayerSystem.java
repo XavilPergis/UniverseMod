@@ -20,7 +20,7 @@ import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
-import net.xavil.ultraviolet.common.universe.Location;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
@@ -87,7 +87,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				final var packet = new ServerboundTeleportToLocationPacket();
 				final var systemId = new SystemId(this.galaxy.galaxyId, this.ticket.id);
 				final var id = new SystemNodeId(systemId, selectedId);
-				packet.location = new Location.World(id);
+				packet.location = new WorldType.SystemNode(id);
 				this.client.player.connection.send(packet);
 			}
 			return true;
@@ -223,18 +223,6 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				if (this.showGuides)
 					showOrbitGuides(builder, camera, cullingCamera, node, time);
 			}
-
-			// final var masses = new double[] { 0.4, 0.6, 1.0, 1.2, 2.0, 15, 17 };
-			// double d = 0.0, r = 1.0;
-			// for (int i = 0; i < masses.length; ++i) {
-			// final var node = new
-			// StellarCelestialNode(StellarCelestialNode.Type.MAIN_SEQUENCE,
-			// Units.fromMsol(masses[i]), 1, r, 1);
-			// node.position = node.lastPosition = new Vec3(d, 1, 0);
-			// this.renderContext.render(builder, camera, node, false);
-			// r *= 3;
-			// d += 2 * r * (Units.m_PER_Rsol / Units.TERA);
-			// }
 
 			this.renderContext.end();
 

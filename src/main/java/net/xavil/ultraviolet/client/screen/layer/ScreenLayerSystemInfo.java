@@ -26,8 +26,6 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 
 	private void drawInfo(PoseStack poseStack, @Nonnull GalaxySectorId selected) {
 
-		// fillGradient(poseStack, 0, 0, 200, this.height, 0xff0a0a0a, 0xff0a0a0a);
-
 		final var sectorPos = selected.levelCoords();
 
 		// @formatter:off
@@ -63,7 +61,7 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 			holder.height += 10;
 
 			final var res = new StringBuilder("§l");
-			for (final var node : system.rootNode.selfAndChildren().iterable()) {
+			for (final var node : system.rootNode.iterable()) {
 				if (node instanceof StellarCelestialNode starNode) {
 					res.append(starNode.getSpectralClassification());
 					res.append(' ');
@@ -73,7 +71,7 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 			holder.emit(res.toString(), 0xffffffff);
 			holder.height += 10;
 
-			for (final var node : system.rootNode.selfAndChildren().iterable()) {
+			for (final var node : system.rootNode.iterable()) {
 				if (node instanceof StellarCelestialNode) {
 					final var massLine = String.format("- * §9§lMass§r: %.4e Yg (%.2f M☉)", node.massYg, node.massYg / Units.Yg_PER_Msol);
 					holder.emit(massLine, 0xffffffff);

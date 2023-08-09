@@ -34,7 +34,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	private static StellarCelestialNode findPrimaryStar(StarSystem system) {
 		StellarCelestialNode primaryStar = null;
-		for (var child : system.rootNode.selfAndChildren().iterable()) {
+		for (var child : system.rootNode.iterable()) {
 			if (child instanceof StellarCelestialNode starNode) {
 				if (primaryStar == null)
 					primaryStar = starNode;

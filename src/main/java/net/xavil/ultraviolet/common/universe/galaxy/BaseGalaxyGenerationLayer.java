@@ -149,7 +149,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			double sectorDensitySum = 0.0;
 			for (var i = 0; i < DENSITY_SAMPLE_COUNT; ++i) {
 				final double tx = ctx.rng.uniformDouble(), ty = ctx.rng.uniformDouble(), tz = ctx.rng.uniformDouble();
-				sectorDensitySum += stellarDensity.sample(tx, ty, tz) * 0.2;
+				sectorDensitySum += stellarDensity.sample(tx, ty, tz);
 			}
 
 			this.averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
@@ -158,8 +158,8 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			final var starsPerSector = sectorVolume * this.averageSectorDensity * levelCoverage(ctx.level);
 
 			int starAttemptCount = Mth.floor(starsPerSector);
-			if (starAttemptCount > 5000) {
-				starAttemptCount = 5000;
+			if (starAttemptCount > 2000) {
+				starAttemptCount = 2000;
 			}
 
 			this.starAttemptCount = starAttemptCount;
@@ -198,7 +198,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			// "migrate" towards areas of higher densities.
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
 				Vec3.loadRandom(elem.systemPosTm, ctx.rng, ctx.volumeMin, ctx.volumeMax);
-				final var density = info.stellarDensity.sample(elem.systemPosTm) * 0.2;
+				final var density = info.stellarDensity.sample(elem.systemPosTm);
 				if (density >= ctx.rng.uniformDouble(0.0, info.averageSectorDensity)) {
 					generateStarSystemInfo(elem, starProps, info);
 					elem.systemSeed = systemSeed(volumeSeed, i);
@@ -246,21 +246,6 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		elem.luminosityLsol = props.luminosityLsol;
 		elem.temperatureK = props.temperatureK;
 	}
-	// private StarSystem.Info generateStarSystemInfo(GenerationInfo info, Vec3Access pos) {
-	// 	final var rng = Rng.wrap(new Random(info.ctx.rng.uniformLong()));
-
-	// 	final var minSystemAgeFactor = Math.min(1, info.stellarAge.sample(pos));
-	// 	final var systemAgeFactor = Math.pow(rng.uniformDouble(), 2);
-	// 	final var systemAgeMyr = this.parentGalaxy.info.ageMya
-	// 			* Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
-
-	// 	final var starMass = generateStarMassForLevel(rng, info.ctx.level);
-	// 	// final var starMass = generateStarMass(rng);
-	// 	final var primaryStar = StellarCelestialNode.fromMassAndAge(rng, starMass, systemAgeMyr);
-	// 	final var remainingMass = rng.uniformDouble(0.001, 0.05) * starMass;
-
-	// 	return new StarSystem.Info(systemAgeMyr, remainingMass, primaryStar);
-	// }
 
 	@Override
 	public StarSystem generateFullSystem(GalaxySector.SectorElementHolder elem) {

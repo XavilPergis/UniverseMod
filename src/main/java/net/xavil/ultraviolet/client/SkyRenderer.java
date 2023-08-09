@@ -21,6 +21,7 @@ import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
+import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
@@ -61,8 +62,6 @@ public class SkyRenderer implements Disposable {
 	}
 
 	public void tick() {
-		if (this.starRenderer != null)
-			this.starRenderer.tick();
 	}
 
 	public void resize(int width, int height) {
@@ -102,7 +101,7 @@ public class SkyRenderer implements Disposable {
 		final var tz = Mth.inverseLerp(coords.y, worldBorder.getMinZ(), worldBorder.getMaxZ());
 
 		if (node instanceof PlanetaryCelestialNode planetNode) {
-			final var planetRadius = 1.001 * planetNode.radiusRearth * (Units.m_PER_Rearth / Units.TERA);
+			final var planetRadius = 1.001 * planetNode.radiusRearth * Units.Tm_PER_Rearth;
 			tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
 			tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
 		}
@@ -151,7 +150,9 @@ public class SkyRenderer implements Disposable {
 		if (galaxy == null)
 			return;
 		if (this.starRenderer == null)
-			this.starRenderer = new StarRenderManager(galaxy, Vec3.ZERO);
+			this.starRenderer = new StarRenderManager(galaxy, SectorTicketInfo.visual(Vec3.ZERO));
+		this.starRenderer.setBatchingHint(StarRenderManager.BatchingHint.STATIC);
+		this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
 		if (this.systemTicket == null)
 			this.systemTicket = galaxy.sectorManager.createSystemTicketManual(null);
 

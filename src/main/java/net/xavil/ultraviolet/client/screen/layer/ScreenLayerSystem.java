@@ -37,6 +37,7 @@ import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.collections.Blackboard;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.Ellipse;
@@ -77,11 +78,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public boolean handleKeypress(int keyCode, int scanCode, int modifiers) {
-		if (super.handleKeypress(keyCode, scanCode, modifiers))
-			return true;
-
-		if (keyCode == GLFW.GLFW_KEY_R) {
+	public boolean handleKeypress(Keypress keypress) {
+		if (keypress.keyCode == GLFW.GLFW_KEY_R) {
 			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 			if (selectedId != -1) {
 				final var packet = new ServerboundTeleportToLocationPacket();
@@ -91,7 +89,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				this.client.player.connection.send(packet);
 			}
 			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_RIGHT) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_RIGHT) {
 			final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
 			if (system != null) {
 				final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOrNull();
@@ -112,7 +110,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 					}
 				}
 			}
-		} else if (keyCode == GLFW.GLFW_KEY_LEFT) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_LEFT) {
 			final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
 			if (system != null) {
 				final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOrNull();
@@ -133,9 +131,9 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 					}
 				}
 			}
-		} else if (keyCode == GLFW.GLFW_KEY_G) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_G) {
 			this.showGuides = !this.showGuides;
-		} else if (keyCode == GLFW.GLFW_KEY_J) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_J) {
 			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOrNull();
 			if (selectedId != null) {
 				final var stationId = EntityAccessor.getStation(this.client.player);
@@ -157,10 +155,9 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	private int pickNode(OrbitCamera.Cached camera, Ray ray, CelestialNode rootNode) {
-		final var nodes = rootNode.selfAndChildren();
 		double closestDistance = Double.POSITIVE_INFINITY;
 		int closestId = -1;
-		for (final var node : nodes.iterable()) {
+		for (final var node : rootNode.iterable()) {
 			final var elemPos = node.position.mul(1e12 / camera.metersPerUnit);
 			final var distance = ray.origin().distanceTo(elemPos);
 			if (!ray.intersectsSphere(elemPos, 0.1 * distance))
@@ -215,10 +212,9 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				setupPlanetRenderer(system);
 
 			system.pos.mul(1e12 / camera.metersPerUnit);
-			final var nodes = system.rootNode.selfAndChildren();
 			// this.renderContext.setSystemOrigin(system.pos);
 			this.renderContext.begin(time);
-			for (final var node : nodes.iterable()) {
+			for (final var node : system.rootNode.iterable()) {
 				this.renderContext.render(builder, camera, node, false);
 				if (this.showGuides)
 					showOrbitGuides(builder, camera, cullingCamera, node, time);

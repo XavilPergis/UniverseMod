@@ -19,7 +19,9 @@ import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
+import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec2i;
@@ -88,7 +90,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 		this.setDragging(true);
 
 		if (button == 2) {
-			moveCamera(delta, 0 , true);
+			moveCamera(delta, 0, true);
 		} else if (button == 1) {
 			moveCamera(Vec2.ZERO, delta.y, true);
 		} else if (button == 0) {
@@ -166,51 +168,51 @@ public abstract class HawkScreen3d extends HawkScreen {
 	}
 
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
-		if (super.keyPressed(keyCode, scanCode, modifiers))
-			return true;
-
-		if (keyCode == GLFW.GLFW_KEY_F3 && ((modifiers & GLFW.GLFW_MOD_CONTROL) != 0)) {
+	public boolean keyPressed(Keypress keypress) {
+		if (keypress.keyCode == GLFW.GLFW_KEY_F3 && keypress.hasModifiers(GLFW.GLFW_MOD_CONTROL)) {
 			Minecraft.getInstance().reloadResourcePacks();
 			return true;
 		}
 
-		if (((modifiers & GLFW.GLFW_MOD_SHIFT) != 0) && ((modifiers & GLFW.GLFW_MOD_ALT) != 0)) {
-			if (keyCode == GLFW.GLFW_KEY_F) {
+		if (keypress.hasModifiers(GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_ALT)) {
+			if (keypress.keyCode == GLFW.GLFW_KEY_R) {
+				GameRendererAccessor.reloadModShaders();
+				return true;
+			} else if (keypress.keyCode == GLFW.GLFW_KEY_F) {
 				debugCameraFrustum();
 				return true;
-			} else if (keyCode == GLFW.GLFW_KEY_C) {
+			} else if (keypress.keyCode == GLFW.GLFW_KEY_C) {
 				debugCullingCamera();
 				return true;
-			} else if (keyCode == GLFW.GLFW_KEY_V) {
+			} else if (keypress.keyCode == GLFW.GLFW_KEY_V) {
 				clearDebug();
 				return true;
 			}
 		}
 
 		// TODO: key mappings
-		if (keyCode == GLFW.GLFW_KEY_W) {
+		if (keypress.keyCode == GLFW.GLFW_KEY_W) {
 			this.isForwardPressed = true;
 			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_S) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_S) {
 			this.isBackwardPressed = true;
 			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_A) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_A) {
 			this.isLeftPressed = true;
 			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_D) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_D) {
 			this.isRightPressed = true;
 			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_Q) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_Q) {
 			this.isDownPressed = true;
 			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_E) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_E) {
 			this.isUpPressed = true;
 			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_Z) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_Z) {
 			this.isRotateCWPressed = true;
 			return true;
-		} else if (keyCode == GLFW.GLFW_KEY_C) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_C) {
 			this.isRotateCCWPressed = true;
 			return true;
 		}

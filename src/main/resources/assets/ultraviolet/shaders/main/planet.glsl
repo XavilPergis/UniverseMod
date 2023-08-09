@@ -222,8 +222,22 @@ Material shadeRockyIceWorld(vec3 fragPosWorld, vec3 normWorld) {
 	return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
 }
 Material shadeRocky(vec3 fragPosWorld, vec3 normWorld) {
-	float colnoise = noiseSimplex(normWorld) * 0.5 + 0.5;
-	vec3 col = mix(vec3(0.2), vec3(0.8), smoothstep(0.2, 0.3, colnoise));
+	float colnoise = 0.0;
+
+	float maxAmplitude = 0.0;
+	float amp = 1.0;
+	float freq = 1.0;
+	for (int i = 0; i < 5; ++i) {
+		colnoise += amp * noiseSimplex(mod(uRenderingSeed, 1000.0) + freq * normWorld);
+		maxAmplitude += amp;
+		freq *= 2.5;
+		amp *= 0.5;
+	}
+
+	colnoise /= maxAmplitude;
+	colnoise = colnoise * 0.5 + 0.5;
+
+	vec3 col = mix(vec3(0.6), vec3(0.8), smoothstep(0.3, 0.6, colnoise));
 	return Material(vec3(0.0), col, 1.0, 0.0);
 }
 Material shadeWater(vec3 fragPosWorld, vec3 normWorld) {
@@ -248,17 +262,21 @@ void main() {
 
 	vec3 res = vec3(0.0);
 	Light l0 = makeStarLight(uLightPos0.xyz, uLightColor0);
+	Light l1 = makeStarLight(uLightPos1.xyz, uLightColor1);
 	// Light l0 = makeStarLight(vec3(0.0), vec4(1.0, 0.0, 0.0, 1.0));
 	res += lightContribution(ctx, l0);
+	res += lightContribution(ctx, l1);
 	// res += lightContribution(ctx, makeStarLight(uLightPos1.xyz, uLightColor1));
 	// res += lightContribution(ctx, makeStarLight(uLightPos2.xyz, uLightColor2));
 	// res += lightContribution(ctx, makeStarLight(uLightPos3.xyz, uLightColor3));
 	vec3 finalColor = res;
 
 	float exposure = 5e-26;
-	// finalColor = 1.0 - exp(-finalColor * exposure);
 	finalColor *= exposure;
+	// finalColor = 1.0 - exp(-finalColor * exposure);
 	// finalColor = finalColor / (1.0 + finalColor);
+
+	// finalColor = pow(finalColor, vec3(2.2));
 
 	// finalColor = acesTonemap(finalColor);
 

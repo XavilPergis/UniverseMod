@@ -15,7 +15,9 @@ import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.ImmutableList;
+import net.xavil.hawklib.collections.interfaces.MutableList;
+import net.xavil.hawklib.collections.iterator.IntoIterator;
+import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.Ellipse;
 import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
@@ -23,7 +25,7 @@ import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
 import net.xavil.hawklib.math.matrices.Vec3;
 
-public abstract sealed class CelestialNode permits
+public abstract sealed class CelestialNode implements IntoIterator<CelestialNode> permits
 		StellarCelestialNode, BinaryCelestialNode, PlanetaryCelestialNode, OtherCelestialNode {
 
 	public static final int UNASSINED_ID = -1;
@@ -31,8 +33,8 @@ public abstract sealed class CelestialNode permits
 	protected int id = UNASSINED_ID;
 	protected BinaryCelestialNode parentBinaryNode = null;
 	protected CelestialNodeChild<?> parentUnaryNode = null;
-	protected final List<CelestialNodeChild<?>> childNodes = new ArrayList<>();
-	protected final List<CelestialRing> rings = new ArrayList<>();
+	protected final MutableList<CelestialNodeChild<?>> childNodes = new Vector<>();
+	protected final MutableList<CelestialRing> rings = new Vector<>();
 
 	public Vec3 position = Vec3.ZERO, lastPosition = Vec3.ZERO;
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
@@ -69,7 +71,7 @@ public abstract sealed class CelestialNode permits
 			startId = binaryNode.getA().assignSubtreeIds(startId) + 1;
 			startId = binaryNode.getB().assignSubtreeIds(startId) + 1;
 		}
-		for (var child : this.childNodes) {
+		for (var child : this.childNodes.iterable()) {
 			startId = child.node.assignSubtreeIds(startId) + 1;
 		}
 
@@ -110,7 +112,7 @@ public abstract sealed class CelestialNode permits
 				return b;
 		}
 
-		for (var child : this.childNodes) {
+		for (var child : this.childNodes.iterable()) {
 			var node = child.node.lookupSubtree(id);
 			if (node != null)
 				return node;
@@ -148,15 +150,29 @@ public abstract sealed class CelestialNode permits
 		this.childNodes.forEach(child -> consumer.accept(child.node));
 	}
 
-	public ImmutableList<CelestialNode> selfAndChildren() {
-		final var nodes = new Vector<CelestialNode>();
-		visit(nodes::push);
-		return nodes;
-	}
+	@Override
+	public Iterator<CelestialNode> iter() {
+		final var stack = Vector.fromElements(this);
+		return new Iterator<CelestialNode>() {
+			@Override
+			public boolean hasNext() {
+				return !stack.isEmpty();
+			}
 
-	// public Iterator<CelestialNode> iter() {
-	// // return selfAndChildren();
-	// }
+			@Override
+			public CelestialNode next() {
+				final var node = stack.remove(stack.size() - 1);
+				for (final var child : node.childNodes.iterable()) {
+					stack.push(child.node);
+				}
+				if (node instanceof BinaryCelestialNode bin) {
+					stack.push(bin.getA());
+					stack.push(bin.getB());
+				}
+				return node;
+			}
+		};
+	}
 
 	public int find(CelestialNode node) {
 		return find(other -> other == node);
@@ -180,7 +196,7 @@ public abstract sealed class CelestialNode permits
 			if (b != UNASSINED_ID)
 				return b;
 		}
-		for (var child : this.childNodes) {
+		for (var child : this.childNodes.iterable()) {
 			var id = child.node.find(predicate);
 			if (id != UNASSINED_ID)
 				return id;
@@ -205,15 +221,15 @@ public abstract sealed class CelestialNode permits
 	}
 
 	public Iterable<CelestialNodeChild<?>> childOrbits() {
-		return this.childNodes;
+		return this.childNodes.iterable();
 	}
 
 	public void addRing(CelestialRing newRing) {
-		this.rings.add(newRing);
+		this.rings.push(newRing);
 	}
 
 	public Iterable<CelestialRing> rings() {
-		return this.rings;
+		return this.rings.iterable();
 	}
 
 	/**
@@ -235,7 +251,7 @@ public abstract sealed class CelestialNode permits
 	 */
 	public void insertChild(CelestialNodeChild<?> child) {
 		Assert.isReferentiallyEqual(this, child.parentNode);
-		this.childNodes.add(child);
+		this.childNodes.push(child);
 		child.node.parentUnaryNode = child;
 	}
 
@@ -369,8 +385,8 @@ public abstract sealed class CelestialNode permits
 					.getOrThrow(false, Mod.LOGGER::error);
 			var orbitalShapeB = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, nbt.get("orbital_shape_b"))
 					.getOrThrow(false, Mod.LOGGER::error);
-			var offset = nbt.getDouble("offset");
-			node = new BinaryCelestialNode(massYg, a, b, orbitalPlane, orbitalShapeA, orbitalShapeB, offset);
+			var phase = nbt.getDouble("phase");
+			node = new BinaryCelestialNode(massYg, a, b, orbitalPlane, orbitalShapeA, orbitalShapeB, phase);
 		} else if (nodeType.equals("star")) {
 			var type = StellarCelestialNode.Type.values()[nbt.getInt("type")];
 			var luminosity = nbt.getDouble("luminosity");
@@ -408,7 +424,7 @@ public abstract sealed class CelestialNode permits
 			final var mass = ringNbt.getDouble("mass");
 			final var lower = ringNbt.getDouble("interval_lower");
 			final var higher = ringNbt.getDouble("interval_higher");
-			node.rings.add(new CelestialRing(plane, eccentricity, new Interval(lower, higher), mass));
+			node.rings.push(new CelestialRing(plane, eccentricity, new Interval(lower, higher), mass));
 		}
 		nbt.put("rings", rings);
 
@@ -417,13 +433,13 @@ public abstract sealed class CelestialNode permits
 			var childNbt = childList.getCompound(i);
 
 			var childNode = readNbt(childNbt.getCompound("node"));
-			var offset = childNbt.getDouble("offset");
+			var phase = childNbt.getDouble("phase");
 			var orbitalPlane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_plane"))
 					.getOrThrow(false, Mod.LOGGER::error);
 			var orbitalShape = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_shape"))
 					.getOrThrow(false, Mod.LOGGER::error);
 
-			var child = new CelestialNodeChild<>(node, childNode, orbitalShape, orbitalPlane, offset);
+			var child = new CelestialNodeChild<>(node, childNode, orbitalShape, orbitalPlane, phase);
 			node.insertChild(child);
 		}
 
@@ -459,7 +475,7 @@ public abstract sealed class CelestialNode permits
 			OrbitalShape.CODEC.encodeStart(NbtOps.INSTANCE, binaryNode.orbitalShapeB)
 					.resultOrPartial(Mod.LOGGER::error)
 					.ifPresent(n -> nbt.put("orbital_shape_b", n));
-			nbt.putDouble("offset", binaryNode.offset);
+			nbt.putDouble("phase", binaryNode.phase);
 		} else if (node instanceof StellarCelestialNode starNode) {
 			nbt.putString("node_type", "star");
 			nbt.putInt("type", starNode.type.ordinal());
@@ -474,7 +490,7 @@ public abstract sealed class CelestialNode permits
 		}
 
 		final var rings = new ListTag();
-		for (var ring : node.rings) {
+		for (var ring : node.rings.iterable()) {
 			final var ringNbt = new CompoundTag();
 			OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, ring.orbitalPlane)
 					.resultOrPartial(Mod.LOGGER::error)
@@ -488,11 +504,11 @@ public abstract sealed class CelestialNode permits
 		nbt.put("rings", rings);
 
 		final var children = new ListTag();
-		for (var child : node.childNodes) {
+		for (var child : node.childNodes.iterable()) {
 			var childNbt = new CompoundTag();
 
 			childNbt.put("node", writeNbt(child.node));
-			childNbt.putDouble("offset", child.offset);
+			childNbt.putDouble("phase", child.phase);
 
 			OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, child.orbitalPlane).resultOrPartial(Mod.LOGGER::error)
 					.ifPresent(n -> childNbt.put("orbital_plane", n));

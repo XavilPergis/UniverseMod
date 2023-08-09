@@ -3,6 +3,7 @@ package net.xavil.hawklib.client.screen;
 import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
+import javax.annotation.OverridingMethodsMustInvokeSuper;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 
@@ -41,6 +42,7 @@ public abstract class HawkScreen extends Screen {
 		}
 
 		@Override
+		@OverridingMethodsMustInvokeSuper
 		public void close() {
 			this.disposer.close();
 		}
@@ -54,7 +56,7 @@ public abstract class HawkScreen extends Screen {
 			return false;
 		}
 
-		public boolean handleKeypress(int keyCode, int scanCode, int modifiers) {
+		public boolean handleKeypress(Keypress keypress) {
 			return false;
 		}
 
@@ -157,10 +159,33 @@ public abstract class HawkScreen extends Screen {
 	}
 
 	@Override
-	public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+	public final boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		if (super.keyPressed(keyCode, scanCode, modifiers))
 			return true;
-		return dispatchEvent(layer -> layer.handleKeypress(keyCode, scanCode, modifiers));
+		final var keypress = new Keypress(keyCode, scanCode, modifiers);
+		if (keyPressed(keypress))
+			return true;
+		return dispatchEvent(layer -> layer.handleKeypress(keypress));
+	}
+
+	public static final class Keypress {
+		public final int keyCode;
+		public final int scanCode;
+		public final int modifiers;
+
+		public Keypress(int keyCode, int scanCode, int modifiers) {
+			this.keyCode = keyCode;
+			this.scanCode = scanCode;
+			this.modifiers = modifiers;
+		}
+
+		public boolean hasModifiers(int flags) {
+			return (this.modifiers & flags) == flags;
+		}
+	}
+
+	public boolean keyPressed(Keypress keypress) {
+		return false;
 	}
 
 	private static final RenderTexture.StaticDescriptor DESC = RenderTexture.StaticDescriptor.create(builder -> {

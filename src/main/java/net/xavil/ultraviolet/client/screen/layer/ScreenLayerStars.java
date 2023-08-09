@@ -12,6 +12,7 @@ import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.StarRenderManager;
@@ -45,26 +46,20 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	private final StarRenderManager starRenderer;
 	private final Vec3 originOffset;
 
-	public ScreenLayerStars(HawkScreen3d attachedScreen, Galaxy galaxy, SectorTicketInfo.Multi ticketInfo,
-			Vec3 originOffset) {
+	public ScreenLayerStars(HawkScreen3d attachedScreen, Galaxy galaxy, Vec3 originOffset) {
 		super(attachedScreen, new CameraConfig(1e2, false, 1e8, false));
 		this.screen = attachedScreen;
 		this.galaxy = galaxy;
 		this.originOffset = originOffset;
-		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy, this.originOffset));
+		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
+				new SectorTicketInfo.Multi(Vec3.ZERO, 1.5 * GalaxySector.BASE_SIZE_Tm, true)));
+		this.starRenderer.setOriginOffset(this.originOffset);
 	}
 
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
 		if (ClientConfig.get(ConfigKey.SECTOR_TICKET_AROUND_FOCUS))
 			return camera.focus;
 		return camera.pos.sub(this.originOffset).mul(camera.metersPerUnit / 1e12);
-	}
-
-	@Override
-	public void tick() {
-		super.tick();
-		if (this.starRenderer != null)
-			this.starRenderer.tick();
 	}
 
 	@Override
@@ -83,11 +78,8 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public boolean handleKeypress(int keyCode, int scanCode, int modifiers) {
-		if (super.handleKeypress(keyCode, scanCode, modifiers))
-			return true;
-
-		if (keyCode == GLFW.GLFW_KEY_R) {
+	public boolean handleKeypress(Keypress keypress) {
+		if (keypress.keyCode == GLFW.GLFW_KEY_R) {
 			final var selected = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
 			if (selected != null) {
 				final var disposer = new Disposable.Multi();
@@ -103,7 +95,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				disposer.close();
 				return true;
 			}
-		} else if (keyCode == GLFW.GLFW_KEY_H) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_H) {
 			final var massHistogram = new Histogram(new Interval(0, 16), 32);
 			final var temperatureHistogram = new Histogram(new Interval(0, 50000), 32);
 			final var luminosityHistogram = new Histogram(new Interval(0, 21), 32);
@@ -247,10 +239,10 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 					return;
 				if (sector.elements.size() == 0)
 					return;
-	
+
 				final Vec3 s = sector.pos().minBound(), e = sector.pos().maxBound();
 				final var color = ClientConfig.getDebugColor(sector.pos().level()).withA(0.2);
-	
+
 				final var nnn = new Vec3(s.x, s.y, s.z);
 				final var nnp = new Vec3(s.x, s.y, e.z);
 				final var npn = new Vec3(s.x, e.y, s.z);
@@ -259,7 +251,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				final var pnp = new Vec3(e.x, s.y, e.z);
 				final var ppn = new Vec3(e.x, e.y, s.z);
 				final var ppp = new Vec3(e.x, e.y, e.z);
-	
+
 				// X
 				RenderHelper.addLine(builder, camera, nnn, pnn, color);
 				RenderHelper.addLine(builder, camera, nnp, pnp, color);

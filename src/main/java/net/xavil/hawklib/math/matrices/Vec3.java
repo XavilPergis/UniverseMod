@@ -62,7 +62,7 @@ public final class Vec3 implements Hashable, Vec3Access {
 	public static Vec3 from(Vector3f vec)  {return new Vec3(vec.x(), vec.y(), vec.z());}
 	public static Vec3 from(Position vec)  {return new Vec3(vec.x(), vec.y(), vec.z());}
 	// @formatter:on
-	
+
 	// @formatter:off
 	public Vec3 add  (Vec3Access rhs)               {return new Vec3(this.x + rhs.x(), this.y + rhs.y(), this.z + rhs.z());}
 	public Vec3 sub  (Vec3Access rhs)               {return new Vec3(this.x - rhs.x(), this.y - rhs.y(), this.z - rhs.z());}
@@ -78,8 +78,10 @@ public final class Vec3 implements Hashable, Vec3Access {
 	public Vec3 recip()                             {return new Vec3(1.0 / x,          1.0 / y,          1.0 / z         );}
 	public Vec3 neg  ()                             {return new Vec3(-x,               -y,               -z              );}
 	public Vec3 abs  ()                             {return new Vec3(Math.abs(x),      Math.abs(y),      Math.abs(z)     );}
+	public Vec3i floor()                            {return new Vec3i(Mth.floor(x),    Mth.floor(y),     Mth.floor(z)    );}
+	public Vec3i ceil()                             {return new Vec3i(Mth.ceil(x),     Mth.ceil(y),      Mth.ceil(z)     );}
 	// @formatter:on
-	
+
 	// @formatter:off
 	public static Mutable set(Mutable out, double n)                       {out.x = n;                 out.y = n;                 out.z = n;                 return out;}
 	public static Mutable set(Mutable out, Vec3Access in)                  {out.x = in.x();            out.y = in.y();            out.z = in.z();            return out;}
@@ -95,6 +97,19 @@ public final class Vec3 implements Hashable, Vec3Access {
 	public static Mutable neg(Mutable out, Vec3Access in)                  {out.x = -in.x();           out.y = -in.y();           out.z = -in.z();           return out;}
 	public static Mutable abs(Mutable out, Vec3Access in)                  {out.x = Math.abs(in.x());  out.y = Math.abs(in.y());  out.z = Math.abs(in.z());  return out;}
 	// @formatter:on
+
+	public Vec3i.Mutable floor(Vec3i.Mutable out, Vec3Access in) {
+		out.x = Mth.floor(x);
+		out.y = Mth.floor(y);
+		out.z = Mth.floor(z);
+		return out;
+	}
+	public Vec3i.Mutable ceil(Vec3i.Mutable out, Vec3Access in) {
+		out.x = Mth.ceil(x);
+		out.y = Mth.ceil(y);
+		out.z = Mth.ceil(z);
+		return out;
+	}
 
 	public static void cross(Mutable out, Vec3Access lhs, Vec3Access rhs) {
 		final var x = lhs.y() * rhs.z() - lhs.z() * rhs.y();
@@ -193,18 +208,6 @@ public final class Vec3 implements Hashable, Vec3Access {
 				Mth.inverseLerp(delta, a.z(), b.z()));
 	}
 
-	public Vec3i floor() {
-		return new Vec3i(Mth.floor(x), Mth.floor(y), Mth.floor(z));
-	}
-
-	public Vec3i ceil() {
-		return new Vec3i(Mth.ceil(x), Mth.ceil(y), Mth.ceil(z));
-	}
-
-	public static Vec3 fromCorner(Vec3i intVec) {
-		return new Vec3(intVec.x, intVec.y, intVec.z);
-	}
-
 	public static Vec3 min(Vec3 a, Vec3 b) {
 		return new Vec3(
 				Math.min(a.x, b.x),
@@ -241,7 +244,7 @@ public final class Vec3 implements Hashable, Vec3Access {
 
 	@Override
 	public String toString() {
-		return "Vec3[" + x + ", " + y + ", " + z + "]";
+		return String.format("(%d, %d, %d)", x, y, z);
 	}
 
 	@Override
@@ -286,30 +289,9 @@ public final class Vec3 implements Hashable, Vec3Access {
 		public Mutable withY(double y)    {this.y = y; return this;}
 		public Mutable withZ(double z)    {this.z = z; return this;}
 
-		// public Mutable loadUniform(double n)                   {this.x = n;           this.y = n;           this.z = n;           return this;}
-		// public Mutable load(double x, double y, double z)      {this.x = x;           this.y = y;           this.z = z;           return this;}
-		// public Mutable load(Vector3f vec)                      {this.x = vec.x();     this.y = vec.y();     this.z = vec.z();     return this;}
-		// public Mutable load(Position vec)                      {this.x = vec.x();     this.y = vec.y();     this.z = vec.z();     return this;}
-		// public Mutable load(Vec3Access vec)                    {this.x = vec.x();     this.y = vec.y();     this.z = vec.z();     return this;}
-		// public Mutable addAssign(Vec3Access other)             {this.x += other.x();  this.y += other.y();  this.z += other.z();  return this;}
-		// public Mutable subAssign(Vec3Access other)             {this.x -= other.x();  this.y -= other.y();  this.z -= other.z();  return this;}
-		// public Mutable mulAssign(Vec3Access other)             {this.x *= other.x();  this.y *= other.y();  this.z *= other.z();  return this;}
-		// public Mutable divAssign(Vec3Access other)             {this.x /= other.x();  this.y /= other.y();  this.z /= other.z();  return this;}
-		// public Mutable addAssign(double x, double y, double z) {this.x += x;          this.y += y;          this.z += z;          return this;}
-		// public Mutable subAssign(double x, double y, double z) {this.x -= x;          this.y -= y;          this.z -= z;          return this;}
-		// public Mutable mulAssign(double x, double y, double z) {this.x *= x;          this.y *= y;          this.z *= z;          return this;}
-		// public Mutable divAssign(double x, double y, double z) {this.x /= x;          this.y /= y;          this.z /= z;          return this;}
-		// public Mutable mulAssign(double n)                     {this.x *= n;          this.y *= n;          this.z *= n;          return this;}
-		// public Mutable divAssign(double n)                     {this.x /= n;          this.y /= n;          this.z /= n;          return this;}
-		// public Mutable recipAssign(double n)                   {this.x = n / x;       this.y = n / y;       this.z = n / z;       return this;}
-		// public Mutable recipAssign()                           {this.x = 1.0 / x;     this.y = 1.0 / y;     this.z = 1.0 / z;     return this;}
-		// public Mutable negAssign()                             {this.x = -x;          this.y = -y;          this.z = -z;          return this;}
-		// public Mutable absAssign()                             {this.x = Math.abs(x); this.y = Math.abs(y); this.z = Math.abs(z); return this;}
-		// @formatter:on
-
 		@Override
 		public String toString() {
-			return "Vec3.Mutable[" + x + ", " + y + ", " + z + "]";
+			return String.format("(%d, %d, %d)", x, y, z);
 		}
 
 		@Override
@@ -329,7 +311,6 @@ public final class Vec3 implements Hashable, Vec3Access {
 		public void appendHash(Hasher hasher) {
 			hasher.appendDouble(this.x).appendDouble(this.y).appendDouble(this.z);
 		}
-
 	}
 
 }

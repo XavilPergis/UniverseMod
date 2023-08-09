@@ -187,6 +187,7 @@ public final class PlanetRenderingContext {
 			case ROCKY_ICE_WORLD -> 3;
 			case ROCKY_WORLD -> 4;
 			case WATER_WORLD -> 5;
+			case BROWN_DWARF -> 6;
 		});
 		shader.setUniform("uRenderingSeed", (float) (FastHasher.hashInt(node.getId()) % 1000000L));
 	}
@@ -268,14 +269,14 @@ public final class PlanetRenderingContext {
 			double percentH = (i + 1) / (double) segmentCount;
 			double angleL = 2 * Math.PI * percentL;
 			double angleH = 2 * Math.PI * percentH;
-			double llx = innerRadius * (Units.TERA / camera.metersPerUnit) * Math.cos(angleL);
-			double lly = innerRadius * (Units.TERA / camera.metersPerUnit) * Math.sin(angleL);
-			double lhx = innerRadius * (Units.TERA / camera.metersPerUnit) * Math.cos(angleH);
-			double lhy = innerRadius * (Units.TERA / camera.metersPerUnit) * Math.sin(angleH);
-			double hlx = outerRadius * (Units.TERA / camera.metersPerUnit) * Math.cos(angleL);
-			double hly = outerRadius * (Units.TERA / camera.metersPerUnit) * Math.sin(angleL);
-			double hhx = outerRadius * (Units.TERA / camera.metersPerUnit) * Math.cos(angleH);
-			double hhy = outerRadius * (Units.TERA / camera.metersPerUnit) * Math.sin(angleH);
+			double llx = innerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.cos(angleL);
+			double lly = innerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.sin(angleL);
+			double lhx = innerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.cos(angleH);
+			double lhy = innerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.sin(angleH);
+			double hlx = outerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.cos(angleL);
+			double hly = outerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.sin(angleL);
+			double hhx = outerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.cos(angleH);
+			double hhy = outerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.sin(angleH);
 
 			// clockwise
 			ringVertex(builder, camera, pose, center, lhx, 1, lhy, (float) percentH, 0);

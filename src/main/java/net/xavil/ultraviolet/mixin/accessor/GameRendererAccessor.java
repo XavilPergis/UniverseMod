@@ -4,6 +4,7 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.resources.ResourceManager;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.hawklib.math.matrices.Mat4;
 
@@ -16,6 +17,16 @@ public interface GameRendererAccessor {
 	ShaderProgram ultraviolet_getShader(ResourceLocation id);
 
 	ShaderProgram ultraviolet_getVanillaShader(String id);
+
+	/**
+	 * Reload all modded shaders without performing an entire vanilla resource pack reload.
+	 */
+	void ultraviolet_reloadModShaders(ResourceManager resourceManager);
+
+	static void reloadModShaders() {
+		final var client = Minecraft.getInstance();
+		((GameRendererAccessor) client.gameRenderer).ultraviolet_reloadModShaders(client.getResourceManager());
+	}
 
 	static ShaderProgram getShader(GameRenderer renderer, ResourceLocation id) {
 		return ((GameRendererAccessor) renderer).ultraviolet_getShader(id);

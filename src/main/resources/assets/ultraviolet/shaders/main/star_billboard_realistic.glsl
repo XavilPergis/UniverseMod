@@ -12,10 +12,6 @@ in vec3 Position;
 in vec4 Color;
 in vec2 UV0;
 
-#define STAR_MIN_SIZE (5.0)
-#define STAR_MAX_SIZE (8.0)
-#define STAR_SIZE_SQUASH_FACTOR (250.0)
-
 vec2 uvFromVertex(int id) {
 	id = id % 4;
 	if (id == 0) return vec2(0.0, 0.0);
@@ -24,26 +20,12 @@ vec2 uvFromVertex(int id) {
 	else         return vec2(1.0, 0.0);
 }
 
-// void emitPoint(vec4 clipPos, float pointSize) {
-// 	vec2 uv = uvFromVertex(gl_VertexID);
-// 	vec2 off = vec2(2.0 * uv - 1.0);
-
-// 	// 2 * ((c * 0.5 + 0.5) * s + k) / s - 1
-// 	// 2 * ((c * 0.5 + 0.5) + k / s) - 1
-// 	// c + (2 * k / s)
-
-// 	clipPos.xy += 20.0 * pointSize * off / uScreenSize;
-
-//     gl_Position = clipPos;
-// 	texCoord0 = uv;
-// }
-
-uniform float uStarMinSize; // 5
-uniform float uStarMaxSize; // 8
-uniform float uStarSizeSquashFactor; // 250
-uniform float uStarBrightnessFactor; // 2e10
-uniform float uDimStarMinAlpha; // 0.1
-uniform float uDimStarExponent; // 0.1
+uniform float uStarMinSize;
+uniform float uStarMaxSize;
+uniform float uStarSizeSquashFactor;
+uniform float uStarBrightnessFactor;
+uniform float uDimStarMinAlpha;
+uniform float uDimStarExponent;
 
 void emitPoint(vec4 viewPos, float pointSize) {
 	vec2 uv = uvFromVertex(gl_VertexID);
@@ -67,7 +49,6 @@ void main() {
 
 	// map [0,inf] to [0,1]
 	float size = uStarMaxSize * (2.0 / PI) * atan(apparentBrightness / uStarSizeSquashFactor);
-	// float size = uStarMaxSize * log(1.0 + apparentBrightness / uStarSizeSquashFactor);
 
 	// fade star out if it's too small
 	float alpha = 1.0;
@@ -102,12 +83,11 @@ void main() {
 	s1 *= vertexColor;
     vec4 s2 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0 / 0.7)));
 
-	vec4 hdrColor = vec4(0.0);
-	hdrColor = (1.0 * hdrColor) + (1.0 * s1.a * s1);
-	hdrColor = (1.0 * hdrColor) + (1.0 * s2.a * s2);
+	vec4 color = vec4(0.0);
+	color = (1.0 * color) + (1.0 * s1.a * s1);
+	color = (1.0 * color) + (1.0 * s2.a * s2);
 
-    fColor = 0.9 * hdrColor * vertexColor.a;
-    // fColor = 0.9 * hdrColor;
+    fColor = 0.9 * color * vertexColor.a;
 }
 
 #endif

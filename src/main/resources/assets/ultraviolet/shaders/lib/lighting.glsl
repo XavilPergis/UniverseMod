@@ -100,9 +100,9 @@ vec3 lightContribution(in LightingContext ctx, in Light light) {
 
 	vec3 toLight = normalize(light.pos - ctx.fragPos);
 
-	float d = ctx.metersPerUnit * distance(light.pos, ctx.fragPos);
-	// vec3 radiance = light.radiantFlux / (d * d);
-	vec3 radiance = light.radiantFlux;
+	float d = (15.0 * ctx.metersPerUnit / 1e12) * distance(light.pos, ctx.fragPos);
+	vec3 radiance = light.radiantFlux / (d * d);
+	// vec3 radiance = light.radiantFlux;
 
 	vec3 lightContribution = vec3(1.0);
 	lightContribution *= brdfCookTorrance(ctx, light, toLight);

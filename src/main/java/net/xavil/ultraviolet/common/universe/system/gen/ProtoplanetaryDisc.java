@@ -1,5 +1,6 @@
 package net.xavil.ultraviolet.common.universe.system.gen;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.function.BiConsumer;
 
@@ -28,6 +29,126 @@ public class ProtoplanetaryDisc {
 	public final DustBands dustBands;
 	public final Interval planetesimalBounds;
 	private int iterationsRemaining = 10000;
+
+	private SimulationNode rootNode;
+
+	private int discResolution = 512;
+	private double discMax;
+	private final double[] binAreas = new double[this.discResolution];
+	private final double[] gasMass = new double[this.discResolution];
+	private final double[] dustMass = new double[this.discResolution];
+	private final double[] stellarWindOutwards = new double[this.discResolution];
+	private final double[] stellarWindInwards = new double[this.discResolution];
+
+	private double binArea(int bin) {
+		final var inner = discMax * (bin / (double) this.discResolution);
+		final var outer = discMax * ((bin + 1) / (double) this.discResolution);
+		return Math.PI * (Mth.square(inner) + Mth.square(outer));
+	}
+
+	private double getGasWeight() {
+		return 1.5;
+	}
+
+	private double getDustWeight() {
+		return 40;
+	}
+
+	private void distributeDiscMass(double discMass, double discMax, double metallicity) {
+		this.discMax = discMax;
+		final var totalArea = Math.PI * Mth.square(discMax);
+		for (int i = 0; i < this.discResolution; ++i) {
+			this.binAreas[i] = binArea(i);
+			final var binMass = discMass * binArea(i) / totalArea;
+			this.gasMass[i] = (1.0 - metallicity) * binMass;
+			this.dustMass[i] = metallicity * binMass;
+		}
+	}
+
+	private void stellarWindContribution(double[] out, int startBin, double starLuminosity, boolean forwards) {
+		int binDir = forwards ? 1 : -1;
+		int bin = startBin;
+		double remainingPercent = 1.0;
+		while (bin < this.discResolution) {
+			// TODO: i have no idea what im doing
+
+			// reduce the amount of radiation that gets to further parts of the disc
+			final var combinedDensity = (this.gasMass[bin] + this.dustMass[bin]) / this.binAreas[bin];
+			remainingPercent *= Math.expm1(0.1 * combinedDensity);
+
+			final var binStart = this.discMax * (bin / (double) this.discResolution);
+			final var lum = starLuminosity / (Math.PI * Mth.square(binStart));
+			out[bin] += 0.1 * lum * remainingPercent;
+
+			// update bin counter
+			// the disc is symmetric around the center, so we flip the direction when
+			// crossing that boundary.
+			bin += binDir;
+			binDir = bin == 0 ? 1 : binDir;
+		}
+	}
+
+	public void step(double dtMyr) {
+		// this simulation is not physically-based at all, but attempts to emulate the
+		// effects of stellar winds blowing the gas and dust of the disc away.
+		Arrays.fill(this.stellarWindOutwards, 0.0);
+		Arrays.fill(this.stellarWindInwards, 0.0);
+
+		for (final var node : this.rootNode.iterable()) {
+			if (node instanceof SimulationNode.Star starNode) {
+
+				// get bucket the star falls into
+				// fill out flow maps in both directions
+				// -> take into account extinction
+				// -> gas and dust absorption (stellar wind slamming into gas and dust, giving
+				// the disc particles some inwards/outwards velocity)
+				// -> inverse square law
+				// -> luminosity of star
+				// -> thickness of disc (thicker discs means more flow should happen, since they
+				// can catch more of the stellar wind and this is a 1d approximation that doesnt
+				// simulate anything in the vertical dimension)
+
+				final var discPercent = starNode.semiMajor / this.discMax;
+				final var starBin = Mth.floor(discPercent);
+				final var binPercent = discPercent - starBin;
+
+				// FIXME: apply flows from current bin
+
+				final var starEnergy = 0.5 * starNode.luminosity();
+				stellarWindContribution(this.stellarWindOutwards, starBin + 1, starEnergy, true);
+				stellarWindContribution(this.stellarWindInwards, starBin - 1, starEnergy, false);
+			}
+		}
+
+		for (int i = 0; i < this.discResolution; ++i) {
+			final var outwardFlow = dtMyr * this.stellarWindOutwards[i];
+			final var inwardFlow = dtMyr * this.stellarWindInwards[i];
+			final var requestedFlow = outwardFlow + inwardFlow;
+
+			// mass exitance in general
+			final var actualGasFlow = Math.max(requestedFlow, this.gasMass[i]) / getGasWeight();
+			final var actualDustFlow = Math.max(requestedFlow, this.dustMass[i]) / getDustWeight();
+			this.gasMass[i] -= actualGasFlow;
+			this.dustMass[i] -= actualDustFlow;
+
+			// mass exitance in specific directions
+			final var outwardsPercent = outwardFlow / requestedFlow;
+			final var inwardsPercent = inwardFlow / requestedFlow;
+
+			if (Mth.abs(i + 1) < this.discResolution) {
+				this.gasMass[Mth.abs(i + 1)] += outwardsPercent * actualGasFlow;
+				this.dustMass[Mth.abs(i + 1)] += outwardsPercent * actualDustFlow;
+			}
+			if (Mth.abs(i - 1) < this.discResolution) {
+				this.gasMass[Mth.abs(i - 1)] += inwardsPercent * actualGasFlow;
+				this.dustMass[Mth.abs(i - 1)] += inwardsPercent * actualDustFlow;
+			}
+		}
+	}
+
+	public CelestialNode build() {
+		return null;
+	}
 
 	public ProtoplanetaryDisc(AccreteContext ctx) {
 		this.ctx = ctx;

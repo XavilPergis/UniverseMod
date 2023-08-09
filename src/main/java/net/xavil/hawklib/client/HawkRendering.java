@@ -9,6 +9,8 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 
@@ -24,7 +26,12 @@ public final class HawkRendering {
 	public interface RegisterShadersCallback {
 		void register(ShaderSink sink);
 	}
-		
+
+	public static final class ShaderLoadDiagnostics {
+		public int successfulLoadCount = 0;
+		public MutableList<ResourceLocation> failedToLoad = new Vector<>();
+	}
+
 	public interface ShaderSink {
 		default void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites) {
 			accept(name, vertexFormat, fragmentWrites, Iterator.empty());
@@ -43,7 +50,8 @@ public final class HawkRendering {
 	public static void doPostProcessing(GlFramebuffer output, GlTexture2d input) {
 		try (final var disposer = Disposable.scope()) {
 			// bloom
-			// final var hdrPost = disposer.attach(RenderTexture.getTemporary(input.size().d2(), DESC));
+			// final var hdrPost =
+			// disposer.attach(RenderTexture.getTemporary(input.size().d2(), DESC));
 			// BloomEffect.render(hdrPost.framebuffer, input);
 
 			// tonemapping

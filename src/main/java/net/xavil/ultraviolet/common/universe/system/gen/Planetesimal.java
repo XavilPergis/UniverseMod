@@ -176,7 +176,7 @@ public class Planetesimal {
 						Math.pow(ctx.params.SOLAR_MASS_IN_GRAMS, 2.0 / 3.0) *
 						Math.pow(mass, 2.0 / 3.0);
 
-		var res = ((numerator / denominator) * Math.pow(mass, 1.0 / 3.0)) / (Units.KILO / Units.CENTI);
+		var res = Units.ku_PER_cu * (numerator / denominator) * Math.pow(mass, 1.0 / 3.0);
 
 		return res;
 
@@ -241,7 +241,7 @@ public class Planetesimal {
 		if (this.mass < 3.0 * this.ctx.params.initialPlanetesimalMass)
 			return;
 
-		final var radiusRearth = this.getRadius() * Units.KILO / Units.m_PER_Rearth;
+		final var radiusRearth = Units.Rearth_PER_km * this.getRadius();
 		final var massYg = this.mass * Units.Yg_PER_Msol;
 		final var shape = new OrbitalShape(this.orbitalShape.eccentricity(),
 				this.orbitalShape.semiMajor() * Units.Tm_PER_au);
@@ -309,19 +309,6 @@ public class Planetesimal {
 		var outer = effectLimits.higher() / (1 - ctx.params.cloudEccentricity);
 		return new Interval(Math.max(0, inner), outer);
 	}
-
-	// public void accreteDust(DustBands dustBands) {
-	// double prevMass = 0;
-
-	// var iterationsRemaining = 100;
-	// while (this.mass - prevMass >= 0.0001 * this.mass) {
-	// prevMass = this.mass;
-	// if (iterationsRemaining-- <= 0)
-	// break;
-	// this.mass += dustBands.sweep(ctx, this);
-	// }
-
-	// }
 
 	public Ring asRing() {
 		final var radiusAu = this.getRadius() / Units.km_PER_au;

@@ -4,6 +4,7 @@ import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Constants;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -66,16 +67,13 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public static double temperature(double radiusRsol, double luminosityLsol) {
 		var r = Units.m_PER_Rsol * radiusRsol;
 		var l = Units.W_PER_Lsol * luminosityLsol;
-		return Math.pow(l / (4 * Math.PI * r * r * Units.BOLTZMANN_CONSTANT_W_PER_m2_K4), 0.25);
+		return Math.pow(l / (4 * Math.PI * r * r * Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4), 0.25);
 	}
 
-	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = Units.fromMsol(10);
-	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = Units.fromMsol(25);
-	private static final double C2_m2_PER_s2 = Units.SPEED_OF_LIGHT_m_PER_s * Units.SPEED_OF_LIGHT_m_PER_s;
-	private static final double SCHWARZSCHILD_FACTOR_m_PER_kg = 2.0 * Units.GRAVITATIONAL_CONSTANT_m3_PER_kg_s2
-			/ C2_m2_PER_s2;
-	private static final double SCHWARZSCHILD_FACTOR_Rsol_PER_Yg = SCHWARZSCHILD_FACTOR_m_PER_kg
-			* (Units.YOTTA / Units.KILO) / Units.m_PER_Rsol;
+	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = 10 * Units.Yg_PER_Msol;
+	public static final double BLACK_HOLE_MIN_INITIAL_MASS_YG = 25 * Units.Yg_PER_Msol;
+	private static final double SCHWARZSCHILD_FACTOR_Rsol_PER_Yg = Constants.SCHWARZSCHILD_FACTOR_m_PER_kg
+			* Units.ku_PER_Yu / Units.m_PER_Rsol;
 
 	public static final class Properties {
 
@@ -96,7 +94,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 			this.mainSequenceLifetimeMyr = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
 
 			this.luminosityLsol = mainSequenceLuminosityFromMass(massYg);
-			this.radiusRsol = mainSequenceRadiusFromMass(massYg);	
+			this.radiusRsol = mainSequenceRadiusFromMass(massYg);
 			this.temperatureK = temperature(this.radiusRsol, this.luminosityLsol);
 
 			if (ageMyr <= this.mainSequenceLifetimeMyr) {
@@ -149,7 +147,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 
 			// treat the white dwarf as an ideal black body and apply the Stefan–Boltzmann
 			// law
-			final var radiantExitance = Units.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(this.temperatureK, 4.0);
+			final var radiantExitance = Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(this.temperatureK, 4.0);
 			final var radiusM = this.radiusRsol * Units.m_PER_Rsol;
 			final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
 			this.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
@@ -168,7 +166,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 			this.temperatureK *= coolingCurve;
 			this.radiusRsol *= 1e-5;
 
-			final var radiantExitance = Units.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(this.temperatureK, 4.0);
+			final var radiantExitance = Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(this.temperatureK, 4.0);
 			final var radiusM = this.radiusRsol * Units.m_PER_Rsol;
 			final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
 			this.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;

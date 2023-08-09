@@ -14,29 +14,46 @@ public final class BinaryCelestialNode extends CelestialNode {
 	public OrbitalShape orbitalShapeA;
 	// this is always the larger of the two
 	public OrbitalShape orbitalShapeB;
-	public double offset;
+	public double phase;
+
+	private BinaryCelestialNode(CelestialNode a, CelestialNode b) {
+		super(a.massYg + b.massYg);
+		this.a = a;
+		this.b = b;
+	}
 
 	public BinaryCelestialNode(double massYg, CelestialNode a, CelestialNode b, OrbitalPlane orbitalPlane,
-			OrbitalShape orbitalShapeA, OrbitalShape orbitalShapeB, double offset) {
+			OrbitalShape orbitalShapeA, OrbitalShape orbitalShapeB, double phase) {
 		super(massYg);
 		this.a = a;
 		this.b = b;
 		this.orbitalPlane = orbitalPlane;
 		this.orbitalShapeA = orbitalShapeA;
 		this.orbitalShapeB = orbitalShapeB;
-		this.offset = offset;
+		this.phase = phase;
 	}
 
 	public BinaryCelestialNode(CelestialNode a, CelestialNode b, OrbitalPlane orbitalPlane,
-			double squishFactor, double maxOrbitalRadiusTm, double offset) {
+			OrbitalShape orbitalShapeA, OrbitalShape orbitalShapeB, double phase) {
 		super(a.massYg + b.massYg);
+		this.a = a;
+		this.b = b;
+		this.orbitalPlane = orbitalPlane;
+		this.orbitalShapeA = orbitalShapeA;
+		this.orbitalShapeB = orbitalShapeB;
+		this.phase = phase;
+	}
+
+	public static BinaryCelestialNode fromSquishFactor(CelestialNode a, CelestialNode b, OrbitalPlane orbitalPlane,
+			double squishFactor, double maxOrbitalRadiusTm, double phase) {
+		final var node = new BinaryCelestialNode(a, b);
 
 		if (a.massYg > b.massYg) {
-			this.a = a;
-			this.b = b;
+			node.a = a;
+			node.b = b;
 		} else {
-			this.a = b;
-			this.b = a;
+			node.a = b;
+			node.b = a;
 		}
 
 		// object with the smaller mass has the larger orbit.
@@ -44,12 +61,13 @@ public final class BinaryCelestialNode extends CelestialNode {
 		final var minorB = squishFactor * maxOrbitalRadiusTm;
 		final var shapeB = OrbitalShape.fromAxes(majorB, minorB);
 		final var shapeA = OrbitalShape.fromEccentricity(shapeB.eccentricity(),
-				(this.b.massYg / this.a.massYg) * shapeB.semiMajor());
+				(node.b.massYg / node.a.massYg) * shapeB.semiMajor());
 
-		this.orbitalPlane = orbitalPlane;
-		this.orbitalShapeA = shapeA;
-		this.orbitalShapeB = shapeB;
-		this.offset = offset;
+		node.orbitalPlane = orbitalPlane;
+		node.orbitalShapeA = shapeA;
+		node.orbitalShapeB = shapeB;
+		node.phase = phase;
+		return node;
 	}
 
 	public OrbitalShape getCombinedShape() {

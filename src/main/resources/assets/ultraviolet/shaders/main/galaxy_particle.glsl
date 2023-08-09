@@ -1,7 +1,7 @@
 #stages fragment
 
 #define BILLBOARD_KIND_TOWARDS_CAMERA
-// #define BILLBOARD_KIND_VIEW_ALIGNED
+#define BILLBOARD_RANDOM_ORIENTATION
 #include [ultraviolet:vertex/billboard.glsl]
 
 #ifdef IS_FRAGMENT_STAGE

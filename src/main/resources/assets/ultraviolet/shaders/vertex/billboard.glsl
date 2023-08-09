@@ -12,8 +12,8 @@ in vec3 Position;
 in vec4 Color;
 in vec2 UV0;
 
-vec2 uv() {
-	int id = gl_VertexID % 4;
+vec2 uvFromVertex(int id) {
+	id %= 4;
 	if (id == 0) return vec2(0.0, 0.0);
 	if (id == 1) return vec2(0.0, 1.0);
 	if (id == 2) return vec2(1.0, 1.0);
@@ -44,10 +44,12 @@ vec2 rotate(vec2 v, float a) {
 
 void main() {
 	vec4 posView = uViewMatrix * vec4(Position, 1.0);
-	vec2 uv = uv();
+	vec2 uv = uvFromVertex(gl_VertexID);
 	vec2 off = vec2(2.0 * uv - 1.0);
 
+#if defined(BILLBOARD_RANDOM_ORIENTATION)
 	off = rotate(off, rand(float(gl_VertexID)));
+#endif
 
 #if defined(BILLBOARD_KIND_VIEW_ALIGNED)
 	posView.xyz += offsetViewAligned(off);

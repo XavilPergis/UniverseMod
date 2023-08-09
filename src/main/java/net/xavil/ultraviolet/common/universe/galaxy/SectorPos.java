@@ -12,7 +12,6 @@ public record SectorPos(int level, Vec3i levelCoords) implements Hashable {
 		return new SectorPos(level, GalaxySector.levelCoordsForPos(level, pos));
 	}
 
-
 	public double width() {
 		return GalaxySector.sizeForLevel(this.level);
 	}

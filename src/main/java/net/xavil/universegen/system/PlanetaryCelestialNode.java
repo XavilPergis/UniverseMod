@@ -16,6 +16,7 @@ import net.xavil.hawklib.Units;
 public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 
 	public enum Type {
+		BROWN_DWARF(false, Double.NaN),
 		GAS_GIANT(false, Double.NaN),
 		ICE_WORLD(true, 4e9),
 		ROCKY_WORLD(true, 3e10),

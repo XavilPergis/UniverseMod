@@ -10,15 +10,15 @@ public class CelestialNodeChild<T extends CelestialNode> {
 	public final OrbitalShape orbitalShape;
 	// FIXME: this needs to be mutable for StarSystemGenerator
 	public OrbitalPlane orbitalPlane;
-	public final double offset;
+	public final double phase;
 
 	public CelestialNodeChild(CelestialNode parentNode, T node, OrbitalShape orbitalShape,
-			OrbitalPlane orbitalPlane, double offset) {
+			OrbitalPlane orbitalPlane, double phase) {
 		this.parentNode = parentNode;
 		this.node = node;
 		this.orbitalShape = orbitalShape;
 		this.orbitalPlane = orbitalPlane;
-		this.offset = offset;
+		this.phase = phase;
 	}
 
 	public Ellipse getEllipse(OrbitalPlane referencePlane, double celestialTime) {

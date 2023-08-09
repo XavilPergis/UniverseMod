@@ -130,9 +130,9 @@ public abstract sealed class StationLocation implements Disposable {
 			if (node instanceof PlanetaryCelestialNode planetNode) {
 				// semiMajor = 1.06 * planetNode.radiusRearth * (Units.m_PER_Rearth /
 				// Units.TERA);
-				semiMajor = 2.0 * planetNode.radiusRearth * (Units.m_PER_Rearth / Units.TERA);
+				semiMajor = 2.0 * planetNode.radiusRearth * Units.Tm_PER_Rearth;
 			} else if (node instanceof StellarCelestialNode starNode) {
-				semiMajor = 5.0 * starNode.radiusRsol * (Units.m_PER_Rsol / Units.TERA);
+				semiMajor = 5.0 * starNode.radiusRsol * Units.Tm_PER_Rsol;
 			} else if (node instanceof BinaryCelestialNode binaryNode) {
 				semiMajor = 1.1 * binaryNode.orbitalShapeB.semiMajor();
 			}
@@ -175,8 +175,7 @@ public abstract sealed class StationLocation implements Disposable {
 			Assert.isTrue(ticket.isLoaded());
 
 			final var system = universe.getSystem(target).unwrap();
-			final var nodes = system.rootNode.selfAndChildren();
-			final var maxMass = nodes.iter()
+			final var maxMass = system.rootNode.iter()
 					.filter(node -> !(node instanceof BinaryCelestialNode))
 					.max(Comparator.comparing(node -> node.massYg)).unwrap();
 			final var id = new SystemNodeId(target, maxMass.getId());

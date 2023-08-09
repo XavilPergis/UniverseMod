@@ -45,13 +45,14 @@ public class ClientMod implements ClientModInitializer {
 
 		HawkRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
 			// @formatter:off
-			acceptor.accept(UltravioletShaders.SHADER_STAR,             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD,   DefaultVertexFormat.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_PLANET,           DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_RING,             DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_GALAXY_PARTICLE,  DefaultVertexFormat.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_SKYBOX,           DefaultVertexFormat.POSITION, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_BLIT,             DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_STAR,                     DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC, DefaultVertexFormat.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_UI,        DefaultVertexFormat.POSITION_COLOR, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_PLANET,                   DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_RING,                     DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_GALAXY_PARTICLE,          DefaultVertexFormat.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_SKYBOX,                   DefaultVertexFormat.POSITION, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_BLIT,                     DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 			
 			acceptor.accept(UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE, DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 			acceptor.accept(UltravioletShaders.SHADER_BLOOM_UPSAMPLE,   DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);

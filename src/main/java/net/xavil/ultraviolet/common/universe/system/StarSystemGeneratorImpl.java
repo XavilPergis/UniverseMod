@@ -210,8 +210,8 @@ public class StarSystemGeneratorImpl {
 		// which places the minimum distance of the new node directly at the partner of
 		// the star we're joining.
 
-		var exclusionRadiusA = 2 * Units.m_PER_Rsol / Units.TERA * existing.radiusRsol;
-		var exclusionRadiusB = 2 * Units.m_PER_Rsol / Units.TERA * toInsert.radiusRsol;
+		var exclusionRadiusA = 2 * Units.Tu_PER_u * Units.m_PER_Rsol * existing.radiusRsol;
+		var exclusionRadiusB = 2 * Units.Tu_PER_u * Units.m_PER_Rsol * toInsert.radiusRsol;
 		var minDistance = exclusionRadiusA + exclusionRadiusB;
 		var maxDistance = getMaximumBinaryDistanceForReplacement(existing);
 		Mod.LOGGER.info("Attempting Single [min={}, max={}]", minDistance, maxDistance);
@@ -224,7 +224,7 @@ public class StarSystemGeneratorImpl {
 		double distance = 0;
 		if (closeOrbit) {
 			var t = Math.pow(rng.uniformDouble(), 3);
-			var limit = Units.fromAu(10);
+			var limit = Units.Tm_PER_au * 10;
 			distance = Mth.lerp(t, minDistance, Math.min(maxDistance, limit));
 		} else {
 			distance = rng.uniformDouble(minDistance, maxDistance);
@@ -232,7 +232,8 @@ public class StarSystemGeneratorImpl {
 		Mod.LOGGER.info("Success [distance={}]", distance);
 
 		var squishFactor = 1;
-		var newNode = new BinaryCelestialNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, distance,
+		var newNode = BinaryCelestialNode.fromSquishFactor(existing, toInsert, OrbitalPlane.ZERO, squishFactor,
+				distance,
 				rng.uniformDouble(0, 2 * Math.PI));
 		replaceNode(existing, newNode);
 		return newNode;
@@ -286,7 +287,8 @@ public class StarSystemGeneratorImpl {
 					Mod.LOGGER.info("Success [radius={}]", radius);
 					// var squishFactor = Mth.lerp(1 - Math.pow(random.uniformDouble(), 7), 0.2, 1);
 					var squishFactor = 1;
-					var newNode = new BinaryCelestialNode(existing, toInsert, OrbitalPlane.ZERO, squishFactor, radius,
+					var newNode = BinaryCelestialNode.fromSquishFactor(existing, toInsert, OrbitalPlane.ZERO,
+							squishFactor, radius,
 							rng.uniformDouble(0, 2 * Math.PI));
 					replaceNode(existing, newNode);
 					return newNode;
@@ -340,12 +342,12 @@ public class StarSystemGeneratorImpl {
 			binaryNode.setB(convertBinaryOrbits(binaryNode.getB()));
 			if (UNARY_ORBIT_THRESHOLD * binaryNode.getA().massYg > binaryNode.getB().massYg) {
 				final var unary = new CelestialNodeChild<>(binaryNode.getA(), binaryNode.getB(),
-						binaryNode.orbitalShapeB, binaryNode.orbitalPlane, binaryNode.offset);
+						binaryNode.orbitalShapeB, binaryNode.orbitalPlane, binaryNode.phase);
 				binaryNode.getA().insertChild(unary);
 
 				for (final var child : binaryNode.childOrbits()) {
 					final var newChildInfo = new CelestialNodeChild<>(binaryNode.getA(), child.node, child.orbitalShape,
-							child.orbitalPlane, child.offset);
+							child.orbitalPlane, child.phase);
 					binaryNode.getA().insertChild(newChildInfo);
 				}
 

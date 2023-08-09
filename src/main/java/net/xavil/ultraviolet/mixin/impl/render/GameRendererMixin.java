@@ -32,6 +32,8 @@ import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.shader.ShaderLoader;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.matrices.Mat4;
 
@@ -66,28 +68,51 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 		SkyRenderer.INSTANCE.resize(width, height);
 	}
 
-	@Inject(method = "reloadShaders", at = @At("HEAD"))
-	private void onReloadShaders(ResourceManager resourceManager, CallbackInfo info) {
+	@Override
+	public final void ultraviolet_reloadModShaders(ResourceManager resourceManager) {
+		final var diag = new HawkRendering.ShaderLoadDiagnostics();
 		HawkRendering.LOAD_SHADERS_EVENT.invoker().register(new HawkRendering.ShaderSink() {
-
 			@Override
-			public void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites, Iterator<String> shaderDefines) {
+			public void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites,
+					Iterator<String> shaderDefines) {
 				try {
-					final var shader = ShaderLoader.load(resourceManager, name, vertexFormat, fragmentWrites, shaderDefines);
+					final var shader = ShaderLoader.load(
+							resourceManager, name, vertexFormat, fragmentWrites, shaderDefines);
 					shader.setDebugName(name.toString());
 					final var prevShader = modShaders.put(name, shader);
 					if (prevShader != null)
 						prevShader.close();
+					diag.successfulLoadCount += 1;
 					Mod.LOGGER.debug("loaded modded shader '{}'", name);
 				} catch (ShaderLoader.ShaderLoadException ex) {
+					diag.failedToLoad.push(name);
 					Mod.LOGGER.error("failed to load modded shader '{}':\n{}", name, ex.getMessage());
 					if (ex.getCause() != null) {
 						Mod.LOGGER.error("caused by: {}", ex.getCause().toString());
 					}
 				}
 			}
-
 		});
+
+		for (final var name : diag.failedToLoad.iterable()) {
+			Mod.LOGGER.error("Failed to load shader '{}'", name);
+		}
+
+		if (diag.failedToLoad.isEmpty()) {
+			Mod.LOGGER.info("Successfully loaded shaders: {} successful",
+					diag.successfulLoadCount);
+		} else if (diag.successfulLoadCount > 0) {
+			Mod.LOGGER.warn("Partially loaded shaders: {} successful, {} failed:",
+					diag.successfulLoadCount, diag.failedToLoad.size());
+		} else {
+			Mod.LOGGER.error("Failed to load all shaders: {} failed",
+					diag.failedToLoad.size());
+		}
+	}
+
+	@Inject(method = "reloadShaders", at = @At("HEAD"))
+	private void onReloadShaders(ResourceManager resourceManager, CallbackInfo info) {
+		ultraviolet_reloadModShaders(resourceManager);
 	}
 
 	@Inject(method = "reloadShaders", at = @At("TAIL"))
@@ -101,7 +126,7 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 	private void onShutdownShaders(CallbackInfo info) {
 		this.vanillaShaderProxies.clear();
 	}
-	
+
 	@Inject(method = "close()V", at = @At("TAIL"))
 	private void onClose(CallbackInfo info) {
 		this.modShaders.values().forEach(shader -> {

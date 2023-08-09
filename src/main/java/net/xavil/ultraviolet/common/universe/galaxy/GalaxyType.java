@@ -14,30 +14,9 @@ public enum GalaxyType {
 
 	SPIRAL("spiral") {
 
-		// private DoubleField3 globularClusters(Random random) {
-		// final var noiseSeed = 100.0 * random.nextDouble();
-		// final var scale = random.nextDouble(0.08, 0.12);
-
-		// final var a = DoubleField3.simplexNoise(noiseSeed).mulPos(scale);
-		// return a.sub(0.9999999).clamp().mul(100.0);
-		// // float sum = noise(s * pos);
-		// // return 100.0 * clamp(sum - 0.9999999, 0.0, 1.0);
-		// }
-
-		private static DoubleField3 spoke(Random random, double size, double exclusionRadius) {
-			final var angleY = 2.0 * Math.PI * random.nextDouble();
-			// final var angleX1 = 0.02 * 2.0 * Math.PI * random.nextDouble();
-			// final var angleX2 = 0.02 * 2.0 * Math.PI * random.nextDouble();
-			// final var p = Vec3.ZP.rotateX(angleX1).rotateY(angleY).rotateX(-angleX2);
-			final var p = Vec3.ZP.mul(Units.fromLy(30000)).rotateY(angleY);
-			var spoke = DoubleField3.sdfLineSegment(Vec3.ZERO, Vec3.ZP.mul(Units.fromLy(60000))).sdfCloud(size);
-			// spoke = spoke.mul(DoubleField3.sphereCloud(exclusionRadius).neg().add(1));
-			return spoke;
-		}
-
 		@Override
 		public DensityFields createDensityFields(double galaxyAge, Random random) {
-			final var radius = Units.fromLy(random.nextDouble(30000, 60000));
+			final var radius = Units.Tm_PER_ly * random.nextDouble(30000, 60000);
 			final var ellipticalFactor = random.nextDouble(0.85, 1.0);
 			final var galacticCoreSizeFactor = random.nextDouble(0.3, 0.4);
 			final var galacticCoreSquishFactor = random.nextDouble(3, 5);
@@ -49,7 +28,7 @@ public enum GalaxyType {
 			// (i think) central bulge is full of mostly quite old stars orbiting somewhat
 			// chaotically around the central black hole.
 			var galacticCoreDensity = DoubleField3.sphereCloud(galacticCoreSizeFactor * radius)
-					.mulPos(galaxySquish).withExponent(1).mul(120);
+					.mulPos(galaxySquish).withExponent(1).mul(700);
 			// var galacticCoreAge = DoubleField3.random().lerp(1, galaxyAge);
 
 			// galactic halo is a very large region of very low stellar density that extends
@@ -63,7 +42,7 @@ public enum GalaxyType {
 			// var uniformDisc = DoubleField3.verticalDisc(radius, radius *
 			// discHeightFactor, 1).mul(15);
 			var uniformDisc = DoubleField3.verticalDisc(radius, radius * discHeightFactor, 1)
-					/*.mulPos(discSquish)*/.withExponent(2.0).mul(5.0);
+					/*.mulPos(discSquish)*/.withExponent(2.0).mul(10.0);
 			// var uniformDiscAge = DoubleField3.random().lerp(0.3 * galaxyAge, galaxyAge);
 			// uniformDisc = uniformDisc.withExponent(0.5);
 
@@ -111,7 +90,7 @@ public enum GalaxyType {
 			// spokes = spokes.mulPos(discSquish);
 			spokes = spokes.spiralAboutY(spiralFactor, 1.2 * radius);
 			spokes = spokes.mul(spokesDisc);
-			spokes = spokes.mul(120.0);
+			spokes = spokes.mul(700.0);
 			// var spokesAge = DoubleField3.random().withExponent(1e5).lerp(1, galaxyAge);
 
 
@@ -131,7 +110,7 @@ public enum GalaxyType {
 	// LENTICULAR("lenticular") {
 	// @Override
 	// public DensityFields createDensityFields(double galaxyAge, Random random) {
-	// final var radius = Units.fromLy(random.nextDouble(2000, 9000));
+	// final var radius = Units.Tm_PER_ly * (random.nextDouble(2000, 9000));
 	// var field = DoubleField3.sphereCloud(radius).withExponent(4).mul(5);
 	// var densityCombined = field;
 	// var ageCombined = DoubleField3.uniform(0.5);
@@ -144,7 +123,7 @@ public enum GalaxyType {
 	ELLIPTICAL("elliptical") {
 		@Override
 		public DensityFields createDensityFields(double galaxyAge, Random random) {
-			final var radius = Units.fromLy(random.nextDouble(10000, 60000));
+			final var radius = Units.Tm_PER_ly * (random.nextDouble(10000, 60000));
 			var field = DoubleField3.sphereCloud(radius).withExponent(2).mul(20);
 
 			var densityCombined = field;

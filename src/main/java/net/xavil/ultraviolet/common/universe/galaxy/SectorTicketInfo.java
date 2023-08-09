@@ -3,9 +3,9 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
-import net.minecraft.util.Mth;
 import net.xavil.hawklib.collections.interfaces.ImmutableSet;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.math.Intersections;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
 
@@ -16,7 +16,7 @@ public abstract sealed class SectorTicketInfo {
 	}
 
 	public static Multi visual(Vec3 centerPos) {
-		return new Multi(centerPos, GalaxySector.BASE_SIZE_Tm);
+		return new Multi(centerPos, GalaxySector.BASE_SIZE_Tm, true);
 	}
 
 	public static Single single(SectorPos pos) {
@@ -71,59 +71,50 @@ public abstract sealed class SectorTicketInfo {
 	public static final class Multi extends SectorTicketInfo {
 		public Vec3 centerPos;
 		public double baseRadius;
+		/**
+		 * If the field is set to {@code true}, then the radius around
+		 * {@link #centerPos} that is loaded will double for each successive level.
+		 */
+		public boolean isMultiplicative;
 
-		public Multi(Vec3 centerPos, double baseRadius) {
+		public Multi(Vec3 centerPos, double baseRadius, boolean isMultiplicative) {
 			this.centerPos = centerPos;
 			this.baseRadius = baseRadius;
+			this.isMultiplicative = isMultiplicative;
 		}
 
 		@Override
 		public Multi copy() {
-			return new Multi(centerPos, baseRadius);
+			return new Multi(centerPos, baseRadius, isMultiplicative);
 		}
 
-		// https://stackoverflow.com/questions/28343716/sphere-intersection-test-of-aabb
-		boolean sphereAabb(Vec3 sphereCenter, double sphereRadius, Vec3 aabbMin, Vec3 aabbMax) {
-			double d = 0.0;
-			if (sphereCenter.x < aabbMin.x)
-				d += Mth.square(sphereCenter.x - aabbMin.x);
-			else if (sphereCenter.x > aabbMax.x)
-				d += Mth.square(sphereCenter.x - aabbMax.x);
-			if (sphereCenter.y < aabbMin.y)
-				d += Mth.square(sphereCenter.y - aabbMin.y);
-			else if (sphereCenter.y > aabbMax.y)
-				d += Mth.square(sphereCenter.y - aabbMax.y);
-			if (sphereCenter.z < aabbMin.z)
-				d += Mth.square(sphereCenter.z - aabbMin.z);
-			else if (sphereCenter.z > aabbMax.z)
-				d += Mth.square(sphereCenter.z - aabbMax.z);
-			return d <= sphereRadius * sphereRadius;
+		public double radiusForLevel(int level) {
+			double res = this.baseRadius;
+			if (this.isMultiplicative)
+				res *= (1 << level);
+			return res;
 		}
 
 		private boolean isInside(SectorPos pos) {
 			final var radius = this.baseRadius * (1 << pos.level());
-			return sphereAabb(this.centerPos, radius, pos.minBound(), pos.maxBound());
+			return Intersections.sphereAabb(this.centerPos, radius, pos.minBound(), pos.maxBound());
 		}
 
 		@Override
-		public void enumerateAffectedSectors(Predicate<SectorPos> consumer) {
-			double radiusCur = this.baseRadius;
+		public void enumerateAffectedSectors(Predicate<SectorPos> consumer) {			
 			for (int level = 0; level <= GalaxySector.ROOT_LEVEL; ++level) {
-				final var level2 = level;
+				final var radiusCur = radiusForLevel(level);
 				final var curMin = GalaxySector.levelCoordsForPos(level, this.centerPos.sub(Vec3.broadcast(radiusCur)));
 				final var curMax = GalaxySector.levelCoordsForPos(level, this.centerPos.add(Vec3.broadcast(radiusCur)));
-
-				for (var x = curMin.x; x <= curMax.x; ++x) {
-					for (var y = curMin.y; y <= curMax.y; ++y) {
-						for (var z = curMin.z; z <= curMax.z; ++z) {
-							final var pos = new Vec3i(x, y, z);
-							final var spos = new SectorPos(level2, pos);
+				for (int x = curMin.x; x <= curMax.x; ++x) {
+					for (int y = curMin.y; y <= curMax.y; ++y) {
+						for (int z = curMin.z; z <= curMax.z; ++z) {
+							final var spos = new SectorPos(level, new Vec3i(x, y, z));
 							if (isInside(spos) && !consumer.test(spos))
 								return;
 						}
 					}
 				}
-				radiusCur *= 2.0;
 			}
 		}
 

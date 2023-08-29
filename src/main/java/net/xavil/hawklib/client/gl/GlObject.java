@@ -1,5 +1,7 @@
 package net.xavil.hawklib.client.gl;
 
+import javax.annotation.OverridingMethodsMustInvokeSuper;
+
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.HawkLib;
 
@@ -34,13 +36,14 @@ public abstract class GlObject implements Disposable {
 	}
 
 	@Override
+	@OverridingMethodsMustInvokeSuper
 	public void close() {
 		if (this.destroyed) {
 			HawkLib.LOGGER.warn(toString() + ": Tried to destroy GL object more than once!");
 			return;
 		}
 		if (this.owned)
-			GlManager.deleteObject(objectType(), this.id);
+			destroy();
 		this.destroyed = true;
 	}
 
@@ -51,6 +54,8 @@ public abstract class GlObject implements Disposable {
 	public void setDebugName(String debugName) {
 		this.debugName = debugName;
 	}
+
+	protected abstract void destroy();
 
 	public abstract ObjectType objectType();
 

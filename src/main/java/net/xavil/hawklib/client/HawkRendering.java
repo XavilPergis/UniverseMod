@@ -1,13 +1,12 @@
 package net.xavil.hawklib.client;
 
-import com.mojang.blaze3d.vertex.VertexFormat;
-
 import net.fabricmc.fabric.api.event.Event;
 import net.fabricmc.fabric.api.event.EventFactory;
 import net.minecraft.resources.ResourceLocation;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
+import net.xavil.hawklib.client.gl.shader.AttributeSet;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -33,11 +32,11 @@ public final class HawkRendering {
 	}
 
 	public interface ShaderSink {
-		default void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites) {
-			accept(name, vertexFormat, fragmentWrites, Iterator.empty());
+		default void accept(ResourceLocation name, AttributeSet attributeSet, GlFragmentWrites fragmentWrites) {
+			accept(name, attributeSet, fragmentWrites, Iterator.empty());
 		}
 
-		void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites,
+		void accept(ResourceLocation name, AttributeSet attributeSet, GlFragmentWrites fragmentWrites,
 				Iterator<String> shaderDefines);
 	}
 
@@ -61,7 +60,7 @@ public final class HawkRendering {
 			// postShader.setUniformSampler("uSampler", hdrPost.colorTexture);
 			// BufferRenderer.drawFullscreen(postShader);
 
-			final var postShader = HawkShaders.getShader(HawkShaders.SHADER_BLIT);
+			final var postShader = HawkShaders.SHADER_BLIT.get();
 			// postShader.setUniform("uExposure", 1f);
 			postShader.setUniformSampler("uSampler", input);
 			BufferRenderer.drawFullscreen(postShader);

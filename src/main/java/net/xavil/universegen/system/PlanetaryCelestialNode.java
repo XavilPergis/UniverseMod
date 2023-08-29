@@ -13,7 +13,7 @@ import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.xavil.hawklib.Units;
 
-public non-sealed class PlanetaryCelestialNode extends CelestialNode {
+public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 
 	public enum Type {
 		BROWN_DWARF(false, Double.NaN),
@@ -34,25 +34,20 @@ public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 	}
 
 	public Type type;
-	public double radiusRearth;
-	public double temperatureK;
+
+	public PlanetaryCelestialNode() {
+	}
+
+	public PlanetaryCelestialNode(Type type, double massYg) {
+		super(massYg);
+		this.type = type;
+	}
 
 	public PlanetaryCelestialNode(Type type, double massYg, double radiusRearth, double temperatureK) {
 		super(massYg);
 		this.type = type;
-		this.radiusRearth = radiusRearth;
-		this.temperatureK = temperatureK;
-	}
-
-	@Override
-	public String toString() {
-		var builder = new StringBuilder("PlanetaryBodyNode " + this.id);
-		builder.append(" [");
-		builder.append("massYg=" + this.massYg + ", ");
-		builder.append("radiusRearth=" + this.radiusRearth + ", ");
-		builder.append("temperatureK=" + this.temperatureK + ", ");
-		builder.append("]");
-		return builder.toString();
+		this.radius = Units.km_PER_Rearth * radiusRearth;
+		this.temperature = temperatureK;
 	}
 
 	public Holder<DimensionType> dimensionType(MinecraftServer server) {
@@ -63,8 +58,8 @@ public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 			return type;
 		}
 
-		var ultrawarm = this.temperatureK > 800;
-		var natural = this.type == Type.EARTH_LIKE_WORLD;
+		final var ultrawarm = this.temperature > 800;
+		final var natural = this.type == Type.EARTH_LIKE_WORLD;
 
 		return Holder.direct(DimensionType.create(
 				OptionalLong.of(18000), true, false, ultrawarm, natural, 1, false, false, true, true, false,
@@ -83,14 +78,9 @@ public non-sealed class PlanetaryCelestialNode extends CelestialNode {
 	}
 
 	public double surfaceGravityEarthRelative() {
-		final var radiusRearth = this.radiusRearth;
-		final var massMearth = this.massYg / Units.Yg_PER_Mearth;
+		final var radiusRearth = Units.Rearth_PER_km * this.radius;
+		final var massMearth = Units.Mearth_PER_Yg * this.massYg;
 		return massMearth / (radiusRearth * radiusRearth);
 	}
-
-	// planet type (gas giant, icy world, rocky world, earth-like world, etc)
-	// mass, surface gravity, atmosphere type, landable
-	// cloud coverage, greenhouse effect, volcanism, plate tectonics
-	// asteroid belt/rings? perhaps a single disc object?
 
 }

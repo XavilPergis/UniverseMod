@@ -10,7 +10,7 @@ import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.FlexibleVertexBuffer;
+import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.Mod;
@@ -24,7 +24,7 @@ import net.xavil.hawklib.math.matrices.Vec3;
 public class GalaxyRenderingContext implements Disposable {
 
 	private final DensityFields densityFields;
-	private FlexibleVertexBuffer pointsBuffer = new FlexibleVertexBuffer();
+	private Mesh pointsBuffer = new Mesh();
 	private boolean isInitialized = false;
 
 	public GalaxyRenderingContext(DensityFields densityFields) {
@@ -66,8 +66,8 @@ public class GalaxyRenderingContext implements Disposable {
 		averageDensity /= initialDensitySampleCount;
 
 		int successfulPlacements = 0;
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER
+				.beginGeneric(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
 		for (var i = 0; i < this.attemptCount; ++i) {
 			if (successfulPlacements >= this.particleLimit)
 				break;
@@ -134,7 +134,7 @@ public class GalaxyRenderingContext implements Disposable {
 			RenderSystem.applyModelViewMatrix();
 		}
 
-		final var shader = UltravioletShaders.getShader(UltravioletShaders.SHADER_GALAXY_PARTICLE);
+		final var shader = UltravioletShaders.SHADER_GALAXY_PARTICLE.get();
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 		BufferRenderer.setupDefaultShaderUniforms(shader);
 		this.pointsBuffer.draw(shader, HawkDrawStates.DRAW_STATE_DIRECT_ADDITIVE_BLENDING);

@@ -8,9 +8,9 @@ flat VARYING_V2F int billboardID;
 #include [ultraviolet:common_uniforms.glsl]
 
 #ifdef IS_VERTEX_STAGE
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
+in vec3 aPos;
+in vec4 aColor;
+in vec2 aTexCoord0;
 
 vec2 uvFromVertex(int id) {
 	id = id % 4;
@@ -41,9 +41,9 @@ void emitPoint(vec4 viewPos, float pointSize) {
 }
 
 void main() {
-	float starLuminosityLsol = UV0.x;
+	float starLuminosityLsol = aTexCoord0.x;
 
-	vec4 viewPos = uViewMatrix * vec4(Position, 1.0);
+	vec4 viewPos = uViewMatrix * vec4(aPos, 1.0);
 	float distanceFromCameraTm = length(viewPos.xyz) * (uMetersPerUnit / 1e12);
 	float apparentBrightness = uStarBrightnessFactor * starLuminosityLsol / (4.0 * PI * distanceFromCameraTm * distanceFromCameraTm);
 
@@ -59,7 +59,8 @@ void main() {
 	}
 
 	emitPoint(viewPos, 2.0 * size);
-	vertexColor = vec4(Color.rgb, alpha);
+	vertexColor = vec4(aColor.rgb, alpha);
+	// vertexColor = vec4(abs(aColor.rgb), 1.0);
 }
 
 #endif
@@ -79,6 +80,7 @@ vec2 scaleUv(vec2 uv, float scale) {
 }
 
 void main() {
+	// fColor = vertexColor;
     vec4 s1 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0)));
 	s1 *= vertexColor;
     vec4 s2 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0 / 0.7)));

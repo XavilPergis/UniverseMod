@@ -5,10 +5,7 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
-import com.mojang.serialization.Lifecycle;
-
 import net.minecraft.core.Registry;
-import net.minecraft.core.WritableRegistry;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -87,14 +84,6 @@ public class DynamicDimensionManager {
 		// the LevelStem from scratch every time. This isn't a huge deal for out mod,
 		// since the level properties are deived from their galactic environment
 		// anyways, which is pretty easy to query.
-		if (worldData.worldGenSettings().dimensions() instanceof WritableRegistry<LevelStem> stemRegistry) {
-			final var stemKey = ResourceKey.create(Registry.LEVEL_STEM_REGISTRY, name.location());
-			stemRegistry.register(stemKey, stem, Lifecycle.stable());
-		} else {
-			throw new IllegalStateException(String.format(
-					"Failed to register dynamic dimesion '%s': LevelStem registry is not mutable.",
-					name.location().toString()));
-		}
 
 		final var newLevel = new ServerLevel(
 				this.server,

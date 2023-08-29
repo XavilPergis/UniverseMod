@@ -10,9 +10,20 @@ import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec4;
 
 public final class TransformStack {
+	private final MutableList<Mat4.Mutable> freeMatrices = new Vector<>();
 	private final MutableList<Mat4.Mutable> stack = new Vector<>(1);
 	private Mat4.Mutable current;
 	private Mat4 cached = null;
+
+	private Mat4.Mutable acquireMatrix() {
+		if (!this.freeMatrices.isEmpty())
+			return this.freeMatrices.remove(this.freeMatrices.size() - 1);
+		return new Mat4.Mutable();
+	}
+
+	private void releaseMatrix(Mat4.Mutable matrix) {
+		this.freeMatrices.push(matrix);
+	}
 
 	public TransformStack() {
 		final var mat = new Mat4.Mutable().loadIdentity();
@@ -62,23 +73,27 @@ public final class TransformStack {
 		return Mat4.mul(this.current, vec);
 	}
 
-	public Mat4 get() {
+	public Mat4 copyCurrent() {
 		if (this.cached == null) {
 			this.cached = this.current.asImmutable();
 		}
 		return this.cached;
 	}
 
+	public Mat4.Mutable current() {
+		return this.current;
+	}
+
 	public void push() {
-		this.current = this.current.copy();
+		this.current = acquireMatrix().loadFrom(this.current);
 		this.stack.push(this.current);
 	}
 
 	public void pop() {
-		this.stack.remove(this.stack.size() - 1);
+		releaseMatrix(this.stack.remove(this.stack.size() - 1));
 		this.current = this.stack.get(this.stack.size() - 1);
 		if (this.stack.isEmpty()) {
-			this.stack.push(new Mat4.Mutable().loadIdentity());
+			this.stack.push(acquireMatrix().loadIdentity());
 		}
 	}
 }

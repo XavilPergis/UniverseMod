@@ -16,6 +16,10 @@ public interface Hasher {
 		return ((int) (h >>> 32)) ^ ((int) h);
 	}
 
+	default Hasher appendString(String value) {
+		return appendInt(value.hashCode());
+	}
+
 	default Hasher appendInt(int value) {
 		return appendLong(value);
 	}

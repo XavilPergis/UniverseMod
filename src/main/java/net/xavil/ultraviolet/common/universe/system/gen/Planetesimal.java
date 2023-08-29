@@ -12,6 +12,7 @@ import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalPlane;
@@ -28,6 +29,7 @@ public class Planetesimal {
 	private double rotationalRate;
 	private final MutableList<Planetesimal> moons = new Vector<>();
 	private final MutableList<Ring> rings = new Vector<>();
+	public boolean sweptGas = false;
 
 	public record Ring(Interval interval, double mass, double eccentricity) {
 	}
@@ -231,58 +233,59 @@ public class Planetesimal {
 		if (Double.isNaN(node.type.rigidity))
 			return Double.NaN;
 
-		final var meanRadiusM = Units.m_PER_Rearth * node.radiusRearth;
+		final var meanRadiusM = Units.u_PER_ku * node.radius;
 		final var denom = 1e9 * node.massYg * Math.pow(1e9 * parentMassYg, 2);
 		final var lockingTime = 6 * Math.pow(semiMajorTm * 1e12, 6) * meanRadiusM * node.type.rigidity / denom;
 		return lockingTime / 1e4;
+	}
+
+	private CelestialNode createCelestialNode() {
+		final var massYg = this.mass * Units.Yg_PER_Msol;
+
+		if (this.sweptGas) {
+			if (massYg >= 0.08 * Units.Yg_PER_Msol) {
+				return StellarCelestialNode.fromMassAndAge(massYg, this.ctx.systemAgeMya);
+			} else if (massYg >= 13 * Units.Yg_PER_Mjupiter) {
+				return new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.BROWN_DWARF, massYg);
+			} else {
+				return new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, massYg);
+			}
+		} else {
+			// TODO: different world types
+			return new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, massYg);
+		}
 	}
 
 	public void convertToPlanetNode(CelestialNode parent) {
 		if (this.mass < 3.0 * this.ctx.params.initialPlanetesimalMass)
 			return;
 
-		final var radiusRearth = Units.Rearth_PER_km * this.getRadius();
-		final var massYg = this.mass * Units.Yg_PER_Msol;
+		final var node = createCelestialNode();
+
+		node.massYg = this.mass * Units.Yg_PER_Msol;
 		final var shape = new OrbitalShape(this.orbitalShape.eccentricity(),
 				this.orbitalShape.semiMajor() * Units.Tm_PER_au);
 		final var plane = OrbitalPlane.fromInclination(this.inclination, this.ctx.rng);
 
-		final CelestialNode node;
-		if (canSweepGas()) {
-			if (massYg >= 0.08 * Units.Yg_PER_Msol) {
-				// star track
-				node = StellarCelestialNode.fromMassAndAge(massYg, this.ctx.stellarAgeMyr);
-			} else if (massYg >= 13 * Units.Yg_PER_Mjupiter) {
-				// brown dwarf track
-				// TODO
-				node = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, massYg, radiusRearth, 300);
-				node.rotationalRate = 0; // TODO
-			} else {
-				// gas giant track
-				node = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, massYg, radiusRearth, 300);
-				node.rotationalRate = 0; // TODO
+		if (node instanceof UnaryCelestialNode unaryNode) {
+			unaryNode.rotationalRate = this.rotationalRate;
+			unaryNode.obliquityAngle = 0;
+			unaryNode.radius = this.getRadius();
+
+			for (final var ring : this.rings.iterable()) {
+				final var intervalTm = ring.interval.mul(Units.Tm_PER_au);
+				final var ringMassYg = ring.mass * Units.Yg_PER_Msol;
+				unaryNode.rings.push(new CelestialRing(OrbitalPlane.ZERO, ring.eccentricity, intervalTm, ringMassYg));
 			}
-		} else {
-			// terrestrial planet track
-			// TODO: different world types
-			final var pnode = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, massYg, radiusRearth, 300);
-			final var lockingTime = timeUntilTidallyLockedMyr(pnode, parent.massYg, shape.semiMajor());
-			final var lockingPercent = Math.min(1.0, this.ctx.stellarAgeMyr / lockingTime);
-			final var orbitalRate = 2.0 * Math.PI / Formulas.orbitalPeriod(shape.semiMajor(), pnode.massYg);
-			pnode.rotationalRate = Mth.lerp(lockingPercent, this.rotationalRate, orbitalRate);
-
-			// TODO: try to apply tidal locking to the parent node too
-			node = pnode;
 		}
-
-		this.ctx.rng.uniformDouble(-2.0 * Math.PI, 2.0 * Math.PI);
-		node.obliquityAngle = 0;
-
-		for (final var ring : this.rings.iterable()) {
-			// Mod.LOGGER.info("RING!!! {}, parent = {}", this, parent);
-			final var intervalTm = ring.interval.mul(Units.Tm_PER_au);
-			final var ringMassYg = ring.mass * Units.Yg_PER_Msol;
-			node.addRing(new CelestialRing(OrbitalPlane.ZERO, ring.eccentricity, intervalTm, ringMassYg));
+		if (node instanceof StellarCelestialNode starNode) {
+		}
+		if (node instanceof PlanetaryCelestialNode planetNode) {
+			// TODO: try to apply tidal locking to the parent node too
+			final var lockingTime = timeUntilTidallyLockedMyr(planetNode, parent.massYg, shape.semiMajor());
+			final var lockingPercent = Math.min(1.0, this.ctx.systemAgeMya / lockingTime);
+			final var orbitalRate = 2.0 * Math.PI / Formulas.orbitalPeriod(shape.semiMajor(), planetNode.massYg);
+			planetNode.rotationalRate = Mth.lerp(lockingPercent, this.rotationalRate, orbitalRate);
 		}
 
 		// this random offset distributes the celestial bodies randomly around their
@@ -297,24 +300,47 @@ public class Planetesimal {
 	}
 
 	public Interval effectLimits() {
-		var m = reducedMass(mass);
-		var inner = this.orbitalShape.periapsisDistance() * (1 - m);
-		var outer = this.orbitalShape.apoapsisDistance() * (1 + m);
+		final var m = reducedMass(mass);
+		final var inner = this.orbitalShape.periapsisDistance() * (1 - m);
+		final var outer = this.orbitalShape.apoapsisDistance() * (1 + m);
 		return new Interval(inner, outer);
 	}
 
 	public Interval sweptDustLimits() {
-		var effectLimits = effectLimits();
-		var inner = effectLimits.lower() / (1 + ctx.params.cloudEccentricity);
-		var outer = effectLimits.higher() / (1 - ctx.params.cloudEccentricity);
+		final var effectLimits = effectLimits();
+		final var inner = effectLimits.lower() / (1 + ctx.params.cloudEccentricity);
+		final var outer = effectLimits.higher() / (1 - ctx.params.cloudEccentricity);
 		return new Interval(Math.max(0, inner), outer);
 	}
 
-	public Ring asRing() {
-		final var radiusAu = this.getRadius() / Units.km_PER_au;
-		final var ringInner = this.orbitalShape.semiMajor() - 5.0 * radiusAu;
-		final var ringOuter = this.orbitalShape.semiMajor() + 5.0 * radiusAu;
-		return new Ring(new Interval(ringInner, ringOuter), mass, this.orbitalShape.eccentricity());
+	public static void convertToRing(Planetesimal parent, Planetesimal child) {
+		final var parentRadiusAu = parent.getRadius() / Units.km_PER_au;
+		final var radiusAu = child.getRadius() / Units.km_PER_au;
+
+		final var ringOuter = child.orbitalShape.semiMajor() + 4.0 * radiusAu;
+		final var idealRingInner = child.orbitalShape.semiMajor() - 4.0 * radiusAu;
+		final var ringInner = Math.max(idealRingInner, 1.5 * parentRadiusAu);
+
+		if (ringInner >= ringOuter) {
+			// i eated the whole ring
+			parent.setMass(parent.mass + child.mass);
+			return;
+		}
+
+		final var idealArea = Math.PI * (Mth.square(ringOuter) - Mth.square(idealRingInner));
+		final var actualArea = Math.PI * (Mth.square(ringOuter) - Mth.square(ringInner));
+
+		final var percentLoss = 1.0 - (actualArea / idealArea);
+		
+		parent.setMass(parent.mass + child.mass * percentLoss);
+		final var ringMass = child.mass * (1.0 - percentLoss);
+		parent.rings.push(new Ring(new Interval(ringInner, ringOuter), ringMass, 0.0));
+
+		// FIXME: update rings when the radius changes
+		// we could probably do all the ring handling stuff right at the end tbh
+		
+		// TODO: eccentricity should probably factor in somehow, but generally, rings
+		// are extremely circular
 	}
 
 }

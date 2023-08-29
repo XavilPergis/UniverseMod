@@ -4,6 +4,7 @@
 #define CAMERA_TYPE_PERSPECTIVE  0
 #define CAMERA_TYPE_ORTHOGRAPHIC 1
 
+uniform  mat4 uModelMatrix;
 uniform  mat4 uViewMatrix;
 uniform  mat4 uProjectionMatrix;
 uniform  mat4 uViewProjectionMatrix;

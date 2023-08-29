@@ -4,34 +4,33 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-import javax.annotation.Nullable;
-
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.MissingTextureAtlasSprite;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
+import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.debug.ClientConfig;
+import net.xavil.ultraviolet.debug.ConfigKey;
 
 import static net.xavil.hawklib.client.HawkDrawStates.*;
-import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
 import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.TransformStack;
-import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class PlanetRenderingContext {
@@ -64,7 +63,7 @@ public final class PlanetRenderingContext {
 
 	public record PointLight(Vec3 pos, Color color, double luminosity) {
 		public static PointLight fromStar(StellarCelestialNode node) {
-			return new PointLight(node.position, node.getColor(), node.luminosityLsol);
+			return new PointLight(node.position.xyz(), node.getColor(), node.luminosityLsol);
 		}
 	}
 
@@ -100,43 +99,43 @@ public final class PlanetRenderingContext {
 	}
 
 	public void render(VertexBuilder builder, CachedCamera<?> camera, CelestialNode node, boolean skip) {
-		render(builder, camera, node, new TransformStack(), skip);
-	}
-
-	public void render(VertexBuilder builder, CachedCamera<?> camera, CelestialNode node, TransformStack tfm, boolean skip) {
 		if (node instanceof StellarCelestialNode starNode)
-			renderStar(builder, camera, starNode, tfm, skip);
+			renderStar(builder, camera, starNode, skip);
 		if (node instanceof PlanetaryCelestialNode planetNode)
-			renderPlanet(builder, camera, planetNode, tfm, skip);
+			renderPlanet(builder, camera, planetNode, skip);
 	}
 
-	public void renderStar(VertexBuilder builder, CachedCamera<?> camera, StellarCelestialNode node,
-			TransformStack tfm, boolean skip) {
-		var radiusM = Units.m_PER_Rsol * node.radiusRsol;
+	public void renderStar(VertexBuilder vertexBuilder, CachedCamera<?> camera, StellarCelestialNode node,
+			boolean skip) {
+		var radiusM = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) * Units.u_PER_ku * node.radius;
 
-		final var partialTick = this.client.getFrameTime();
+		// FIXME: this is a garbage ass hack cuz i cant figure out why the interpolated
+		// position is fucked in the starmap
+		var pos = node.position.xyz();
+		if (!(this.client.screen instanceof HawkScreen)) {
+			final var partialTick = this.client.getFrameTime();
+			pos = node.getPosition(partialTick);
+		}
 
-		var nodePosUnits = node.getPosition(partialTick).add(this.origin).mul(1e12 / camera.metersPerUnit);
+		var nodePosUnits = pos.add(this.origin).mul(1e12 / camera.metersPerUnit);
 
-		// var distanceFromCamera = camera.pos.mul(1e12 / camera.metersPerUnit).distanceTo(nodePosUnits);
+		// var distanceFromCamera = camera.pos.mul(1e12 /
+		// camera.metersPerUnit).distanceTo(nodePosUnits);
 		// var distanceRatio = radiusM / (distanceFromCamera * camera.metersPerUnit);
 
 		// if (distanceRatio < 0.0001)
 		// return;
 
-		tfm.push();
-
 		if (!skip) {
-			var radiusUnits = radiusM / camera.metersPerUnit;
-			builder.begin(VertexFormat.Mode.QUADS, UltravioletVertexFormats.PLANET_VERTEX_FORMAT);
-			addNormSphere(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits);
-			final var shader = getShader(SHADER_STAR);
+			var radiusUnits = 1.0 * radiusM / camera.metersPerUnit;
+			final var builder = vertexBuilder
+					.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_TEX_COLOR_NORMAL);
+			addNormSphere(builder, camera, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits);
+			final var shader = UltravioletShaders.SHADER_STAR.get();
 			shader.setUniform("uStarColor", node.getColor().withA(0.7));
 			shader.setUniform("uTime", this.celestialTime % 10000.0);
 			builder.end().draw(shader, DRAW_STATE_NO_CULL);
 		}
-
-		tfm.pop();
 
 		// tfm.push();
 		// tfm.prependTranslation(this.origin);
@@ -146,8 +145,7 @@ public final class PlanetRenderingContext {
 		this.renderedStarCount += 1;
 	}
 
-	private void setupShaderCommon(CachedCamera<?> camera, TransformStack tfm, Vec3 sortOrigin,
-			ShaderProgram shader) {
+	private void setupShaderCommon(CachedCamera<?> camera, Vec3 sortOrigin, ShaderProgram shader) {
 
 		final int maxLightCount = 4;
 
@@ -192,16 +190,22 @@ public final class PlanetRenderingContext {
 		shader.setUniform("uRenderingSeed", (float) (FastHasher.hashInt(node.getId()) % 1000000L));
 	}
 
-	public void renderPlanet(VertexBuilder builder, CachedCamera<?> camera, PlanetaryCelestialNode node,
-			TransformStack tfm, boolean skip) {
+	public void renderPlanet(VertexBuilder vertexBuilder, CachedCamera<?> camera, PlanetaryCelestialNode node,
+			boolean skip) {
 
-		var radiusM = Units.m_PER_Rearth * node.radiusRearth;
+		var radiusM = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) * Units.u_PER_ku * node.radius;
 		// var radiusM = 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 		// final var metersPerUnit = 1 / unitsPerMeter;
 
-		final var partialTick = this.client.getFrameTime();
+		// FIXME: this is a garbage ass hack cuz i cant figure out why the interpolated
+		// position is fucked in the starmap
+		var pos = node.position.xyz();
+		if (!(this.client.screen instanceof HawkScreen)) {
+			final var partialTick = this.client.getFrameTime();
+			pos = node.getPosition(partialTick);
+		}
 
-		var nodePosUnits = node.getPosition(partialTick).mul(1e12 / camera.metersPerUnit)
+		var nodePosUnits = pos.mul(1e12 / camera.metersPerUnit)
 				.add(this.origin.mul(1e12 / camera.metersPerUnit));
 
 		var distanceFromCamera = camera.pos.mul(1e12 / camera.metersPerUnit).distanceTo(nodePosUnits);
@@ -210,59 +214,65 @@ public final class PlanetRenderingContext {
 		if (distanceRatio < 0.0001)
 			return;
 
-		tfm.push();
-		tfm.prependRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
-		tfm.prependRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * this.celestialTime));
+		setupShaderCommon(camera, nodePosUnits, UltravioletShaders.SHADER_PLANET.get());
+		setupShaderCommon(camera, nodePosUnits, UltravioletShaders.SHADER_RING.get());
+		setupPlanetShader(node, UltravioletShaders.SHADER_PLANET.get());
 
-		setupShaderCommon(camera, tfm, nodePosUnits, getShader(SHADER_PLANET));
-		setupShaderCommon(camera, tfm, nodePosUnits, getShader(SHADER_RING));
-		setupPlanetShader(node, getShader(SHADER_PLANET));
+		final var modelTfm = new TransformStack();
+		modelTfm.prependRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+		modelTfm.prependRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * this.celestialTime));
+
+		final var planetShader = UltravioletShaders.SHADER_PLANET.get();
+		planetShader.setUniform("uModelMatrix", modelTfm.current());
+		planetShader.setUniform("uRotationAxis", Vec3.YP.rotateX(node.obliquityAngle));
+		planetShader.setUniform("uRotationAngle", node.rotationalRate * this.celestialTime);
+		UltravioletShaders.SHADER_RING.get().setUniform("uModelMatrix", modelTfm.current());
 
 		if (!skip) {
 			var baseTexture = getBaseLayer(node);
 			Minecraft.getInstance().getTextureManager().getTexture(baseTexture).setFilter(false, false);
 
-			var radiusUnits = radiusM / camera.metersPerUnit;
+			var radiusUnits = 1.0 * radiusM / camera.metersPerUnit;
 			// var radiusUnits = 1000 * 1000;
 			// var radiusM = scale * 200 * Units.METERS_PER_REARTH * node.radiusRearth;
 			// renderPlanetLayer(builder, camera, baseTexture, tfm, nodePosUnits,
 			// radiusUnits, tintColor);
 			// if (node.type == PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD) {
 			// }
-			renderPlanetLayer(builder, camera, BASE_ROCKY_LOCATION, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12),
+			renderPlanetLayer(vertexBuilder, camera, BASE_ROCKY_LOCATION, nodePosUnits.mul(camera.metersPerUnit / 1e12),
 					radiusUnits);
 		}
 
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL);
-		for (var ring : node.rings()) {
-			tfm.push();
-			tfm.prependRotation(ring.orbitalPlane.rotationFromReference());
-			addRing(builder, camera, tfm, nodePosUnits.mul(camera.metersPerUnit / 1e12), ring.interval.lower(),
-					ring.interval.higher());
-			tfm.pop();
+		final var builder = vertexBuilder.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_TEX_COLOR_NORMAL);
+		if (node instanceof UnaryCelestialNode unaryNode) {
+			for (final var ring : unaryNode.rings.iterable()) {
+				// tfm.push();
+				modelTfm.prependRotation(ring.orbitalPlane.rotationFromReference());
+				addRing(builder, camera, nodePosUnits.mul(camera.metersPerUnit / 1e12), ring.interval.lower(),
+						ring.interval.higher());
+				// tfm.pop();
+			}
 		}
 
-		final var ringShader = getShader(SHADER_RING);
+		final var ringShader = UltravioletShaders.SHADER_RING.get();
 		builder.end().draw(ringShader, DRAW_STATE_OPAQUE);
-
-		tfm.pop();
 
 		this.renderedPlanetCount += 1;
 	}
 
-	private static void renderPlanetLayer(VertexBuilder builder, CachedCamera<?> camera,
-			ResourceLocation texture, @Nullable TransformStack tfm, Vec3 center, double radius) {
-		final var planetShader = getShader(SHADER_PLANET);
+	private static void renderPlanetLayer(VertexBuilder vertexBuilder, CachedCamera<?> camera,
+			ResourceLocation texture, Vec3 center, double radius) {
+		final var planetShader = UltravioletShaders.SHADER_PLANET.get();
 		// planetShader.setUniformSampler("uSurfaceAlbedo",
 		// GlTexture2d.importTexture(texture));
-		builder.begin(VertexFormat.Mode.QUADS, UltravioletVertexFormats.PLANET_VERTEX_FORMAT);
-		addNormSphere(builder, camera, tfm, center, radius);
+		final var builder = vertexBuilder
+				.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_TEX_COLOR_NORMAL);
+		addNormSphere(builder, camera, center, radius);
 		builder.end().draw(planetShader, DRAW_STATE_OPAQUE);
 	}
 
-	private static void addRing(FlexibleVertexConsumer builder, CachedCamera<?> camera, @Nullable TransformStack tfm,
+	private static void addRing(FlexibleVertexConsumer builder, CachedCamera<?> camera,
 			Vec3 center, double innerRadius, double outerRadius) {
-		final var pose = tfm == null ? null : tfm.get();
 		int segmentCount = 60;
 		for (var i = 0; i < segmentCount; ++i) {
 			double percentL = i / (double) segmentCount;
@@ -279,23 +289,23 @@ public final class PlanetRenderingContext {
 			double hhy = outerRadius * (Units.u_PER_Tu / camera.metersPerUnit) * Math.sin(angleH);
 
 			// clockwise
-			ringVertex(builder, camera, pose, center, lhx, 1, lhy, (float) percentH, 0);
-			ringVertex(builder, camera, pose, center, llx, 1, lly, (float) percentL, 0);
-			ringVertex(builder, camera, pose, center, hlx, 1, hly, (float) percentL, 10);
-			ringVertex(builder, camera, pose, center, hhx, 1, hhy, (float) percentH, 10);
+			ringVertex(builder, camera, center, lhx, 1, lhy, (float) percentH, 0);
+			ringVertex(builder, camera, center, llx, 1, lly, (float) percentL, 0);
+			ringVertex(builder, camera, center, hlx, 1, hly, (float) percentL, 10);
+			ringVertex(builder, camera, center, hhx, 1, hhy, (float) percentH, 10);
 
 			// counter-clockwise
-			ringVertex(builder, camera, pose, center, hhx, -1, hhy, (float) percentH, 10);
-			ringVertex(builder, camera, pose, center, hlx, -1, hly, (float) percentL, 10);
-			ringVertex(builder, camera, pose, center, llx, -1, lly, (float) percentL, 0);
-			ringVertex(builder, camera, pose, center, lhx, -1, lhy, (float) percentH, 0);
+			ringVertex(builder, camera, center, hhx, -1, hhy, (float) percentH, 10);
+			ringVertex(builder, camera, center, hlx, -1, hly, (float) percentL, 10);
+			ringVertex(builder, camera, center, llx, -1, lly, (float) percentL, 0);
+			ringVertex(builder, camera, center, lhx, -1, lhy, (float) percentH, 0);
 		}
 	}
 
-	private static void addNormSphere(VertexBuilder builder, CachedCamera<?> camera,
-			@Nullable TransformStack tfm, Vec3 center, double radius) {
+	private static void addNormSphere(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 center,
+			double radius) {
 
-		final var pose = tfm == null ? null : tfm.get();
+		// final var pose = tfm == null ? null : tfm.get();
 		final int subdivisions = 10;
 
 		// -X
@@ -314,10 +324,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lu = (float) Mth.lerp(lpb, nxlu, nxhu);
 				var hu = (float) Mth.lerp(hpb, nxlu, nxhu);
-				normSphereVertex(builder, camera, pose, center, radius, -1, ha, lb, lu, hv);
-				normSphereVertex(builder, camera, pose, center, radius, -1, la, lb, lu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, -1, la, hb, hu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, -1, ha, hb, hu, hv);
+				normSphereVertex(builder, camera, center, radius, -1, ha, lb, lu, hv);
+				normSphereVertex(builder, camera, center, radius, -1, la, lb, lu, lv);
+				normSphereVertex(builder, camera, center, radius, -1, la, hb, hu, lv);
+				normSphereVertex(builder, camera, center, radius, -1, ha, hb, hu, hv);
 			}
 		}
 
@@ -337,10 +347,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lu = (float) Mth.lerp(lpb, pxlu, pxhu);
 				var hu = (float) Mth.lerp(hpb, pxlu, pxhu);
-				normSphereVertex(builder, camera, pose, center, radius, 1, ha, lb, lu, hv);
-				normSphereVertex(builder, camera, pose, center, radius, 1, la, lb, lu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, 1, la, hb, hu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, 1, ha, hb, hu, hv);
+				normSphereVertex(builder, camera, center, radius, 1, ha, lb, lu, hv);
+				normSphereVertex(builder, camera, center, radius, 1, la, lb, lu, lv);
+				normSphereVertex(builder, camera, center, radius, 1, la, hb, hu, lv);
+				normSphereVertex(builder, camera, center, radius, 1, ha, hb, hu, hv);
 			}
 		}
 
@@ -360,10 +370,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lv = (float) Mth.lerp(lpb, nylv, nyhv);
 				var hv = (float) Mth.lerp(hpb, nylv, nyhv);
-				normSphereVertex(builder, camera, pose, center, radius, ha, -1, lb, hu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, la, -1, lb, lu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, la, -1, hb, lu, hv);
-				normSphereVertex(builder, camera, pose, center, radius, ha, -1, hb, hu, hv);
+				normSphereVertex(builder, camera, center, radius, ha, -1, lb, hu, lv);
+				normSphereVertex(builder, camera, center, radius, la, -1, lb, lu, lv);
+				normSphereVertex(builder, camera, center, radius, la, -1, hb, lu, hv);
+				normSphereVertex(builder, camera, center, radius, ha, -1, hb, hu, hv);
 			}
 		}
 
@@ -383,10 +393,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lv = (float) Mth.lerp(lpb, pylv, pyhv);
 				var hv = (float) Mth.lerp(hpb, pylv, pyhv);
-				normSphereVertex(builder, camera, pose, center, radius, ha, 1, lb, hu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, la, 1, lb, lu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, la, 1, hb, lu, hv);
-				normSphereVertex(builder, camera, pose, center, radius, ha, 1, hb, hu, hv);
+				normSphereVertex(builder, camera, center, radius, ha, 1, lb, hu, lv);
+				normSphereVertex(builder, camera, center, radius, la, 1, lb, lu, lv);
+				normSphereVertex(builder, camera, center, radius, la, 1, hb, lu, hv);
+				normSphereVertex(builder, camera, center, radius, ha, 1, hb, hu, hv);
 			}
 		}
 
@@ -406,10 +416,10 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lv = (float) Mth.lerp(lpb, nzlv, nzhv);
 				var hv = (float) Mth.lerp(hpb, nzlv, nzhv);
-				normSphereVertex(builder, camera, pose, center, radius, ha, lb, -1, hu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, la, lb, -1, lu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, la, hb, -1, lu, hv);
-				normSphereVertex(builder, camera, pose, center, radius, ha, hb, -1, hu, hv);
+				normSphereVertex(builder, camera, center, radius, ha, lb, -1, hu, lv);
+				normSphereVertex(builder, camera, center, radius, la, lb, -1, lu, lv);
+				normSphereVertex(builder, camera, center, radius, la, hb, -1, lu, hv);
+				normSphereVertex(builder, camera, center, radius, ha, hb, -1, hu, hv);
 			}
 		}
 
@@ -429,33 +439,30 @@ public final class PlanetRenderingContext {
 				hb = Math.tan(Math.PI / 4 * hb);
 				var lv = (float) Mth.lerp(lpb, pzlv, pzhv);
 				var hv = (float) Mth.lerp(hpb, pzlv, pzhv);
-				normSphereVertex(builder, camera, pose, center, radius, ha, lb, 1, hu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, la, lb, 1, lu, lv);
-				normSphereVertex(builder, camera, pose, center, radius, la, hb, 1, lu, hv);
-				normSphereVertex(builder, camera, pose, center, radius, ha, hb, 1, hu, hv);
+				normSphereVertex(builder, camera, center, radius, ha, lb, 1, hu, lv);
+				normSphereVertex(builder, camera, center, radius, la, lb, 1, lu, lv);
+				normSphereVertex(builder, camera, center, radius, la, hb, 1, lu, hv);
+				normSphereVertex(builder, camera, center, radius, ha, hb, 1, hu, hv);
 			}
 		}
 	}
 
 	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera,
-			@Nullable Mat4 pose, Vec3 center, double x, double y, double z, float u, float v) {
-		var pos = new Vec3(x, 0, z);
-		pos = pose != null ? pos.transformBy(pose) : pos;
+			Vec3 center, double x, double y, double z, float u, float v) {
+		final var pos = new Vec3(x, 0, z);
 		var norm = y > 0 ? Vec3.YN : Vec3.YP;
-		norm = pose != null ? norm.transformBy(pose) : norm;
 		norm = norm.normalize();
-		var p = camera.toCameraSpace(pos).add(center);
+		final var p = camera.toCameraSpace(pos).add(center);
 		builder.vertex(p).uv0(u, v).color(Color.WHITE).normal(norm).endVertex();
 	}
 
-	private static void normSphereVertex(VertexBuilder builder, CachedCamera<?> camera,
-			@Nullable Mat4 pose, Vec3 center, double radius, double x, double y, double z,
+	private static void normSphereVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera,
+			Vec3 center, double radius, double x, double y, double z,
 			float u, float v) {
-		var pos = new Vec3(x, y, z);
-		var n = pos.normalize();
-		n = pose != null ? n.transformBy(pose) : n;
-		var p = camera.toCameraSpace(n.mul(radius)).add(center);
-		builder.vertex(p).uv0(u, v).color(Color.WHITE).normal(n).endVertex();
+		final var pos = new Vec3(x, y, z);
+		final var n = pos.normalize();
+		final var p = camera.toCameraSpace(n.mul(radius)).add(center);
+		builder.vertex(p).normal(n).uv0(u, v).color(Color.WHITE).endVertex();
 	}
 
 	// private static void cubeVertex(VertexConsumer builder, CachedCamera<?>

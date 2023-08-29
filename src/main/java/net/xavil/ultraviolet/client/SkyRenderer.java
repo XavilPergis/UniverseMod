@@ -31,7 +31,6 @@ import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
-import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.Color;
@@ -86,7 +85,7 @@ public class SkyRenderer implements Disposable {
 		tfm.appendTranslation(new Vec3(n, 0.01 * n, 0));
 		tfm.appendTranslation(offset);
 		tfm.prependRotation(CachedCamera.orientationFromMinecraftCamera(camera).inverse());
-		final var invView = tfm.get();
+		final var invView = tfm.copyCurrent();
 		tfm.pop();
 
 		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
@@ -94,24 +93,22 @@ public class SkyRenderer implements Disposable {
 		return new CachedCamera<>(camera, invView, proj, 1e12, nearPlane, farPlane);
 	}
 
-	private void applyPlanetTransform(TransformStack tfm, CelestialNode node, double time, Vec2 coords,
+	private void applyPlanetTransform(TransformStack tfm, PlanetaryCelestialNode node, double time, Vec2 coords,
 			float partialTick) {
 		final var worldBorder = this.client.level.getWorldBorder();
 		final var tx = Mth.inverseLerp(coords.x, worldBorder.getMinX(), worldBorder.getMaxX());
 		final var tz = Mth.inverseLerp(coords.y, worldBorder.getMinZ(), worldBorder.getMaxZ());
 
-		if (node instanceof PlanetaryCelestialNode planetNode) {
-			final var planetRadius = 1.001 * planetNode.radiusRearth * Units.Tm_PER_Rearth;
-			tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
-			tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
-		}
+		final var planetRadius = 1.0001 * Units.Tu_PER_ku * node.radius;
+		tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
+		tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
 
 		final var halfPi = Math.PI / 2;
 		final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
-		final var longitudeOffset = Mth.clampedLerp(-Math.PI, Math.PI, tz);
+		final var longitudeOffset = Mth.clampedLerp(-halfPi, halfPi, tz);
 
-		tfm.appendRotation(Quat.axisAngle(Vec3.YP, latitudeOffset));
 		tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
+		tfm.appendRotation(Quat.axisAngle(Vec3.YP, latitudeOffset));
 		tfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * time));
 		tfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
 
@@ -128,9 +125,12 @@ public class SkyRenderer implements Disposable {
 			final var node = sys.rootNode.lookup(loc.id.nodeId());
 			if (node == null)
 				return false;
-			applyPlanetTransform(tfm, node, time, worldPosXZ, partialTick);
-			tfm.appendTranslation(sys.pos);
-			return true;
+			if (node instanceof PlanetaryCelestialNode planetNode) {
+				applyPlanetTransform(tfm, planetNode, time, worldPosXZ, partialTick);
+				tfm.appendTranslation(sys.pos);
+				return true;
+			}
+			return false;
 		} else if (location instanceof WorldType.Station loc) {
 			final var station = universe.getStation(loc.id).unwrapOrNull();
 			if (station == null)
@@ -185,7 +185,8 @@ public class SkyRenderer implements Disposable {
 
 		target.bind();
 		target.clear();
-		target.clearColorAttachment("fColor", new Color(0.1, 0.1, 0.12, 1));
+		// target.clearColorAttachment("fColor", new Color(0.1, 0.1, 0.12, 1));
+		target.clearColorAttachment("fColor", Color.BLACK);
 
 		// ticket management
 		final var location = EntityAccessor.getWorldType(this.client.player);
@@ -277,8 +278,8 @@ public class SkyRenderer implements Disposable {
 			final var profiler2 = Minecraft.getInstance().getProfiler();
 			profiler2.push("id:" + node.getId());
 			if (EntityAccessor.getWorldType(this.client.player) instanceof WorldType.SystemNode loc) {
-				// final var skip = loc.id.nodeId() == node.getId();
-				ctx.render(builder, camera, node, false);
+				final var skip = loc.id.nodeId() == node.getId();
+				ctx.render(builder, camera, node, skip);
 			} else {
 				ctx.render(builder, camera, node, false);
 			}

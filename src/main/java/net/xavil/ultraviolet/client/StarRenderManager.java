@@ -3,7 +3,6 @@ package net.xavil.ultraviolet.client;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import static net.xavil.hawklib.client.HawkDrawStates.*;
-import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
 import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Disposable;
@@ -11,7 +10,7 @@ import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.FlexibleVertexBuffer;
+import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
@@ -30,7 +29,7 @@ public final class StarRenderManager implements Disposable {
 	private GalaxyTicket galaxyTicket;
 	private SectorTicket<SectorTicketInfo.Multi> sectorTicket;
 
-	private FlexibleVertexBuffer starsBuffer = new FlexibleVertexBuffer();
+	private Mesh starsMesh = new Mesh();
 
 	/**
 	 * The distance the camera needs to be from the current snapshot (in Tm) before
@@ -155,20 +154,20 @@ public final class StarRenderManager implements Disposable {
 
 		this.starSnapshotPosition = centerPos;
 
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT_QUADS,
+		UltravioletVertexFormats.BILLBOARD_FORMAT);
 		final var ctx = new StarBuildingContext(builder, camera, centerPos, false);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			drawSectorStars(ctx, sector);
 		});
-		this.starsBuffer.upload(builder.end());
+		this.starsMesh.upload(builder.end());
 		this.drawImmediate = false;
 		this.isDirty = false;
 	}
 
 	private void drawStarsImmediate(CachedCamera<?> camera, Vec3 centerPos) {
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		builder.begin(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT_QUADS,
+				UltravioletVertexFormats.BILLBOARD_FORMAT);
 		final var ctx = new StarBuildingContext(builder, camera, centerPos, true);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			drawSectorStars(ctx, sector);
@@ -202,11 +201,11 @@ public final class StarRenderManager implements Disposable {
 
 
 		if (this.mode == Mode.REALISTIC) {
-			final var shader = getShader(SHADER_STAR_BILLBOARD_REALISTIC);
+			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC.get();
 			StarRenderManager.setupStarShader(shader, camera);
 			builder.end().draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 		} else if (this.mode == Mode.MAP) {
-			final var shader = getShader(SHADER_STAR_BILLBOARD_UI);
+			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_UI.get();
 			StarRenderManager.setupStarShader(shader, camera);
 			builder.end().draw(shader, DRAW_STATE_OPAQUE);
 		}
@@ -337,15 +336,15 @@ public final class StarRenderManager implements Disposable {
 		// origin.
 
 		if (this.mode == Mode.REALISTIC) {
-			final var shader = getShader(SHADER_STAR_BILLBOARD_REALISTIC);
+			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC.get();
 			BufferRenderer.setupDefaultShaderUniforms(shader);
 			setupStarShader(shader, camera);
-			this.starsBuffer.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
+			this.starsMesh.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 		} else if (this.mode == Mode.MAP) {
-			final var shader = getShader(SHADER_STAR_BILLBOARD_UI);
+			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_UI.get();
 			BufferRenderer.setupDefaultShaderUniforms(shader);
 			setupStarShader(shader, camera);
-			this.starsBuffer.draw(shader, DRAW_STATE_OPAQUE);
+			this.starsMesh.draw(shader, DRAW_STATE_OPAQUE);
 		}
 
 		snapshot.restore();
@@ -369,7 +368,7 @@ public final class StarRenderManager implements Disposable {
 	public void close() {
 		this.galaxyTicket.close();
 		this.sectorTicket.close();
-		this.starsBuffer.close();
+		this.starsMesh.close();
 	}
 
 }

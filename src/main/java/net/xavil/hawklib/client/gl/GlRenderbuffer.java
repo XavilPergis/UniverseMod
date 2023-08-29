@@ -1,8 +1,6 @@
 package net.xavil.hawklib.client.gl;
 
-import org.lwjgl.opengl.GL32C;
-
-import com.mojang.blaze3d.platform.GlStateManager;
+import org.lwjgl.opengl.GL45C;
 
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.math.matrices.Vec2i;
@@ -16,7 +14,12 @@ public final class GlRenderbuffer extends GlObject {
 	}
 
 	public GlRenderbuffer() {
-		super(GlManager.createRenderbuffer(), true);
+		super(GL45C.glCreateRenderbuffers(), true);
+	}
+
+	@Override
+	protected void destroy() {
+		GL45C.glDeleteRenderbuffers(this.id);
 	}
 
 	@Override
@@ -42,8 +45,7 @@ public final class GlRenderbuffer extends GlObject {
 
 	public void createStorage(GlTexture.Format textureFormat, int width, int height) {
 		GlLimits.validateRenderbufferSize(width, height);
-		GlManager.bindRenderbuffer(this.id);
-		GlStateManager._glRenderbufferStorage(GL32C.GL_RENDERBUFFER, textureFormat.id, width, height);
+		GL45C.glNamedRenderbufferStorage(this.id, textureFormat.id, width, height);
 		this.textureFormat = textureFormat;
 		this.size = new Vec2i(width, height);
 	}

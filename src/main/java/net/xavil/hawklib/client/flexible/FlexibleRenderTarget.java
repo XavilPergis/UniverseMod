@@ -2,7 +2,7 @@ package net.xavil.hawklib.client.flexible;
 
 import java.util.OptionalInt;
 
-import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -22,8 +22,8 @@ public class FlexibleRenderTarget extends RenderTarget {
 
 	public record FramebufferFormat(boolean multisample, int colorFormat0, OptionalInt depthFormat) {
 		public boolean isDefault() {
-			return !this.multisample && this.colorFormat0 == GL32C.GL_RGBA8
-					&& this.depthFormat.equals(OptionalInt.of(GL32C.GL_DEPTH_COMPONENT));
+			return !this.multisample && this.colorFormat0 == GL45C.GL_RGBA8
+					&& this.depthFormat.equals(OptionalInt.of(GL45C.GL_DEPTH_COMPONENT));
 		}
 
 		public GlTexture.Type textureTarget() {
@@ -64,37 +64,37 @@ public class FlexibleRenderTarget extends RenderTarget {
 
 			final var depthFormat = this.format.depthFormat.getAsInt();
 			if (this.format.multisample) {
-				GL32C.glTexImage2DMultisample(target, 4, depthFormat, this.width, this.height, true);
+				GL45C.glTexImage2DMultisample(target, 4, depthFormat, this.width, this.height, true);
 			} else {
-				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_MIN_FILTER, GL32C.GL_NEAREST);
-				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_MAG_FILTER, GL32C.GL_NEAREST);
-				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_COMPARE_MODE, GL32C.GL_NONE);
-				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_WRAP_S, GL32C.GL_CLAMP_TO_EDGE);
-				GlStateManager._texParameter(target, GL32C.GL_TEXTURE_WRAP_T, GL32C.GL_CLAMP_TO_EDGE);
+				GlStateManager._texParameter(target, GL45C.GL_TEXTURE_MIN_FILTER, GL45C.GL_NEAREST);
+				GlStateManager._texParameter(target, GL45C.GL_TEXTURE_MAG_FILTER, GL45C.GL_NEAREST);
+				GlStateManager._texParameter(target, GL45C.GL_TEXTURE_COMPARE_MODE, GL45C.GL_NONE);
+				GlStateManager._texParameter(target, GL45C.GL_TEXTURE_WRAP_S, GL45C.GL_CLAMP_TO_EDGE);
+				GlStateManager._texParameter(target, GL45C.GL_TEXTURE_WRAP_T, GL45C.GL_CLAMP_TO_EDGE);
 				GlStateManager._texImage2D(target, 0, depthFormat, this.width, this.height, 0,
-						GL32C.GL_DEPTH_COMPONENT, GL32C.GL_FLOAT, null);
+						GL45C.GL_DEPTH_COMPONENT, GL45C.GL_FLOAT, null);
 			}
 
 		}
 
-		this.filterMode = GL32C.GL_NEAREST;
+		this.filterMode = GL45C.GL_NEAREST;
 		GlManager.bindTexture(GlTexture.Type.from(target), this.colorTextureId);
 		if (this.format.multisample) {
 			HawkLib.LOGGER.debug("created multisampled framebuffer");
-			GL32C.glTexImage2DMultisample(target, 4, this.format.colorFormat0, this.width, this.height, true);
+			GL45C.glTexImage2DMultisample(target, 4, this.format.colorFormat0, this.width, this.height, true);
 		} else {
-			GlStateManager._texParameter(target, GL32C.GL_TEXTURE_MIN_FILTER, this.filterMode);
-			GlStateManager._texParameter(target, GL32C.GL_TEXTURE_MAG_FILTER, this.filterMode);
-			GlStateManager._texParameter(target, GL32C.GL_TEXTURE_WRAP_S, GL32C.GL_CLAMP_TO_EDGE);
-			GlStateManager._texParameter(target, GL32C.GL_TEXTURE_WRAP_T, GL32C.GL_CLAMP_TO_EDGE);
+			GlStateManager._texParameter(target, GL45C.GL_TEXTURE_MIN_FILTER, this.filterMode);
+			GlStateManager._texParameter(target, GL45C.GL_TEXTURE_MAG_FILTER, this.filterMode);
+			GlStateManager._texParameter(target, GL45C.GL_TEXTURE_WRAP_S, GL45C.GL_CLAMP_TO_EDGE);
+			GlStateManager._texParameter(target, GL45C.GL_TEXTURE_WRAP_T, GL45C.GL_CLAMP_TO_EDGE);
 			GlStateManager._texImage2D(target, 0, this.format.colorFormat0, this.width, this.height, 0,
-					GL32C.GL_RGBA, GL32C.GL_UNSIGNED_BYTE, null);
+					GL45C.GL_RGBA, GL45C.GL_UNSIGNED_BYTE, null);
 		}
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.frameBufferId);
-		GlStateManager._glFramebufferTexture2D(GL32C.GL_FRAMEBUFFER, GL32C.GL_COLOR_ATTACHMENT0, target,
+		GlManager.bindFramebuffer(GL45C.GL_FRAMEBUFFER, this.frameBufferId);
+		GlStateManager._glFramebufferTexture2D(GL45C.GL_FRAMEBUFFER, GL45C.GL_COLOR_ATTACHMENT0, target,
 				this.colorTextureId, 0);
 		if (this.useDepth) {
-			GlStateManager._glFramebufferTexture2D(GL32C.GL_FRAMEBUFFER, GL32C.GL_DEPTH_ATTACHMENT, target,
+			GlStateManager._glFramebufferTexture2D(GL45C.GL_FRAMEBUFFER, GL45C.GL_DEPTH_ATTACHMENT, target,
 					this.depthBufferId, 0);
 		}
 		this.checkStatus();
@@ -103,13 +103,13 @@ public class FlexibleRenderTarget extends RenderTarget {
 	}
 
 	public void resolveTo(RenderTarget target) {
-		GlManager.bindFramebuffer(GL32C.GL_READ_FRAMEBUFFER, this.frameBufferId);
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, target.frameBufferId);
-		GL32C.glBlitFramebuffer(
+		GlManager.bindFramebuffer(GL45C.GL_READ_FRAMEBUFFER, this.frameBufferId);
+		GlManager.bindFramebuffer(GL45C.GL_DRAW_FRAMEBUFFER, target.frameBufferId);
+		GL45C.glBlitFramebuffer(
 				0, 0, this.width, this.height,
 				0, 0, target.width, target.height,
-				GL32C.GL_COLOR_BUFFER_BIT, GL32C.GL_NEAREST);
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, 0);
+				GL45C.GL_COLOR_BUFFER_BIT, GL45C.GL_NEAREST);
+		GlManager.bindFramebuffer(GL45C.GL_FRAMEBUFFER, 0);
 	}
 
 	public boolean isMultisampled() {

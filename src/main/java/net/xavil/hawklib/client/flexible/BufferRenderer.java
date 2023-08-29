@@ -1,8 +1,6 @@
 package net.xavil.hawklib.client.flexible;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Minecraft;
@@ -20,7 +18,7 @@ import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 public final class BufferRenderer {
 
 	public static final VertexBuilder IMMEDIATE_BUILDER = new VertexBuilder(0x400000);
-	public static final FlexibleVertexBuffer IMMEDIATE_BUFFER = new FlexibleVertexBuffer();
+	public static final Mesh IMMEDIATE_BUFFER = new Mesh();
 
 	public static void draw(ShaderProgram shader, VertexBuilder.BuiltBuffer buffer, DrawState drawState) {
 		setupDefaultShaderUniforms(shader);
@@ -33,7 +31,7 @@ public final class BufferRenderer {
 	}
 
 	public static void drawFullscreen(GlTexture2d texture, DrawState drawState) {
-		final var shader = HawkShaders.getShader(HawkShaders.SHADER_BLIT);
+		final var shader = HawkShaders.SHADER_BLIT.get();
 		shader.setUniformSampler("uSampler", texture);
 		drawFullscreen(shader, drawState);
 	}
@@ -43,8 +41,8 @@ public final class BufferRenderer {
 	}
 
 	public static void drawFullscreen(ShaderProgram shader, DrawState drawState) {
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_TEX);
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER
+				.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_TEX);
 		builder.vertex(-1, 1, 0).uv0(0, 1).endVertex();
 		builder.vertex(1, 1, 0).uv0(1, 1).endVertex();
 		builder.vertex(1, -1, 0).uv0(1, 0).endVertex();

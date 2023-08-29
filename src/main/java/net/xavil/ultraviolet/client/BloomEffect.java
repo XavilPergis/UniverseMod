@@ -1,7 +1,5 @@
 package net.xavil.ultraviolet.client;
 
-import static net.xavil.ultraviolet.client.UltravioletShaders.*;
-
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
@@ -23,7 +21,7 @@ public final class BloomEffect {
 	}
 
 	private static void drawDownsample(GlFramebuffer output, GlTexture2d input, int level) {
-		final var shader = getShader(SHADER_BLOOM_DOWNSAMPLE);
+		final var shader = UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE.get();
 		output.bind();
 		output.clear();
 		shader.setUniformSampler("uPreviousSampler", input);
@@ -35,7 +33,7 @@ public final class BloomEffect {
 
 	private static void drawUpsample(GlFramebuffer output, GlTexture2d prev, GlTexture2d adj,
 			int level) {
-		final var shader = getShader(SHADER_BLOOM_UPSAMPLE);
+		final var shader = UltravioletShaders.SHADER_BLOOM_UPSAMPLE.get();
 		output.bind();
 		output.clear();
 
@@ -64,8 +62,8 @@ public final class BloomEffect {
 			return;
 		}
 
-		final var downsampleShader = getShader(SHADER_BLOOM_DOWNSAMPLE);
-		final var upsampleShader = getShader(SHADER_BLOOM_UPSAMPLE);
+		final var downsampleShader = UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE.get();
+		final var upsampleShader = UltravioletShaders.SHADER_BLOOM_UPSAMPLE.get();
 		downsampleShader.setUniform("uQuality", 1);
 		upsampleShader.setUniform("uQuality", 1);
 		downsampleShader.setUniform("uTotalLevels", settings.passes());

@@ -2,7 +2,7 @@ package net.xavil.hawklib.client.flexible;
 
 import javax.annotation.Nullable;
 
-import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -14,17 +14,17 @@ import net.xavil.hawklib.client.gl.UnmanagedStateSink;
 public enum PrimitiveType {
 	// @formatter:off
 	// points do not actually use the GL_POINTS primitive type, and are instead expanded into quads.
-	POINT_QUADS     (GL32C.GL_TRIANGLES,      4, 4, 3, null,                               VertexFormat.Mode.QUADS),
-	POINTS          (GL32C.GL_POINTS,         1, 1, 0, null,                               VertexFormat.Mode.TRIANGLES),
+	POINT_QUADS     (GL45C.GL_TRIANGLES,      4, 4, 3, null,                               VertexFormat.Mode.QUADS),
+	POINTS          (GL45C.GL_POINTS,         1, 1, 0, null,                               VertexFormat.Mode.TRIANGLES),
 
-	LINES           (GL32C.GL_TRIANGLES,      2, 2, 1, VertexFormat.Mode.LINES,            VertexFormat.Mode.LINES),
-	LINE_STRIP      (GL32C.GL_TRIANGLE_STRIP, 2, 1, 1, VertexFormat.Mode.LINE_STRIP,       VertexFormat.Mode.LINE_STRIP),
-	DEBUG_LINES     (GL32C.GL_LINES,          2, 2, 0, VertexFormat.Mode.DEBUG_LINES,      VertexFormat.Mode.DEBUG_LINES),
-	DEBUG_LINE_STRIP(GL32C.GL_LINE_STRIP,     2, 1, 0, VertexFormat.Mode.DEBUG_LINE_STRIP, VertexFormat.Mode.DEBUG_LINE_STRIP),
-	TRIANGLES       (GL32C.GL_TRIANGLES,      3, 3, 0, VertexFormat.Mode.TRIANGLES,        VertexFormat.Mode.TRIANGLES),
-	TRIANGLE_STRIP  (GL32C.GL_TRIANGLE_STRIP, 3, 1, 0, VertexFormat.Mode.TRIANGLE_STRIP,   VertexFormat.Mode.TRIANGLE_STRIP),
-	TRIANGLE_FAN    (GL32C.GL_TRIANGLE_FAN,   3, 1, 0, VertexFormat.Mode.TRIANGLE_FAN,     VertexFormat.Mode.TRIANGLE_FAN),
-	QUADS           (GL32C.GL_TRIANGLES,      4, 4, 0, VertexFormat.Mode.QUADS,            VertexFormat.Mode.QUADS);
+	LINES           (GL45C.GL_TRIANGLES,      2, 2, 1, VertexFormat.Mode.LINES,            VertexFormat.Mode.LINES),
+	LINE_STRIP      (GL45C.GL_TRIANGLE_STRIP, 2, 1, 1, VertexFormat.Mode.LINE_STRIP,       VertexFormat.Mode.LINE_STRIP),
+	DEBUG_LINES     (GL45C.GL_LINES,          2, 2, 0, VertexFormat.Mode.DEBUG_LINES,      VertexFormat.Mode.DEBUG_LINES),
+	DEBUG_LINE_STRIP(GL45C.GL_LINE_STRIP,     2, 1, 0, VertexFormat.Mode.DEBUG_LINE_STRIP, VertexFormat.Mode.DEBUG_LINE_STRIP),
+	TRIANGLES       (GL45C.GL_TRIANGLES,      3, 3, 0, VertexFormat.Mode.TRIANGLES,        VertexFormat.Mode.TRIANGLES),
+	TRIANGLE_STRIP  (GL45C.GL_TRIANGLE_STRIP, 3, 1, 0, VertexFormat.Mode.TRIANGLE_STRIP,   VertexFormat.Mode.TRIANGLE_STRIP),
+	TRIANGLE_FAN    (GL45C.GL_TRIANGLE_FAN,   3, 1, 0, VertexFormat.Mode.TRIANGLE_FAN,     VertexFormat.Mode.TRIANGLE_FAN),
+	QUADS           (GL45C.GL_TRIANGLES,      4, 4, 0, VertexFormat.Mode.QUADS,            VertexFormat.Mode.QUADS);
 	// @formatter:on
 
 	public final int gl;

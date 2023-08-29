@@ -4,9 +4,8 @@ import java.util.Objects;
 
 import javax.annotation.Nullable;
 
-import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL45C;
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
 import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.HawkLib;
@@ -49,7 +48,7 @@ public final class GlFramebuffer extends GlObject {
 	}
 
 	public GlFramebuffer(GlFragmentWrites fragmentWrites, Vec2i size) {
-		super(GlManager.createFramebuffer(), true);
+		super(GL45C.glCreateFramebuffers(), true);
 		this.size = size;
 		this.viewport = new Viewport(Vec2i.ZERO, size);
 		this.fragmentWrites = fragmentWrites;
@@ -62,6 +61,11 @@ public final class GlFramebuffer extends GlObject {
 
 	public GlFramebuffer(GlFragmentWrites fragmentWrites) {
 		this(fragmentWrites, currentWindowSize());
+	}
+
+	@Override
+	protected void destroy() {
+		GL45C.glDeleteFramebuffers(this.id);
 	}
 
 	@Override
@@ -100,15 +104,13 @@ public final class GlFramebuffer extends GlObject {
 		if (Objects.equals(target, oldTarget))
 			return;
 
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
-
 		if (target != null) {
 			if (this.owned)
-				target.attach(GL32C.GL_COLOR_ATTACHMENT0 + index);
+				target.attach(this, GL45C.GL_COLOR_ATTACHMENT0 + index);
 			this.colorAttachments.insert(index, target);
 		} else {
 			if (this.owned)
-				GlFramebufferAttachment.detach(GL32C.GL_COLOR_ATTACHMENT0 + index);
+				GlFramebufferAttachment.detach(this, GL45C.GL_COLOR_ATTACHMENT0 + index);
 			this.colorAttachments.remove(index);
 		}
 		if (oldTarget != null)
@@ -137,15 +139,13 @@ public final class GlFramebuffer extends GlObject {
 		if (Objects.equals(target, oldTarget))
 			return;
 
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
-
 		if (target != null) {
 			if (this.owned)
-				target.attach(GL32C.GL_DEPTH_ATTACHMENT);
+				target.attach(this, GL45C.GL_DEPTH_ATTACHMENT);
 			this.depthAttachment = target;
 		} else {
 			if (this.owned)
-				GlFramebufferAttachment.detach(GL32C.GL_DEPTH_ATTACHMENT);
+				GlFramebufferAttachment.detach(this, GL45C.GL_DEPTH_ATTACHMENT);
 			this.depthAttachment = null;
 		}
 		if (oldTarget != null)
@@ -205,19 +205,17 @@ public final class GlFramebuffer extends GlObject {
 	 * @param target The framebuffer to write into
 	 */
 	public void copyTo(GlFramebuffer target) {
-		GlManager.bindFramebuffer(GL32C.GL_READ_FRAMEBUFFER, this.id);
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, target.id);
-		GL32C.glBlitFramebuffer(
+		GL45C.glBlitNamedFramebuffer(
+				this.id, target.id,
 				this.viewport.pos.x, this.viewport.pos.y, this.viewport.size.x, this.viewport.size.y,
 				target.viewport.pos.x, target.viewport.pos.y, target.viewport.size.x, target.viewport.size.y,
-				GL32C.GL_COLOR_BUFFER_BIT, GL32C.GL_NEAREST);
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, 0);
+				GL45C.GL_COLOR_BUFFER_BIT, GL45C.GL_NEAREST
+		);
 	}
 
 	public void checkStatus() {
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
-		final var status = GlStateManager.glCheckFramebufferStatus(GL32C.GL_FRAMEBUFFER);
-		if (status != GL32C.GL_FRAMEBUFFER_COMPLETE) {
+		final var status = GL45C.glCheckNamedFramebufferStatus(this.id, GL45C.GL_FRAMEBUFFER);
+		if (status != GL45C.GL_FRAMEBUFFER_COMPLETE) {
 			HawkLib.LOGGER.error("{} was not complete (status {})", toString(), statusDescription(status));
 			if (this.depthAttachment != null) {
 				HawkLib.LOGGER.error("Depth attachment: {}", this.depthAttachment.toString());
@@ -237,15 +235,15 @@ public final class GlFramebuffer extends GlObject {
 
 	public static String statusDescription(int glId) {
 		return switch (glId) {
-			case GL32C.GL_FRAMEBUFFER_COMPLETE -> "GL_FRAMEBUFFER_COMPLETE";
-			case GL32C.GL_FRAMEBUFFER_UNDEFINED -> "GL_FRAMEBUFFER_UNDEFINED";
-			case GL32C.GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT -> "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
-			case GL32C.GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT -> "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
-			case GL32C.GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER -> "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
-			case GL32C.GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER -> "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER";
-			case GL32C.GL_FRAMEBUFFER_UNSUPPORTED -> "GL_FRAMEBUFFER_UNSUPPORTED";
-			case GL32C.GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE -> "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE";
-			case GL32C.GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS -> "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
+			case GL45C.GL_FRAMEBUFFER_COMPLETE -> "GL_FRAMEBUFFER_COMPLETE";
+			case GL45C.GL_FRAMEBUFFER_UNDEFINED -> "GL_FRAMEBUFFER_UNDEFINED";
+			case GL45C.GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT -> "GL_FRAMEBUFFER_INCOMPLETE_ATTACHMENT";
+			case GL45C.GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT -> "GL_FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT";
+			case GL45C.GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER -> "GL_FRAMEBUFFER_INCOMPLETE_DRAW_BUFFER";
+			case GL45C.GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER -> "GL_FRAMEBUFFER_INCOMPLETE_READ_BUFFER";
+			case GL45C.GL_FRAMEBUFFER_UNSUPPORTED -> "GL_FRAMEBUFFER_UNSUPPORTED";
+			case GL45C.GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE -> "GL_FRAMEBUFFER_INCOMPLETE_MULTISAMPLE";
+			case GL45C.GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS -> "GL_FRAMEBUFFER_INCOMPLETE_LAYER_TARGETS";
 			default -> "<unknown>";
 		};
 	}
@@ -256,14 +254,14 @@ public final class GlFramebuffer extends GlObject {
 	 * before doing any clearing operations, but it is not required.
 	 */
 	public void bind() {
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, this.id);
+		GlManager.bindFramebuffer(GL45C.GL_FRAMEBUFFER, this.id);
 		GlManager.setViewport(this.viewport.pos.x, this.viewport.pos.y,
 				this.viewport.size.x, this.viewport.size.y);
 		syncDrawBuffers();
 	}
 
 	public static void unbind() {
-		GlManager.bindFramebuffer(GL32C.GL_FRAMEBUFFER, 0);
+		GlManager.bindFramebuffer(GL45C.GL_FRAMEBUFFER, 0);
 	}
 
 	private void syncDrawBuffers() {
@@ -273,9 +271,9 @@ public final class GlFramebuffer extends GlObject {
 		final var drawBuffers = new int[count];
 		for (int i = 0; i < count; ++i) {
 			final var name = this.fragmentWrites.getFragmentWriteName(i);
-			drawBuffers[i] = this.enabledFragmentWrites.contains(name) ? GL32C.GL_COLOR_ATTACHMENT0 + i : GL32C.GL_NONE;
+			drawBuffers[i] = this.enabledFragmentWrites.contains(name) ? GL45C.GL_COLOR_ATTACHMENT0 + i : GL45C.GL_NONE;
 		}
-		GlManager.drawBuffers(drawBuffers);
+		GL45C.glNamedFramebufferDrawBuffers(this.id, drawBuffers);
 		this.areDrawBuffersDirty = false;
 	}
 
@@ -297,7 +295,7 @@ public final class GlFramebuffer extends GlObject {
 		return Maybe.none();
 	}
 
-	private static void clearBuffer(GlFramebufferAttachment attachment, int colorAttachmentIndex) {
+	private void clearBuffer(GlFramebufferAttachment attachment, int colorAttachmentIndex) {
 		final var format = attachment.format();
 		if (format.isColorFormat && !format.isColorRenderable) {
 			throw new IllegalArgumentException();
@@ -308,20 +306,20 @@ public final class GlFramebuffer extends GlObject {
 		}
 		switch (format.samplerType) {
 			case FLOAT -> getFloatClearValue(attachment.colorClearState)
-					.ifSome(cv -> GL32C.glClearBufferfv(GL32C.GL_COLOR, colorAttachmentIndex, cv));
+					.ifSome(cv -> GL45C.glClearNamedFramebufferfv(this.id, GL45C.GL_COLOR, colorAttachmentIndex, cv));
 			case INT -> getIntClearValue(attachment.colorClearState)
-					.ifSome(cv -> GL32C.glClearBufferiv(GL32C.GL_COLOR, colorAttachmentIndex, cv));
+					.ifSome(cv -> GL45C.glClearNamedFramebufferiv(this.id, GL45C.GL_COLOR, colorAttachmentIndex, cv));
 			case UINT -> getIntClearValue(attachment.colorClearState)
-					.ifSome(cv -> GL32C.glClearBufferiv(GL32C.GL_COLOR, colorAttachmentIndex, cv));
+					.ifSome(cv -> GL45C.glClearNamedFramebufferiv(this.id, GL45C.GL_COLOR, colorAttachmentIndex, cv));
 			case SHADOW -> {
 				final var depth = getFloatClearValue(attachment.depthClearState).unwrapOrNull();
 				final var stencil = getIntClearValue(attachment.stencilClearState).unwrapOrNull();
 				if (depth != null && stencil != null && format.isDepthFormat && format.isStencilFormat) {
-					GL32C.glClearBufferfi(GL32C.GL_DEPTH_STENCIL, 0, depth[0], stencil[0]);
+					GL45C.glClearNamedFramebufferfi(this.id, GL45C.GL_DEPTH_STENCIL, 0, depth[0], stencil[0]);
 				} else if (depth != null && format.isDepthFormat) {
-					GL32C.glClearBufferfv(GL32C.GL_DEPTH, colorAttachmentIndex, depth);
+					GL45C.glClearNamedFramebufferfv(this.id, GL45C.GL_DEPTH, colorAttachmentIndex, depth);
 				} else if (stencil != null && format.isStencilFormat) {
-					GL32C.glClearBufferiv(GL32C.GL_STENCIL, colorAttachmentIndex, stencil);
+					GL45C.glClearNamedFramebufferiv(this.id, GL45C.GL_STENCIL, colorAttachmentIndex, stencil);
 				}
 			}
 			case NONE -> {
@@ -337,13 +335,10 @@ public final class GlFramebuffer extends GlObject {
 	 * @param clearValue The value to clear the depth attachment to
 	 */
 	public void clearDepthAttachment(float clearValue) {
-		final var prevFramebuffer = GlManager.currentState().boundDrawFramebuffer;
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, this.id);
 		if (this.depthAttachment != null) {
 			Assert.isTrue(this.depthAttachment.format().isDepthRenderable);
-			GL32C.glClearBufferfv(GL32C.GL_DEPTH, 0, new float[] { clearValue });
+			GL45C.glClearNamedFramebufferfv(this.id, GL45C.GL_DEPTH, 0, new float[] { clearValue });
 		}
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevFramebuffer);
 	}
 
 	/**
@@ -373,16 +368,13 @@ public final class GlFramebuffer extends GlObject {
 		final var index = this.fragmentWrites.getFragmentWriteId(fragmentWriteId);
 		final var attachment = this.colorAttachments.get(index).unwrapOrNull();
 
-		final var prevFramebuffer = GlManager.currentState().boundDrawFramebuffer;
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, this.id);
 		if (attachment != null) {
 			Assert.isTrue(attachment.format().isColorRenderable);
 			Assert.isEqual(attachment.format().samplerType, GlTexture.SamplerType.FLOAT);
-			GL32C.glClearBufferfv(GL32C.GL_COLOR, index, new float[] {
+			GL45C.glClearNamedFramebufferfv(this.id, GL45C.GL_COLOR, index, new float[] {
 					color.r(), color.g(), color.b(), color.a(),
 			});
 		}
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevFramebuffer);
 	}
 
 	/**
@@ -393,18 +385,14 @@ public final class GlFramebuffer extends GlObject {
 		final var index = this.fragmentWrites.getFragmentWriteId(fragmentWriteId);
 		final var attachment = this.colorAttachments.get(index).unwrapOrNull();
 
-		final var prevFramebuffer = GlManager.currentState().boundDrawFramebuffer;
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, this.id);
 		if (attachment != null) {
 			Assert.isTrue(attachment.format().isColorRenderable);
 			Assert.isEqual(attachment.format().samplerType, GlTexture.SamplerType.FLOAT);
 			final var clearValue = getFloatClearValue(this.depthAttachment.colorClearState).unwrapOrNull();
 			if (clearValue != null)
-				GL32C.glClearBufferfv(GL32C.GL_COLOR, index, clearValue);
+				GL45C.glClearNamedFramebufferfv(this.id, GL45C.GL_COLOR, index, clearValue);
 		}
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevFramebuffer);
 	}
-
 
 	/**
 	 * This method clears all attachments to the clear value specified on each
@@ -413,17 +401,11 @@ public final class GlFramebuffer extends GlObject {
 	 * attachments, {@link GlFramebufferAttachment#depthClearState} is used.
 	 */
 	public void clear() {
-		final var prevFramebuffer = GlManager.currentState().boundDrawFramebuffer;
-		GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, this.id);
-		try {
-			this.colorAttachments.entries().forEach(entry -> {
-				clearBuffer(entry.get().unwrap(), entry.key);
-			});
-			if (this.depthAttachment != null) {
-				clearBuffer(this.depthAttachment, 0);
-			}
-		} finally {
-			GlManager.bindFramebuffer(GL32C.GL_DRAW_FRAMEBUFFER, prevFramebuffer);
+		this.colorAttachments.entries().forEach(entry -> {
+			clearBuffer(entry.get().unwrap(), entry.key);
+		});
+		if (this.depthAttachment != null) {
+			clearBuffer(this.depthAttachment, 0);
 		}
 	}
 

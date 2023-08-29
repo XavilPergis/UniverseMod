@@ -1,9 +1,8 @@
 package net.xavil.hawklib.client.gl.texture;
 
-import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.pipeline.RenderTarget;
-import com.mojang.blaze3d.platform.GlStateManager;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
@@ -38,19 +37,9 @@ public final class GlTexture2d extends GlTexture {
 		if (this.textureFormat == textureFormat && this.size.width == width && this.size.height == height)
 			return;
 
-		bind();
 		switch (this.type) {
-			case D2 -> GlStateManager._texImage2D(
-					this.type.id, 0,
-					textureFormat.id,
-					width, height, 0,
-					// format + type are bogus values, and are ignored as we aren't actually doing
-					// any data transfer here.
-					GL32C.GL_RGBA, GL32C.GL_UNSIGNED_BYTE, null);
-			case D2_MS -> GL32C.glTexImage2DMultisample(
-					this.type.id, 4,
-					textureFormat.id,
-					width, height, true);
+			case D2 -> GL45C.glTextureStorage2D(this.id, 1, textureFormat.id, width, height);
+			case D2_MS -> GL45C.glTextureStorage2DMultisample(this.type.id, 4, textureFormat.id, width, height, true);
 			default -> throw new IllegalStateException(
 					debugDescription() + "Invalid type for 2d texture: " + this.type.description);
 		}

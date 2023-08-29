@@ -130,9 +130,9 @@ public abstract sealed class StationLocation implements Disposable {
 			if (node instanceof PlanetaryCelestialNode planetNode) {
 				// semiMajor = 1.06 * planetNode.radiusRearth * (Units.m_PER_Rearth /
 				// Units.TERA);
-				semiMajor = 2.0 * planetNode.radiusRearth * Units.Tm_PER_Rearth;
+				semiMajor = 2.0 * Units.Tu_PER_ku * planetNode.radius;
 			} else if (node instanceof StellarCelestialNode starNode) {
-				semiMajor = 5.0 * starNode.radiusRsol * Units.Tm_PER_Rsol;
+				semiMajor = 5.0 * Units.Tu_PER_ku * starNode.radius;
 			} else if (node instanceof BinaryCelestialNode binaryNode) {
 				semiMajor = 1.1 * binaryNode.orbitalShapeB.semiMajor();
 			}
@@ -149,7 +149,7 @@ public abstract sealed class StationLocation implements Disposable {
 				return this;
 			final var time = universe.getCelestialTime();
 			final var localPos = universe.getSystemNode(this.id)
-					.map(node -> node.getOrbitalPosition(this.plane, this.shape, false, time))
+					.map(node -> node.getOrbitalPosition(new Vec3.Mutable(), this.plane, this.shape, false, time).xyz())
 					.unwrapOrNull();
 			this.pos = this.systemPos.add(localPos);
 			return this;
@@ -170,22 +170,23 @@ public abstract sealed class StationLocation implements Disposable {
 		public final SystemNodeId targetNode;
 		private Vec3 pos;
 
-		private JumpingSystem(Universe universe, SystemTicket ticket, StationLocation current, SystemId target) {
+		private JumpingSystem(Universe universe, SystemTicket ticket, StationLocation current, SystemNodeId target) {
 			this.sourcePos = current.getPos();
 			Assert.isTrue(ticket.isLoaded());
 
-			final var system = universe.getSystem(target).unwrap();
-			final var maxMass = system.rootNode.iter()
-					.filter(node -> !(node instanceof BinaryCelestialNode))
-					.max(Comparator.comparing(node -> node.massYg)).unwrap();
-			final var id = new SystemNodeId(target, maxMass.getId());
+			// final var system = universe.getSystem(target).unwrap();
+			// final var maxMass = system.rootNode.iter()
+			// 		.filter(node -> !(node instanceof BinaryCelestialNode))
+			// 		.max(Comparator.comparing(node -> node.massYg)).unwrap();
+			// final var id = new SystemNodeId(target, maxMass.getId());
+			final var id = target;
 			final var dest = new StationLocation.OrbitingCelestialBody(universe, ticket, id);
 			dest.forceLoad(universe);
 			this.targetLocation = dest;
 			this.targetNode = id;
 		}
 
-		public static Maybe<JumpingSystem> create(Universe universe, StationLocation current, SystemId target) {
+		public static Maybe<JumpingSystem> create(Universe universe, StationLocation current, SystemNodeId target) {
 			try (final var disposer = Disposable.scope()) {
 				final var galaxy = universe.loadGalaxy(disposer, target.universeSector()).unwrapOrNull();
 				if (galaxy == null)

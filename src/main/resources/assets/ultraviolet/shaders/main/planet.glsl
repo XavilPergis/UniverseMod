@@ -7,8 +7,7 @@
 #include [ultraviolet:lib/util.glsl]
 #include [ultraviolet:lib/lighting.glsl]
 #include [ultraviolet:common_uniforms.glsl]
-
-uniform vec4 ColorModulator;
+#include [ultraviolet:lib/tonemap.glsl]
 
 uniform vec4 uLightPos0;
 uniform vec4 uLightColor0;
@@ -22,6 +21,9 @@ uniform vec4 uLightColor3;
 uniform int uPlanetType;
 uniform float uRenderingSeed;
 
+uniform vec3 uRotationAxis;
+uniform float uRotationAngle;
+
 out vec4 fColor;
 
 #define PLANET_TYPE_EARTH_LIKE_WORLD 0
@@ -30,144 +32,78 @@ out vec4 fColor;
 #define PLANET_TYPE_ROCKY_ICE_WORLD 3
 #define PLANET_TYPE_ROCKY_WORLD 4
 #define PLANET_TYPE_WATER_WORLD 5
-
-// vec3 contribution(vec4 color, vec4 pos) {
-// 	if (color.a >= 0) {
-// 		vec3 starPos = (uViewMatrix * vec4(pos.xyz, 1.0)).xyz;
-// 		vec3 toStar = normalize(starPos - vertexPos.xyz);
-// 		float starDistanceMeters = distance(vertexPos.xyz, starPos) * uMetersPerUnit;
-// 		float fragDistanceMeters = length(vertexPos.xyz) * uMetersPerUnit;
-
-// 		float receivedIntensity = (color.a * 3.827e26) / (4 * PI * pow(starDistanceMeters, 2.0));
-// 		// float receivedIntensity = (color.a * 3.827e13) / (4 * PI * pow(starDistanceMeters, 1.0));
-// 		receivedIntensity *= max(0.0, dot(toStar, normal.xyz));
-// 		// float reflectedIntensity = receivedIntensity / (4 * PI * pow(fragDistanceMeters, 2.0));
-
-// 		return max(0.1 * (color.rgb + 0.1) * receivedIntensity, 0.05 * (color.rgb + 0.1));
-// 	}
-// 	return vec3(0);
-// }
+#define PLANET_TYPE_BROWN_DWARF 6
 
 // =============== GAS GIANT SHADING ===============
 
-float fbm(in vec3 pos) {
-    float maxValue = 0.0;
-    float currentValue = 0.0;
-    
-    float currentAmplitude = 1.0;
-    float currentFrequency = 1.0;
-    for (int i = 0; i < 4; ++i) {
-        maxValue += currentAmplitude;
-        vec3 offset = 10.0 * vec3(rand(float(i)));
-        currentValue += currentAmplitude * noiseSimplex(currentFrequency * pos + offset);
-        currentAmplitude *= 0.7;
-        currentFrequency *= 1.7;
-    }
-    return currentValue / maxValue;
+float fbm01(in vec3 pos, in int N, in float fI, in float aI, in float fS, in float aS) {
+	float freq = fI;
+	float amp = aI;
+	float ampTotal = 0.0;
+	float total = 0.0;
+	for (int i = 0; i < N; ++i) {
+		total += amp * noiseSimplex(freq * pos);
+		freq *= fS;
+		ampTotal += amp;
+		amp *= aS;
+	}
+	return (total / ampTotal) * 0.5 + 0.5;
 }
 
-float field2(in vec3 pos) {
-    vec3 p = pos;
-    p += fbm(0.1 * p);
-    p += fbm(0.8 * p);
-    return 0.5 + 0.5 * fbm(p);
+vec2 fbm2(in vec3 pos, in int N, in float seed, in float fI, in float aI, in float fS, in float aS) {
+	vec2 off = vec2(0.0);
+	off.x += fbm01(pos + seed, N, fI, aI, fS, aS);
+	off.y += fbm01(pos - seed, N, fI, aI, fS, aS);
+	return off;
 }
 
-struct BandInfo {
-    float pos;
-    float positiveEdge;
-    float negativeEdge;
-};
+Material gasGiantField(in vec3 pos, in float seed) {
+	float n = 0.0;
+	pos.y *= mix(5.0, 7.0, pow(rand(seed), 2.0));
+	pos.y += seed;
 
-float closestEdge(in BandInfo info) {
-    float pd = distance(info.positiveEdge, info.pos);
-    float nd = distance(info.negativeEdge, info.pos);
-    return pd < nd ? info.positiveEdge : info.negativeEdge;
-}
+	pos.xz += 1.0 * fbm2(pos, 4, 10.0, 1.0, 1.0, 4.0, 0.5);
+	pos.xz += 2.0 * fbm2(pos, 4, 10.0, 1.0, 1.0, 3.0, 0.5);
+	pos.xz /= mix(3.0, 7.0, rand(seed + 1.0));
+	n += fbm01(pos, 4, 1.0, 1.0, 2.0, 0.5);
 
-float centerOf(in BandInfo info) {
-    return (info.positiveEdge + info.negativeEdge) / 2.0;
-}
+	// fbm2(p + fbm2(p + fbm2(p)));
 
-float edgeDistance(in BandInfo info) {
-    float pd = distance(info.positiveEdge, info.pos);
-    float nd = distance(info.negativeEdge, info.pos);
-    return pd < nd ? pd : nd;
-}
+	// vec3 offpos = pos;
+	// vec2 off = vec2(0.0);
+	// off.x += fbm01(offpos + 40.0, 4, 1.0, 1.0, 3.3, 0.5);
+	// off.y += fbm01(offpos - 40.0, 4, 1.0, 1.0, 3.3, 0.5);
+	// off *= 10.0;
+	// offpos.xz += off;
+	// offpos.xz /= 4.0;
 
-float centerDistance(in BandInfo info) {
-    float center = (info.positiveEdge + info.negativeEdge) / 2.0;
-    return distance(center, info.pos);
-}
+	// vec2 off2 = vec2(0.0);
+	// off2.x += fbm01(offpos + 20.0, 5, 1.0, 1.0, 2.3, 0.6);
+	// off2.y += fbm01(offpos - 20.0, 5, 1.0, 1.0, 2.3, 0.6);
+	// off2 *= 1.0;
+	// pos.xz += off2;
+	// pos.xz /= 4.0;
 
-BandInfo bandField(in float t) {
-    float bc = 1.5;
-    
-    float p = bc * t;
-    float bp = fract(p);
-    float fp = floor(p);
 
-    float rc = fp + rand(fp);
-    float rm = fp - 1.0 + rand(fp - 1.0);
-    float rp = fp + 1.0 + rand(fp + 1.0);
-    
-    if (p < rc) return BandInfo(p, rc, rm);
-    else        return BandInfo(p, rp, rc);
-}
+	n = pow(n, 1.0);
 
-float sigmoid(float x) {
-    return 1.0 / (1.0 + (exp(-(x - 0.5) * 14.0))); 
-}
+	vec4 A = vec4(0.92, 0.90, 0.83, 0.0);
+	// vec4 B = vec4(0.33, 0.29, 0.21, 0.0);
+	vec4 B = 2.5 * vec4(1.0, 0.2, 0.0, 1.0);
+	vec4 C = vec4(0.22, 0.19, 0.16, 0.0);
+	vec4 D = vec4(0.35, 0.22, 0.28, 0.0);
 
-vec3 flowField(in vec3 pos, in float time, in float seed) {
-    BandInfo bi = bandField(pos.y + seed);
-    
-    vec3 p = pos;
-	p.xz /= 6.0;
-    float d = 2.0 * rand(bi.negativeEdge) - 1.0;
-    d = clamp(d, -0.2, 0.2);
-    p.x += d * edgeDistance(bi) * time;
-    
-    float closest = closestEdge(bi);
-    float center = centerOf(bi);
-   
-    float er = rand(seed + 10.0);
-    float eg = rand(seed + 11.0);
-    float eb = rand(seed + 12.0);
-    vec3 ec = 0.5 * vec3(er, eg, eb);
-    float cr = rand(seed + 13.0);
-    float cg = rand(seed + 14.0);
-    float cb = rand(seed + 15.0);
-    vec3 cc = 0.5 * vec3(cr, cg, cb);
+	float c1 = 0.9;
+	float c2 = 0.5;
+	float c3 = 0.1;
 
-    float ar = rand(seed + 16.0);
-    float ag = rand(seed + 17.0);
-    float ab = rand(seed + 18.0);
-    vec3 ac = vec3(ar, ag, ab);
+	vec4 col = vec4(0.0);
+	col += A * smoothstep(c1, 1.0, n);
+	col += B * smoothstep(c2, c1, n) * smoothstep(1.0, c1, n);
+	col += C * smoothstep(c3, c2, n) * smoothstep(c1, c2, n);
+	col += D * smoothstep(0.0, c3, n) * smoothstep(c2, c3, n);
 
-    vec3 baseColor = mix(ec, cc, edgeDistance(bi) / distance(center, bi.negativeEdge));
-	vec3 col = mix(baseColor, vec3(0.0), pow(field2(p), 2.0));
-    
-    return col;
-}
-
-vec3 smoothedField(in vec3 pos, in float seed) {
-    float t = uTime * 0.2;
-
-    vec3 a = flowField(pos, 1.0 + mod(t, 1.0), seed);
-    vec3 b = flowField(pos, mod(t, 1.0), seed);
-    return mix(a, b, mod(t, 1.0));
-}
-
-vec3 warped(in vec3 uv) {
-    vec3 p = uv;
-    p.y += 0.1 * fbm(1.8 * p);
-    return p;
-}
-
-vec3 field(in vec3 pos, in float seed) {
-    // return smoothedField(warped(pos), seed);
-    return smoothedField(pos, seed);
+    return Material(2e25 * col.rgb * col.a, col.rgb, 1.0, 0.0);
 }
 
 // =============== === ===== ======= ===============
@@ -180,8 +116,8 @@ vec2 uvFromNormal(vec4 norm) {
 	return vec2(equator, pole);
 }
 
-vec3 gasGiantBaseColor(vec3 pos) {
-	return field(pos, uRenderingSeed / 1000.0);
+Material gasGiantBaseColor(vec3 pos) {
+	return gasGiantField(pos, uRenderingSeed / 1000.0);
 }
 
 Light makeStarLight(in vec3 posWorld, in vec4 color) {
@@ -196,7 +132,9 @@ float sampleHeight(vec3 normWorld) {
 	height += noiseSimplex(1.0 * normWorld);
 	height += 0.5 * noiseSimplex(2.5 * normWorld);
 	height += 0.3 * noiseSimplex(5.0 * normWorld);
-	height += 0.1 * noiseSimplex(20.0 * normWorld);
+	height += 0.3 * noiseSimplex(20.0 * normWorld);
+	height += 0.1 * noiseSimplex(80.0 * normWorld);
+	height += 0.1 * noiseSimplex(150.0 * normWorld);
 	return height;
 }
 
@@ -207,13 +145,12 @@ Material shadeElw(vec3 fragPosWorld, vec3 normWorld) {
 		float colnoise = noiseSimplex(normWorld + 10.0) * 0.5 + 0.5;
 		vec3 col = mix(vec3(0.4, 1.0, 0.35), vec3(0.6, 0.4, 0.4), colnoise);
 		// return Material(vec3(0.0), vec3(0.3, 1.0, 0.3), 1.0, 0.0);
-		return Material(vec3(0.0), col, 1.0, 0.0);
+		return Material(vec3(0.0), col, 1.0, 0.5);
 	}
 	return Material(vec3(0.0), vec3(0.1, 0.2, 1.0), 0.1, 0.0);
 }
 Material shadeGasGiant(vec3 fragPosWorld, vec3 normWorld) {
-	vec3 color = gasGiantBaseColor(normWorld);
-	return Material(vec3(0.0), color, 1.0, 0.0);
+	return gasGiantBaseColor(normWorld);
 }
 Material shadeIceWorld(vec3 fragPosWorld, vec3 normWorld) {
 	return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
@@ -227,17 +164,17 @@ Material shadeRocky(vec3 fragPosWorld, vec3 normWorld) {
 	float maxAmplitude = 0.0;
 	float amp = 1.0;
 	float freq = 1.0;
-	for (int i = 0; i < 5; ++i) {
+	for (int i = 0; i < 8; ++i) {
 		colnoise += amp * noiseSimplex(mod(uRenderingSeed, 1000.0) + freq * normWorld);
 		maxAmplitude += amp;
-		freq *= 2.5;
-		amp *= 0.5;
+		freq *= 2.0;
+		amp *= 0.6;
 	}
 
 	colnoise /= maxAmplitude;
 	colnoise = colnoise * 0.5 + 0.5;
 
-	vec3 col = mix(vec3(0.6), vec3(0.8), smoothstep(0.3, 0.6, colnoise));
+	vec3 col = mix(vec3(0.4), vec3(0.8), smoothstep(0.3, 0.6, colnoise));
 	return Material(vec3(0.0), col, 1.0, 0.0);
 }
 Material shadeWater(vec3 fragPosWorld, vec3 normWorld) {
@@ -253,32 +190,66 @@ Material shadePlanet(vec3 fragPosWorld, vec3 normWorld) {
 	else if (uPlanetType == PLANET_TYPE_WATER_WORLD) return shadeWater(fragPosWorld, normWorld);
 }
 
+vec3 noiseSimplex3(vec3 p) {
+	vec3 r = vec3(0.0);
+	r.x = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 10);
+	r.y = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 20);
+	r.z = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 30);
+	return r;
+}
+
+mat4 rotationMatrix(vec3 axis, float angle)
+{
+    axis = normalize(axis);
+    float s = sin(angle);
+    float c = cos(angle);
+    float oc = 1.0 - c;
+    
+    return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
+                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
+                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
+                0.0,                                0.0,                                0.0,                                1.0);
+}
+
 void main() {
+	// fColor = vec4(1.0, 0.0, 1.0, 1.0);
+	// fColor = vec4(normal.xyz * 0.5 + 0.5, 1.0);
+	// fColor = vec4(normalRaw.xyz * 0.5 + 0.5, 1.0);
+	// fColor = vec4(vertexColor.rgb, 1.0);
+	// fColor = vec4(texCoord0.x, 0.0, texCoord0.y, 1.0);
+
+	// mat4 rotMat = rotationMatrix(normalize(vec3(1.0, 1.0, 0.0)), uTime * 0.0001);
+	mat4 rotMat = rotationMatrix(uRotationAxis, -uRotationAngle);
+
 	vec3 normWorld = (inverse(uViewMatrix) * normalize(normal)).xyz;
 	vec3 posWorld = (inverse(uViewMatrix) * normalize(vertexPos)).xyz;
 
-	Material material = shadePlanet(posWorld, normWorld);
-	LightingContext ctx = makeLightingContext(material, uMetersPerUnit, uCameraPos, posWorld, normWorld);
+	vec3 sp = normalize((rotMat * vec4(normWorld, 1.0)).xyz);
+
+	Material material = shadePlanet(posWorld, sp);
+	vec3 newNorm = normWorld;
+
+	if (uPlanetType == PLANET_TYPE_EARTH_LIKE_WORLD || uPlanetType == PLANET_TYPE_ICE_WORLD || uPlanetType == PLANET_TYPE_ROCKY_ICE_WORLD || uPlanetType == PLANET_TYPE_ROCKY_WORLD) {
+		newNorm += 0.2 * noiseSimplex3(30.0 * sp);
+		newNorm += 0.1 * noiseSimplex3(100.0 * sp);
+		newNorm += 0.05 * noiseSimplex3(400.0 * sp);
+		newNorm = normalize(newNorm);
+	}
+	LightingContext ctx = makeLightingContext(material, uMetersPerUnit, uCameraPos, posWorld, newNorm);
 
 	vec3 res = vec3(0.0);
 	Light l0 = makeStarLight(uLightPos0.xyz, uLightColor0);
 	Light l1 = makeStarLight(uLightPos1.xyz, uLightColor1);
-	// Light l0 = makeStarLight(vec3(0.0), vec4(1.0, 0.0, 0.0, 1.0));
 	res += lightContribution(ctx, l0);
 	res += lightContribution(ctx, l1);
-	// res += lightContribution(ctx, makeStarLight(uLightPos1.xyz, uLightColor1));
-	// res += lightContribution(ctx, makeStarLight(uLightPos2.xyz, uLightColor2));
-	// res += lightContribution(ctx, makeStarLight(uLightPos3.xyz, uLightColor3));
+	res += material.emissiveFlux;
 	vec3 finalColor = res;
 
-	float exposure = 5e-26;
+	float exposure = 1e-26;
 	finalColor *= exposure;
-	// finalColor = 1.0 - exp(-finalColor * exposure);
-	// finalColor = finalColor / (1.0 + finalColor);
 
-	// finalColor = pow(finalColor, vec3(2.2));
-
-	// finalColor = acesTonemap(finalColor);
+	finalColor = tonemapACESFull(finalColor);
+	finalColor = pow(finalColor, vec3(1.0 / 2.2));
 
     fColor = vec4(finalColor, 1);
 }

@@ -3,11 +3,9 @@ package net.xavil.ultraviolet.common.universe.system;
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
-import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.common.universe.galaxy.BaseGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.system.gen.AccreteContext;
@@ -114,35 +112,40 @@ public class StarSystemGeneratorImpl {
 		return new Interval(currentMin, currentMax);
 	}
 
+	public static final double MAX_METALLICITY = 0.5;
+
 	public CelestialNode generate() {
-		final var remainingMass = this.info.massYg * this.rng.uniformDouble(0.0, 0.2);
+		final var node = StellarCelestialNode.fromMassAndAge(this.info.massYg, this.info.systemAgeMyr);
 
-		CelestialNode current = StellarCelestialNode.fromMassAndAge(this.info.massYg, this.info.systemAgeMyr);
-		Assert.isTrue(current != null);
+		final var remainingMass = this.info.massYg * this.rng.uniformDouble(0.0, 0.9);
 
-		for (var i = 0; i < 32; ++i) {
-			if (this.rng.chance(0.4))
-				break;
-			var starMass = BaseGalaxyGenerationLayer.generateStarMass(this.rng);
-			if (remainingMass < starMass)
-				break;
-			var starNode = StellarCelestialNode.fromMassAndAge(starMass, this.info.systemAgeMyr);
-			// var protoDiscMass = starMass - starNode.massYg;
-			current = mergeStarNodes(current, starNode, rng.chance(0.9));
-			// ran out of places to put the star!
-			if (current == null) {
-				Mod.LOGGER.warn("could not place star due to overcrowding!");
-				break;
-			}
+		var metallicity = this.galaxy.densityFields.metallicity.sample(this.info.systemPosTm);
+		if (metallicity > MAX_METALLICITY) {
+			Mod.LOGGER.warn(
+					"Tried to generate star system with a metallicity of '{}', which is greater than the limit of '{}'",
+					metallicity, MAX_METALLICITY);
+			metallicity = MAX_METALLICITY;
 		}
 
 		final var params = new SimulationParameters();
-		generatePlanets(current, params);
+		final var stableInterval = getStableOrbitInterval(node, OrbitalPlane.ZERO);
+		final var nodeMass = node.massYg / Units.Yg_PER_Msol;
+		final var ctx = new AccreteContext(params, rng, getTotalLuminosity(node), nodeMass, this.info.systemAgeMyr,
+				stableInterval);
 
-		current = convertBinaryOrbits(current);
-		// determineOrbitalPlanes(current);
+		final var protoDisc = new ProtoplanetaryDisc(ctx, remainingMass, metallicity);
 
-		return current;
+		try {
+			// final var res = protoDisc.build();
+			// if (res != null)
+			// 	return res;
+			protoDisc.collapseDisc(node);
+		} catch (Throwable t) {
+			t.printStackTrace();
+		}
+
+		Mod.LOGGER.error("Failed to generate system!");
+		return node;
 	}
 
 	private double getTotalLuminosity(CelestialNode node) {
@@ -160,33 +163,38 @@ public class StarSystemGeneratorImpl {
 		return total;
 	}
 
-	private void generatePlanets(CelestialNode node, SimulationParameters params) {
-		generatePlanets(node, params, MAX_GENERATION_DEPTH);
-	}
+	// private void generatePlanets(CelestialNode node, SimulationParameters params,
+	// double remainingMass, double metallicity) {
+	// generatePlanets(node, params, MAX_GENERATION_DEPTH, remainingMass,
+	// metallicity);
+	// }
 
-	private void generatePlanets(CelestialNode node, SimulationParameters params, int remainingDepth) {
-		if (remainingDepth < 0)
-			return;
+	// private void generatePlanets(CelestialNode node, SimulationParameters params,
+	// int remainingDepth, double remainingMass, double metallicity) {
+	// if (remainingDepth < 0)
+	// return;
 
-		var nodeLuminosity = getTotalLuminosity(node);
-		if (nodeLuminosity > 0) {
-			var stableInterval = getStableOrbitInterval(node, OrbitalPlane.ZERO);
-			var nodeMass = node.massYg / Units.Yg_PER_Msol;
-			var ctx = new AccreteContext(params, rng, nodeLuminosity, nodeMass, this.info.systemAgeMyr, stableInterval);
+	// var nodeLuminosity = getTotalLuminosity(node);
+	// if (nodeLuminosity > 0) {
+	// var stableInterval = getStableOrbitInterval(node, OrbitalPlane.ZERO);
+	// var nodeMass = node.massYg / Units.Yg_PER_Msol;
+	// var ctx = new AccreteContext(params, rng, nodeLuminosity, nodeMass,
+	// this.info.systemAgeMyr, stableInterval);
 
-			var protoDisc = new ProtoplanetaryDisc(ctx);
-			try {
-				protoDisc.collapseDisc(node);
-			} catch (Throwable t) {
-				t.printStackTrace();
-				Mod.LOGGER.error("Failed to generate system!");
-			}
+	// var protoDisc = new ProtoplanetaryDisc(ctx);
+	// try {
+	// protoDisc.collapseDisc(node);
+	// } catch (Throwable t) {
+	// t.printStackTrace();
+	// Mod.LOGGER.error("Failed to generate system!");
+	// }
 
-			// TODO: promote brown dwarves and stars
-		}
+	// // TODO: promote brown dwarves and stars
+	// }
 
-		node.visitDirectDescendants(child -> generatePlanets(child, params, remainingDepth - 1));
-	}
+	// node.visitDirectDescendants(child -> generatePlanets(child, params,
+	// remainingDepth - 1));
+	// }
 
 	private static void replaceNode(CelestialNode existing, BinaryCelestialNode newNode) {
 		// set up backlinks
@@ -210,10 +218,10 @@ public class StarSystemGeneratorImpl {
 		// which places the minimum distance of the new node directly at the partner of
 		// the star we're joining.
 
-		var exclusionRadiusA = 2 * Units.Tu_PER_u * Units.m_PER_Rsol * existing.radiusRsol;
-		var exclusionRadiusB = 2 * Units.Tu_PER_u * Units.m_PER_Rsol * toInsert.radiusRsol;
-		var minDistance = exclusionRadiusA + exclusionRadiusB;
-		var maxDistance = getMaximumBinaryDistanceForReplacement(existing);
+		final var exclusionRadiusA = 2 * Units.Tu_PER_ku * existing.radius;
+		final var exclusionRadiusB = 2 * Units.Tu_PER_ku * toInsert.radius;
+		final var minDistance = exclusionRadiusA + exclusionRadiusB;
+		final var maxDistance = getMaximumBinaryDistanceForReplacement(existing);
 		Mod.LOGGER.info("Attempting Single [min={}, max={}]", minDistance, maxDistance);
 
 		// If there is no place that an orbit can be inserted, signal that to the
@@ -241,7 +249,7 @@ public class StarSystemGeneratorImpl {
 
 	private static double getExclusionRadius(CelestialNode node) {
 		if (node instanceof StellarCelestialNode starNode) {
-			return 10 * Units.m_PER_Rsol / 1e12 * starNode.radiusRsol;
+			return 10 * Units.Tu_PER_ku * starNode.radius;
 		} else if (node instanceof BinaryCelestialNode binaryNode) {
 			return SPACING_FACTOR * binaryNode.orbitalShapeB.semiMajor();
 		}

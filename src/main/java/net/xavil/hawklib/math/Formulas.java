@@ -77,16 +77,19 @@ public class Formulas {
 	 * Calculates the radius of the child's hill sphere in the presence of a
 	 * particular orbit around a parent object.
 	 * 
-	 * @param shape      (Tm,unitless) The orbital shape of the child object.
-	 * @param parentMass (Yg) The mass of the parent object.
-	 * @param childMass  (Yg) The mass of the child object.
+	 * @param parentMass        (Yg) The mass of the parent object.
+	 * @param childMass         (Yg) The mass of the child object.
+	 * @param childEccentricity (unitless) The eccentricity of the child object's
+	 *                          orbit around the parent object.
+	 * @param childSemiMajor    (Tm) The semi-major axis of the child's orbit around
+	 *                          the parent object.
 	 * @return (Tm) The radius of the child's hill sphere.
 	 */
-	public static double hillSphereRadius(OrbitalShape shape, double parentMass, double childMass) {
+	public static double hillSphereRadius(double parentMass, double childMass,
+			double childEccentricity, double childSemiMajor) {
 		final var parentMassMsol = parentMass / Yg_PER_Msol;
 		final var childMassMsol = childMass / Yg_PER_Msol;
-		final var radiusAu = shape.semiMajor() * (1 - shape.eccentricity())
-				* Math.cbrt(childMassMsol / (3 * parentMassMsol));
+		final var radiusAu = childSemiMajor * (1 - childEccentricity) * Math.cbrt(childMassMsol / (3 * parentMassMsol));
 		return radiusAu * Tm_PER_au;
 	}
 

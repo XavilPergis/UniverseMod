@@ -11,9 +11,10 @@ import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
-import net.xavil.universegen.system.CelestialNode;
+import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalShape;
+import net.xavil.universegen.system.CelestialNode;
 
 // TODO: this simulation is okay enough, but the algorithm is from the 80's and doesnt include more recent developments in astrophysics and whatnot.
 //
@@ -95,7 +96,7 @@ public class ProtoplanetaryDisc {
 		Arrays.fill(this.stellarWindInwards, 0.0);
 
 		for (final var node : this.rootNode.iterable()) {
-			if (node instanceof SimulationNode.Star starNode) {
+			if (node.getType() == SimulationNode.NodeType.STAR && node instanceof SimulationNode.Unary starNode) {
 
 				// get bucket the star falls into
 				// fill out flow maps in both directions
@@ -144,19 +145,98 @@ public class ProtoplanetaryDisc {
 				this.dustMass[Mth.abs(i - 1)] += inwardsPercent * actualDustFlow;
 			}
 		}
+
+		final var initialMass = this.ctx.params.initialPlanetesimalMass;
+
+		// attempt to generate clumping
+		for (int i = 0; i < 16; ++i) {
+			final var semiMajor = this.ctx.rng.uniformDouble(0.0, discMax);
+
+			final var bin = Mth.floor(semiMajor / this.discMax);
+			if (bin >= this.discResolution || this.dustMass[bin] < initialMass)
+				continue;
+
+			final var inclination = 0;
+			this.dustMass[bin] -= initialMass;
+
+			final var node = new SimulationNode.Unary(this.ctx);
+			node.mass = initialMass;
+			node.semiMajor = semiMajor;
+			node.inclination = inclination;
+			// node.parent = this.rootNode;
+
+			sweep(node);
+			break;
+		}
+
+		// TODO: process interations (moons, binaries)
+		this.rootNode.update(this);
+
+		// TODO: catastrophic events (rogue planets n stuff)
+		// TODO: planetary migration
+		// TODO: gravitational resonances
+	}
+
+	private void sweepRange(SimulationNode.Unary node, int bin, double percent) {
+		final var sweptDust = percent * this.dustMass[bin];
+		// TODO: softer gas sweeping cutoff
+		final var sweptGas = node.mass > node.criticalMass() ? percent * this.gasMass[bin] : 0;
+
+		node.mass += sweptDust;
+		node.mass += sweptGas;
+		if (node instanceof SimulationNode.Unary pnode)
+			pnode.gasMass += sweptGas;
+
+		this.dustMass[bin] -= sweptDust;
+		this.gasMass[bin] -= sweptGas;
+	}
+
+	private void sweep(SimulationNode.Unary node) {
+		double prevMass = node.mass;
+
+		for (int attempt = 0; attempt < 100; ++attempt) {
+			final var limits = node.effectLimits();
+			final var sweepLo = this.discResolution * limits.lower() / this.discMax;
+			final var sweepHi = this.discResolution * limits.higher() / this.discMax;
+			final var binLo = Mth.floor(sweepLo);
+			final var binHi = Mth.floor(sweepHi);
+
+			if (binLo == binHi) {
+				// binLo == binHi guarantees that this difference will never be greater than 1
+				sweepRange(node, binLo, sweepHi - sweepLo);
+			} else if (binHi > binLo) {
+				sweepRange(node, binLo, 1.0 - (sweepLo - binLo));
+				sweepRange(node, binHi, sweepHi - binHi);
+				for (int i = binLo + 1; i < binHi; ++i) {
+					sweepRange(node, i, 1.0);
+				}
+			}
+
+			// chance to cut sweeping short, to maybe let other planets do their thing
+			if (this.ctx.rng.chance(0.05))
+				break;
+
+			// stop sweeping if there's not a whole lot changing...
+			if (node.mass - prevMass < 0.05)
+				break;
+			prevMass = node.mass;
+		}
 	}
 
 	public CelestialNode build() {
-		return null;
+		return this.rootNode.convertToCelestialNode();
 	}
 
-	public ProtoplanetaryDisc(AccreteContext ctx) {
+	public ProtoplanetaryDisc(AccreteContext ctx, double mass, double metallicity) {
 		this.ctx = ctx;
 		this.planetesimalBounds = planetesimalBounds(ctx);
 		final var maxThickness = this.planetesimalBounds.higher();
 		final var discThickness = ctx.rng.uniformDouble(0.05 * maxThickness, maxThickness);
 		final var dustBandInterval = initialDustBandInterval(ctx);
 		this.dustBands = new DustBands(dustBandInterval, discThickness);
+
+		// distributeDiscMass(mass, dustBandInterval.higher(), metallicity);
+		// this.rootNode = SimulationNode.Unary.star(ctx, ctx.stellarMassMsol, metallicity);
 	}
 
 	private void doSweep(Planetesimal planetesimal, boolean sweepAll) {
@@ -333,7 +413,7 @@ public class ProtoplanetaryDisc {
 						* (larger.getRadius() / Units.km_PER_au)) {
 					handlePlanetesimalCollision(ctx, larger, moon);
 				} else if (moon.getOrbitalShape().periapsisDistance() <= 2 * rocheLimit) {
-					larger.addRing(moon.asRing());
+					Planetesimal.convertToRing(larger, moon);
 				} else {
 					newMoons.push(moon);
 				}
@@ -359,7 +439,7 @@ public class ProtoplanetaryDisc {
 	}
 
 	public static double rocheLimit(double planetMass, double moonMass, double moonRadius) {
-		return moonRadius / Units.km_PER_au * Math.cbrt(2 * (planetMass / moonMass));
+		return Formulas.rocheLimit(Units.Yg_PER_Msol * planetMass, Units.Yg_PER_Msol * moonMass, moonRadius);
 	}
 
 	public static int orbitalZone(double distanceToStar, double luminosity) {

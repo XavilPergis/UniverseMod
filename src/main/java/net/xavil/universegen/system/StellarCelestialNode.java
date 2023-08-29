@@ -9,7 +9,7 @@ import net.xavil.hawklib.Units;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec3;
 
-public non-sealed class StellarCelestialNode extends CelestialNode {
+public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 
 	public static enum Type {
 		MAIN_SEQUENCE(true),
@@ -27,16 +27,17 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 
 	public StellarCelestialNode.Type type;
 	public double luminosityLsol;
-	public double radiusRsol;
-	public double temperatureK;
+
+	public StellarCelestialNode() {
+	}
 
 	public StellarCelestialNode(StellarCelestialNode.Type type, double massYg,
 			double luminosityLsol, double radiusRsol, double temperatureK) {
 		super(massYg);
 		this.type = type;
 		this.luminosityLsol = luminosityLsol;
-		this.radiusRsol = radiusRsol;
-		this.temperatureK = temperatureK;
+		this.radius = Units.km_PER_Rsol * radiusRsol;
+		this.temperature = temperatureK;
 	}
 
 	public static double mainSequenceLifetimeFromMass(double massYg) {
@@ -183,8 +184,8 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 	public static StellarCelestialNode fromProperties(Properties properties) {
 		final var node = StellarCelestialNode.fromMass(properties.type, properties.massYg);
 		node.luminosityLsol = properties.luminosityLsol;
-		node.radiusRsol = properties.radiusRsol;
-		node.temperatureK = properties.temperatureK;
+		node.radius = Units.km_PER_Rsol * properties.radiusRsol;
+		node.temperature = properties.temperatureK;
 		return node;
 	}
 
@@ -226,8 +227,8 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 
 		// this is dum, write an actual star classifier and use the HR diagram instead
 		for (final var interval : CLASSIFICATION_TABLE) {
-			if (this.temperatureK >= interval.minBound && this.temperatureK < interval.maxBound) {
-				var num = Mth.inverseLerp(this.temperatureK, interval.minBound, interval.maxBound);
+			if (this.temperature >= interval.minBound && this.temperature < interval.maxBound) {
+				var num = Mth.inverseLerp(this.temperature, interval.minBound, interval.maxBound);
 				num = 10 * (1 - num);
 				var res = String.format("%s%.1f", interval.name, num);
 				switch (this.type) {
@@ -254,18 +255,6 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 		var powerW = Units.W_PER_Lsol * luminosityLsol;
 		return powerW / (4 * Math.PI * distanceTm * distanceTm);
 		// P / 4 * pi * r^2
-	}
-
-	@Override
-	public String toString() {
-		var builder = new StringBuilder("StellarBodyNode " + this.id);
-		builder.append(" [");
-		builder.append("massYg=" + this.massYg + ", ");
-		builder.append("type=" + this.type + ", ");
-		builder.append("luminosityLsol=" + this.luminosityLsol + ", ");
-		builder.append("radiusRsol=" + this.radiusRsol + ", ");
-		builder.append("]");
-		return builder.toString();
 	}
 
 	private static final double[] RED_POLYNOMIAL_COEFFICENTS = { 4.93596077e0, -1.29917429e0, 1.64810386e-01,
@@ -355,7 +344,7 @@ public non-sealed class StellarCelestialNode extends CelestialNode {
 
 	public Color getColor() {
 		final var res = new Vec3.Mutable();
-		blackBodyColorFromTable(res, this.temperatureK);
+		blackBodyColorFromTable(res, this.temperature);
 		return new Color(res.x, res.y, res.z, 1.0);
 	}
 

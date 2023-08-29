@@ -1,6 +1,6 @@
 package net.xavil.hawklib.client.gl;
 
-import com.mojang.blaze3d.vertex.VertexFormat;
+import org.lwjgl.opengl.GL45C;
 
 public final class GlVertexArray extends GlObject {
 
@@ -9,7 +9,12 @@ public final class GlVertexArray extends GlObject {
 	}
 
 	public GlVertexArray() {
-		super(GlManager.createVertexArray(), true);
+		super(GL45C.glCreateVertexArrays(), true);
+	}
+
+	@Override
+	protected void destroy() {
+		GL45C.glDeleteVertexArrays(this.id);
 	}
 
 	@Override
@@ -17,9 +22,4 @@ public final class GlVertexArray extends GlObject {
 		return ObjectType.VERTEX_ARRAY;
 	}
 
-	public void setup(VertexFormat format) {
-		GlManager.bindVertexArray(this.id);
-		format.setupBufferState();
-	}
-	
 }

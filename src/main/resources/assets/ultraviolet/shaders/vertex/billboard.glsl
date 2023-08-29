@@ -8,9 +8,9 @@ VARYING_V2F vec4 vertexColor;
 #include [ultraviolet:common_uniforms.glsl]
 #include [ultraviolet:lib/noise.glsl]
 
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
+in vec3 aPos;
+in vec4 aColor;
+in vec2 aTexCoord0;
 
 vec2 uvFromVertex(int id) {
 	id %= 4;
@@ -21,7 +21,7 @@ vec2 uvFromVertex(int id) {
 }
 
 float billboardSize() {
-	return UV0.x;
+	return aTexCoord0.x;
 }
 
 vec3 offsetViewAligned(vec2 vertexOffset) {
@@ -43,7 +43,7 @@ vec2 rotate(vec2 v, float a) {
 }
 
 void main() {
-	vec4 posView = uViewMatrix * vec4(Position, 1.0);
+	vec4 posView = uViewMatrix * vec4(aPos, 1.0);
 	vec2 uv = uvFromVertex(gl_VertexID);
 	vec2 off = vec2(2.0 * uv - 1.0);
 
@@ -63,7 +63,7 @@ void main() {
 
 	texCoord0 = uv;
 	vertexPos = posView.xyz;
-    vertexColor = Color;
+    vertexColor = aColor;
 }
 
 #endif

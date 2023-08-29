@@ -8,7 +8,9 @@ import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.HawkTextureManager;
+import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
+import net.xavil.hawklib.client.gl.shader.AttributeSet;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.NewGalaxyMapScreen;
@@ -45,18 +47,18 @@ public class ClientMod implements ClientModInitializer {
 
 		HawkRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
 			// @formatter:off
-			acceptor.accept(UltravioletShaders.SHADER_STAR,                     DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC, DefaultVertexFormat.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_UI,        DefaultVertexFormat.POSITION_COLOR, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_PLANET,                   DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_RING,                     DefaultVertexFormat.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_GALAXY_PARTICLE,          DefaultVertexFormat.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_SKYBOX,                   DefaultVertexFormat.POSITION, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_BLIT,                     DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_STAR_LOCATION,                     AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC_LOCATION, AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_UI_LOCATION,        AttributeSet.POSITION_COLOR, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_PLANET_LOCATION,                   AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_RING_LOCATION,                     AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_GALAXY_PARTICLE_LOCATION,          AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_SKYBOX_LOCATION,                   AttributeSet.POSITION, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_BLIT_LOCATION,                     AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 			
-			acceptor.accept(UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE, DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_BLOOM_UPSAMPLE,   DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_MAIN_POSTPROCESS, DefaultVertexFormat.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_BLOOM_UPSAMPLE_LOCATION,   AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_MAIN_POSTPROCESS_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 			// @formatter:on
 		});
 

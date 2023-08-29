@@ -4,8 +4,6 @@ import java.util.Random;
 
 import org.lwjgl.glfw.GLFW;
 
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
@@ -21,6 +19,7 @@ import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
+import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
@@ -232,8 +231,8 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		// TODO: render things that are currently jumping between systems
 
 		if (ClientConfig.get(ConfigKey.SHOW_SECTOR_BOUNDARIES)) {
-			final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-			builder.begin(PrimitiveType.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+			final var builder = BufferRenderer.IMMEDIATE_BUILDER
+					.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
 			ticket.attachedManager.enumerate(ticket, sector -> {
 				if (!this.galaxy.sectorManager.isComplete(sector.pos()))
 					return;
@@ -270,7 +269,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			});
 			// ticket.info.enumerateAffectedSectors(pos -> {
 			// });
-			builder.end().draw(HawkShaders.getVanillaShader(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES),
+			builder.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(),
 					HawkDrawStates.DRAW_STATE_ADDITIVE_BLENDING);
 		}
 	}

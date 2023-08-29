@@ -7,27 +7,25 @@
 #include [ultraviolet:lib/noise.glsl]
 #include [ultraviolet:lib/util.glsl]
 
-uniform vec4 ColorModulator;
+uniform mat4 uViewMatrix;
 
-uniform mat4 ModelViewMat;
-
-uniform vec4 LightPos0;
-uniform vec4 LightColor0;
-uniform vec4 LightPos1;
-uniform vec4 LightColor1;
-uniform vec4 LightPos2;
-uniform vec4 LightColor2;
-uniform vec4 LightPos3;
-uniform vec4 LightColor3;
-uniform float MetersPerUnit;
+uniform vec4 uLightPos0;
+uniform vec4 uLightColor0;
+uniform vec4 uLightPos1;
+uniform vec4 uLightColor1;
+uniform vec4 uLightPos2;
+uniform vec4 uLightColor2;
+uniform vec4 uLightPos3;
+uniform vec4 uLightColor3;
+uniform float uMetersPerUnit;
 
 out vec4 fColor;
 
 vec3 contribution(vec4 color, vec4 pos) {
 	if (color.a >= 0) {
-		vec3 p0 = (ModelViewMat * vec4(pos.xyz, 1.0)).xyz;
+		vec3 p0 = (uViewMatrix * vec4(pos.xyz, 1.0)).xyz;
 
-		float distanceMeters = distance(vertexPos.xyz, p0) * MetersPerUnit;
+		float distanceMeters = distance(vertexPos.xyz, p0) * uMetersPerUnit;
 		float d2 = 1.0 / pow(distanceMeters / 1e14, 2.0);
 		float light = min(10.0, color.a * d2);
 
@@ -70,10 +68,10 @@ void main() {
 
 	vec3 res = vec3(0);
 
-	res += contribution(LightColor0, LightPos0);
-	res += contribution(LightColor1, LightPos1);
-	res += contribution(LightColor2, LightPos2);
-	res += contribution(LightColor3, LightPos3);
+	res += contribution(uLightColor0, uLightPos0);
+	res += contribution(uLightColor1, uLightPos1);
+	res += contribution(uLightColor2, uLightPos2);
+	res += contribution(uLightColor3, uLightPos3);
 
 	vec4 baseColor = shadeRing(texCoord0.y);
 	vec3 finalColor = res * baseColor.rgb;

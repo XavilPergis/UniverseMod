@@ -87,7 +87,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		this.startingSystemInfo.massYg = primaryStar.massYg;
 		this.startingSystemInfo.systemAgeMyr = 4600;
 		this.startingSystemInfo.systemSeed = 0;
-		this.startingSystemInfo.temperatureK = primaryStar.temperatureK;
+		this.startingSystemInfo.temperatureK = primaryStar.temperature;
 	}
 
 	private void findElementIndex() {

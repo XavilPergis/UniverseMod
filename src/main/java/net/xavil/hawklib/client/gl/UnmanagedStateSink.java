@@ -1,21 +1,16 @@
 package net.xavil.hawklib.client.gl;
 
-import java.nio.ByteBuffer;
-
-import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.xavil.hawklib.client.gl.GlBuffer.Type;
-import net.xavil.hawklib.client.gl.GlBuffer.UsageHint;
 import net.xavil.hawklib.client.gl.GlState.BlendEquation;
 import net.xavil.hawklib.client.gl.GlState.BlendFactor;
 import net.xavil.hawklib.client.gl.GlState.CullFace;
 import net.xavil.hawklib.client.gl.GlState.DepthFunc;
 import net.xavil.hawklib.client.gl.GlState.FrontFace;
 import net.xavil.hawklib.client.gl.GlState.PolygonMode;
-import net.xavil.hawklib.client.gl.shader.ShaderStage;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 
 public final class UnmanagedStateSink implements GlStateSink {
@@ -26,45 +21,13 @@ public final class UnmanagedStateSink implements GlStateSink {
 	}
 
 	@Override
-	public int createObject(GlObject.ObjectType objectType) {
-		return switch (objectType) {
-			case BUFFER -> GlStateManager._glGenBuffers();
-			case FRAMEBUFFER -> GlStateManager.glGenFramebuffers();
-			case PROGRAM -> GlStateManager.glCreateProgram();
-			case RENDERBUFFER -> GlStateManager.glGenRenderbuffers();
-			case SHADER ->
-				throw new IllegalArgumentException("createShader() must be used to create a shader stage object");
-			case TEXTURE -> GlStateManager._genTexture();
-			case VERTEX_ARRAY -> GlStateManager._glGenVertexArrays();
-		};
-	}
-
-	@Override
-	public int createShader(ShaderStage.Stage stage) {
-		return GlStateManager.glCreateShader(stage.id);
-	}
-
-	@Override
-	public void deleteObject(GlObject.ObjectType objectType, int id) {
-		switch (objectType) {
-			case BUFFER -> GlStateManager._glDeleteBuffers(id);
-			case FRAMEBUFFER -> GlStateManager._glDeleteFramebuffers(id);
-			case PROGRAM -> GlStateManager.glDeleteProgram(id);
-			case RENDERBUFFER -> GlStateManager._glDeleteRenderbuffers(id);
-			case SHADER -> GlStateManager.glDeleteShader(id);
-			case TEXTURE -> GlStateManager._deleteTexture(id);
-			case VERTEX_ARRAY -> GlStateManager._glDeleteVertexArrays(id);
-		}
-	}
-
-	@Override
 	public void bindFramebuffer(int target, int id) {
-		GL32C.glBindFramebuffer(target, id);
+		GL45C.glBindFramebuffer(target, id);
 	}
 
 	@Override
 	public void bindBuffer(GlBuffer.Type target, int id) {
-		GL32C.glBindBuffer(target.id, id);
+		GL45C.glBindBuffer(target.id, id);
 	}
 
 	@Override
@@ -73,36 +36,36 @@ public final class UnmanagedStateSink implements GlStateSink {
 		if (target == GlTexture.Type.D2) {
 			if (id != GlStateManager.TEXTURES[GlStateManager.activeTexture].binding) {
 				GlStateManager.TEXTURES[GlStateManager.activeTexture].binding = id;
-				GL32C.glBindTexture(target.id, id);
+				GL45C.glBindTexture(target.id, id);
 			}
 		} else {
-			GL32C.glBindTexture(target.id, id);
+			GL45C.glBindTexture(target.id, id);
 		}
 	}
 
 	@Override
 	public void bindVertexArray(int id) {
-		GL32C.glBindVertexArray(id);
+		GL45C.glBindVertexArray(id);
 	}
 
 	@Override
-	public void useProgram(int id) {
-		GL32C.glUseProgram(id);
+	public void bindProgram(int id) {
+		GL45C.glUseProgram(id);
 	}
 
 	@Override
 	public void bindRenderbuffer(int id) {
-		GL32C.glBindRenderbuffer(GL32C.GL_RENDERBUFFER, id);
+		GL45C.glBindRenderbuffer(GL45C.GL_RENDERBUFFER, id);
 	}
 
 	@Override
-	public void activeTexture(int unit) {
+	public void bindTextureUnit(int unit) {
 		RenderSystem.activeTexture(unit);
 	}
 
 	@Override
 	public void polygonMode(PolygonMode mode) {
-		GlStateManager._polygonMode(GL32C.GL_FRONT_AND_BACK, mode.id);
+		GlStateManager._polygonMode(GL45C.GL_FRONT_AND_BACK, mode.id);
 	}
 
 	@Override
@@ -115,12 +78,12 @@ public final class UnmanagedStateSink implements GlStateSink {
 
 	@Override
 	public void cullFace(CullFace cullFace) {
-		GL32C.glCullFace(cullFace.id);
+		GL45C.glCullFace(cullFace.id);
 	}
 
 	@Override
 	public void frontFace(FrontFace frontFace) {
-		GL32C.glFrontFace(frontFace.id);
+		GL45C.glFrontFace(frontFace.id);
 	}
 
 	@Override
@@ -165,7 +128,7 @@ public final class UnmanagedStateSink implements GlStateSink {
 	@Override
 	public void blendEquation(BlendEquation blendEquationRgb, BlendEquation blendEquationAlpha) {
 		// RenderSystem.blendEquation(0);
-		GL32C.glBlendEquationSeparate(blendEquationRgb.id, blendEquationAlpha.id);
+		GL45C.glBlendEquationSeparate(blendEquationRgb.id, blendEquationAlpha.id);
 	}
 
 	@Override
@@ -186,21 +149,11 @@ public final class UnmanagedStateSink implements GlStateSink {
 	}
 
 	@Override
-	public void drawBuffers(int[] buffers) {
-		GL32C.glDrawBuffers(buffers);
-	}
-
-	@Override
-	public void bufferData(Type target, ByteBuffer data, UsageHint usage) {
-		GlStateManager._glBufferData(target.id, data, usage.id);
-	}
-
-	@Override
 	public void enableProgramPointSize(boolean enable) {
 		if (enable) {
-			GL32C.glEnable(GL32C.GL_PROGRAM_POINT_SIZE);
+			GL45C.glEnable(GL45C.GL_PROGRAM_POINT_SIZE);
 		} else {
-			GL32C.glDisable(GL32C.GL_PROGRAM_POINT_SIZE);
+			GL45C.glDisable(GL45C.GL_PROGRAM_POINT_SIZE);
 		}
 	}
 }

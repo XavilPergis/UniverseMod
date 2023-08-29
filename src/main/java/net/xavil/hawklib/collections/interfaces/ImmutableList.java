@@ -3,6 +3,7 @@ package net.xavil.hawklib.collections.interfaces;
 import java.lang.reflect.Array;
 
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.collections.impl.ImmutableListArray;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 
@@ -26,6 +27,11 @@ public interface ImmutableList<T> extends ImmutableCollection, IntoIterator<T> {
 		for (int i = 0; i < this.size(); ++i)
 			elems[i] = this.get(i);
 		return elems;
+	}
+
+	@SafeVarargs
+	static <T> ImmutableList<T> of(T... args) {
+		return new ImmutableListArray<>(args);
 	}
 
 }

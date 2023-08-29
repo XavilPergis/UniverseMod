@@ -2,19 +2,21 @@ package net.xavil.hawklib.client.gl.shader;
 
 import java.util.List;
 
-import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 
-import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.GlObject;
 
 public final class ShaderStage extends GlObject {
 
 	public static enum Stage {
-		VERTEX(GL32C.GL_VERTEX_SHADER, "Vertex Stage", "VERTEX"),
-		GEOMETRY(GL32C.GL_GEOMETRY_SHADER, "Geometry Stage", "GEOMETRY"),
-		FRAGMENT(GL32C.GL_FRAGMENT_SHADER, "Fragment Stage", "FRAGMENT");
+		VERTEX(GL45C.GL_VERTEX_SHADER, "Vertex Stage", "VERTEX"),
+		TESSELATION_CONTROL(GL45C.GL_TESS_CONTROL_SHADER, "Tesselation Control Stage", "TESSELATION_CONTROL"),
+		TESSELATION_EVALUATION(GL45C.GL_TESS_EVALUATION_SHADER, "Tesselation Evaluation Stage", "TESSELATION_EVALUATION"),
+		GEOMETRY(GL45C.GL_GEOMETRY_SHADER, "Geometry Stage", "GEOMETRY"),
+		FRAGMENT(GL45C.GL_FRAGMENT_SHADER, "Fragment Stage", "FRAGMENT"),
+		COMPUTE(GL45C.GL_COMPUTE_SHADER, "Fragment Stage", "COMPUTE");
 
 		public final int id;
 		public final String description;
@@ -28,9 +30,12 @@ public final class ShaderStage extends GlObject {
 
 		public static Stage from(int id) {
 			return switch (id) {
-				case GL32C.GL_VERTEX_SHADER -> VERTEX;
-				case GL32C.GL_GEOMETRY_SHADER -> GEOMETRY;
-				case GL32C.GL_FRAGMENT_SHADER -> FRAGMENT;
+				case GL45C.GL_VERTEX_SHADER -> VERTEX;
+				case GL45C.GL_TESS_CONTROL_SHADER -> TESSELATION_CONTROL;
+				case GL45C.GL_TESS_EVALUATION_SHADER -> TESSELATION_EVALUATION;
+				case GL45C.GL_GEOMETRY_SHADER -> GEOMETRY;
+				case GL45C.GL_FRAGMENT_SHADER -> FRAGMENT;
+				case GL45C.GL_COMPUTE_SHADER -> COMPUTE;
 				default -> null;
 			};
 		}
@@ -40,12 +45,17 @@ public final class ShaderStage extends GlObject {
 
 	public ShaderStage(int id, boolean owned) {
 		super(id, owned);
-		this.type = Stage.from(GL32C.glGetShaderi(id, GL32C.GL_SHADER_TYPE));
+		this.type = Stage.from(GL45C.glGetShaderi(id, GL45C.GL_SHADER_TYPE));
 	}
 
 	public ShaderStage(Stage type) {
-		super(GlManager.createShader(type), true);
+		super(GL45C.glCreateShader(type.id), true);
 		this.type = type;
+	}
+
+	@Override
+	protected void destroy() {
+		GL45C.glDeleteShader(this.id);
 	}
 
 	@Override
@@ -58,16 +68,16 @@ public final class ShaderStage extends GlObject {
 	}
 
 	public String getSource() {
-		return GL32C.glGetShaderSource(this.id);
+		return GL45C.glGetShaderSource(this.id);
 	}
 
 	public boolean compile() {
 		GlStateManager.glCompileShader(this.id);
-		return GL32C.glGetShaderi(this.id, GL32C.GL_COMPILE_STATUS) != GL32C.GL_FALSE;
+		return GL45C.glGetShaderi(this.id, GL45C.GL_COMPILE_STATUS) != GL45C.GL_FALSE;
 	}
 
 	public String infoLog() {
-		return GL32C.glGetShaderInfoLog(this.id);
+		return GL45C.glGetShaderInfoLog(this.id);
 	}
 
 }

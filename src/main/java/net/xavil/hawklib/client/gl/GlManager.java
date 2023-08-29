@@ -1,8 +1,8 @@
 package net.xavil.hawklib.client.gl;
 
-import java.nio.ByteBuffer;
+import com.mojang.blaze3d.vertex.BufferUploader;
 
-import net.xavil.hawklib.client.gl.shader.ShaderStage;
+import net.minecraft.client.renderer.ShaderInstance;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -32,8 +32,17 @@ public final class GlManager {
 
 	private void push() {
 		if (this.current == null) {
+			// vanilla tracks some state in random places so that it can deduplicate binds,
+			// which need to be reset to make them always re-bind after we do stuff.
+			//
+			// im not sure why the last pop() doesn't restore all the state correctly,
+			// though...
+			BufferUploader.reset();
+			ShaderInstance.lastProgramId = -1;
+
 			this.rootState = fetchNewState();
 			this.rootState.reset(null);
+			this.rootState.sync();
 		}
 
 		final var newState = fetchNewState();
@@ -77,70 +86,6 @@ public final class GlManager {
 		INSTANCE.pop();
 	}
 
-	public static int createObject(GlObject.ObjectType objectType) {
-		return INSTANCE.currentSink.createObject(objectType);
-	}
-
-	public static void deleteObject(GlObject.ObjectType objectType, int id) {
-		INSTANCE.currentSink.deleteObject(objectType, id);
-	}
-
-	public static int createBuffer() {
-		return createObject(GlObject.ObjectType.BUFFER);
-	}
-
-	public static void deleteBuffer(int id) {
-		deleteObject(GlObject.ObjectType.BUFFER, id);
-	}
-
-	public static int createFramebuffer() {
-		return createObject(GlObject.ObjectType.FRAMEBUFFER);
-	}
-
-	public static void deleteFramebuffer(int id) {
-		deleteObject(GlObject.ObjectType.FRAMEBUFFER, id);
-	}
-
-	public static int createRenderbuffer() {
-		return createObject(GlObject.ObjectType.RENDERBUFFER);
-	}
-
-	public static void deleteRenderbuffer(int id) {
-		deleteObject(GlObject.ObjectType.RENDERBUFFER, id);
-	}
-
-	public static int createProgram() {
-		return createObject(GlObject.ObjectType.PROGRAM);
-	}
-
-	public static void deleteProgram(int id) {
-		deleteObject(GlObject.ObjectType.PROGRAM, id);
-	}
-
-	public static int createVertexArray() {
-		return createObject(GlObject.ObjectType.VERTEX_ARRAY);
-	}
-
-	public static void deleteVertexArray(int id) {
-		deleteObject(GlObject.ObjectType.VERTEX_ARRAY, id);
-	}
-
-	public static int createTexture() {
-		return createObject(GlObject.ObjectType.TEXTURE);
-	}
-
-	public static void deleteTexture(int id) {
-		deleteObject(GlObject.ObjectType.TEXTURE, id);
-	}
-
-	public static int createShader(ShaderStage.Stage stage) {
-		return INSTANCE.currentSink.createShader(stage);
-	}
-
-	public static void deleteShader(int id) {
-		deleteObject(GlObject.ObjectType.SHADER, id);
-	}
-
 	public static void bindFramebuffer(int target, int id) {
 		INSTANCE.currentSink.bindFramebuffer(target, id);
 	}
@@ -158,7 +103,7 @@ public final class GlManager {
 	}
 
 	public static void useProgram(int id) {
-		INSTANCE.currentSink.useProgram(id);
+		INSTANCE.currentSink.bindProgram(id);
 	}
 
 	public static void bindRenderbuffer(int id) {
@@ -166,7 +111,7 @@ public final class GlManager {
 	}
 
 	public static void activeTexture(int unit) {
-		INSTANCE.currentSink.activeTexture(unit);
+		INSTANCE.currentSink.bindTextureUnit(unit);
 	}
 
 	public static void enableCull(boolean enable) {
@@ -228,14 +173,6 @@ public final class GlManager {
 
 	public static void setViewport(int x, int y, int w, int h) {
 		INSTANCE.currentSink.setViewport(x, y, w, h);
-	}
-
-	public static void drawBuffers(int[] buffers) {
-		INSTANCE.currentSink.drawBuffers(buffers);
-	}
-	
-	public static void bufferData(GlBuffer.Type target, ByteBuffer data, GlBuffer.UsageHint usage) {
-		INSTANCE.currentSink.bufferData(target, data, usage);
 	}
 
 	public static void enableProgramPointSize(boolean enable) {

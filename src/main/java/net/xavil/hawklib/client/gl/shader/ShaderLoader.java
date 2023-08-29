@@ -6,8 +6,6 @@ import java.nio.charset.StandardCharsets;
 
 import org.apache.commons.io.IOUtils;
 
-import com.mojang.blaze3d.vertex.VertexFormat;
-
 import net.minecraft.ResourceLocationException;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.packs.resources.ResourceProvider;
@@ -484,12 +482,12 @@ public final class ShaderLoader {
 		public ImmutableList<ShaderStage.Stage> getStages() {
 			// @formatter:off
 			final var stages = new Vector<ShaderStage.Stage>();
-			if (this.hasVertexStage) stages.push(ShaderStage.Stage.VERTEX);
-			if (this.hasTessControlStage) HawkLib.LOGGER.warn("tesselation control shaders are not supported in OpenGL 3.2");
-			if (this.hasTessEvalStage) HawkLib.LOGGER.warn("tesselation evaluation shaders are not supported in OpenGL 3.2");
-			if (this.hasGeometryStage) stages.push(ShaderStage.Stage.GEOMETRY);
-			if (this.hasFragmentStage) stages.push(ShaderStage.Stage.FRAGMENT);
-			if (this.hasComputeStage) HawkLib.LOGGER.warn("compute shaders are not supported in OpenGL 3.2");
+			if (this.hasVertexStage)      stages.push(ShaderStage.Stage.VERTEX);
+			if (this.hasTessControlStage) stages.push(ShaderStage.Stage.TESSELATION_CONTROL);
+			if (this.hasTessEvalStage)    stages.push(ShaderStage.Stage.TESSELATION_EVALUATION);
+			if (this.hasGeometryStage)    stages.push(ShaderStage.Stage.GEOMETRY);
+			if (this.hasFragmentStage)    stages.push(ShaderStage.Stage.FRAGMENT);
+			if (this.hasComputeStage)     stages.push(ShaderStage.Stage.COMPUTE);
 			// @formatter:on
 			return stages;
 		}
@@ -508,19 +506,18 @@ public final class ShaderLoader {
 		return new ResourceLocation(location.getNamespace(), "shaders/" + location.getPath());
 	}
 
-	public static final ShaderProgram load(ResourceProvider provider, ResourceLocation location, VertexFormat format,
-			GlFragmentWrites fragmentWrites, Iterator<String> shaderDefines) throws ShaderLoadException {
+	public static final ShaderProgram load(ResourceProvider provider, ResourceLocation location,
+			AttributeSet attributeSet, GlFragmentWrites fragmentWrites, Iterator<String> shaderDefines)
+			throws ShaderLoadException {
 		final var source = loadSource(provider, location, shaderDefines);
 
 		final var disposer = Disposable.scope();
 		try {
-			final var program = disposer.attach(new ShaderProgram());
+			final var program = disposer.attach(new ShaderProgram(location));
 			for (final var stageType : source.getStages().iterable()) {
 				final var stage = disposer.attach(new ShaderStage(stageType));
 				final var specializedSource = new StringBuilder();
-				// HawkLib.LOGGER.warn("compiling stage {} '{}' ('IS_{}_STAGE')", stageType.id,
-				// stageType.description, stageType.specializationDefine);
-				specializedSource.append("#version 150\n\n");
+				specializedSource.append("#version 450\n\n");
 				specializedSource.append("// ===== shader stage specialization =====\n");
 				specializedSource.append(String.format("#define IS_%s_STAGE\n", stageType.specializationDefine));
 				for (final var stageType2 : source.getStages().iterable()) {
@@ -530,15 +527,15 @@ public final class ShaderLoader {
 				specializedSource.append(source.unspecialized);
 				stage.setSource(specializedSource.toString());
 				if (!stage.compile()) {
-					HawkLib.LOGGER.warn("SHADER SOURCE '{}' ({}):\n\n{}\n\n", location.toString(),
-							stageType.description, specializedSource.toString());
+					// HawkLib.LOGGER.warn("SHADER SOURCE '{}' ({}):\n\n{}\n\n", location.toString(),
+					// 		stageType.description, specializedSource.toString());
 					final var message = String.format("Failed to compile shader '%s' (%s):\n\n%s\n\n",
 							location.toString(), stageType.description, stage.infoLog());
 					throw new ShaderLoadException(message, location);
 				}
 				program.attachShader(stage);
 			}
-			if (!program.link(format, fragmentWrites)) {
+			if (!program.link(attributeSet, fragmentWrites)) {
 				final var message = String.format("Failed to link shader program '%s':\n\n%s\n\n",
 						location.toString(), program.infoLog());
 				throw new ShaderLoadException(message, location);

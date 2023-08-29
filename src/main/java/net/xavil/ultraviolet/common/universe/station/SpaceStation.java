@@ -4,6 +4,7 @@ import javax.annotation.Nullable;
 
 import net.minecraft.world.level.Level;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
+import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -78,10 +79,10 @@ public final class SpaceStation {
 
 	// prepare to jump to system; do countdown n stuff
 	// TODO: instant jump
-	public void prepareForJump(SystemId system, boolean isJumpInstant) {
+	public void prepareForJump(SystemNodeId id, boolean isJumpInstant) {
 		if (this.jumpInfo != null)
 			return;
-		final var jump = StationLocation.JumpingSystem.create(this.universe, this.location, system).unwrapOrNull();
+		final var jump = StationLocation.JumpingSystem.create(this.universe, this.location, id).unwrapOrNull();
 		if (jump != null) {
 			setJumpInfo(new JumpInfo(this, jump));
 			setLocation(jump);

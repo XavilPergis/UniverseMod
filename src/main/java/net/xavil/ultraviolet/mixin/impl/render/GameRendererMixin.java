@@ -29,7 +29,9 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.SkyRenderer;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.hawklib.client.HawkRendering;
+import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
+import net.xavil.hawklib.client.gl.shader.AttributeSet;
 import net.xavil.hawklib.client.gl.shader.ShaderLoader;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -73,11 +75,11 @@ public abstract class GameRendererMixin implements ResourceManagerReloadListener
 		final var diag = new HawkRendering.ShaderLoadDiagnostics();
 		HawkRendering.LOAD_SHADERS_EVENT.invoker().register(new HawkRendering.ShaderSink() {
 			@Override
-			public void accept(ResourceLocation name, VertexFormat vertexFormat, GlFragmentWrites fragmentWrites,
+			public void accept(ResourceLocation name, AttributeSet attributeSet, GlFragmentWrites fragmentWrites,
 					Iterator<String> shaderDefines) {
 				try {
 					final var shader = ShaderLoader.load(
-							resourceManager, name, vertexFormat, fragmentWrites, shaderDefines);
+							resourceManager, name, attributeSet, fragmentWrites, shaderDefines);
 					shader.setDebugName(name.toString());
 					final var prevShader = modShaders.put(name, shader);
 					if (prevShader != null)

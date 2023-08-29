@@ -1,14 +1,15 @@
 package net.xavil.hawklib.math;
 
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 
-	public static Ellipse fromOrbit(Vec3 focus, OrbitalPlane plane, OrbitalShape shape, double precessionAngle) {
+	public static Ellipse fromOrbit(Vec3Access focus, OrbitalPlane plane, OrbitalShape shape, double precessionAngle) {
 		return fromOrbit(focus, plane, shape, precessionAngle, true);
 	}
 
-	public static Ellipse fromOrbit(Vec3 focus, OrbitalPlane plane, OrbitalShape shape, double precessionAngle, boolean rightFocus) {
+	public static Ellipse fromOrbit(Vec3Access focus, OrbitalPlane plane, OrbitalShape shape, double precessionAngle, boolean rightFocus) {
 		// var rotation = plane.rotationFromReference();
 		// rotation = Quat.axisAngle(plane.normal(), precessionAngle).hamiltonProduct(rotation);
 		var rotation = plane.rotationFromReference().hamiltonProduct(Quat.axisAngle(Vec3.YP, precessionAngle));
@@ -20,7 +21,7 @@ public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 		final var semiMajor = shape.semiMajor();
 		final var semiMinor = shape.semiMinor();
 
-		final var center = focus.add(rightDir.mul(-shape.focalDistance()));
+		final var center = rightDir.mul(-shape.focalDistance()).add(focus);
 
 		return new Ellipse(center, rightDir.mul(semiMajor), upDir.mul(semiMinor));
 	}
@@ -48,6 +49,10 @@ public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 		var focalDistance = focalDistance(right.length(), up.length());
 
 		return this.center.add(rn.mul(focalDistance)).add(rotation.transform(rn).mul(r));
+	}
+
+	public Vec3.Mutable pointFromTrueAnomaly(Vec3.Mutable out, double angle) {
+		return Vec3.set(out, pointFromTrueAnomaly(angle));
 	}
 
 }

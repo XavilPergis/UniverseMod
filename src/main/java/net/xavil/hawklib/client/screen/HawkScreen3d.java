@@ -4,9 +4,7 @@ import java.util.function.Consumer;
 
 import org.lwjgl.glfw.GLFW;
 
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -14,12 +12,13 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 
 import static net.xavil.hawklib.client.HawkDrawStates.*;
-import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
+import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.ultraviolet.Mod;
+import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.hawklib.math.Color;
@@ -250,8 +249,8 @@ public abstract class HawkScreen3d extends HawkScreen {
 		final var ppn = frustumPoints[i++];
 		final var ppp = frustumPoints[i++];
 
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		builder.begin(VertexFormat.Mode.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER
+				.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
 
 		// near
 		RenderHelper.addLine(builder, camera, nnn, npn, color);
@@ -269,7 +268,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 		RenderHelper.addLine(builder, camera, pnn, pnp, color);
 		RenderHelper.addLine(builder, camera, ppn, ppp, color);
 
-		builder.end().draw(getVanillaShader(SHADER_VANILLA_RENDERTYPE_LINES), DRAW_STATE_LINES);
+		builder.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(), DRAW_STATE_LINES);
 	}
 
 	@Override

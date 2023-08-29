@@ -18,6 +18,7 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
 
 public final class SectorManager {
@@ -230,7 +231,9 @@ public final class SectorManager {
 		final var time = this.galaxy.parentUniverse.getCelestialTime();
 		this.systemMap.values().forEach(slot -> {
 			if (slot.system != null) {
-				slot.system.rootNode.visit(node -> node.lastPosition = node.position);
+				slot.system.rootNode.visit(node -> {
+					Vec3.set(node.lastPosition, node.position);
+				});
 				slot.system.rootNode.updatePositions(time);
 			}
 		});

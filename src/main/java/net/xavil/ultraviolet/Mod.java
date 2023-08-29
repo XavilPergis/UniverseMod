@@ -235,7 +235,7 @@ public class Mod implements ModInitializer {
 
 		// FIXME: verify that the system we want to jump to actually exists
 
-		station.prepareForJump(packet.target.system(), packet.isJumpInstant);
+		station.prepareForJump(packet.target, packet.isJumpInstant);
 
 		final var beginPacket = new ClientboundStationJumpBeginPacket(packet.stationId, packet.target,
 				packet.isJumpInstant);

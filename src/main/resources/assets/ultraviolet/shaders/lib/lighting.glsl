@@ -41,9 +41,9 @@ Light makePointLight(vec3 pos, vec3 radiantFlux) {
 }
 
 // GGX - Normal Distribution Factor
-float microfacetOrientationFactor(in LightingContext ctx, in Light light, in vec3 half) {
+float microfacetOrientationFactor(in LightingContext ctx, in Light light, in vec3 halfway) {
     float a2 = pow(ctx.material.roughness, 4.0);
-    float NdotH2 = pow(pdot(ctx.normal, half), 2.0);
+    float NdotH2 = pow(pdot(ctx.normal, halfway), 2.0);
 	return a2 / (PI * pow(NdotH2 * (a2 - 1.0) + 1.0, 2.0));
 }
 
@@ -66,7 +66,7 @@ vec3 fresnelFactor(in float cosTheta, in vec3 F0) {
 }
 
 vec3 brdfCookTorrance(in LightingContext ctx, in Light light, in vec3 toLight) {
-	vec3 half = normalize(ctx.toEye + toLight);
+	vec3 halfway = normalize(ctx.toEye + toLight);
 
 	// diffuse reflections happen when incoming light penetrates the surface of a material and
 	// scatters internally, before making its way out. This orients the outgoing rays in random
@@ -85,12 +85,13 @@ vec3 brdfCookTorrance(in LightingContext ctx, in Light light, in vec3 toLight) {
 	// smooth surfaces have their microfacets all pointing in the same (or at least very similar)
 	// directions.
 	vec3 specular = vec3(1.0);
-	specular *= microfacetOrientationFactor(ctx, light, half);
+	specular *= microfacetOrientationFactor(ctx, light, halfway);
 	specular *= microfacetOcclusionFactor(ctx, toLight);
 	specular /= max(4.0 * pdot(ctx.toEye, ctx.normal) * pdot(toLight, ctx.normal), 1e-6);
 
     vec3 F0 = mix(vec3(0.04), ctx.material.albedo, ctx.material.metallicity);
-	vec3 fresnel = fresnelFactor(pdot(ctx.normal, ctx.toEye), F0);
+	// vec3 fresnel = fresnelFactor(pdot(ctx.normal, ctx.toEye), F0);
+	vec3 fresnel = F0;
 	// return fresnel;
 	return mix(diffuse, specular, fresnel);
 }
@@ -100,8 +101,9 @@ vec3 lightContribution(in LightingContext ctx, in Light light) {
 
 	vec3 toLight = normalize(light.pos - ctx.fragPos);
 
-	float d = (15.0 * ctx.metersPerUnit / 1e12) * distance(light.pos, ctx.fragPos);
-	vec3 radiance = light.radiantFlux / (d * d);
+	float d = (2.0 * ctx.metersPerUnit / 1e12) * distance(light.pos, ctx.fragPos);
+	// vec3 radiance = light.radiantFlux / (d * d);
+	vec3 radiance = light.radiantFlux / d;
 	// vec3 radiance = light.radiantFlux;
 
 	vec3 lightContribution = vec3(1.0);

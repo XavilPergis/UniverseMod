@@ -150,6 +150,25 @@ public final class Quat implements Hashable {
 		return new Vec3(i1, j1, k1);
 	}
 
+	public static Vec3.Mutable transform(Vec3.Mutable out, Vec3.Mutable in, Quat q) {
+		final var f = Mth.fastInvSqrt(q.w * q.w + q.i * q.i + q.j * q.j + q.k * q.k);
+		final double normw = f * q.w, normi = f * q.i, normj = f * q.j, normk = f * q.k;
+
+		final double l00 = normw, l01 =  normi, l02 =  normj, l03 =  normk;
+		final double r00 =     0, r01 =  in.x,  r02 =  in.y,  r03 =  in.z;
+		final double r10 = normw, r11 = -normi, r12 = -normj, r13 = -normk;
+
+		final double w0 = l00 * r00 - l01 * r01 - l02 * r02 - l03 * r03;
+		final double i0 = l00 * r01 + l01 * r00 + l02 * r03 - l03 * r02;
+		final double j0 = l00 * r02 - l01 * r03 + l02 * r00 + l03 * r01;
+		final double k0 = l00 * r03 + l01 * r02 - l02 * r01 + l03 * r00;
+		final double i1 =  w0 * r11 +  i0 * r10 +  j0 * r13 -  k0 * r12;
+		final double j1 =  w0 * r12 -  i0 * r13 +  j0 * r10 +  k0 * r11;
+		final double k1 =  w0 * r13 +  i0 * r12 -  j0 * r11 +  k0 * r10;
+
+		return Vec3.set(out, i1, j1, k1);
+	}
+
 	@Override
 	public String toString() {
 		return "Quat[" + w + " + " + i + "i + " + j + "j + " + k + "k]";

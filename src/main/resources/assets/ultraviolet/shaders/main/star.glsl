@@ -20,6 +20,12 @@ vec2 uvFromNormal(vec4 normWorld) {
 }
 
 void main() {
+	// fColor = vec4(1.0, 0.0, 1.0, 1.0);
+	// fColor = vec4(normal.xyz * 0.5 + 0.5, 1.0);
+	// fColor = vec4(normalRaw.xyz * 0.5 + 0.5, 1.0);
+	// fColor = vec4(vertexColor.rgb, 1.0);
+	// fColor = vec4(texCoord0.xy, 1.0, 1.0);
+
 	vec3 normWorld = (inverse(uViewMatrix) * normalize(normal)).xyz;
 	vec3 posWorld = (inverse(uViewMatrix) * normalize(vertexPos)).xyz;
 

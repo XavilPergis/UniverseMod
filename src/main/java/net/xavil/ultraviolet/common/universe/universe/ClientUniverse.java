@@ -81,7 +81,7 @@ public final class ClientUniverse extends Universe {
 		final var entry = this.spaceStations.entry(packet.stationId);
 		if (entry.exists()) {
 			final var station = entry.get().unwrap();
-			station.prepareForJump(packet.target.system(), packet.isJumpInstant);
+			station.prepareForJump(packet.target, packet.isJumpInstant);
 		}
 	}
 

@@ -7,6 +7,8 @@ import java.util.function.Predicate;
 
 import javax.annotation.Nullable;
 
+import com.mojang.serialization.Codec;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
@@ -26,7 +28,7 @@ import net.xavil.hawklib.math.OrbitalShape;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public abstract sealed class CelestialNode implements IntoIterator<CelestialNode> permits
-		StellarCelestialNode, BinaryCelestialNode, PlanetaryCelestialNode, OtherCelestialNode {
+		BinaryCelestialNode, UnaryCelestialNode, OtherCelestialNode {
 
 	public static final int UNASSINED_ID = -1;
 
@@ -34,17 +36,18 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	protected BinaryCelestialNode parentBinaryNode = null;
 	protected CelestialNodeChild<?> parentUnaryNode = null;
 	protected final MutableList<CelestialNodeChild<?>> childNodes = new Vector<>();
-	protected final MutableList<CelestialRing> rings = new Vector<>();
 
-	public Vec3 position = Vec3.ZERO, lastPosition = Vec3.ZERO;
+	public String name;
+
+	public final Vec3.Mutable position = new Vec3.Mutable(Vec3.ZERO), lastPosition = new Vec3.Mutable(Vec3.ZERO);
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
 	// the rate of orbital precession
 	public double apsidalRate; // rad/s
 
 	public double massYg; // Yg
-	// TODO: these quantities are meaningless for binary orbits!
-	public double obliquityAngle; // rad
-	public double rotationalRate; // rad/s
+
+	public CelestialNode() {
+	}
 
 	public CelestialNode(double massYg) {
 		this.massYg = massYg;
@@ -224,14 +227,6 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		return this.childNodes.iterable();
 	}
 
-	public void addRing(CelestialRing newRing) {
-		this.rings.push(newRing);
-	}
-
-	public Iterable<CelestialRing> rings() {
-		return this.rings.iterable();
-	}
-
 	/**
 	 * An alias for {@link #insertChild(CelestialNodeChild)} that takes the child
 	 * node and its orbital elements directly, instead of an already-constructed
@@ -273,8 +268,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 			final var combinedShape = binaryNode.getCombinedShape();
 			final var ellipseA = binaryNode.getEllipseA(referencePlane, time);
 			final var ellipseB = binaryNode.getEllipseB(referencePlane, time);
-			binaryNode.getA().position = getOrbitalPosition(ellipseA, combinedShape, false, time);
-			binaryNode.getB().position = getOrbitalPosition(ellipseB, combinedShape, true, time);
+			getOrbitalPosition(binaryNode.getA().position, ellipseA, combinedShape, false, time);
+			getOrbitalPosition(binaryNode.getB().position, ellipseB, combinedShape, true, time);
 			final var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
 			binaryNode.getA().updatePositions(newPlane, time);
 			binaryNode.getB().updatePositions(newPlane, time);
@@ -282,7 +277,7 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 
 		for (var childOrbit : this.childOrbits()) {
 			final var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
-			childOrbit.node.position = getOrbitalPosition(newPlane, childOrbit.orbitalShape, false, time);
+			getOrbitalPosition(childOrbit.node.position, newPlane, childOrbit.orbitalShape, false, time);
 			childOrbit.node.updatePositions(newPlane, time);
 		}
 	}
@@ -291,229 +286,169 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		return Vec3.lerp(partialTick, this.lastPosition, this.position);
 	}
 
-	public Vec3 getOrbitalPosition(OrbitalPlane plane, OrbitalShape shape, boolean reverse, double time) {
+	public Vec3.Mutable getOrbitalPosition(Vec3.Mutable out, OrbitalPlane plane, OrbitalShape shape, boolean reverse,
+			double time) {
 		final var ellipse = Ellipse.fromOrbit(this.position, plane, shape, this.apsidalRate * time, reverse);
-		return getOrbitalPosition(ellipse, shape, reverse, time);
+		return getOrbitalPosition(out, ellipse, shape, reverse, time);
 	}
 
-	public Vec3 getOrbitalPosition(Ellipse ellipse, OrbitalShape shape, boolean reverse, double time) {
+	public Vec3.Mutable getOrbitalPosition(Vec3.Mutable out, Ellipse ellipse, OrbitalShape shape, boolean reverse,
+			double time) {
 		final var orbitalPeriod = Formulas.orbitalPeriod(shape.semiMajor(), this.massYg);
 		final var meanAnomaly = (2 * Math.PI / orbitalPeriod) * time;
 		final var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, shape.eccentricity());
-		return ellipse.pointFromTrueAnomaly(reverse ? -trueAnomaly : trueAnomaly);
+		return ellipse.pointFromTrueAnomaly(out, reverse ? -trueAnomaly : trueAnomaly);
 	}
 
-	@FunctionalInterface
-	public interface PropertyConsumer {
-		void addProperty(String name, String info);
+	@Override
+	public String toString() {
+		var res = "CelestialNode " + this.id;
+		if (this.name != null)
+			res += "(" + this.name + ")";
+		return res;
 	}
 
-	public static String describeStar(StellarCelestialNode starNode) {
-		String starKind = "";
-		if (starNode.type == StellarCelestialNode.Type.BLACK_HOLE)
-			starKind += "Black Hole ";
-		else if (starNode.type == StellarCelestialNode.Type.NEUTRON_STAR)
-			starKind += "Neutron Star ";
-		else
-			starKind = starNode.getSpectralClassification();
-		return starKind;
+	private static CelestialNode createNode(String type) {
+		if (type.equals("binary"))
+			return new BinaryCelestialNode();
+		if (type.equals("star"))
+			return new StellarCelestialNode();
+		if (type.equals("planet"))
+			return new PlanetaryCelestialNode();
+		if (type.equals("other"))
+			return new OtherCelestialNode();
+		return null;
 	}
 
-	public void describe(PropertyConsumer consumer) {
-		if (this instanceof BinaryCelestialNode)
-			return;
+	private static <T> T getNbt(Codec<T> codec, Tag nbt) {
+		return codec.parse(NbtOps.INSTANCE, nbt).getOrThrow(false, Mod.LOGGER::error);
+	}
 
-		// consumer.accept("Mass", String.format("%.2f Yg", this.massYg));
-		consumer.addProperty("Obliquity", String.format("%.2f rad", this.obliquityAngle));
-		consumer.addProperty("Rotational Rate", String.format("%.2f rad/s", this.rotationalRate));
-
-		// TODO: inclination n stuff
-
-		if (this instanceof StellarCelestialNode starNode) {
-			consumer.addProperty("Mass",
-					String.format("%.4e Yg (%.2f M☉)", this.massYg, this.massYg / Units.Yg_PER_Msol));
-			consumer.addProperty("Luminosity", String.format("%.6f L☉", starNode.luminosityLsol));
-			consumer.addProperty("Radius", String.format("%.2f R☉", starNode.radiusRsol));
-			consumer.addProperty("Temperature", String.format("%.0f K", starNode.temperatureK));
-			// var starClass = starNode.starClass();
-			// if (starClass != null)
-			// consumer.addProperty("Spectral Class", starClass.name);
-			consumer.addProperty("Type", describeStar(starNode));
-			// consumer.addProperty("Type", starNode.type.name());
-		} else if (this instanceof PlanetaryCelestialNode planetNode) {
-			if (planetNode.type == PlanetaryCelestialNode.Type.GAS_GIANT) {
-				consumer.addProperty("Mass",
-						String.format("%.2f Yg (%.2f M♃)", this.massYg, this.massYg / Units.Yg_PER_Mjupiter));
-			} else {
-				consumer.addProperty("Mass",
-						String.format("%.2f Yg (%.2f Mⴲ)", this.massYg, this.massYg / Units.Yg_PER_Mearth));
-			}
-			consumer.addProperty("Type", planetNode.type.name());
-			consumer.addProperty("Temperature", String.format("%.0f K", planetNode.temperatureK));
-			if (planetNode.type == PlanetaryCelestialNode.Type.GAS_GIANT) {
-				consumer.addProperty("Radius", String.format("%.2f R♃",
-						planetNode.radiusRearth * (Units.m_PER_Rearth / Units.m_PER_Rjupiter)));
-			} else {
-				consumer.addProperty("Radius", String.format("%.2f Rⴲ", planetNode.radiusRearth));
-			}
-		}
+	private static <T> Tag writeNbt(Codec<T> codec, T value) {
+		return codec.encodeStart(NbtOps.INSTANCE, value).getOrThrow(false, Mod.LOGGER::error);
 	}
 
 	public static CelestialNode readNbt(CompoundTag nbt) {
-		CelestialNode node = null;
+		final var node = createNode(nbt.getString("node_type"));
+		if (node == null)
+			return null;
 
-		var id = nbt.getInt("id");
-		var massYg = nbt.getDouble("mass");
-		var x = nbt.getDouble("x");
-		var y = nbt.getDouble("y");
-		var z = nbt.getDouble("z");
-		var position = new Vec3(x, y, z);
-		var obliquityAngle = nbt.getDouble("obliquity");
-		var rotationalRate = nbt.getDouble("rotational_rate");
-		var apsidalRate = nbt.getDouble("apsidal_rate");
-		var nodeType = nbt.getString("node_type");
+		final var id = nbt.getInt("id");
+		final var mass = nbt.getDouble("mass");
+		final var position = new Vec3(nbt.getDouble("x"), nbt.getDouble("y"), nbt.getDouble("z"));
+		final var apsidalRate = nbt.getDouble("apsidal_rate");
+		final var referencePlane = getNbt(OrbitalPlane.CODEC, nbt.get("reference_plane"));
 
-		var referencePlane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, nbt.get("reference_plane"))
-				.getOrThrow(false, Mod.LOGGER::error);
-
-		if (nodeType.equals("binary")) {
-			var a = readNbt(nbt.getCompound("a"));
-			var b = readNbt(nbt.getCompound("b"));
-			var orbitalPlane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, nbt.get("orbital_plane"))
-					.getOrThrow(false, Mod.LOGGER::error);
-			var orbitalShapeA = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, nbt.get("orbital_shape_a"))
-					.getOrThrow(false, Mod.LOGGER::error);
-			var orbitalShapeB = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, nbt.get("orbital_shape_b"))
-					.getOrThrow(false, Mod.LOGGER::error);
-			var phase = nbt.getDouble("phase");
-			node = new BinaryCelestialNode(massYg, a, b, orbitalPlane, orbitalShapeA, orbitalShapeB, phase);
-		} else if (nodeType.equals("star")) {
-			var type = StellarCelestialNode.Type.values()[nbt.getInt("type")];
-			var luminosity = nbt.getDouble("luminosity");
-			var radius = nbt.getDouble("radius");
-			var temperature = nbt.getDouble("temperature");
-			// NOTE: we only use protoplanetary disc information on the server, and we only
-			// serialize systems in the clientbound direction currently. Something to watch
-			// out for!
-			node = new StellarCelestialNode(type, massYg, luminosity, radius, temperature);
-		} else if (nodeType.equals("planet")) {
-			var type = PlanetaryCelestialNode.Type.values()[nbt.getInt("type")];
-			var radius = nbt.getDouble("radius");
-			var temperature = nbt.getDouble("temperature");
-			node = new PlanetaryCelestialNode(type, massYg, radius, temperature);
-		}
-
-		if (node == null) {
-			throw new RuntimeException("failed to parse celestial node");
-		}
-
-		node.position = position;
+		Vec3.set(node.position, position);
 		node.referencePlane = referencePlane;
 		node.id = id;
-		node.obliquityAngle = obliquityAngle;
-		node.rotationalRate = rotationalRate;
+		node.massYg = mass;
 		node.apsidalRate = apsidalRate;
 
-		final var rings = nbt.getList("rings", Tag.TAG_COMPOUND);
-		for (int i = 0; i < rings.size(); ++i) {
-			final var ringNbt = rings.getCompound(i);
-
-			final var plane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, ringNbt.getCompound("orbital_plane"))
-					.getOrThrow(false, Mod.LOGGER::error);
-			final var eccentricity = ringNbt.getDouble("eccentricity");
-			final var mass = ringNbt.getDouble("mass");
-			final var lower = ringNbt.getDouble("interval_lower");
-			final var higher = ringNbt.getDouble("interval_higher");
-			node.rings.push(new CelestialRing(plane, eccentricity, new Interval(lower, higher), mass));
+		if (node instanceof BinaryCelestialNode binaryNode) {
+			binaryNode.setA(readNbt(nbt.getCompound("a")));
+			binaryNode.setB(readNbt(nbt.getCompound("b")));
+			binaryNode.orbitalPlane = getNbt(OrbitalPlane.CODEC, nbt.get("orbital_plane"));
+			binaryNode.orbitalShapeA = getNbt(OrbitalShape.CODEC, nbt.get("orbital_shape_a"));
+			binaryNode.orbitalShapeB = getNbt(OrbitalShape.CODEC, nbt.get("orbital_shape_b"));
+			binaryNode.phase = nbt.getDouble("phase");
 		}
-		nbt.put("rings", rings);
+		if (node instanceof UnaryCelestialNode unaryNode) {
+			unaryNode.obliquityAngle = nbt.getDouble("obliquity");
+			unaryNode.rotationalRate = nbt.getDouble("rotational_rate");
+			unaryNode.radius = nbt.getDouble("radius");
+			unaryNode.temperature = nbt.getDouble("temperature");
+
+			final var rings = nbt.getList("rings", Tag.TAG_COMPOUND);
+			for (int i = 0; i < rings.size(); ++i) {
+				final var ringNbt = rings.getCompound(i);
+				final var plane = getNbt(OrbitalPlane.CODEC, ringNbt.getCompound("orbital_plane"));
+				final var eccentricity = ringNbt.getDouble("eccentricity");
+				final var ringMass = ringNbt.getDouble("mass");
+				final var lower = ringNbt.getDouble("interval_lower");
+				final var higher = ringNbt.getDouble("interval_higher");
+				unaryNode.rings.push(new CelestialRing(plane, eccentricity, new Interval(lower, higher), ringMass));
+			}
+		}
+		if (node instanceof StellarCelestialNode starNode) {
+			starNode.type = StellarCelestialNode.Type.values()[nbt.getInt("type")];
+			starNode.luminosityLsol = nbt.getDouble("luminosity");
+		}
+		if (node instanceof PlanetaryCelestialNode planetNode) {
+			planetNode.type = PlanetaryCelestialNode.Type.values()[nbt.getInt("type")];
+		}
 
 		final var childList = nbt.getList("children", Tag.TAG_COMPOUND);
 		for (var i = 0; i < childList.size(); ++i) {
-			var childNbt = childList.getCompound(i);
+			final var childNbt = childList.getCompound(i);
 
-			var childNode = readNbt(childNbt.getCompound("node"));
-			var phase = childNbt.getDouble("phase");
-			var orbitalPlane = OrbitalPlane.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_plane"))
-					.getOrThrow(false, Mod.LOGGER::error);
-			var orbitalShape = OrbitalShape.CODEC.parse(NbtOps.INSTANCE, childNbt.get("orbital_shape"))
-					.getOrThrow(false, Mod.LOGGER::error);
+			final var childNode = readNbt(childNbt.getCompound("node"));
+			final var phase = childNbt.getDouble("phase");
+			final var orbitalPlane = getNbt(OrbitalPlane.CODEC, childNbt.get("orbital_plane"));
+			final var orbitalShape = getNbt(OrbitalShape.CODEC, childNbt.get("orbital_shape"));
 
-			var child = new CelestialNodeChild<>(node, childNode, orbitalShape, orbitalPlane, phase);
-			node.insertChild(child);
+			node.insertChild(new CelestialNodeChild<>(node, childNode, orbitalShape, orbitalPlane, phase));
 		}
 
 		return node;
 	}
 
 	public static CompoundTag writeNbt(CelestialNode node) {
-		var nbt = new CompoundTag();
+		final var nbt = new CompoundTag();
 
 		nbt.putInt("id", node.id);
 		nbt.putDouble("mass", node.massYg);
 		nbt.putDouble("x", node.position.x);
 		nbt.putDouble("y", node.position.y);
 		nbt.putDouble("z", node.position.z);
-		nbt.putDouble("obliquity", node.obliquityAngle);
-		nbt.putDouble("rotational_rate", node.rotationalRate);
 		nbt.putDouble("apsidal_rate", node.apsidalRate);
-
-		OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, node.referencePlane)
-				.resultOrPartial(Mod.LOGGER::error)
-				.ifPresent(n -> nbt.put("reference_plane", n));
+		nbt.put("reference_plane", writeNbt(OrbitalPlane.CODEC, node.referencePlane));
 
 		if (node instanceof BinaryCelestialNode binaryNode) {
 			nbt.putString("node_type", "binary");
 			nbt.put("a", writeNbt(binaryNode.getA()));
 			nbt.put("b", writeNbt(binaryNode.getB()));
-			OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, binaryNode.orbitalPlane)
-					.resultOrPartial(Mod.LOGGER::error)
-					.ifPresent(n -> nbt.put("orbital_plane", n));
-			OrbitalShape.CODEC.encodeStart(NbtOps.INSTANCE, binaryNode.orbitalShapeA)
-					.resultOrPartial(Mod.LOGGER::error)
-					.ifPresent(n -> nbt.put("orbital_shape_a", n));
-			OrbitalShape.CODEC.encodeStart(NbtOps.INSTANCE, binaryNode.orbitalShapeB)
-					.resultOrPartial(Mod.LOGGER::error)
-					.ifPresent(n -> nbt.put("orbital_shape_b", n));
+			nbt.put("orbital_plane", writeNbt(OrbitalPlane.CODEC, binaryNode.orbitalPlane));
+			nbt.put("orbital_shape_a", writeNbt(OrbitalShape.CODEC, binaryNode.orbitalShapeA));
+			nbt.put("orbital_shape_b", writeNbt(OrbitalShape.CODEC, binaryNode.orbitalShapeB));
 			nbt.putDouble("phase", binaryNode.phase);
-		} else if (node instanceof StellarCelestialNode starNode) {
+		}
+		if (node instanceof UnaryCelestialNode unaryNode) {
+			nbt.putDouble("radius", unaryNode.radius);
+			nbt.putDouble("obliquity", unaryNode.obliquityAngle);
+			nbt.putDouble("rotational_rate", unaryNode.rotationalRate);
+			nbt.putDouble("temperature", unaryNode.temperature);
+
+			final var rings = new ListTag();
+			for (final var ring : unaryNode.rings.iterable()) {
+				final var ringNbt = new CompoundTag();
+				ringNbt.put("orbital_plane", writeNbt(OrbitalPlane.CODEC, ring.orbitalPlane));
+				ringNbt.putDouble("eccentricity", ring.eccentricity);
+				ringNbt.putDouble("mass", ring.mass);
+				ringNbt.putDouble("interval_lower", ring.interval.lower());
+				ringNbt.putDouble("interval_higher", ring.interval.higher());
+				rings.add(ringNbt);
+			}
+			nbt.put("rings", rings);
+		}
+		if (node instanceof StellarCelestialNode starNode) {
 			nbt.putString("node_type", "star");
 			nbt.putInt("type", starNode.type.ordinal());
 			nbt.putDouble("luminosity", starNode.luminosityLsol);
-			nbt.putDouble("radius", starNode.radiusRsol);
-			nbt.putDouble("temperature", starNode.temperatureK);
-		} else if (node instanceof PlanetaryCelestialNode planetNode) {
+		}
+		if (node instanceof PlanetaryCelestialNode planetNode) {
 			nbt.putString("node_type", "planet");
 			nbt.putInt("type", planetNode.type.ordinal());
-			nbt.putDouble("radius", planetNode.radiusRearth);
-			nbt.putDouble("temperature", planetNode.temperatureK);
 		}
-
-		final var rings = new ListTag();
-		for (var ring : node.rings.iterable()) {
-			final var ringNbt = new CompoundTag();
-			OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, ring.orbitalPlane)
-					.resultOrPartial(Mod.LOGGER::error)
-					.ifPresent(n -> ringNbt.put("orbital_plane", n));
-			ringNbt.putDouble("eccentricity", ring.eccentricity);
-			ringNbt.putDouble("mass", ring.mass);
-			ringNbt.putDouble("interval_lower", ring.interval.lower());
-			ringNbt.putDouble("interval_higher", ring.interval.higher());
-			rings.add(ringNbt);
-		}
-		nbt.put("rings", rings);
 
 		final var children = new ListTag();
-		for (var child : node.childNodes.iterable()) {
-			var childNbt = new CompoundTag();
+		for (final var child : node.childNodes.iterable()) {
+			final var childNbt = new CompoundTag();
 
 			childNbt.put("node", writeNbt(child.node));
 			childNbt.putDouble("phase", child.phase);
-
-			OrbitalPlane.CODEC.encodeStart(NbtOps.INSTANCE, child.orbitalPlane).resultOrPartial(Mod.LOGGER::error)
-					.ifPresent(n -> childNbt.put("orbital_plane", n));
-			OrbitalShape.CODEC.encodeStart(NbtOps.INSTANCE, child.orbitalShape).resultOrPartial(Mod.LOGGER::error)
-					.ifPresent(n -> childNbt.put("orbital_shape", n));
+			childNbt.put("orbital_plane", writeNbt(OrbitalPlane.CODEC, child.orbitalPlane));
+			childNbt.put("orbital_shape", writeNbt(OrbitalShape.CODEC, child.orbitalShape));
 
 			children.add(childNbt);
 		}

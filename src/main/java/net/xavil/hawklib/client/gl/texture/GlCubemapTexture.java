@@ -2,7 +2,7 @@ package net.xavil.hawklib.client.gl.texture;
 
 import java.util.function.Consumer;
 
-import org.lwjgl.opengl.GL32C;
+import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 
@@ -16,12 +16,12 @@ import net.xavil.hawklib.math.matrices.Vec3;
 public final class GlCubemapTexture extends GlTexture {
 
 	public static enum Face {
-		XP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_X, Vec3.XP, "+X"),
-		XN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_X, Vec3.XN, "-X"),
-		YP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_Y, Vec3.YP, "+Y"),
-		YN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, Vec3.YN, "-Y"),
-		ZP(GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_Z, Vec3.ZP, "+Z"),
-		ZN(GL32C.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, Vec3.ZN, "-Z");
+		XP(GL45C.GL_TEXTURE_CUBE_MAP_POSITIVE_X, Vec3.XP, "+X"),
+		XN(GL45C.GL_TEXTURE_CUBE_MAP_NEGATIVE_X, Vec3.XN, "-X"),
+		YP(GL45C.GL_TEXTURE_CUBE_MAP_POSITIVE_Y, Vec3.YP, "+Y"),
+		YN(GL45C.GL_TEXTURE_CUBE_MAP_NEGATIVE_Y, Vec3.YN, "-Y"),
+		ZP(GL45C.GL_TEXTURE_CUBE_MAP_POSITIVE_Z, Vec3.ZP, "+Z"),
+		ZN(GL45C.GL_TEXTURE_CUBE_MAP_NEGATIVE_Z, Vec3.ZN, "-Z");
 
 		public final int glId;
 		public final Vec3 faceDir;
@@ -47,14 +47,14 @@ public final class GlCubemapTexture extends GlTexture {
 		this.textureFormat = textureFormat;
 		this.size = new Size(size, size, 1, 1);
 		for (int i = 0; i < 6; ++i) {
-			final var binding = GL32C.GL_TEXTURE_CUBE_MAP_POSITIVE_X + i;
+			final var binding = GL45C.GL_TEXTURE_CUBE_MAP_POSITIVE_X + i;
 			GlStateManager._texImage2D(
 					binding, 0,
 					this.textureFormat.id,
 					size, size, 0,
 					// format + type are bogus values, and are ignored as we aren't actually doing
 					// any data transfer here.
-					GL32C.GL_RGBA, GL32C.GL_UNSIGNED_BYTE, null);
+					GL45C.GL_RGBA, GL45C.GL_UNSIGNED_BYTE, null);
 		}
 	}
 

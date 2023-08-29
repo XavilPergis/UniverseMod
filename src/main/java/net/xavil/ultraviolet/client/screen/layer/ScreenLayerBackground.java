@@ -1,16 +1,16 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
+import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.VertexBuilder;
+import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec2i;
@@ -33,18 +33,18 @@ public class ScreenLayerBackground extends HawkScreen.Layer2d {
 
 	@Override
 	public void render(PoseStack poseStack, Vec2i mousePos, float partialTick) {
-		final var shader = getVanillaShader(SHADER_VANILLA_POSITION_COLOR);
+		final var shader = SHADER_VANILLA_POSITION_COLOR.get();
 		RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
 
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		builder.begin(VertexFormat.Mode.QUADS, DefaultVertexFormat.POSITION_COLOR);
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER
+				.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_COLOR);
 		fillGradient(poseStack.last().pose(), builder,
 				0, 0, this.attachedScreen.width, this.attachedScreen.height,
 				0, this.bottomColor, this.topColor);
 		builder.end().draw(shader, DRAW_STATE_DIRECT_ALPHA_BLENDING);
 	}
 
-	private static void fillGradient(Matrix4f matrix, VertexBuilder builder, int x1, int y1, int x2, int y2,
+	private static void fillGradient(Matrix4f matrix, FlexibleVertexConsumer builder, int x1, int y1, int x2, int y2,
 			int z, Color colorA, Color colorB) {
 		final var nn = new Vec3(x1, y1, z).transformBy(matrix);
 		final var np = new Vec3(x1, y2, z).transformBy(matrix);

@@ -9,9 +9,11 @@ public class AccreteContext {
 	public final Rng rng;
 	public final double stellarLuminosityLsol;
 	public final double stellarMassMsol;
-	public final double stellarAgeMyr;
 	public final Interval stableOrbitInterval;
 	public int nextPlanetesimalId = 0;
+	
+	public final double systemAgeMya;
+	public double currentSystemAgeMya;
 
 	public AccreteContext(SimulationParameters params, Rng rng, double stellarLuminosityLsol, double stellarMassMsol,
 			double stellarAgeMyr, Interval stableOrbitInterval) {
@@ -19,7 +21,8 @@ public class AccreteContext {
 		this.rng = rng;
 		this.stellarLuminosityLsol = stellarLuminosityLsol;
 		this.stellarMassMsol = stellarMassMsol;
-		this.stellarAgeMyr = stellarAgeMyr;
+		this.systemAgeMya = stellarAgeMyr;
+		this.currentSystemAgeMya = stellarAgeMyr;
 		this.stableOrbitInterval = stableOrbitInterval;
 	}
 

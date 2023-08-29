@@ -5,12 +5,12 @@ import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
@@ -58,10 +58,10 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
 			Vec3 focusPos,
 			double gridDiameter, int subcellsPerCell, int gridLineCount) {
-		builder.begin(PrimitiveType.LINES, DefaultVertexFormat.POSITION_COLOR_NORMAL);
-		addGrid(builder, camera, cullingCamera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
+		final var dispatch = builder.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
+		addGrid(dispatch, camera, cullingCamera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
 		RenderSystem.lineWidth(2);
-		builder.end().draw(HawkShaders.getVanillaShader(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES), GRID_STATE);
+		dispatch.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(), GRID_STATE);
 	}
 
 	private static void addGridSegment(FlexibleVertexConsumer builder,

@@ -128,6 +128,8 @@ public final class ConfigKey<T> {
 	public static final ConfigKey<Integer> GALAXY_PARTILE_ATTEMPT_COUNT = intKey("galaxyParticleAttemptCount", 1000000, Side.CLIENT);
 	public static final ConfigKey<Integer> GALAXY_PARTILE_MAX_PARTICLES = intKey("galaxyParticleMaxParticles", 2500,    Side.CLIENT);
 
+	public static final ConfigKey<Double>  PLANET_EXAGGERATION_FACTOR   = doubleKey("planetExaggerationFactor", 1.0, Side.CLIENT);
+
 	public static final ConfigKey<Float> STAR_SHADER_STAR_MIN_SIZE           = floatKey("starShaderStarMinSize",          5f,    Side.CLIENT);
 	public static final ConfigKey<Float> STAR_SHADER_STAR_MAX_SIZE           = floatKey("starShaderStarMaxSize",          10f,   Side.CLIENT);
 	public static final ConfigKey<Float> STAR_SHADER_STAR_SIZE_SQUASH_FACTOR = floatKey("starShaderStarSizeSquashFactor", 1000f, Side.CLIENT);

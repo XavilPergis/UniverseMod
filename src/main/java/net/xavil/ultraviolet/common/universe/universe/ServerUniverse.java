@@ -240,7 +240,7 @@ public final class ServerUniverse extends Universe {
 		saturn.insertChild(titan,     0.0288, Tm_PER_au * (0.00816), Math.toRadians(0.34854), 13.0 % (2.0 * Math.PI), 0, 18);
 		saturn.insertChild(iapetus,   0.0276, Tm_PER_au * (0.02380), Math.toRadians(15.47),   17.0 % (2.0 * Math.PI), 0, 19);
 
-		saturn.addRing(new CelestialRing(OrbitalPlane.ZERO, 0, new Interval(Tm_PER_au * (0.00044719888), Tm_PER_au * (0.000937045423)), Yg_PER_Mearth * (0.40 * 6.3e-6)));
+		saturn.rings.push(new CelestialRing(OrbitalPlane.ZERO, 0, new Interval(Tm_PER_au * (0.00044719888), Tm_PER_au * (0.000937045423)), Yg_PER_Mearth * (0.40 * 6.3e-6)));
 		// @formatter:on
 
 		return new StartingSystem(4600, "Sol", sol, earth);

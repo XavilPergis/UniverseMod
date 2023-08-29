@@ -2,9 +2,7 @@ package net.xavil.hawklib.client.gl;
 
 import javax.annotation.Nullable;
 
-import org.lwjgl.opengl.GL32C;
-
-import com.mojang.blaze3d.platform.GlStateManager;
+import org.lwjgl.opengl.GL45C;
 
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.texture.GlCubemapTexture;
@@ -38,11 +36,10 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 	 * 
 	 * @param attachmentPoint The attachment point index
 	 */
-	public abstract void attach(int attachmentPoint);
+	public abstract void attach(GlFramebuffer framebuffer, int attachmentPoint);
 
-	public static void detach(int attachmentPoint) {
-		GlStateManager._glFramebufferTexture2D(GL32C.GL_FRAMEBUFFER, attachmentPoint,
-				GL32C.GL_TEXTURE_2D, 0, 0);
+	public static void detach(GlFramebuffer framebuffer, int attachmentPoint) {
+		GL45C.glNamedFramebufferTexture(framebuffer.id, attachmentPoint, 0, 0);
 	}
 
 	/**
@@ -90,9 +87,8 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		}
 
 		@Override
-		public void attach(int attachmentPoint) {
-			GlStateManager._glFramebufferTexture2D(GL32C.GL_FRAMEBUFFER, attachmentPoint,
-					GL32C.GL_TEXTURE_2D, this.target.id(), 0);
+		public void attach(GlFramebuffer framebuffer, int attachmentPoint) {
+			GL45C.glNamedFramebufferTexture(framebuffer.id, attachmentPoint, this.target.id, 0);
 		}
 
 		@Override
@@ -138,9 +134,8 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		}
 
 		@Override
-		public void attach(int attachmentPoint) {
-			GlStateManager._glFramebufferTexture2D(GL32C.GL_FRAMEBUFFER, attachmentPoint,
-					this.face.glId, this.target.id(), 0);
+		public void attach(GlFramebuffer framebuffer, int attachmentPoint) {
+			GL45C.glNamedFramebufferTextureLayer(framebuffer.id, attachmentPoint, this.target.id(), 0, this.face.glId);
 		}
 
 		@Override
@@ -183,9 +178,9 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		}
 
 		@Override
-		public void attach(int attachmentPoint) {
-			GlStateManager._glFramebufferRenderbuffer(GL32C.GL_FRAMEBUFFER, attachmentPoint,
-					GL32C.GL_RENDERBUFFER, this.target.id);
+		public void attach(GlFramebuffer framebuffer, int attachmentPoint) {
+			GL45C.glNamedFramebufferRenderbuffer(framebuffer.id, attachmentPoint,
+					GL45C.GL_RENDERBUFFER, this.target.id);
 		}
 
 		@Override

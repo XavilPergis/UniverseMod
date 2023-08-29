@@ -16,6 +16,9 @@ public final class BinaryCelestialNode extends CelestialNode {
 	public OrbitalShape orbitalShapeB;
 	public double phase;
 
+	public BinaryCelestialNode() {
+	}
+
 	private BinaryCelestialNode(CelestialNode a, CelestialNode b) {
 		super(a.massYg + b.massYg);
 		this.a = a;
@@ -83,18 +86,6 @@ public final class BinaryCelestialNode extends CelestialNode {
 	public Ellipse getEllipseB(OrbitalPlane referencePlane, double celestialTime) {
 		final var plane = this.orbitalPlane.withReferencePlane(referencePlane);
 		return Ellipse.fromOrbit(this.position, plane, orbitalShapeB, this.apsidalRate * celestialTime, true);
-	}
-
-	@Override
-	public String toString() {
-		var builder = new StringBuilder("BinaryNode " + this.id);
-		builder.append(" [");
-		builder.append("massYg=" + this.massYg);
-		builder.append(", orbitalPlane=" + this.orbitalPlane);
-		builder.append(", orbitalShapeA=" + this.orbitalShapeA);
-		builder.append(", orbitalShapeB=" + this.orbitalShapeB);
-		builder.append("]");
-		return builder.toString();
 	}
 
 	public void setA(CelestialNode node) {

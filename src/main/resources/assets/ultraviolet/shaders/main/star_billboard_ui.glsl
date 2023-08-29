@@ -7,9 +7,9 @@ VARYING_V2F vec4 vertexColor;
 #include [ultraviolet:common_uniforms.glsl]
 
 #ifdef IS_VERTEX_STAGE
-in vec3 Position;
-in vec4 Color;
-in vec2 UV0;
+in vec3 aPos;
+in vec4 aColor;
+in vec2 aTexCoord0;
 
 vec2 uvFromVertex(int id) {
 	id = id % 4;
@@ -39,7 +39,7 @@ void emitPoint(vec4 viewPos, float pointSize) {
 }
 
 void main() {
-	vec4 viewPos = uViewMatrix * vec4(Position, 1.0);
+	vec4 viewPos = uViewMatrix * vec4(aPos, 1.0);
 	float distanceFromCameraTm = length(viewPos.xyz) * (uMetersPerUnit / 1e12);
 
 	float size = 300000.0 / length(viewPos.xyz);
@@ -48,7 +48,7 @@ void main() {
 	float alpha = 1.0;
 
 	emitPoint(viewPos, size);
-	vertexColor = vec4(Color.rgb, alpha);
+	vertexColor = vec4(aColor.rgb, alpha);
 }
 
 #endif

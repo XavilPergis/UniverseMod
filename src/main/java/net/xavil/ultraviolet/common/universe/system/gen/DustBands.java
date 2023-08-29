@@ -45,14 +45,19 @@ public class DustBands {
 		return rng.uniformDouble(interval);
 	}
 
-	public void removeMaterial(Interval interval, boolean removeGas, boolean removeDust) {
+	public boolean removeMaterial(Interval interval, boolean removeGas, boolean removeDust) {
 		final var prevBands = new ArrayList<>(bands);
 		this.bands.clear();
 		boolean changedAnything = false;
+		boolean sweptGas = false;
 		for (var band : prevBands) {
 			if (!band.interval.intersects(interval)) {
 				this.bands.add(band);
-			} else if (interval.contains(band.interval)) {
+				continue;
+			}
+
+			sweptGas |= removeGas && band.hasGas;
+			if (interval.contains(band.interval)) {
 				boolean newGas = !removeGas && band.hasGas, newDust = !removeDust && band.hasDust;
 				if (newGas || newDust)
 					this.bands.add(new Band(band.interval, newGas, newDust));
@@ -89,10 +94,12 @@ public class DustBands {
 
 		if (changedAnything)
 			defragment();
+
+		return sweptGas;
 	}
 
-	public void removeMaterial(Interval interval, boolean removeGas) {
-		removeMaterial(interval, removeGas, true);
+	public boolean removeMaterial(Interval interval, boolean removeGas) {
+		return removeMaterial(interval, removeGas, true);
 	}
 
 	private void defragment() {
@@ -141,7 +148,7 @@ public class DustBands {
 		}
 
 		final var sweptInterval = planetesimal.sweptDustLimits();
-		removeMaterial(sweptInterval, planetesimal.canSweepGas());
+		planetesimal.sweptGas |= removeMaterial(sweptInterval, planetesimal.canSweepGas());
 
 		return accumulatedMass;
 	}

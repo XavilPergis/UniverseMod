@@ -134,7 +134,7 @@ public abstract sealed class StationLocation implements Disposable {
 			} else if (node instanceof StellarCelestialNode starNode) {
 				semiMajor = 5.0 * Units.Tu_PER_ku * starNode.radius;
 			} else if (node instanceof BinaryCelestialNode binaryNode) {
-				semiMajor = 1.1 * binaryNode.orbitalShapeB.semiMajor();
+				semiMajor = 1.1 * binaryNode.orbitalShapeOuter.semiMajor();
 			}
 
 			this.plane = OrbitalPlane.ZERO.withReferencePlane(node.referencePlane);

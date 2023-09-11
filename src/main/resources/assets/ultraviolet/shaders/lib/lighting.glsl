@@ -40,6 +40,10 @@ Light makePointLight(vec3 pos, vec3 radiantFlux) {
 	return Light(LIGHT_TYPE_POINT, pos, radiantFlux, 0.0);
 }
 
+Light makeSphereLight(vec3 pos, vec3 radiantFlux, float radius) {
+	return Light(LIGHT_TYPE_SPHERE, pos, radiantFlux, radius);
+}
+
 // GGX - Normal Distribution Factor
 float microfacetOrientationFactor(in LightingContext ctx, in Light light, in vec3 halfway) {
     float a2 = pow(ctx.material.roughness, 4.0);
@@ -89,22 +93,28 @@ vec3 brdfCookTorrance(in LightingContext ctx, in Light light, in vec3 toLight) {
 	specular *= microfacetOcclusionFactor(ctx, toLight);
 	specular /= max(4.0 * pdot(ctx.toEye, ctx.normal) * pdot(toLight, ctx.normal), 1e-6);
 
-    vec3 F0 = mix(vec3(0.04), ctx.material.albedo, ctx.material.metallicity);
+	vec3 F0 = mix(vec3(0.04), ctx.material.albedo, ctx.material.metallicity);
 	// vec3 fresnel = fresnelFactor(pdot(ctx.normal, ctx.toEye), F0);
 	vec3 fresnel = F0;
 	// return fresnel;
-	return mix(diffuse, specular, fresnel);
+	vec3 res = mix(diffuse, specular, fresnel);
+
+
+	return res;
+}
+
+float lightFalloff(float d) {
+	// return 1.0 / (d * d + 1.0);
+	return 1.0 / (d);
 }
 
 vec3 lightContribution(in LightingContext ctx, in Light light) {
-	// if (length(light.radiantFlux) == 0) return vec3(0.0);
+	if (length(light.radiantFlux) == 0) return vec3(0.0);
 
 	vec3 toLight = normalize(light.pos - ctx.fragPos);
 
-	float d = (2.0 * ctx.metersPerUnit / 1e12) * distance(light.pos, ctx.fragPos);
-	// vec3 radiance = light.radiantFlux / (d * d);
-	vec3 radiance = light.radiantFlux / d;
-	// vec3 radiance = light.radiantFlux;
+	float d = (ctx.metersPerUnit / 1e12) * distance(light.pos, ctx.fragPos);
+	vec3 radiance = light.radiantFlux * lightFalloff(d);
 
 	vec3 lightContribution = vec3(1.0);
 	lightContribution *= brdfCookTorrance(ctx, light, toLight);

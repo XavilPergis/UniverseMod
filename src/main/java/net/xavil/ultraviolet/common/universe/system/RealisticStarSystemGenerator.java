@@ -4,6 +4,7 @@ import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -19,7 +20,7 @@ import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalPlane;
 
-public class StarSystemGeneratorImpl {
+public class RealisticStarSystemGenerator implements StarSystemGenerator {
 
 	// how many times larger the radius of an orbit around a binary pair needs to be
 	// than the maximum radius of the existing binary pair.
@@ -27,20 +28,13 @@ public class StarSystemGeneratorImpl {
 	public static final int PLANET_SEED_COUNT = 100;
 	public static final int MAX_GENERATION_DEPTH = 5;
 
-	protected final Rng rng;
-	protected final Galaxy galaxy;
-	protected final GalaxySector.SectorElementHolder info;
+	protected StableRandom rootRng;
+	protected StableRandom currentRng;
+	protected Galaxy galaxy;
+	protected GalaxySector.SectorElementHolder info;
 	protected double remainingMass;
 
-	protected final double maximumSystemRadius;
-
-	public StarSystemGeneratorImpl(Rng rng, Galaxy galaxy, GalaxySector.SectorElementHolder info) {
-		this.rng = rng;
-		this.galaxy = galaxy;
-		this.info = info;
-
-		this.maximumSystemRadius = rng.uniformDouble(100, 1000);
-	}
+	protected double maximumSystemRadius;
 
 	public static OrbitalPlane randomOrbitalPlane(Rng rng) {
 		return OrbitalPlane.fromOrbitalElements(
@@ -53,8 +47,8 @@ public class StarSystemGeneratorImpl {
 		double currentMin = 0.0, currentMax = Double.POSITIVE_INFINITY;
 		final var binaryParent = node.getBinaryParent();
 		if (binaryParent != null) {
-			var periapsisA = binaryParent.orbitalShapeA.periapsisDistance();
-			var periapsisB = binaryParent.orbitalShapeB.periapsisDistance();
+			var periapsisA = binaryParent.orbitalShapeInner.periapsisDistance();
+			var periapsisB = binaryParent.orbitalShapeOuter.periapsisDistance();
 			var minPeriapsis = Math.min(periapsisA, periapsisB);
 			currentMax = Math.min(currentMax, minPeriapsis / SPACING_FACTOR);
 		}
@@ -64,7 +58,7 @@ public class StarSystemGeneratorImpl {
 			// var nodeEffectLimits = Formulas.gravitationalEffectLimits(nodeShape,
 			// node.massYg);
 			double closestOuter = 0.0, closestInner = Double.POSITIVE_INFINITY;
-			for (var sibling : unaryParent.childOrbits()) {
+			for (var sibling : unaryParent.childNodes.iterable()) {
 				if (sibling.node == node)
 					continue;
 				// FIXME: this does not take inclination/etc into account
@@ -81,10 +75,10 @@ public class StarSystemGeneratorImpl {
 				// assumes that no orbits are overlapping
 				var siblingEffectLimits = Formulas.gravitationalEffectLimits(sibling.orbitalShape, sibling.node.massYg);
 				if (sibling.orbitalShape.apoapsisDistance() < nodeShape.periapsisDistance()) {
-					closestOuter = Math.max(closestOuter, siblingEffectLimits.higher());
+					closestOuter = Math.max(closestOuter, siblingEffectLimits.higher);
 				}
 				if (sibling.orbitalShape.periapsisDistance() > nodeShape.apoapsisDistance()) {
-					closestInner = Math.min(closestInner, siblingEffectLimits.lower());
+					closestInner = Math.min(closestInner, siblingEffectLimits.lower);
 				}
 			}
 
@@ -96,14 +90,14 @@ public class StarSystemGeneratorImpl {
 		}
 
 		if (node instanceof BinaryCelestialNode binaryNode) {
-			var apoapsisA = binaryNode.orbitalShapeA.apoapsisDistance();
-			var apoapsisB = binaryNode.orbitalShapeB.apoapsisDistance();
+			var apoapsisA = binaryNode.orbitalShapeInner.apoapsisDistance();
+			var apoapsisB = binaryNode.orbitalShapeOuter.apoapsisDistance();
 			var maxApoapsis = Math.max(apoapsisA, apoapsisB);
 			currentMin = Math.max(currentMin, maxApoapsis * SPACING_FACTOR);
 		}
 
 		double furthestChild = 0.0;
-		for (var child : node.childOrbits()) {
+		for (var child : node.childNodes.iterable()) {
 			var childDistance = child.orbitalShape.apoapsisDistance();
 			furthestChild = Math.max(furthestChild, childDistance);
 		}
@@ -112,49 +106,65 @@ public class StarSystemGeneratorImpl {
 		return new Interval(currentMin, currentMax);
 	}
 
-	public static final double MAX_METALLICITY = 0.5;
+	public static final double MAX_METALLICITY = 0.2;
+
+	// lmao this is ass
+	@Override
+	public CelestialNode generate(Context ctx) {
+		this.rootRng = new StableRandom(ctx.rng.uniformLong());
+		this.currentRng = this.rootRng;
+		this.galaxy = ctx.galaxy;
+		this.info = ctx.info;
+		this.maximumSystemRadius = this.rootRng.uniformDouble("maximum_system_radius", 100, 1000);
+		return generate();
+	}
 
 	public CelestialNode generate() {
+		final var stellarProperties = new StellarCelestialNode.Properties();
+		stellarProperties.load(this.info.massYg, 0.0);
 		final var node = StellarCelestialNode.fromMassAndAge(this.info.massYg, this.info.systemAgeMyr);
 
-		final var remainingMass = this.info.massYg * this.rng.uniformDouble(0.0, 0.9);
+		final var remainingMass = this.rootRng.uniformDouble("remaining_mass", 0.05, 0.9 * this.info.massYg);
 
 		var metallicity = this.galaxy.densityFields.metallicity.sample(this.info.systemPosTm);
 		if (metallicity > MAX_METALLICITY) {
-			Mod.LOGGER.warn(
-					"Tried to generate star system with a metallicity of '{}', which is greater than the limit of '{}'",
-					metallicity, MAX_METALLICITY);
+			// Mod.LOGGER.warn(
+			// 		"Tried to generate star system with a metallicity of '{}', which is greater than the limit of '{}'",
+			// 		metallicity, MAX_METALLICITY);
 			metallicity = MAX_METALLICITY;
 		}
 
-		final var params = new SimulationParameters();
-		final var stableInterval = getStableOrbitInterval(node, OrbitalPlane.ZERO);
-		final var nodeMass = node.massYg / Units.Yg_PER_Msol;
-		final var ctx = new AccreteContext(params, rng, getTotalLuminosity(node), nodeMass, this.info.systemAgeMyr,
-				stableInterval);
+		metallicity = this.rootRng.weightedDouble("metallicity", 4, 0.001, 0.1);
 
-		final var protoDisc = new ProtoplanetaryDisc(ctx, remainingMass, metallicity);
+		final var params = new SimulationParameters();
+		final var stableInterval = getStableOrbitInterval(node, OrbitalPlane.ZERO).mul(1.0 / Units.Tm_PER_au);
+		final var nodeMass = Units.Msol_PER_Yg * node.massYg;
+		final var ctx = new AccreteContext(params, this.rootRng.split("system_gen"), stellarProperties.luminosityLsol, nodeMass,
+				this.info.systemAgeMyr,
+				metallicity, stableInterval);
+
+		final var protoDisc = new ProtoplanetaryDisc(ctx, remainingMass);
 
 		try {
 			// final var res = protoDisc.build();
 			// if (res != null)
-			// 	return res;
+			// return res;
 			protoDisc.collapseDisc(node);
+			return node;
 		} catch (Throwable t) {
 			t.printStackTrace();
+			Mod.LOGGER.error("Failed to generate system!");
+			throw t;
 		}
-
-		Mod.LOGGER.error("Failed to generate system!");
-		return node;
 	}
 
 	private double getTotalLuminosity(CelestialNode node) {
 		double total = 0.0;
 		if (node instanceof BinaryCelestialNode binaryNode) {
-			total += getTotalLuminosity(binaryNode.getA());
-			total += getTotalLuminosity(binaryNode.getB());
+			total += getTotalLuminosity(binaryNode.getInner());
+			total += getTotalLuminosity(binaryNode.getOuter());
 		}
-		for (var child : node.childOrbits()) {
+		for (var child : node.childNodes.iterable()) {
 			total += getTotalLuminosity(child.node);
 		}
 		if (node instanceof StellarCelestialNode starNode) {
@@ -206,12 +216,12 @@ public class StarSystemGeneratorImpl {
 			newNode.setBinaryParent(parent);
 			parent.replace(existing, newNode);
 		}
-		newNode.getA().setBinaryParent(newNode);
-		newNode.getB().setBinaryParent(newNode);
+		newNode.getInner().setBinaryParent(newNode);
+		newNode.getOuter().setBinaryParent(newNode);
 	}
 
-	private @Nullable CelestialNode mergeSingleStar(StellarCelestialNode existing, StellarCelestialNode toInsert,
-			boolean closeOrbit) {
+	private @Nullable CelestialNode mergeSingleStar(StableRandom rng, StellarCelestialNode existing,
+			StellarCelestialNode toInsert, boolean closeOrbit) {
 
 		// if the node we are placing ourselves into orbit with is already part of a
 		// binary orbit, then there is a maximum radius of the new binary node: one
@@ -231,18 +241,16 @@ public class StarSystemGeneratorImpl {
 
 		double distance = 0;
 		if (closeOrbit) {
-			var t = Math.pow(rng.uniformDouble(), 3);
 			var limit = Units.Tm_PER_au * 10;
-			distance = Mth.lerp(t, minDistance, Math.min(maxDistance, limit));
+			distance = rng.weightedDouble("distance", 3, minDistance, Math.min(maxDistance, limit));
 		} else {
-			distance = rng.uniformDouble(minDistance, maxDistance);
+			distance = rng.uniformDouble("distance", minDistance, maxDistance);
 		}
 		Mod.LOGGER.info("Success [distance={}]", distance);
 
 		var squishFactor = 1;
 		var newNode = BinaryCelestialNode.fromSquishFactor(existing, toInsert, OrbitalPlane.ZERO, squishFactor,
-				distance,
-				rng.uniformDouble(0, 2 * Math.PI));
+				distance, rng.uniformDouble("orbital_phase", 0, 2 * Math.PI));
 		replaceNode(existing, newNode);
 		return newNode;
 	}
@@ -251,7 +259,7 @@ public class StarSystemGeneratorImpl {
 		if (node instanceof StellarCelestialNode starNode) {
 			return 10 * Units.Tu_PER_ku * starNode.radius;
 		} else if (node instanceof BinaryCelestialNode binaryNode) {
-			return SPACING_FACTOR * binaryNode.orbitalShapeB.semiMajor();
+			return SPACING_FACTOR * binaryNode.orbitalShapeOuter.semiMajor();
 		}
 		return 0;
 	}
@@ -264,73 +272,87 @@ public class StarSystemGeneratorImpl {
 		if (binaryParent == null)
 			return maximumSystemRadius;
 
-		var closestDistance = binaryParent.orbitalShapeA.periapsisDistance()
-				+ binaryParent.orbitalShapeB.periapsisDistance();
+		var closestDistance = binaryParent.orbitalShapeInner.periapsisDistance()
+				+ binaryParent.orbitalShapeOuter.periapsisDistance();
 
 		return closestDistance / SPACING_FACTOR;
 	}
 
-	private @Nullable CelestialNode mergeStarWithBinary(BinaryCelestialNode existing, StellarCelestialNode toInsert,
-			boolean closeOrbit) {
+	private @Nullable CelestialNode mergeStarWithBinary(StableRandom rng, BinaryCelestialNode existing,
+			StellarCelestialNode toInsert, boolean closeOrbit) {
 
 		// i kinda hate this, but i cant think of a nicer way to do this rn.
-		boolean triedPType = false, triedSTypeA = false, triedSTypeB = false;
-		while (!triedPType || !triedSTypeA || !triedSTypeB) {
+		boolean triedOuter = false, triedInnerA = false, triedInnerB = false;
+		while (!triedOuter || !triedInnerA || !triedInnerB) {
 
-			if ((!triedPType && triedSTypeA && triedSTypeB) || (!triedPType && rng.chance(0.3))) {
-				triedPType = true;
-				// try to merge into a P-type orbit (put star into node with the binary node we
-				// were given)
+			if (!triedOuter && (triedInnerA && triedInnerB || rng.chance("try_outer", 0.3))) {
+				triedOuter = true;
 
 				// We want to avoid putting nodes into P-type orbits that are too close to their
 				// partner, as these types of configurations are usually very unstable in real
 				// life.
-				var minRadius = Math.max(getExclusionRadius(existing), getExclusionRadius(toInsert));
-				var maxRadius = getMaximumBinaryDistanceForReplacement(existing);
+				final var minRadius = Math.max(getExclusionRadius(existing), getExclusionRadius(toInsert));
+				final var maxRadius = getMaximumBinaryDistanceForReplacement(existing);
 
 				Mod.LOGGER.info("Attempting P-Type [min={}, max={}]", minRadius, maxRadius);
 
 				if (minRadius <= maxRadius) {
-					var radius = rng.uniformDouble(minRadius, maxRadius);
+					final var radius = rng.weightedDouble("orbital_radius", 2, minRadius, maxRadius);
 					Mod.LOGGER.info("Success [radius={}]", radius);
-					// var squishFactor = Mth.lerp(1 - Math.pow(random.uniformDouble(), 7), 0.2, 1);
-					var squishFactor = 1;
-					var newNode = BinaryCelestialNode.fromSquishFactor(existing, toInsert, OrbitalPlane.ZERO,
-							squishFactor, radius,
-							rng.uniformDouble(0, 2 * Math.PI));
+
+					OrbitalPlane orbitalPlane;
+					if (closeOrbit) {
+						orbitalPlane = existing.orbitalPlane;
+						// existing.orbitalPlane = OrbitalPlane.ZERO;
+					} else {
+						orbitalPlane = OrbitalPlane.fromInclination(
+								rng.uniformDouble("inclination", 0, 2.0 * Math.PI),
+								rng.split("orbital_plane"));
+					}
+
+					final var squishFactor = 1;
+					final var phase = rng.uniformDouble("orbital_phase", 0, 2 * Math.PI);
+					final var newNode = BinaryCelestialNode.fromSquishFactor(existing, toInsert, orbitalPlane,
+							squishFactor, radius, phase);
 					replaceNode(existing, newNode);
 					return newNode;
 				}
 			} else {
-				// try to merge into an S-type orbit (put star into node with one of the child
-				// nodes of the binary node we were given)
-				var node = existing.getB();
-				if (!triedSTypeA && rng.chance(0.5)) {
-					triedSTypeA = true;
-					node = existing.getA();
+				var a = existing.getInner();
+				var b = existing.getOuter();
+
+				if (!triedInnerA && rng.chance("inner", 0.5)) {
+					triedInnerA = true;
 					Mod.LOGGER.info("Attempting S-Type A");
-				} else {
-					triedSTypeB = true;
+					a = mergeStarNodes(rng.split("a"), a, toInsert, closeOrbit);
+				} else if (!triedInnerB) {
+					triedInnerB = true;
 					Mod.LOGGER.info("Attempting S-Type B");
+					b = mergeStarNodes(rng.split("b"), b, toInsert, closeOrbit);
 				}
 
-				var newNode = mergeStarNodes(node, toInsert, closeOrbit);
-				if (newNode != null) {
-					return existing;
-				}
+				if (a == null || b == null)
+					return null;
+
+				// final var newNode = new BinaryCelestialNode(a, b);
+				final var newNode = BinaryCelestialNode.fromSquishFactor(a, b,
+						existing.orbitalPlane,
+						1, existing.orbitalShapeOuter.semiMajor(),
+						existing.phase);
+				return newNode;
 			}
 		}
 
 		return null;
 	}
 
-	private @Nullable CelestialNode mergeStarNodes(CelestialNode existing, StellarCelestialNode toInsert,
-			boolean closeOrbit) {
+	private @Nullable CelestialNode mergeStarNodes(StableRandom rng, CelestialNode existing,
+			StellarCelestialNode toInsert, boolean closeOrbit) {
 
 		if (existing instanceof StellarCelestialNode starNode) {
-			return mergeSingleStar(starNode, toInsert, closeOrbit);
+			return mergeSingleStar(rng, starNode, toInsert, closeOrbit);
 		} else if (existing instanceof BinaryCelestialNode binaryNode) {
-			return mergeStarWithBinary(binaryNode, toInsert, closeOrbit);
+			return mergeStarWithBinary(rng, binaryNode, toInsert, closeOrbit);
 		}
 
 		Mod.LOGGER.error("tried to merge non-stellar nodes! " + existing + ", " + toInsert);
@@ -341,25 +363,26 @@ public class StarSystemGeneratorImpl {
 	public static final double UNARY_ORBIT_THRESHOLD = 0.05;
 
 	private CelestialNode convertBinaryOrbits(CelestialNode node) {
-		for (var childOrbit : node.childOrbits()) {
+		for (var childOrbit : node.childNodes.iterable()) {
 			convertBinaryOrbits(childOrbit.node);
 		}
 
 		if (node instanceof BinaryCelestialNode binaryNode) {
-			binaryNode.setA(convertBinaryOrbits(binaryNode.getA()));
-			binaryNode.setB(convertBinaryOrbits(binaryNode.getB()));
-			if (UNARY_ORBIT_THRESHOLD * binaryNode.getA().massYg > binaryNode.getB().massYg) {
-				final var unary = new CelestialNodeChild<>(binaryNode.getA(), binaryNode.getB(),
-						binaryNode.orbitalShapeB, binaryNode.orbitalPlane, binaryNode.phase);
-				binaryNode.getA().insertChild(unary);
+			binaryNode.setInner(convertBinaryOrbits(binaryNode.getInner()));
+			binaryNode.setOuter(convertBinaryOrbits(binaryNode.getOuter()));
+			if (UNARY_ORBIT_THRESHOLD * binaryNode.getInner().massYg > binaryNode.getOuter().massYg) {
+				final var unary = new CelestialNodeChild<>(binaryNode.getInner(), binaryNode.getOuter(),
+						binaryNode.orbitalShapeOuter, binaryNode.orbitalPlane, binaryNode.phase);
+				binaryNode.getInner().insertChild(unary);
 
-				for (final var child : binaryNode.childOrbits()) {
-					final var newChildInfo = new CelestialNodeChild<>(binaryNode.getA(), child.node, child.orbitalShape,
+				for (final var child : binaryNode.childNodes.iterable()) {
+					final var newChildInfo = new CelestialNodeChild<>(binaryNode.getInner(), child.node,
+							child.orbitalShape,
 							child.orbitalPlane, child.phase);
-					binaryNode.getA().insertChild(newChildInfo);
+					binaryNode.getInner().insertChild(newChildInfo);
 				}
 
-				return binaryNode.getA();
+				return binaryNode.getInner();
 			}
 		}
 

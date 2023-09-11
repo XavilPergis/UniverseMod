@@ -2,18 +2,23 @@ package net.xavil.ultraviolet.common.universe.system.gen;
 
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.Random;
 import java.util.function.BiConsumer;
 
 import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.collections.SortingStrategy;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalShape;
+import net.xavil.ultraviolet.Mod;
 import net.xavil.universegen.system.CelestialNode;
 
 // TODO: this simulation is okay enough, but the algorithm is from the 80's and doesnt include more recent developments in astrophysics and whatnot.
@@ -26,230 +31,54 @@ import net.xavil.universegen.system.CelestialNode;
 // - planetary migration
 public class ProtoplanetaryDisc {
 	public final AccreteContext ctx;
+	private Planetesimal rootStar;
 	public final MutableList<Planetesimal> planetesimals = new Vector<>();
 	public final DustBands dustBands;
 	public final Interval planetesimalBounds;
 	private int iterationsRemaining = 10000;
 
-	private SimulationNode rootNode;
+	private final StableRandom rng;
 
-	private int discResolution = 512;
-	private double discMax;
-	private final double[] binAreas = new double[this.discResolution];
-	private final double[] gasMass = new double[this.discResolution];
-	private final double[] dustMass = new double[this.discResolution];
-	private final double[] stellarWindOutwards = new double[this.discResolution];
-	private final double[] stellarWindInwards = new double[this.discResolution];
+	// private SimulationNode rootNode;
 
-	private double binArea(int bin) {
-		final var inner = discMax * (bin / (double) this.discResolution);
-		final var outer = discMax * ((bin + 1) / (double) this.discResolution);
-		return Math.PI * (Mth.square(inner) + Mth.square(outer));
-	}
-
-	private double getGasWeight() {
-		return 1.5;
-	}
-
-	private double getDustWeight() {
-		return 40;
-	}
-
-	private void distributeDiscMass(double discMass, double discMax, double metallicity) {
-		this.discMax = discMax;
-		final var totalArea = Math.PI * Mth.square(discMax);
-		for (int i = 0; i < this.discResolution; ++i) {
-			this.binAreas[i] = binArea(i);
-			final var binMass = discMass * binArea(i) / totalArea;
-			this.gasMass[i] = (1.0 - metallicity) * binMass;
-			this.dustMass[i] = metallicity * binMass;
-		}
-	}
-
-	private void stellarWindContribution(double[] out, int startBin, double starLuminosity, boolean forwards) {
-		int binDir = forwards ? 1 : -1;
-		int bin = startBin;
-		double remainingPercent = 1.0;
-		while (bin < this.discResolution) {
-			// TODO: i have no idea what im doing
-
-			// reduce the amount of radiation that gets to further parts of the disc
-			final var combinedDensity = (this.gasMass[bin] + this.dustMass[bin]) / this.binAreas[bin];
-			remainingPercent *= Math.expm1(0.1 * combinedDensity);
-
-			final var binStart = this.discMax * (bin / (double) this.discResolution);
-			final var lum = starLuminosity / (Math.PI * Mth.square(binStart));
-			out[bin] += 0.1 * lum * remainingPercent;
-
-			// update bin counter
-			// the disc is symmetric around the center, so we flip the direction when
-			// crossing that boundary.
-			bin += binDir;
-			binDir = bin == 0 ? 1 : binDir;
-		}
-	}
-
-	public void step(double dtMyr) {
-		// this simulation is not physically-based at all, but attempts to emulate the
-		// effects of stellar winds blowing the gas and dust of the disc away.
-		Arrays.fill(this.stellarWindOutwards, 0.0);
-		Arrays.fill(this.stellarWindInwards, 0.0);
-
-		for (final var node : this.rootNode.iterable()) {
-			if (node.getType() == SimulationNode.NodeType.STAR && node instanceof SimulationNode.Unary starNode) {
-
-				// get bucket the star falls into
-				// fill out flow maps in both directions
-				// -> take into account extinction
-				// -> gas and dust absorption (stellar wind slamming into gas and dust, giving
-				// the disc particles some inwards/outwards velocity)
-				// -> inverse square law
-				// -> luminosity of star
-				// -> thickness of disc (thicker discs means more flow should happen, since they
-				// can catch more of the stellar wind and this is a 1d approximation that doesnt
-				// simulate anything in the vertical dimension)
-
-				final var discPercent = starNode.semiMajor / this.discMax;
-				final var starBin = Mth.floor(discPercent);
-				final var binPercent = discPercent - starBin;
-
-				// FIXME: apply flows from current bin
-
-				final var starEnergy = 0.5 * starNode.luminosity();
-				stellarWindContribution(this.stellarWindOutwards, starBin + 1, starEnergy, true);
-				stellarWindContribution(this.stellarWindInwards, starBin - 1, starEnergy, false);
-			}
-		}
-
-		for (int i = 0; i < this.discResolution; ++i) {
-			final var outwardFlow = dtMyr * this.stellarWindOutwards[i];
-			final var inwardFlow = dtMyr * this.stellarWindInwards[i];
-			final var requestedFlow = outwardFlow + inwardFlow;
-
-			// mass exitance in general
-			final var actualGasFlow = Math.max(requestedFlow, this.gasMass[i]) / getGasWeight();
-			final var actualDustFlow = Math.max(requestedFlow, this.dustMass[i]) / getDustWeight();
-			this.gasMass[i] -= actualGasFlow;
-			this.dustMass[i] -= actualDustFlow;
-
-			// mass exitance in specific directions
-			final var outwardsPercent = outwardFlow / requestedFlow;
-			final var inwardsPercent = inwardFlow / requestedFlow;
-
-			if (Mth.abs(i + 1) < this.discResolution) {
-				this.gasMass[Mth.abs(i + 1)] += outwardsPercent * actualGasFlow;
-				this.dustMass[Mth.abs(i + 1)] += outwardsPercent * actualDustFlow;
-			}
-			if (Mth.abs(i - 1) < this.discResolution) {
-				this.gasMass[Mth.abs(i - 1)] += inwardsPercent * actualGasFlow;
-				this.dustMass[Mth.abs(i - 1)] += inwardsPercent * actualDustFlow;
-			}
-		}
-
-		final var initialMass = this.ctx.params.initialPlanetesimalMass;
-
-		// attempt to generate clumping
-		for (int i = 0; i < 16; ++i) {
-			final var semiMajor = this.ctx.rng.uniformDouble(0.0, discMax);
-
-			final var bin = Mth.floor(semiMajor / this.discMax);
-			if (bin >= this.discResolution || this.dustMass[bin] < initialMass)
-				continue;
-
-			final var inclination = 0;
-			this.dustMass[bin] -= initialMass;
-
-			final var node = new SimulationNode.Unary(this.ctx);
-			node.mass = initialMass;
-			node.semiMajor = semiMajor;
-			node.inclination = inclination;
-			// node.parent = this.rootNode;
-
-			sweep(node);
-			break;
-		}
-
-		// TODO: process interations (moons, binaries)
-		this.rootNode.update(this);
-
-		// TODO: catastrophic events (rogue planets n stuff)
-		// TODO: planetary migration
-		// TODO: gravitational resonances
-	}
-
-	private void sweepRange(SimulationNode.Unary node, int bin, double percent) {
-		final var sweptDust = percent * this.dustMass[bin];
-		// TODO: softer gas sweeping cutoff
-		final var sweptGas = node.mass > node.criticalMass() ? percent * this.gasMass[bin] : 0;
-
-		node.mass += sweptDust;
-		node.mass += sweptGas;
-		if (node instanceof SimulationNode.Unary pnode)
-			pnode.gasMass += sweptGas;
-
-		this.dustMass[bin] -= sweptDust;
-		this.gasMass[bin] -= sweptGas;
-	}
-
-	private void sweep(SimulationNode.Unary node) {
-		double prevMass = node.mass;
-
-		for (int attempt = 0; attempt < 100; ++attempt) {
-			final var limits = node.effectLimits();
-			final var sweepLo = this.discResolution * limits.lower() / this.discMax;
-			final var sweepHi = this.discResolution * limits.higher() / this.discMax;
-			final var binLo = Mth.floor(sweepLo);
-			final var binHi = Mth.floor(sweepHi);
-
-			if (binLo == binHi) {
-				// binLo == binHi guarantees that this difference will never be greater than 1
-				sweepRange(node, binLo, sweepHi - sweepLo);
-			} else if (binHi > binLo) {
-				sweepRange(node, binLo, 1.0 - (sweepLo - binLo));
-				sweepRange(node, binHi, sweepHi - binHi);
-				for (int i = binLo + 1; i < binHi; ++i) {
-					sweepRange(node, i, 1.0);
-				}
-			}
-
-			// chance to cut sweeping short, to maybe let other planets do their thing
-			if (this.ctx.rng.chance(0.05))
-				break;
-
-			// stop sweeping if there's not a whole lot changing...
-			if (node.mass - prevMass < 0.05)
-				break;
-			prevMass = node.mass;
-		}
-	}
-
-	public CelestialNode build() {
-		return this.rootNode.convertToCelestialNode();
-	}
-
-	public ProtoplanetaryDisc(AccreteContext ctx, double mass, double metallicity) {
+	public ProtoplanetaryDisc(AccreteContext ctx, double mass) {
 		this.ctx = ctx;
+		this.rng = ctx.rng.split("main_disc");
 		this.planetesimalBounds = planetesimalBounds(ctx);
-		final var maxThickness = this.planetesimalBounds.higher();
-		final var discThickness = ctx.rng.uniformDouble(0.05 * maxThickness, maxThickness);
 		final var dustBandInterval = initialDustBandInterval(ctx);
-		this.dustBands = new DustBands(dustBandInterval, discThickness);
+		this.dustBands = new DustBands(ctx, dustBandInterval, mass);
 
-		// distributeDiscMass(mass, dustBandInterval.higher(), metallicity);
-		// this.rootNode = SimulationNode.Unary.star(ctx, ctx.stellarMassMsol, metallicity);
+		this.rootStar = new Planetesimal(ctx);
+		this.rootStar.setMass(ctx.stellarMassMsol);
+		this.rootStar.setOrbitalShape(new OrbitalShape(0, 0));
+
+		// private double rotationalRate;
+		// private final MutableList<Planetesimal> moons = new Vector<>();
+		// private final MutableList<Ring> rings = new Vector<>();
+		// public boolean sweptGas = false;
+
 	}
 
 	private void doSweep(Planetesimal planetesimal, boolean sweepAll) {
+		if (!sweepAll) {
+			this.dustBands.sweep(this.ctx, planetesimal);
+			return;
+		}
+
+		double prevMass = planetesimal.getMass();
 		while (this.dustBands.hasDust(planetesimal.sweptDustLimits())) {
-			final var sweptMass = this.dustBands.sweep(this.ctx, planetesimal);
-			planetesimal.setMass(planetesimal.getMass() + sweptMass);
-			// if (!sweepAll && this.ctx.rng.chance(0.05))
-			// break;
+			this.dustBands.sweep(this.ctx, planetesimal);
+			// stop accumulating mass if we're getting diminishing returns, it is unlikely
+			// to affect the outcome anyways
+			if (planetesimal.getMass() / prevMass < 1.05)
+				break;
+			prevMass = planetesimal.getMass();
 		}
 	}
 
 	private boolean shouldContinuePlacing() {
-		return this.dustBands.hasDust(this.planetesimalBounds);
+		// return this.dustBands.hasDust(this.planetesimalBounds);
+		return true;
 	}
 
 	public void collapseDisc(CelestialNode rootNode) {
@@ -257,32 +86,43 @@ public class ProtoplanetaryDisc {
 			return;
 
 		// Distribute planetary masses
+		for (int i = 0; i < 5000; ++i) {
+			final var attemptRng = this.rng.split(i);
+
+			// generate planetesimal
+			final var semiMajor = attemptRng.uniformDouble("semi_major",
+					this.planetesimalBounds.lower, this.planetesimalBounds.higher);
+			// var heightAboveDiscCenter = this.this.rng.uniformDoubleAround(0,
+			// this.dustBands.);
+			// heightAboveDiscCenter = Math.signum(heightAboveDiscCenter) *
+			// Math.pow(Math.abs(heightAboveDiscCenter), 2.0);
+			final var maxInclination = Math.atan(1 / (15 * semiMajor));
+			final var inclination = attemptRng.weightedDouble("inclination", 8, 0, maxInclination);
+
+			final var planetesimal = Planetesimal.random(this.ctx, semiMajor, inclination);
+			// if (this.dustBands.hasDust(planetesimal.effectLimits())) {
+			this.planetesimals.push(planetesimal);
+			// }
+		}
 
 		while (shouldContinuePlacing() && this.iterationsRemaining >= 0) {
 			this.iterationsRemaining -= 1;
-
-			// generate planetesimal
-			final var dustySemiMajor = this.ctx.rng.uniformDouble(this.planetesimalBounds);
-			// var heightAboveDiscCenter = this.ctx.rng.uniformDoubleAround(0,
-			// this.dustBands.bandThickness);
-			// heightAboveDiscCenter = Math.signum(heightAboveDiscCenter) *
-			// Math.pow(Math.abs(heightAboveDiscCenter), 2.0);
-			// final var inclination = Math.atan(heightAboveDiscCenter / dustySemiMajor);
-			final var inclination = 0;
-			final var planetesimal = Planetesimal.random(this.ctx, dustySemiMajor, inclination,
-					this.planetesimalBounds);
+			final var attemptRng = this.rng.split(this.iterationsRemaining);
 
 			// allow protoplanet seed to accumulate dust and gas before moving onto the
 			// others. There is a certain percent chance on each sweep step that the
 			// planetesimal does not continue to accrete mass, allowing others to sweep more
 			// instead.
-			doSweep(planetesimal, false);
-			this.planetesimals.shuffle(this.ctx.rng);
+			// doSweep(planetesimal, false);
+			this.planetesimals.shuffle(Rng.fromSeed(attemptRng.uniformLong("shuffle_seed")));
 			for (final var other : this.planetesimals.iterable()) {
 				doSweep(other, false);
 			}
-			this.planetesimals.push(planetesimal);
-			transformPlanetesimals((prev, next) -> coalescePlanetesimals(this.ctx, prev, next));
+			// this.planetesimals.push(planetesimal);
+			transformPlanetesimals((prev, next) -> coalescePlanetesimals(this.ctx, attemptRng, prev, next));
+
+			final var dt = attemptRng.uniformDouble("dt", 0.5, 5);
+			this.dustBands.step(this, dt);
 		}
 
 		// clean up any leftovers i guess
@@ -302,13 +142,14 @@ public class ProtoplanetaryDisc {
 	}
 
 	public void transformPlanetesimals(BiConsumer<MutableList<Planetesimal>, MutableList<Planetesimal>> consumer) {
-		this.planetesimals.sort(Comparator.comparingDouble(planetesimal -> planetesimal.getOrbitalShape().semiMajor()));
-		final var prev = MutableList.copyOf(this.planetesimals);
+		this.planetesimals.sort(SortingStrategy.UNSTABLE,
+				Comparator.comparingDouble(planetesimal -> planetesimal.getOrbitalShape().semiMajor()));
+		final var prev = new Vector<>(this.planetesimals);
 		this.planetesimals.clear();
 		consumer.accept(prev, this.planetesimals);
 	}
 
-	public void coalescePlanetesimals(AccreteContext ctx,
+	public void coalescePlanetesimals(AccreteContext ctx, StableRandom rng,
 			MutableList<Planetesimal> prevBodies, MutableList<Planetesimal> nextBodies) {
 
 		boolean isFirstIteration = true;
@@ -324,6 +165,26 @@ public class ProtoplanetaryDisc {
 			int i = 0;
 			while (i < prevBodies.size()) {
 				var current = prevBodies.get(i++);
+				final var parent = current.getParentBody();
+
+				// interactions with parent
+				if (parent != null) {
+					// collision
+					if (current.getOrbitalShape().periapsisDistance()
+							- current.getRadius() / Units.km_PER_au < parent.getRadius() / Units.km_PER_au) {
+						handleCollision(ctx, rng, parent, current);
+						continue;
+					}
+
+					// ring
+					final var rocheLimit = rocheLimit(parent.getMass(), current.getMass(), current.getRadius());
+					if (current.getOrbitalShape().periapsisDistance() <= rocheLimit) {
+						Planetesimal.convertToRing(parent, current);
+						continue;
+					}
+				}
+
+				// interactions with siblings
 				while (i < prevBodies.size()) {
 					final var next = prevBodies.get(i);
 
@@ -333,7 +194,7 @@ public class ProtoplanetaryDisc {
 						break;
 
 					i += 1;
-					final var coalesced = handlePlanetesimalIntersection(ctx, current, next);
+					final var coalesced = handlePlanetesimalIntersection(ctx, rng, current, next);
 					current = coalesced != null ? coalesced : current;
 					didCoalesce = true;
 				}
@@ -352,94 +213,100 @@ public class ProtoplanetaryDisc {
 	 * @return The combined planetesimal. This may be one of the arguments.
 	 */
 	@Nullable
-	public Planetesimal handlePlanetesimalIntersection(AccreteContext ctx, Planetesimal a, Planetesimal b) {
+	public Planetesimal handlePlanetesimalIntersection(AccreteContext ctx, StableRandom rng, Planetesimal a,
+			Planetesimal b) {
 		final var larger = a.getMass() >= b.getMass() ? a : b;
 		final var smaller = a.getMass() >= b.getMass() ? b : a;
-		final var rocheLimit = rocheLimit(larger.getMass(), smaller.getMass(), smaller.getRadius());
-		if (Math.abs(a.getOrbitalShape().semiMajor() - b.getOrbitalShape().semiMajor()) <= rocheLimit / 2.0) {
-			// TODO: currently, all moons of `smaller` are completely discarded
-			handlePlanetesimalCollision(ctx, a, b);
+
+		// final var rocheLimit = rocheLimit(larger.getMass(), smaller.getMass(),
+		// smaller.getRadius());
+		// if (Math.abs(a.getOrbitalShape().semiMajor() -
+		// b.getOrbitalShape().semiMajor()) <= rocheLimit / 2.0) {
+		// if (Math.abs(a.getOrbitalShape().semiMajor() -
+		// b.getOrbitalShape().semiMajor()) <= larger.getRadius()
+		// / Units.km_PER_au) {
+		if (Math.abs(a.getOrbitalShape().semiMajor() - b.getOrbitalShape().semiMajor()) <= larger.getRadius()
+				/ Units.km_PER_au) {
+			handleCollision(ctx, rng, a, b);
 		} else {
-			// ejection could maybe create objects like Eris and Haumea
-			// TODO: this is not based on anything other than "objects get ejected
-			// sometimes"
-			// chance to eject planetesimal
-			if (!ctx.rng.chance(0.2)) {
-				captureMoon(ctx, a, b);
-			} else {
-				// maybe perturb orbit of larger planetesimal
-				// maybe eject both bodies in some circumstances
-			}
+			handleGravitationalCapture(ctx, rng, a, b);
 		}
 		return larger;
 	}
 
 	// TODO: moons might attain their own debris disc and have a recursive accretion
 	// process
-	public void captureMoon(AccreteContext ctx, Planetesimal a, Planetesimal b) {
+	public void handleGravitationalCapture(AccreteContext ctx, StableRandom rng, Planetesimal a, Planetesimal b) {
 		final var larger = a.getMass() >= b.getMass() ? a : b;
 		final var smaller = a.getMass() >= b.getMass() ? b : a;
 
 		// TODO: maybe we could do something more interesting than transferring
 		// everything to moons of the new parent
 		larger.transformMoons((prevL, newL) -> smaller.transformMoons((prevS, newS) -> {
+			// newL.extend(prevL.iter().filter(p -> rng.split(p.getId()).chance("ejected",
+			// 0.5)));
 			newL.extend(prevL);
 			newL.extend(prevS);
 			newL.push(smaller);
+			// Mod.LOGGER.info("capture! {} + {} -> {}", prevL.size(), prevS.size(),
+			// newL.size());
 		}));
 
 		larger.setOrbitalShape(Planetesimal.calculateCombinedOrbitalShape(a, b));
 
-		var rocheLimit = rocheLimit(larger.getMass(), smaller.getMass(), smaller.getRadius());
-		var hillSphereRadius = larger.hillSphereRadius(ctx.stellarMassMsol);
-		Assert.isTrue(hillSphereRadius > 0);
+		moonStuff(ctx, rng.split("resolve"), larger);
+	}
+
+	private void moonStuff(AccreteContext ctx, StableRandom rng, Planetesimal parent) {
+
+		// final var hillSphereRadius = parent.hillSphereRadius(ctx.stellarMassMsol);
+		// Assert.isTrue(hillSphereRadius > 0);
 
 		// orbital chaos ensues
-		larger.getMoons().forEach(moon -> {
-			final var semiMajorT = Math.pow(ctx.rng.uniformDouble(), 2);
-			final var randomSemiMajor = Mth.lerp(semiMajorT, 0, hillSphereRadius);
+		final var randomizeOrbitsRng = rng.split("randomize_orbits");
+		parent.getSattelites().forEach(moon -> {
+			final var hillSphereRadius = Formulas.hillSphereRadius(
+					Units.Yg_PER_Msol * parent.getMass(),
+					Units.Yg_PER_Msol * moon.getMass(),
+					moon.getOrbitalShape().eccentricity(),
+					Units.Tm_PER_au * moon.getOrbitalShape().semiMajor()) / Units.Tm_PER_au;
+			final var moonRng = randomizeOrbitsRng.split(moon.getId());
+			final var randomSemiMajor = moonRng.weightedDouble("semi_major", 2, 0, hillSphereRadius);
 			moon.setOrbitalShape(new OrbitalShape(moon.getOrbitalShape().eccentricity(), randomSemiMajor));
 		});
 
-		// resolve chaos
-		larger.transformMoons((prevMoons, newMoons) -> {
-			for (var moon : prevMoons.iterable()) {
-				var semiMajorT = Math.pow(ctx.rng.uniformDouble(), 2);
-				var randomSemiMajor = Mth.lerp(semiMajorT, 0, hillSphereRadius);
-				var randomEccentricity = Planetesimal.randomEccentricity(ctx);
-				moon.setOrbitalShape(new OrbitalShape(randomEccentricity, randomSemiMajor));
-
-				if (moon.getOrbitalShape().periapsisDistance() - (moon.getRadius() / Units.km_PER_au) <= 2
-						* (larger.getRadius() / Units.km_PER_au)) {
-					handlePlanetesimalCollision(ctx, larger, moon);
-				} else if (moon.getOrbitalShape().periapsisDistance() <= 2 * rocheLimit) {
-					Planetesimal.convertToRing(larger, moon);
-				} else {
-					newMoons.push(moon);
-				}
-			}
-		});
-
-		larger.transformMoons((prevMoons, newMoons) -> {
-			coalescePlanetesimals(ctx, prevMoons, newMoons);
+		final var coalesceRng = rng.split("coalesce");
+		parent.transformMoons((prevMoons, newMoons) -> {
+			// Mod.LOGGER.info("moon count before = {}", prevMoons.size());
+			coalescePlanetesimals(ctx, coalesceRng, prevMoons, newMoons);
+			// Mod.LOGGER.info("moon count after = {}", newMoons.size());
 		});
 	}
 
-	public void handlePlanetesimalCollision(AccreteContext ctx, Planetesimal a, Planetesimal b) {
-		Assert.isTrue((a.getParentBody() == b.getParentBody()) || (a == b.getParentBody()));
-		// Assert.isTrue(a.getMass() >= b.getMass());
+	public void handleCollision(AccreteContext ctx, StableRandom rng, Planetesimal a, Planetesimal b) {
 
-		// TODO: sometimes, a collision can create a moon or maybe binary system, like
-		// as in the earth/moon system.
 		a.setMass(a.getMass() + b.getMass());
-		if (a != b.getParentBody()) {
-			var newShape = Planetesimal.calculateCombinedOrbitalShape(a, b);
+
+		if (a.getParentBody() == b.getParentBody()) {
+			final var newShape = Planetesimal.calculateCombinedOrbitalShape(a, b);
 			a.setOrbitalShape(newShape);
+		} else if (a == b.getParentBody()) {
 		}
+
+		a.transformMoons((prevL, newL) -> b.transformMoons((prevS, newS) -> {
+			newL.extend(prevL);
+			newL.extend(prevS);
+			// Mod.LOGGER.info("collide! {} + {} -> {}", prevL.size(), prevS.size(),
+			// newL.size());
+		}));
+
+		moonStuff(ctx, rng.split("resolve"), a);
+
 	}
 
 	public static double rocheLimit(double planetMass, double moonMass, double moonRadius) {
-		return Formulas.rocheLimit(Units.Yg_PER_Msol * planetMass, Units.Yg_PER_Msol * moonMass, moonRadius);
+		return Formulas.rocheLimit(Units.Yg_PER_Msol * planetMass, Units.Yg_PER_Msol * moonMass, moonRadius)
+				/ Units.Tm_PER_au;
 	}
 
 	public static int orbitalZone(double distanceToStar, double luminosity) {

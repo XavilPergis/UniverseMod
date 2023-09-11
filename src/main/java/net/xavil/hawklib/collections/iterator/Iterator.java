@@ -1,13 +1,16 @@
 package net.xavil.hawklib.collections.iterator;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.OptionalInt;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.Supplier;
 
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.collections.interfaces.MutableList;
 
 /**
  * A lazily-evaluated arbitrary sequence of values. Roughly analagous to
@@ -132,6 +135,12 @@ public interface Iterator<T> extends IntoIterator<T> {
 		// @formatter:on
 	}
 
+	default MutableList<T> collectTo(Supplier<MutableList<T>> listFactory) {
+		final var res = listFactory.get();
+		res.extend(this);
+		return res;
+	}
+
 	default Maybe<T> find(Predicate<T> predicate) {
 		while (hasNext()) {
 			final var value = next();
@@ -231,6 +240,11 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		@Override
+		public int properties() {
+			return PROPERTY_FUSED | PROPERTY_NONNULL;
+		}
+
+		@Override
 		public boolean hasNext() {
 			return false;
 		}
@@ -256,6 +270,11 @@ public interface Iterator<T> extends IntoIterator<T> {
 		@Override
 		public SizeHint sizeHint() {
 			return SizeHint.exactly(1);
+		}
+
+		@Override
+		public int properties() {
+			return PROPERTY_FUSED;
 		}
 
 		@Override
@@ -396,10 +415,9 @@ public interface Iterator<T> extends IntoIterator<T> {
 			return this.source.sizeHint().withLowerBound(0);
 		}
 
-		@Override
-		public boolean hasNext() {
+		private void loadNext() {
 			if (this.hasNext)
-				return true;
+				return;
 			while (this.source.hasNext()) {
 				this.current = this.source.next();
 				if (this.filterPredicate.test(this.current)) {
@@ -407,14 +425,19 @@ public interface Iterator<T> extends IntoIterator<T> {
 					break;
 				}
 			}
+		}
+
+		@Override
+		public boolean hasNext() {
+			loadNext();
 			return this.hasNext;
 		}
 
 		@Override
 		public T next() {
-			final var value = this.current;
+			loadNext();
 			this.hasNext = false;
-			return value;
+			return this.current;
 		}
 
 		@Override
@@ -480,6 +503,11 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 	}
 
+	@SuppressWarnings("unchecked")
+	default <U> Iterator<U> filterCast(Class<U> clazz) {
+		return map(x -> x != null && clazz.isInstance(x) ? (U) x : null).filterNull();
+	}
+
 	default <U> Iterator<U> flatMap(Function<? super T, ? extends IntoIterator<? extends U>> mapper) {
 		return new FlatMap<>(this, mapper);
 	}
@@ -488,26 +516,39 @@ public interface Iterator<T> extends IntoIterator<T> {
 		private final Iterator<T> source;
 		private final Function<? super T, ? extends IntoIterator<? extends U>> mapper;
 
-		private Iterator<? extends U> current;
+		private Iterator<? extends U> currentIter;
+		private U current = null;
+		private boolean hasNext = false;
 
 		public FlatMap(Iterator<T> source, Function<? super T, ? extends IntoIterator<? extends U>> mapper) {
 			this.source = source;
 			this.mapper = mapper;
 		}
 
+		private void loadNext() {
+			if (this.hasNext)
+				return;
+			while (this.currentIter == null || !this.currentIter.hasNext()) {
+				if (!this.source.hasNext())
+					return;
+				this.currentIter = this.mapper.apply(this.source.next()).iter();
+			}
+
+			this.current = this.currentIter.next();
+			this.hasNext = true;
+		}
+
 		@Override
 		public boolean hasNext() {
-			while (this.current == null || !this.current.hasNext()) {
-				if (!this.source.hasNext())
-					return false;
-				this.current = this.mapper.apply(this.source.next()).iter();
-			}
-			return true;
+			loadNext();
+			return this.hasNext;
 		}
 
 		@Override
 		public U next() {
-			return this.current.next();
+			loadNext();
+			this.hasNext = false;
+			return this.current;
 		}
 
 		@Override
@@ -554,7 +595,21 @@ public interface Iterator<T> extends IntoIterator<T> {
 
 		@SafeVarargs
 		public Chain(Iterator<T>... sources) {
-			this.sources = sources;
+			this.sources = Arrays.copyOf(sources, sources.length);
+		}
+
+		private void loadNext() {
+			if (this.currentSource >= this.sources.length)
+				return;
+			var hasNext = this.sources[this.currentSource].hasNext();
+			while (!hasNext) {
+				this.currentSource += 1;
+				if (this.currentSource >= this.sources.length) {
+					return;
+				}
+				hasNext = this.sources[this.currentSource].hasNext();
+			}
+
 		}
 
 		@Override
@@ -569,6 +624,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 				}
 				hasNext = this.sources[this.currentSource].hasNext();
 			}
+			loadNext();
 			return hasNext;
 		}
 

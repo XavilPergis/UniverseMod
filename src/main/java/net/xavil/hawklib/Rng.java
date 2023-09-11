@@ -2,6 +2,7 @@ package net.xavil.hawklib;
 
 import java.util.Random;
 
+import net.minecraft.util.Mth;
 import net.xavil.hawklib.math.Interval;
 
 public interface Rng {
@@ -11,6 +12,12 @@ public interface Rng {
 	long uniformLong(long minBound, long maxBound);
 
 	double uniformDouble(double minBound, double maxBound);
+
+	double normalDouble(double mean, double standardDeviation);
+
+	default double lerpWeightedDouble(double exponent, double minValue, double maxValue) {
+		return Mth.lerp(Math.pow(uniformDouble(), exponent), minValue, maxValue);
+	}
 
 	default double uniformDoubleAround(double center, double spread) {
 		return uniformDouble(center - spread, center + spread);
@@ -29,11 +36,15 @@ public interface Rng {
 	}
 
 	default double uniformDouble(Interval interval) {
-		return uniformDouble(interval.lower(), interval.higher());
+		return uniformDouble(interval.lower, interval.higher);
 	}
 
 	default boolean chance(double chance) {
 		return uniformDouble() <= chance;
+	}
+
+	static Rng fromSeed(long seed) {
+		return wrap(new Random(seed));
 	}
 
 	static Rng wrap(Random random) {
@@ -43,6 +54,11 @@ public interface Rng {
 				if (minBound >= maxBound)
 					maxBound = Math.nextUp(minBound);
 				return random.nextDouble(minBound, maxBound);
+			}
+
+			@Override
+			public double normalDouble(double mean, double standardDeviation) {
+				return random.nextGaussian(mean, standardDeviation);
 			}
 
 			@Override

@@ -27,7 +27,7 @@ public final class MutableListProxy<T> implements MutableList<T> {
 	}
 
 	@Override
-	public void extend(IntoIterator<T> elements) {
+	public void extend(IntoIterator<? extends T> elements) {
 		elements.forEach(this.wrapped::add);
 	}
 
@@ -66,9 +66,9 @@ public final class MutableListProxy<T> implements MutableList<T> {
 		return this.wrapped.set(index, value);
 	}
 
-	@Override
-	public void sort(Comparator<? super T> comparator) {
-		this.wrapped.sort(comparator);
-	}
+	// @Override
+	// public void sort(Comparator<? super T> comparator) {
+	// 	this.wrapped.sort(comparator);
+	// }
 
 }

@@ -4,6 +4,7 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public record OrbitalPlane(Quat rotationFromReference) {
@@ -14,6 +15,12 @@ public record OrbitalPlane(Quat rotationFromReference) {
 		return fromOrbitalElements(inclinationRad,
 				rng.uniformDouble(0, 2.0 * Math.PI),
 				rng.uniformDouble(0, 2.0 * Math.PI));
+	}
+
+	public static OrbitalPlane fromInclination(double inclinationRad, StableRandom rng) {
+		return fromOrbitalElements(inclinationRad,
+				rng.uniformDouble("longitude_of_ascending_node", 0, 2.0 * Math.PI),
+				rng.uniformDouble("argument_of_periapsis", 0, 2.0 * Math.PI));
 	}
 
 	public static OrbitalPlane fromOrbitalElements(

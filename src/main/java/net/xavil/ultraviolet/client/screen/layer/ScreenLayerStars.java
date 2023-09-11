@@ -137,7 +137,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 
 		public void insert(double value) {
 			this.total += 1;
-			final var t = Mth.inverseLerp(value, this.domain.lower(), this.domain.higher());
+			final var t = Mth.inverseLerp(value, this.domain.lower, this.domain.higher);
 			if (t < 0) {
 				this.outliersLo.push(value);
 			} else if (t >= 1) {
@@ -156,9 +156,8 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			for (int i = 0; i < this.bins.length; ++i) {
 				sb.setLength(0);
 				final var binPercent = this.bins[i] / (double) this.total;
-				final var binLo = Mth.lerp(i / (double) this.bins.length, this.domain.lower(), this.domain.higher());
-				final var binHi = Mth.lerp((i + 1) / (double) this.bins.length, this.domain.lower(),
-						this.domain.higher());
+				final var binLo = Mth.lerp(i / (double) this.bins.length, this.domain.lower, this.domain.higher);
+				final var binHi = Mth.lerp((i + 1) / (double) this.bins.length, this.domain.lower, this.domain.higher);
 				for (int j = 0; j < PERCENTAGE_BAR_LENGTH; ++j) {
 					sb.append(j < binPercent * PERCENTAGE_BAR_LENGTH ? '#' : ' ');
 				}

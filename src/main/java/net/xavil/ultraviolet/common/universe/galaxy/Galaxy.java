@@ -23,6 +23,10 @@ public class Galaxy {
 	public static class Info {
 		public GalaxyType type;
 		public double ageMya;
+
+		public double maxMetallicity() {
+			return 0.2;
+		}
 	}
 
 	public final Universe parentUniverse;

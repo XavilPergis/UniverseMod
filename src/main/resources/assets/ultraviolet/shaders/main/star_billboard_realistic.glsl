@@ -60,6 +60,7 @@ void main() {
 
 	emitPoint(viewPos, 2.0 * size);
 	vertexColor = vec4(aColor.rgb, alpha);
+	// vertexColor = vec4(apparentBrightness / uStarSizeSquashFactor * aColor.rgb, 1.0);
 	// vertexColor = vec4(abs(aColor.rgb), 1.0);
 }
 
@@ -83,13 +84,15 @@ void main() {
 	// fColor = vertexColor;
     vec4 s1 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0)));
 	s1 *= vertexColor;
-    vec4 s2 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0 / 0.7)));
+	s1 *= 5.0;
+    // vec4 s2 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0 / 0.7)));
 
 	vec4 color = vec4(0.0);
-	color = (1.0 * color) + (1.0 * s1.a * s1);
-	color = (1.0 * color) + (1.0 * s2.a * s2);
+	// color = (1.0 * color) + (1.0 * s1.a * s1);
+	color += s1.a * s1;
+	// color = (1.0 * color) + (1.0 * s2.a * s2);
 
-    fColor = 0.9 * color * vertexColor.a;
+    fColor = color * vertexColor.a;
 }
 
 #endif

@@ -52,7 +52,6 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 	public boolean showGuides = true;
 
-	private boolean isPlanetRendererSetup = false;
 	private PlanetRenderingContext renderContext = new PlanetRenderingContext();
 
 	public ScreenLayerSystem(HawkScreen3d attachedScreen, Galaxy galaxy, GalaxySectorId systemId) {
@@ -170,16 +169,6 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		return closestId;
 	}
 
-	private void setupPlanetRenderer(StarSystem system) {
-		system.rootNode.visit(node -> {
-			if (node instanceof StellarCelestialNode starNode) {
-				final var light = PlanetRenderingContext.PointLight.fromStar(starNode);
-				this.renderContext.pointLights.add(light);
-			}
-		});
-		this.isPlanetRendererSetup = true;
-	}
-
 	@Override
 	public void onMoved(Vec3 displacement) {
 		super.onMoved(displacement);
@@ -208,12 +197,9 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
 			// system.rootNode.updatePositions(time);
 
-			if (!this.isPlanetRendererSetup)
-				setupPlanetRenderer(system);
-
 			system.pos.mul(1e12 / camera.metersPerUnit);
 			// this.renderContext.setSystemOrigin(system.pos);
-			this.renderContext.begin(time);
+			this.renderContext.begin(system, time);
 			for (final var node : system.rootNode.iterable()) {
 				this.renderContext.render(builder, camera, node, false);
 				if (this.showGuides)
@@ -328,15 +314,15 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 
-		if (!(node.getA() instanceof BinaryCelestialNode)) {
+		/*if (!(node.getA() instanceof BinaryCelestialNode))*/ {
 			final var ellipse = node.getEllipseA(node.referencePlane, celestialTime);
-			final var isSelected = selectedId != node.getA().getId();
+			final var isSelected = selectedId != node.getInner().getId();
 			final var color = getPathColor(BlackboardKeys.BINARY_PATH_COLOR, isSelected);
 			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 		}
-		if (!(node.getB() instanceof BinaryCelestialNode)) {
+		/*if (!(node.getB() instanceof BinaryCelestialNode))*/ {
 			final var ellipse = node.getEllipseB(node.referencePlane, celestialTime);
-			final var isSelected = selectedId != node.getB().getId();
+			final var isSelected = selectedId != node.getOuter().getId();
 			final var color = getPathColor(BlackboardKeys.BINARY_PATH_COLOR, isSelected);
 			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 		}

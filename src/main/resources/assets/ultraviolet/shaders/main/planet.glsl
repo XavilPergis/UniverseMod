@@ -11,12 +11,16 @@
 
 uniform vec4 uLightPos0;
 uniform vec4 uLightColor0;
+uniform float uLightRadius0;
 uniform vec4 uLightPos1;
 uniform vec4 uLightColor1;
+uniform float uLightRadius1;
 uniform vec4 uLightPos2;
 uniform vec4 uLightColor2;
+uniform float uLightRadius2;
 uniform vec4 uLightPos3;
 uniform vec4 uLightColor3;
+uniform float uLightRadius3;
 
 uniform int uPlanetType;
 uniform float uRenderingSeed;
@@ -89,9 +93,9 @@ Material gasGiantField(in vec3 pos, in float seed) {
 
 	vec4 A = vec4(0.92, 0.90, 0.83, 0.0);
 	// vec4 B = vec4(0.33, 0.29, 0.21, 0.0);
-	vec4 B = 2.5 * vec4(1.0, 0.2, 0.0, 1.0);
+	vec4 B = 2.5 * vec4(1.0, 0.2, 0.0, 4.0);
 	vec4 C = vec4(0.22, 0.19, 0.16, 0.0);
-	vec4 D = vec4(0.35, 0.22, 0.28, 0.0);
+	vec4 D = vec4(0.35, 0.22, 0.28, 0.2);
 
 	float c1 = 0.9;
 	float c2 = 0.5;
@@ -108,6 +112,14 @@ Material gasGiantField(in vec3 pos, in float seed) {
 
 // =============== === ===== ======= ===============
 
+vec3 noiseSimplex3(vec3 p) {
+	vec3 r = vec3(0.0);
+	r.x = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 10);
+	r.y = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 20);
+	r.z = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 30);
+	return r;
+}
+
 vec2 uvFromNormal(vec4 norm) {
 	vec3 normCam = (inverse(uViewMatrix) * norm).xyz;
 	float pole = normCam.y;
@@ -120,8 +132,8 @@ Material gasGiantBaseColor(vec3 pos) {
 	return gasGiantField(pos, uRenderingSeed / 1000.0);
 }
 
-Light makeStarLight(in vec3 posWorld, in vec4 color) {
-	return makePointLight(posWorld, color.rgb * color.a * 3.827e26);
+Light makeStarLight(in vec3 posWorld, in vec4 color, in float radius) {
+	return makeSphereLight(posWorld, color.rgb * color.a * 3.827e26, radius);
 	// return makePointLight(posWorld, color.rgb * color.a);
 	// return makePointLight(posWorld, color.rgb * color.a * 100.0);
 	// return makePointLight(posWorld, vec3(1.0e3));
@@ -132,25 +144,41 @@ float sampleHeight(vec3 normWorld) {
 	height += noiseSimplex(1.0 * normWorld);
 	height += 0.5 * noiseSimplex(2.5 * normWorld);
 	height += 0.3 * noiseSimplex(5.0 * normWorld);
-	height += 0.3 * noiseSimplex(20.0 * normWorld);
-	height += 0.1 * noiseSimplex(80.0 * normWorld);
-	height += 0.1 * noiseSimplex(150.0 * normWorld);
+	height += 0.1 * noiseSimplex(20.0 * normWorld);
+	height += 0.05 * noiseSimplex(80.0 * normWorld);
+	// height += 0.05 * noiseSimplex(150.0 * normWorld);
 	return height;
 }
 
-Material shadeElw(vec3 fragPosWorld, vec3 normWorld) {
-	float height = sampleHeight(normWorld);
+Material shadeElw(vec3 fragPosWorld, vec3 normWorld, inout vec3 newNorm) {
+	float hc = sampleHeight(normWorld);
 
-	if (height >= 0.0) {
-		float colnoise = noiseSimplex(normWorld + 10.0) * 0.5 + 0.5;
-		vec3 col = mix(vec3(0.4, 1.0, 0.35), vec3(0.6, 0.4, 0.4), colnoise);
+	if (hc >= 0.0) {
+		float colnoise = noiseSimplex(normWorld + 10.0) + 0.5 * noiseSimplex(5.0 * normWorld + 10.0);
+		colnoise /= 1.5;
+		colnoise = sign(colnoise) * pow(abs(colnoise), 0.6);
+		colnoise = colnoise * 0.5 + 0.5;
+		vec3 col = mix(vec3(0.0392, 0.0745, 0.0314), vec3(0.2941, 0.1608, 0.1176), colnoise);
+		vec3 normOffset = vec3(0.0);
+		normOffset += 0.2 * noiseSimplex3(10.0 * normWorld);
+		normOffset += 0.1 * noiseSimplex3(30.0 * normWorld);
+		// normOffset += 0.05 * noiseSimplex3(400.0 * normWorld);
+		normOffset *= min(hc, 1.0) * 1.5;
+		newNorm = normalize(newNorm + normOffset);
 		// return Material(vec3(0.0), vec3(0.3, 1.0, 0.3), 1.0, 0.0);
-		return Material(vec3(0.0), col, 1.0, 0.5);
+		return Material(vec3(0.0), 5.0 * col, 1.0, 0.5);
 	}
-	return Material(vec3(0.0), vec3(0.1, 0.2, 1.0), 0.1, 0.0);
+	return Material(vec3(0.0), 3.0 * vec3(0.0196, 0.0588, 0.1255), 0.3, 0.0);
+}
+Material shadeBrownDwarf(vec3 fragPosWorld, vec3 normWorld) {
+	Material mat = gasGiantBaseColor(normWorld);
+	mat.emissiveFlux += 5e24 * vec3(1.0, 0.2, 0.0);
+	return mat;
 }
 Material shadeGasGiant(vec3 fragPosWorld, vec3 normWorld) {
-	return gasGiantBaseColor(normWorld);
+	Material mat = gasGiantBaseColor(normWorld);
+	mat.emissiveFlux = vec3(0.0);
+	return mat;
 }
 Material shadeIceWorld(vec3 fragPosWorld, vec3 normWorld) {
 	return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
@@ -181,21 +209,17 @@ Material shadeWater(vec3 fragPosWorld, vec3 normWorld) {
 	return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
 }
 
-Material shadePlanet(vec3 fragPosWorld, vec3 normWorld) {
-	if (uPlanetType == PLANET_TYPE_EARTH_LIKE_WORLD) return shadeElw(fragPosWorld, normWorld);
+Material shadePlanet(vec3 fragPosWorld, vec3 normWorld, inout vec3 newNorm) {
+	// return Material(vec3(0.0), vec3(0.1, 0.2, 1.0), 0.5, 0.0);
+
+	if (uPlanetType == PLANET_TYPE_EARTH_LIKE_WORLD) return shadeElw(fragPosWorld, normWorld, newNorm);
 	else if (uPlanetType == PLANET_TYPE_GAS_GIANT) return shadeGasGiant(fragPosWorld, normWorld);
+	else if (uPlanetType == PLANET_TYPE_BROWN_DWARF) return shadeBrownDwarf(fragPosWorld, normWorld);
 	else if (uPlanetType == PLANET_TYPE_ICE_WORLD) return shadeIceWorld(fragPosWorld, normWorld);
 	else if (uPlanetType == PLANET_TYPE_ROCKY_ICE_WORLD) return shadeRockyIceWorld(fragPosWorld, normWorld);
 	else if (uPlanetType == PLANET_TYPE_ROCKY_WORLD) return shadeRocky(fragPosWorld, normWorld);
 	else if (uPlanetType == PLANET_TYPE_WATER_WORLD) return shadeWater(fragPosWorld, normWorld);
-}
-
-vec3 noiseSimplex3(vec3 p) {
-	vec3 r = vec3(0.0);
-	r.x = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 10);
-	r.y = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 20);
-	r.z = noiseSimplex(mod(uRenderingSeed, 1000.0) + p + 30);
-	return r;
+	return Material(vec3(0.0), vec3(1.0, 0.0, 1.0), 1.0, 0.0);
 }
 
 mat4 rotationMatrix(vec3 axis, float angle)
@@ -218,7 +242,6 @@ void main() {
 	// fColor = vec4(vertexColor.rgb, 1.0);
 	// fColor = vec4(texCoord0.x, 0.0, texCoord0.y, 1.0);
 
-	// mat4 rotMat = rotationMatrix(normalize(vec3(1.0, 1.0, 0.0)), uTime * 0.0001);
 	mat4 rotMat = rotationMatrix(uRotationAxis, -uRotationAngle);
 
 	vec3 normWorld = (inverse(uViewMatrix) * normalize(normal)).xyz;
@@ -226,30 +249,32 @@ void main() {
 
 	vec3 sp = normalize((rotMat * vec4(normWorld, 1.0)).xyz);
 
-	Material material = shadePlanet(posWorld, sp);
 	vec3 newNorm = normWorld;
+	Material material = shadePlanet(posWorld, sp, newNorm);
 
-	if (uPlanetType == PLANET_TYPE_EARTH_LIKE_WORLD || uPlanetType == PLANET_TYPE_ICE_WORLD || uPlanetType == PLANET_TYPE_ROCKY_ICE_WORLD || uPlanetType == PLANET_TYPE_ROCKY_WORLD) {
-		newNorm += 0.2 * noiseSimplex3(30.0 * sp);
-		newNorm += 0.1 * noiseSimplex3(100.0 * sp);
-		newNorm += 0.05 * noiseSimplex3(400.0 * sp);
-		newNorm = normalize(newNorm);
-	}
+	// if (uPlanetType == PLANET_TYPE_ICE_WORLD || uPlanetType == PLANET_TYPE_ROCKY_ICE_WORLD || uPlanetType == PLANET_TYPE_ROCKY_WORLD) {
+	// 	vec3 normOffset = vec3(0.0);
+	// 	normOffset += 0.2 * noiseSimplex3(30.0 * sp);
+	// 	normOffset += 0.1 * noiseSimplex3(100.0 * sp);
+	// 	normOffset += 0.05 * noiseSimplex3(400.0 * sp);
+	// 	normOffset *= 0.1;
+	// 	newNorm = normalize(newNorm + normOffset);
+	// }
 	LightingContext ctx = makeLightingContext(material, uMetersPerUnit, uCameraPos, posWorld, newNorm);
 
 	vec3 res = vec3(0.0);
-	Light l0 = makeStarLight(uLightPos0.xyz, uLightColor0);
-	Light l1 = makeStarLight(uLightPos1.xyz, uLightColor1);
+	Light l0 = makeStarLight(uLightPos0.xyz, uLightColor0, 1.0 * uLightRadius0);
 	res += lightContribution(ctx, l0);
+	Light l1 = makeStarLight(uLightPos1.xyz, uLightColor1, 1.0 * uLightRadius1);
 	res += lightContribution(ctx, l1);
 	res += material.emissiveFlux;
 	vec3 finalColor = res;
 
-	float exposure = 1e-26;
+	float exposure = 5e-26;
 	finalColor *= exposure;
 
-	finalColor = tonemapACESFull(finalColor);
-	finalColor = pow(finalColor, vec3(1.0 / 2.2));
+	// finalColor = tonemapACESFull(finalColor);
+	// finalColor = pow(finalColor, vec3(1.0 / 2.2));
 
     fColor = vec4(finalColor, 1);
 }

@@ -11,7 +11,10 @@ import net.minecraft.util.Mth;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.hawklib.client.screen.HawkScreen;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.debug.ClientConfig;
 import net.xavil.ultraviolet.debug.ConfigKey;
 
@@ -61,13 +64,7 @@ public final class PlanetRenderingContext {
 		};
 	}
 
-	public record PointLight(Vec3 pos, Color color, double luminosity) {
-		public static PointLight fromStar(StellarCelestialNode node) {
-			return new PointLight(node.position.xyz(), node.getColor(), node.luminosityLsol);
-		}
-	}
-
-	public final List<PointLight> pointLights = new ArrayList<>();
+	private final MutableList<StellarCelestialNode> systemStars = new Vector<>();
 	private final Minecraft client = Minecraft.getInstance();
 	private double celestialTime = 0;
 	private Vec3 origin = Vec3.ZERO;
@@ -77,10 +74,13 @@ public final class PlanetRenderingContext {
 	public PlanetRenderingContext() {
 	}
 
-	public void begin(double celestialTime) {
+	public void begin(StarSystem system, double celestialTime) {
 		this.celestialTime = celestialTime;
 		this.renderedPlanetCount = 0;
 		this.renderedStarCount = 0;
+
+		this.systemStars.clear();
+		this.systemStars.extend(system.rootNode.iter().filterCast(StellarCelestialNode.class));
 	}
 
 	public void end() {
@@ -132,7 +132,7 @@ public final class PlanetRenderingContext {
 					.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_TEX_COLOR_NORMAL);
 			addNormSphere(builder, camera, nodePosUnits.mul(camera.metersPerUnit / 1e12), radiusUnits);
 			final var shader = UltravioletShaders.SHADER_STAR.get();
-			shader.setUniform("uStarColor", node.getColor().withA(0.7));
+			shader.setUniform("uStarColor", node.getColor().withA(node.luminosityLsol));
 			shader.setUniform("uTime", this.celestialTime % 10000.0);
 			builder.end().draw(shader, DRAW_STATE_NO_CULL);
 		}
@@ -147,31 +147,34 @@ public final class PlanetRenderingContext {
 
 	private void setupShaderCommon(CachedCamera<?> camera, Vec3 sortOrigin, ShaderProgram shader) {
 
-		final int maxLightCount = 4;
+		final int maxStarCount = 4;
 
 		// this could probably be smarter. Merging stars that are close enough compared
 		// to the distance of the planet, or prioritizing apparent brightness over just
 		// distance.
-		final var sortedLights = new ArrayList<>(this.pointLights);
-		sortedLights.sort(Comparator.comparingDouble(light -> light.pos.distanceTo(sortOrigin)));
+		final var sortedStars = new Vector<>(this.systemStars);
+		// var nodePosUnits = pos.add(this.origin).mul(1e12 / camera.metersPerUnit);
 
-		final var lightCount = Math.min(maxLightCount, sortedLights.size());
+		sortedStars.sort(Comparator.comparingDouble(star -> star.position.xyz().distanceTo(sortOrigin)));
+
+		final var starCount = Math.min(maxStarCount, sortedStars.size());
 
 		shader.setUniform("uMetersPerUnit", camera.metersPerUnit);
 		shader.setUniform("uTime", this.celestialTime);
 
-		for (var i = 0; i < maxLightCount; ++i) {
+		for (var i = 0; i < maxStarCount; ++i) {
 			shader.setUniform("uLightColor" + i, 0f, 0f, 0f, -1f);
 		}
 
-		for (var i = 0; i < lightCount; ++i) {
-			final var light = sortedLights.get(i);
+		for (var i = 0; i < starCount; ++i) {
+			final var star = sortedStars.get(i);
 
-			float luminosity = (float) Math.max(light.luminosity, 0.4);
-			shader.setUniform("uLightColor" + i, light.color.withA(luminosity));
+			shader.setUniform("uLightColor" + i, star.getColor().withA(star.luminosityLsol));
 
-			var pos = camera.toCameraSpace(light.pos.add(this.origin));
+			final var pos = camera.toCameraSpace(this.origin.add(star.position).mul(1 / camera.metersPerUnit));
 			shader.setUniform("uLightPos" + i, pos.withW(1));
+
+			shader.setUniform("uLightRadius" + i, star.radius * Units.u_PER_ku / camera.metersPerUnit);
 		}
 
 		BufferRenderer.setupCameraUniforms(shader, camera);
@@ -214,8 +217,8 @@ public final class PlanetRenderingContext {
 		if (distanceRatio < 0.0001)
 			return;
 
-		setupShaderCommon(camera, nodePosUnits, UltravioletShaders.SHADER_PLANET.get());
-		setupShaderCommon(camera, nodePosUnits, UltravioletShaders.SHADER_RING.get());
+		setupShaderCommon(camera, pos, UltravioletShaders.SHADER_PLANET.get());
+		setupShaderCommon(camera, pos, UltravioletShaders.SHADER_RING.get());
 		setupPlanetShader(node, UltravioletShaders.SHADER_PLANET.get());
 
 		final var modelTfm = new TransformStack();
@@ -248,8 +251,8 @@ public final class PlanetRenderingContext {
 			for (final var ring : unaryNode.rings.iterable()) {
 				// tfm.push();
 				modelTfm.prependRotation(ring.orbitalPlane.rotationFromReference());
-				addRing(builder, camera, nodePosUnits.mul(camera.metersPerUnit / 1e12), ring.interval.lower(),
-						ring.interval.higher());
+				addRing(builder, camera, nodePosUnits.mul(camera.metersPerUnit / 1e12), ring.interval.lower,
+						ring.interval.higher);
 				// tfm.pop();
 			}
 		}

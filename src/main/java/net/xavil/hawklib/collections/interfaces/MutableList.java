@@ -8,6 +8,7 @@ import java.util.function.Predicate;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.collections.CollectionHint;
+import net.xavil.hawklib.collections.SortingStrategy;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.impl.proxy.MutableListProxy;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
@@ -16,7 +17,7 @@ public interface MutableList<T> extends MutableCollection, ImmutableList<T> {
 
 	void retain(Predicate<T> predicate);
 
-	void extend(IntoIterator<T> elements);
+	void extend(IntoIterator<? extends T> elements);
 
 	T set(int index, T value);
 
@@ -48,14 +49,12 @@ public interface MutableList<T> extends MutableCollection, ImmutableList<T> {
 		}
 	}
 
-	@SuppressWarnings("unchecked")
 	default void sort(Comparator<? super T> comparator) {
-		final Object[] elems = new Object[this.size()];
-		for (int i = 0; i < this.size(); ++i)
-			elems[i] = this.get(i);
-		Arrays.sort((T[]) elems, comparator);
-		for (int i = 0; i < elems.length; ++i)
-			this.set(i, (T) elems[i]);
+		SortingStrategy.sort(this, 0, comparator);
+	}
+
+	default void sort(int flags, Comparator<? super T> comparator) {
+		SortingStrategy.sort(this, flags, comparator);
 	}
 
 	@Override

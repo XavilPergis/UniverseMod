@@ -1,7 +1,6 @@
 package net.xavil.universegen.system;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.Comparator;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
@@ -14,7 +13,6 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.Assert;
-import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -32,12 +30,13 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 
 	public static final int UNASSINED_ID = -1;
 
-	protected int id = UNASSINED_ID;
-	protected BinaryCelestialNode parentBinaryNode = null;
-	protected CelestialNodeChild<?> parentUnaryNode = null;
-	protected final MutableList<CelestialNodeChild<?>> childNodes = new Vector<>();
+	public int id = UNASSINED_ID;
+	public BinaryCelestialNode parentBinaryNode = null;
+	public CelestialNodeChild<?> parentUnaryNode = null;
+	public final MutableList<CelestialNodeChild<?>> childNodes = new Vector<>();
 
-	public String name;
+	public String explicitName;
+	public String suffix;
 
 	public final Vec3.Mutable position = new Vec3.Mutable(Vec3.ZERO), lastPosition = new Vec3.Mutable(Vec3.ZERO);
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
@@ -58,6 +57,7 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	 */
 	public final void assignIds() {
 		assignSubtreeIds(0);
+		assignSuffixes();
 	}
 
 	/**
@@ -66,20 +66,92 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	 * {@link CelestialNode#lookup(int)} to not search the entire tree for a node
 	 * on each lookup.
 	 * 
+	 * This will also sort the child nodes and set up backlinks.
+	 * 
 	 * @param startId The ID at which all descendant nodes should be greater than.
 	 * @return The maximum ID contained within `this`, including itself.
 	 */
 	protected final int assignSubtreeIds(int startId) {
+		this.childNodes.sort(Comparator.comparingDouble(child -> child.orbitalShape.semiMajor()));
+
 		if (this instanceof BinaryCelestialNode binaryNode) {
-			startId = binaryNode.getA().assignSubtreeIds(startId) + 1;
-			startId = binaryNode.getB().assignSubtreeIds(startId) + 1;
+			binaryNode.getInner().parentBinaryNode = binaryNode;
+			binaryNode.getOuter().parentBinaryNode = binaryNode;
+			startId = binaryNode.getInner().assignSubtreeIds(startId) + 1;
+			startId = binaryNode.getOuter().assignSubtreeIds(startId) + 1;
 		}
 		for (var child : this.childNodes.iterable()) {
+			child.node.parentUnaryNode = child;
 			startId = child.node.assignSubtreeIds(startId) + 1;
 		}
 
 		this.id = startId;
 		return startId;
+	}
+
+	/**
+	 * Turns a number {@code n} into a unique sequence of letters, ordered in the
+	 * following way:
+	 * <p>
+	 * {@code A, B, ..., Z, Aa, Ab, ..., Az, Ba, ..., Zz, Aaa, ...}
+	 * </p>
+	 * 
+	 * @param n The number to convert to a letter sequence.
+	 * @param m The "base" of the sequence. A value of 3 will only allow 3 letters
+	 *          to be used ({@code A, B, C, Aa, ...}). Should be 26 for all letters
+	 *          A-Z.
+	 * @return The letter sequence.
+	 */
+	private static String numberToSeq(int n, int m) {
+		var s = "";
+		for (int i = n;; i = i / m - 1) {
+			int ch = 'a' + i % m;
+			ch = i < m ? Character.toUpperCase(ch) : ch;
+			s = Character.toString(ch) + s;
+			if (i < m)
+				break;
+		}
+		return s;
+	}
+
+	protected void assignSuffixes() {
+		final var stars = this.iter().filterCast(StellarCelestialNode.class).collectTo(Vector::new);
+		stars.sort(Comparator.comparingDouble(snode -> snode.massYg));
+
+		for (int i = 0; i < stars.size(); ++i) {
+			final CelestialNode star = stars.get(i);
+			final var seq = numberToSeq(i, 26);
+			star.assignSuffix(seq, 0);
+			CelestialNode cur = star.parentBinaryNode;
+			while (cur != null) {
+				star.suffix += seq;
+				cur = cur.parentBinaryNode;
+			}
+		}
+
+		for (final var node : this.iterable()) {
+			if (node instanceof BinaryCelestialNode bnode) {
+				if (bnode.suffix.length() == 1) {
+					bnode.assignSuffix("^" + bnode.suffix, 0);
+				} else {
+					bnode.assignSuffix(bnode.suffix, 0);
+				}
+			}
+		}
+	}
+
+	protected void assignSuffix(String suffix, int depth) {
+		this.suffix = suffix;
+		for (int i = 0; i < this.childNodes.size(); ++i) {
+			final var child = this.childNodes.get(i);
+			if (child.node instanceof StellarCelestialNode) {
+				child.node.assignSuffix(child.node.suffix, 0);
+			} else {
+				// alternate numbers and letters
+				final var id = (depth & 1) == 0 ? String.valueOf(i + 1) : numberToSeq(i, 26).toLowerCase();
+				child.node.assignSuffix(suffix + " " + id, depth + 1);
+			}
+		}
 	}
 
 	/**
@@ -107,10 +179,10 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 			return null;
 
 		if (this instanceof BinaryCelestialNode binaryNode) {
-			var a = binaryNode.getA().lookupSubtree(id);
+			var a = binaryNode.getInner().lookupSubtree(id);
 			if (a != null)
 				return a;
-			var b = binaryNode.getB().lookupSubtree(id);
+			var b = binaryNode.getOuter().lookupSubtree(id);
 			if (b != null)
 				return b;
 		}
@@ -133,8 +205,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	public void visit(Consumer<CelestialNode> consumer) {
 		consumer.accept(this);
 		if (this instanceof BinaryCelestialNode binaryNode) {
-			binaryNode.getA().visit(consumer);
-			binaryNode.getB().visit(consumer);
+			binaryNode.getInner().visit(consumer);
+			binaryNode.getOuter().visit(consumer);
 		}
 		this.childNodes.forEach(child -> child.node.visit(consumer));
 	}
@@ -147,8 +219,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	 */
 	public void visitDirectDescendants(Consumer<CelestialNode> consumer) {
 		if (this instanceof BinaryCelestialNode binaryNode) {
-			consumer.accept(binaryNode.getA());
-			consumer.accept(binaryNode.getB());
+			consumer.accept(binaryNode.getInner());
+			consumer.accept(binaryNode.getOuter());
 		}
 		this.childNodes.forEach(child -> consumer.accept(child.node));
 	}
@@ -169,8 +241,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 					stack.push(child.node);
 				}
 				if (node instanceof BinaryCelestialNode bin) {
-					stack.push(bin.getA());
-					stack.push(bin.getB());
+					stack.push(bin.getInner());
+					stack.push(bin.getOuter());
 				}
 				return node;
 			}
@@ -192,10 +264,10 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		if (predicate.test(this))
 			return this.id;
 		if (this instanceof BinaryCelestialNode binaryNode) {
-			var a = binaryNode.getA().find(predicate);
+			var a = binaryNode.getInner().find(predicate);
 			if (a != UNASSINED_ID)
 				return a;
-			var b = binaryNode.getB().find(predicate);
+			var b = binaryNode.getOuter().find(predicate);
 			if (b != UNASSINED_ID)
 				return b;
 		}
@@ -221,10 +293,6 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 
 	public CelestialNodeChild<?> getOrbitInfo() {
 		return this.parentUnaryNode;
-	}
-
-	public Iterable<CelestialNodeChild<?>> childOrbits() {
-		return this.childNodes.iterable();
 	}
 
 	/**
@@ -261,6 +329,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		updatePositions(OrbitalPlane.ZERO, time);
 	}
 
+	// TODO: find center of mass of the current object and all its satellites and
+	// orbit everything around that
 	protected void updatePositions(OrbitalPlane referencePlane, double time) {
 		this.referencePlane = referencePlane;
 
@@ -268,14 +338,14 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 			final var combinedShape = binaryNode.getCombinedShape();
 			final var ellipseA = binaryNode.getEllipseA(referencePlane, time);
 			final var ellipseB = binaryNode.getEllipseB(referencePlane, time);
-			getOrbitalPosition(binaryNode.getA().position, ellipseA, combinedShape, false, time);
-			getOrbitalPosition(binaryNode.getB().position, ellipseB, combinedShape, true, time);
+			getOrbitalPosition(binaryNode.getInner().position, ellipseA, combinedShape, false, time);
+			getOrbitalPosition(binaryNode.getOuter().position, ellipseB, combinedShape, true, time);
 			final var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
-			binaryNode.getA().updatePositions(newPlane, time);
-			binaryNode.getB().updatePositions(newPlane, time);
+			binaryNode.getInner().updatePositions(newPlane, time);
+			binaryNode.getOuter().updatePositions(newPlane, time);
 		}
 
-		for (var childOrbit : this.childOrbits()) {
+		for (var childOrbit : this.childNodes.iterable()) {
 			final var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
 			getOrbitalPosition(childOrbit.node.position, newPlane, childOrbit.orbitalShape, false, time);
 			childOrbit.node.updatePositions(newPlane, time);
@@ -303,8 +373,10 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	@Override
 	public String toString() {
 		var res = "CelestialNode " + this.id;
-		if (this.name != null)
-			res += "(" + this.name + ")";
+		if (this.explicitName != null)
+			res += "(" + this.explicitName + ")";
+		if (this.suffix != null)
+			res += "(" + this.suffix + ")";
 		return res;
 	}
 
@@ -346,11 +418,11 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		node.apsidalRate = apsidalRate;
 
 		if (node instanceof BinaryCelestialNode binaryNode) {
-			binaryNode.setA(readNbt(nbt.getCompound("a")));
-			binaryNode.setB(readNbt(nbt.getCompound("b")));
+			binaryNode.setInner(readNbt(nbt.getCompound("a")));
+			binaryNode.setOuter(readNbt(nbt.getCompound("b")));
 			binaryNode.orbitalPlane = getNbt(OrbitalPlane.CODEC, nbt.get("orbital_plane"));
-			binaryNode.orbitalShapeA = getNbt(OrbitalShape.CODEC, nbt.get("orbital_shape_a"));
-			binaryNode.orbitalShapeB = getNbt(OrbitalShape.CODEC, nbt.get("orbital_shape_b"));
+			binaryNode.orbitalShapeInner = getNbt(OrbitalShape.CODEC, nbt.get("orbital_shape_a"));
+			binaryNode.orbitalShapeOuter = getNbt(OrbitalShape.CODEC, nbt.get("orbital_shape_b"));
 			binaryNode.phase = nbt.getDouble("phase");
 		}
 		if (node instanceof UnaryCelestialNode unaryNode) {
@@ -406,11 +478,11 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 
 		if (node instanceof BinaryCelestialNode binaryNode) {
 			nbt.putString("node_type", "binary");
-			nbt.put("a", writeNbt(binaryNode.getA()));
-			nbt.put("b", writeNbt(binaryNode.getB()));
+			nbt.put("a", writeNbt(binaryNode.getInner()));
+			nbt.put("b", writeNbt(binaryNode.getOuter()));
 			nbt.put("orbital_plane", writeNbt(OrbitalPlane.CODEC, binaryNode.orbitalPlane));
-			nbt.put("orbital_shape_a", writeNbt(OrbitalShape.CODEC, binaryNode.orbitalShapeA));
-			nbt.put("orbital_shape_b", writeNbt(OrbitalShape.CODEC, binaryNode.orbitalShapeB));
+			nbt.put("orbital_shape_a", writeNbt(OrbitalShape.CODEC, binaryNode.orbitalShapeInner));
+			nbt.put("orbital_shape_b", writeNbt(OrbitalShape.CODEC, binaryNode.orbitalShapeOuter));
 			nbt.putDouble("phase", binaryNode.phase);
 		}
 		if (node instanceof UnaryCelestialNode unaryNode) {
@@ -425,8 +497,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 				ringNbt.put("orbital_plane", writeNbt(OrbitalPlane.CODEC, ring.orbitalPlane));
 				ringNbt.putDouble("eccentricity", ring.eccentricity);
 				ringNbt.putDouble("mass", ring.mass);
-				ringNbt.putDouble("interval_lower", ring.interval.lower());
-				ringNbt.putDouble("interval_higher", ring.interval.higher());
+				ringNbt.putDouble("interval_lower", ring.interval.lower);
+				ringNbt.putDouble("interval_higher", ring.interval.higher);
 				rings.add(ringNbt);
 			}
 			nbt.put("rings", rings);

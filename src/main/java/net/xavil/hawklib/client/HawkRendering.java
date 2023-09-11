@@ -7,11 +7,15 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.shader.AttributeSet;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.Iterator;
+import net.xavil.ultraviolet.client.BloomEffect;
+import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.RenderTexture;
 
 public final class HawkRendering {
 
@@ -49,21 +53,22 @@ public final class HawkRendering {
 	public static void doPostProcessing(GlFramebuffer output, GlTexture2d input) {
 		try (final var disposer = Disposable.scope()) {
 			// bloom
-			// final var hdrPost =
-			// disposer.attach(RenderTexture.getTemporary(input.size().d2(), DESC));
-			// BloomEffect.render(hdrPost.framebuffer, input);
+			final var desc = RenderTexture.StaticDescriptor.builder();
+			desc.colorFormat = GlTexture.Format.RGBA32_FLOAT;
+			final var hdrPost = disposer.attach(RenderTexture.getTemporary(input.size().d2(), desc.build()));
+			BloomEffect.render(hdrPost.framebuffer, input);
 
 			// tonemapping
 			output.bind();
-			// final var postShader = getShader(SHADER_MAIN_POSTPROCESS);
-			// postShader.setUniform("uExposure", 1f);
-			// postShader.setUniformSampler("uSampler", hdrPost.colorTexture);
-			// BufferRenderer.drawFullscreen(postShader);
-
-			final var postShader = HawkShaders.SHADER_BLIT.get();
-			// postShader.setUniform("uExposure", 1f);
-			postShader.setUniformSampler("uSampler", input);
+			final var postShader = UltravioletShaders.getShader(UltravioletShaders.SHADER_MAIN_POSTPROCESS_LOCATION);
+			postShader.setUniform("uExposure", 1f);
+			postShader.setUniformSampler("uSampler", hdrPost.colorTexture);
 			BufferRenderer.drawFullscreen(postShader);
+
+			// final var postShader = HawkShaders.SHADER_BLIT.get();
+			// postShader.setUniform("uExposure", 1f);
+			// postShader.setUniformSampler("uSampler", input);
+			// BufferRenderer.drawFullscreen(postShader);
 		}
 
 	}

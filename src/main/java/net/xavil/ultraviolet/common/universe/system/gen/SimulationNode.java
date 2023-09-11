@@ -6,7 +6,9 @@ import javax.annotation.OverridingMethodsMustInvokeSuper;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.collections.SortingStrategy;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
@@ -17,7 +19,11 @@ import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.CelestialNodeChild;
+import net.xavil.universegen.system.CelestialRing;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.UnaryCelestialNode;
 
 public abstract sealed class SimulationNode implements IntoIterator<SimulationNode> {
 
@@ -54,22 +60,23 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 		}
 
 		@Override
-		public CelestialNode convertToCelestialNode() {
-			final var a = this.a.convertToCelestialNode();
-			final var b = this.b.convertToCelestialNode();
+		public CelestialNode convertToCelestialNode(StableRandom rng) {
+			final var a = this.a.convertToCelestialNode(rng.split("a"));
+			final var b = this.b.convertToCelestialNode(rng.split("b"));
 
 			if (a == null)
 				return b;
 			if (b == null)
 				return a;
 
-			final var shapeA = new OrbitalShape(this.eccentricity,
-					this.periapsisDistance * a.massYg / (a.massYg + b.massYg));
-			final var shapeB = new OrbitalShape(this.eccentricity,
-					this.periapsisDistance * b.massYg / (a.massYg + b.massYg));
+			final var bnode = new BinaryCelestialNode();
+			bnode.setSiblings(a, b);
+			bnode.massYg = bnode.inner.massYg + bnode.outer.massYg;
+			bnode.setOrbitalShapes(new OrbitalShape(this.eccentricity, this.periapsisDistance));
+			bnode.orbitalPlane = OrbitalPlane.ZERO;
+			bnode.phase = rng.uniformDouble("phase", 0, 2.0 * Math.PI);
 
-			final var phase = this.ctx.rng.uniformDouble(0, 2.0 * Math.PI);
-			return new BinaryCelestialNode(a, b, OrbitalPlane.ZERO, shapeA, shapeB, phase);
+			return null;
 		}
 
 		public SimulationNode larger() {
@@ -86,10 +93,10 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 		}
 
 		@Override
-		public void update(ProtoplanetaryDisc disc) {
-			this.a.update(disc);
-			this.b.update(disc);
-			super.update(disc);
+		public void update(StableRandom rng, ProtoplanetaryDisc disc) {
+			this.a.update(rng.split("a"), disc);
+			this.b.update(rng.split("b"), disc);
+			super.update(rng.split("self"), disc);
 		}
 
 		@Override
@@ -190,15 +197,66 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 		// }
 		// }
 
-		@Override
-		public CelestialNode convertToCelestialNode() {
-			// TODO Auto-generated method stub
-			return null;
+		private CelestialNode createCelestialNode() {
+			return switch (getType()) {
+				case PLANET_TERRESTRIAL ->
+					new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.ROCKY_WORLD, this.mass);
+				case PLANET_GAS_GIANT -> new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.GAS_GIANT, this.mass);
+				case BROWN_DWARF -> new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.BROWN_DWARF, this.mass);
+				case STAR -> StellarCelestialNode.fromMassAndAge(this.mass, this.age);
+				case BINARY -> null;
+			};
 		}
 
 		@Override
-		public void update(ProtoplanetaryDisc disc) {
-			super.update(disc);
+		public CelestialNode convertToCelestialNode(StableRandom rng) {
+			if (this.mass < 3.0 * this.ctx.params.initialPlanetesimalMass)
+				return null;
+
+			final var node = createCelestialNode();
+
+			final var shape = new OrbitalShape(this.eccentricity, this.semiMajor);
+			final var plane = OrbitalPlane.fromInclination(this.inclination, rng.split("orbital_plane"));
+
+			if (node instanceof UnaryCelestialNode unaryNode) {
+				unaryNode.rotationalRate = this.rotationalRate;
+				unaryNode.obliquityAngle = 0;
+				unaryNode.radius = this.radius();
+
+				for (final var ring : this.rings.iterable()) {
+					unaryNode.rings.push(new CelestialRing(
+							OrbitalPlane.ZERO, ring.eccentricity, ring.interval, ring.mass));
+				}
+			}
+			if (node instanceof StellarCelestialNode starNode) {
+			}
+			// if (node instanceof PlanetaryCelestialNode planetNode) {
+			// // TODO: try to apply tidal locking to the parent node too
+			// final var lockingTime = timeUntilTidallyLockedMyr(planetNode, parent.massYg,
+			// shape.semiMajor());
+			// final var lockingPercent = Math.min(1.0, this.ctx.systemAgeMya /
+			// lockingTime);
+			// final var orbitalRate = 2.0 * Math.PI /
+			// Formulas.orbitalPeriod(shape.semiMajor(), planetNode.massYg);
+			// planetNode.rotationalRate = Mth.lerp(lockingPercent, this.rotationalRate,
+			// orbitalRate);
+			// }
+
+			// this random offset distributes the celestial bodies randomly around their
+			// orbits, so that they don't all form a straight line.
+			final var phase = rng.uniformDouble("orbital_phase", 0, 2.0 * Math.PI);
+
+			for (final var satellite : this.satellites.iterable()) {
+				final var childNode = satellite.convertToCelestialNode(rng.split(satellite.id));
+				node.insertChild(new CelestialNodeChild<>(childNode, node, shape, plane, phase));
+			}
+
+			return node;
+		}
+
+		@Override
+		public void update(StableRandom rng, ProtoplanetaryDisc disc) {
+			super.update(rng, disc);
 		}
 
 		public static double reducedMass(double mass) {
@@ -228,28 +286,27 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 	}
 
 	@OverridingMethodsMustInvokeSuper
-	public void update(ProtoplanetaryDisc disc) {
-		this.satellites.sort(Comparator.comparingDouble(node -> node.semiMajor));
-		final var prev = MutableList.copyOf(this.satellites);
+	public void update(StableRandom rng, ProtoplanetaryDisc disc) {
+		this.satellites.sort(SortingStrategy.UNSTABLE, Comparator.comparingDouble(node -> node.semiMajor));
+		final var prev = new Vector<>(this.satellites);
 		this.satellites.clear();
-		coalesceSatellites(prev, satellites);
+		coalesceSatellites(rng.split("coalesce"), prev, satellites);
 
 		for (final var child : this.satellites.iterable()) {
-			child.update(disc);
+			child.update(rng.split(child.id), disc);
 		}
 	}
 
-	public void coalesceSatellites(MutableList<SimulationNode> prevBodies, MutableList<SimulationNode> nextBodies) {
-		boolean isFirstIteration = true;
-		boolean didCoalesce;
-		do {
-			if (!isFirstIteration) {
+	public void coalesceSatellites(StableRandom rng, MutableList<SimulationNode> prevBodies,
+			MutableList<SimulationNode> nextBodies) {
+		for (int j = 0;; ++j) {
+			if (j == 0) {
 				prevBodies.clear();
 				prevBodies.extend(nextBodies);
 				nextBodies.clear();
 			}
 
-			didCoalesce = false;
+			boolean didCoalesce = false;
 			int i = 0;
 			while (i < prevBodies.size()) {
 				var current = prevBodies.get(i++);
@@ -264,27 +321,31 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 						break;
 
 					i += 1;
-					final var coalesced = applyInteraction(current, next);
+					final var coalesced = applyInteraction(rng.split(i), current, next);
 					current = coalesced != null ? coalesced : current;
 					didCoalesce = true;
 				}
 				nextBodies.push(current);
 			}
 
-			isFirstIteration = false;
-		} while (didCoalesce);
+			if (!didCoalesce)
+				break;
+
+		}
+
 	}
 
-	private SimulationNode collide(Unary larger, Unary smaller) {
+	private SimulationNode collide(StableRandom rng, Unary larger, Unary smaller) {
 
 		larger.mass += smaller.mass;
 		larger.gasMass += smaller.gasMass;
 		larger.rings.clear();
 
 		if (larger.getType() == NodeType.PLANET_TERRESTRIAL
-				&& this.ctx.rng.chance(0.2)
+				&& rng.chance("fragmentation_chance", 0.2)
 				&& smaller.mass >= 0.05 * larger.mass) {
-			final var moonMassFactor = (smaller.mass / larger.mass) * this.ctx.rng.uniformDouble(0.1, 0.8);
+			final var moonMassFactor = (smaller.mass / larger.mass)
+					* rng.uniformDouble("fragment_mass", 0.1, 0.8);
 			final var moonMass = larger.mass * moonMassFactor;
 			final var moonGasMass = larger.gasMass * moonMassFactor;
 
@@ -294,7 +355,7 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 			final var maxDistance = 200.0 * Units.Tu_PER_ku * larger.radius();
 
 			final var moon = new Unary(this.ctx);
-			moon.semiMajor = maxDistance * this.ctx.rng.uniformDouble();
+			moon.semiMajor = maxDistance * rng.uniformDouble("fragment_semi_major");
 			moon.mass = moonMass;
 			moon.gasMass = moonGasMass;
 
@@ -309,15 +370,15 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 		return larger;
 	}
 
-	public SimulationNode capture(Unary larger, Unary smaller) {
-		// by this point, we know the nodes haven't collided, not have they ripped each
+	public SimulationNode capture(StableRandom rng, Unary larger, Unary smaller) {
+		// by this point, we know the nodes haven't collided, nor have they ripped each
 		// other apart via tidal forces, so we can create stable orbits!
 
 		final var minDistance = Formulas.rocheLimit(larger.mass, smaller.mass, smaller.radius());
 		final var maxDistance = Formulas.hillSphereRadius(massOf(this), larger.mass,
 				larger.eccentricity, larger.semiMajor);
 
-		final var totalDistance = this.ctx.rng.uniformDouble(minDistance, maxDistance);
+		final var totalDistance = rng.uniformDouble("distance", minDistance, maxDistance);
 		final var largerRadius = larger.radius();
 
 		final var centerOfMass = totalDistance * smaller.mass / (larger.mass + smaller.mass);
@@ -346,7 +407,7 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 		}
 	}
 
-	public SimulationNode applyUnaryInteraction(Unary a, Unary b) {
+	public SimulationNode applyUnaryInteraction(StableRandom rng, Unary a, Unary b) {
 		final var rocheLimitA = Formulas.rocheLimit(a.mass, b.mass, b.radius());
 		final var rocheLimitB = Formulas.rocheLimit(b.mass, a.mass, a.radius());
 		final var rocheLimit = Math.max(rocheLimitA, rocheLimitB);
@@ -356,7 +417,7 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 
 		// collision
 		if (Math.abs(a.semiMajor - b.semiMajor) <= rocheLimit / 2.0) {
-			return collide(larger, smaller);
+			return collide(rng.split("collision"), larger, smaller);
 		}
 		// ring
 		else if (Math.abs(a.semiMajor - b.semiMajor) <= rocheLimit) {
@@ -365,7 +426,7 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 		}
 		// capture
 		else {
-			return capture(larger, smaller);
+			return capture(rng.split("capture"), larger, smaller);
 		}
 	}
 
@@ -379,14 +440,14 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 
 		// inside stability margin, inside binary orbit: ejection, collsion, capture
 		final SimulationNode bl = bn.larger(), bs = bn.smaller();
-		if (semiMajorBinaryRelative < 1.2 * bs.semiMajor) {
-			final var insideLargerOrbit = semiMajorBinaryRelative < bl.semiMajor;
-			final var node = insideLargerOrbit && this.ctx.rng.chance(0.67) ? bl : bs;
+		// if (semiMajorBinaryRelative < 1.2 * bs.semiMajor) {
+		// final var insideLargerOrbit = semiMajorBinaryRelative < bl.semiMajor;
+		// final var node = insideLargerOrbit && this.ctx.rng.chance(0.67) ? bl : bs;
 
-			un.semiMajor = semiMajorBinaryRelative;
+		// un.semiMajor = semiMajorBinaryRelative;
 
-			return applyInteraction(node, un);
-		}
+		// return applyInteraction(node, un);
+		// }
 
 		// outside stability margin: unary/binary orbit with barycenter
 		// -> low mass in binary or high mass in unary means larger stability threshold
@@ -396,11 +457,11 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 		return null;
 	}
 
-	public SimulationNode applyInteraction(SimulationNode a, SimulationNode b) {
+	public SimulationNode applyInteraction(StableRandom rng, SimulationNode a, SimulationNode b) {
 
 		// both are single nodes
 		if (a instanceof Unary ua && b instanceof Unary ub) {
-			return applyUnaryInteraction(ua, ub);
+			return applyUnaryInteraction(rng, ua, ub);
 		}
 		// both are binaries
 		else if (a instanceof Binary ba && b instanceof Binary bb) {
@@ -442,7 +503,7 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 		// we could probably do all the ring handling stuff right at the end tbh
 
 		// TODO: eccentricity should probably factor in somehow, but generally, rings
-		// are extremely circular
+		// are extremely circular [citation needed]
 
 	}
 
@@ -466,7 +527,7 @@ public abstract sealed class SimulationNode implements IntoIterator<SimulationNo
 
 	public abstract Interval gravitationalInteractionLimit();
 
-	public abstract CelestialNode convertToCelestialNode();
+	public abstract CelestialNode convertToCelestialNode(StableRandom rng);
 
 	public abstract NodeType getType();
 

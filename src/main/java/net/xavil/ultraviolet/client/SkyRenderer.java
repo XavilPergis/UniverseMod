@@ -16,6 +16,7 @@ import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
@@ -264,16 +265,10 @@ public class SkyRenderer implements Disposable {
 		profiler.popPush("planet_context_setup");
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var ctx = new PlanetRenderingContext();
-		system.rootNode.visit(node -> {
-			if (node instanceof StellarCelestialNode starNode) {
-				var light = PlanetRenderingContext.PointLight.fromStar(starNode);
-				ctx.pointLights.add(light);
-			}
-		});
 
 		profiler.popPush("visit");
 		ctx.setSystemOrigin(system.pos);
-		ctx.begin(time);
+		ctx.begin(system, time);
 		system.rootNode.visit(node -> {
 			final var profiler2 = Minecraft.getInstance().getProfiler();
 			profiler2.push("id:" + node.getId());
@@ -317,9 +312,12 @@ public class SkyRenderer implements Disposable {
 
 		profiler.push("draw");
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
-		// drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
-		drawCelestialObjects(camera, mainTarget, partialTick);
+		drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
+		// drawCelestialObjects(camera, mainTarget, partialTick);
 		profiler.pop();
+
+		final var sceneTexture = this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
+		HawkRendering.doPostProcessing(mainTarget, sceneTexture);
 
 		// TODO: draw atmosphere or something
 		// TODO: figure out how the fuck we're gonna make vanilla fog not look like
@@ -336,10 +334,6 @@ public class SkyRenderer implements Disposable {
 		profiler.push("popGlState");
 		GlManager.popState();
 		profiler.pop();
-
-		// final var sceneTexture =
-		// this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
-		// HawkRendering.doPostProcessing(mainTarget, sceneTexture);
 
 		return true;
 	}

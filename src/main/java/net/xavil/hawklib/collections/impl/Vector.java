@@ -1,12 +1,12 @@
 package net.xavil.hawklib.collections.impl;
 
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.collections.CollectionHint;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
@@ -16,10 +16,29 @@ public final class Vector<T> implements MutableList<T> {
 
 	private T[] elements = makeArray(0);
 	private int size = 0;
-	private float growthFactor = 2.0f;
 	private boolean unordered = false;
 
 	public Vector() {
+	}
+
+	public Vector(ImmutableList<T> elements) {
+		try {
+			this.elements = makeArray(elements.size());
+			this.size = elements.size();
+			if (elements instanceof Vector<T> src) {
+				System.arraycopy(src.elements, 0, this.elements, 0, this.size);
+			} else {
+				final var iter = elements.iter();
+				int i = 0;
+				while (iter.hasNext())
+					this.elements[i++] = iter.next();
+				Assert.isEqual(i, elements.size());
+			}
+		} catch (Throwable t) {
+			this.elements = makeArray(0);
+			this.size = 0;
+			throw t;
+		}
 	}
 
 	public Vector(int initialCapacity) {
@@ -36,14 +55,25 @@ public final class Vector<T> implements MutableList<T> {
 		this.size = size;
 	}
 
-	private Vector(T[] elements, int size, float growthFactor) {
-		this(elements, size);
-		this.growthFactor = growthFactor;
+	@Override
+	public int size() {
+		return this.size;
 	}
 
-	public void setGrowthFactor(float growthFactor) {
-		Assert.isTrue(growthFactor > 1.0f);
-		this.growthFactor = growthFactor;
+	public int capacity() {
+		return this.elements.length;
+	}
+
+	/**
+	 * This method allows for direct access into the internal state of this vector.
+	 * Caution should be exercised when using this, as all accesses through this are
+	 * unchecked. Additionally, this array will no longer point into the vector's
+	 * backing storage the next time the vector resises.
+	 * 
+	 * @return A reference to this vector's backing storage.
+	 */
+	public T[] backingStorage() {
+		return this.elements;
 	}
 
 	@SuppressWarnings("unchecked")
@@ -51,21 +81,37 @@ public final class Vector<T> implements MutableList<T> {
 		return (T[]) new Object[length];
 	}
 
-	private void growToFit(int newCapacity) {
-		if (this.elements.length >= newCapacity)
-			return;
-		int cap = this.elements.length;
-		if (cap == 0)
-			cap = 16;
-		while (cap < newCapacity) {
-			final var prevCap = cap;
-			cap *= this.growthFactor;
-			Assert.isTrue(cap > prevCap);
-		}
-		T[] newElements = makeArray(newCapacity);
-		T[] oldElements = this.elements;
+	private static int nextCapacity(int cur) {
+		if (cur == 0)
+			return 16;
+		if (cur < 16384)
+			return (cur * 3 + 1) / 2;
+		return cur * 2;
+	}
+
+	private void resizeStorage(int newCapacity) {
+		final T[] newElements = makeArray(newCapacity);
+		final T[] oldElements = this.elements;
 		this.elements = newElements;
 		System.arraycopy(oldElements, 0, newElements, 0, this.size);
+	}
+
+	public void reserve(int additional) {
+		if (this.elements.length >= this.size + additional)
+			return;
+		int cap = this.elements.length;
+		while (cap < this.size + additional) {
+			final var prevCap = cap;
+			cap = nextCapacity(cap);
+			Assert.isTrue(cap > prevCap);
+		}
+		resizeStorage(cap);
+	}
+
+	public void reserveExact(int additional) {
+		if (this.elements.length >= this.size + additional)
+			return;
+		resizeStorage(this.size + additional);
 	}
 
 	@Override
@@ -75,6 +121,7 @@ public final class Vector<T> implements MutableList<T> {
 		this.size = 0;
 	}
 
+	// Linear time in element count on average
 	@Override
 	public void retain(Predicate<T> predicate) {
 		int src = 0, dst = 0;
@@ -100,11 +147,11 @@ public final class Vector<T> implements MutableList<T> {
 	}
 
 	@Override
-	public void extend(IntoIterator<T> elements) {
+	public void extend(IntoIterator<? extends T> elements) {
 		final var iter = elements.iter();
 		final var minCount = iter.sizeHint().lowerBound();
 		final var lowerBoundEnd = this.size + minCount;
-		growToFit(lowerBoundEnd);
+		reserve(minCount);
 		for (int i = this.size; i < lowerBoundEnd; ++i) {
 			iter.hasNext();
 			this.elements[i] = iter.next();
@@ -112,7 +159,7 @@ public final class Vector<T> implements MutableList<T> {
 		}
 
 		while (iter.hasNext()) {
-			growToFit(this.size + 1);
+			reserve(1);
 			for (int i = this.size; i < this.elements.length; ++i) {
 				if (!iter.hasNext())
 					break;
@@ -120,11 +167,6 @@ public final class Vector<T> implements MutableList<T> {
 				this.size += 1;
 			}
 		}
-	}
-
-	@Override
-	public int size() {
-		return this.size;
 	}
 
 	@Override
@@ -140,7 +182,7 @@ public final class Vector<T> implements MutableList<T> {
 	@Override
 	public void insert(int index, T value) {
 		Assert.isTrue(index <= this.size);
-		growToFit(this.size + 1);
+		reserve(1);
 		if (this.unordered) {
 			// honestly, this doesn't make a whole lot of sense. If the collection is
 			// unordered, then what is the point of inserting at a specific index?
@@ -180,6 +222,14 @@ public final class Vector<T> implements MutableList<T> {
 	}
 
 	@Override
+	public void swap(int indexA, int indexB) {
+		Assert.isTrue(indexA < this.size && indexB < this.size);
+		final T tmp = this.elements[indexA];
+		this.elements[indexA] = this.elements[indexB];
+		this.elements[indexB] = tmp;
+	}
+
+	@Override
 	public void optimize() {
 		if (this.elements.length == this.size)
 			return;
@@ -202,11 +252,6 @@ public final class Vector<T> implements MutableList<T> {
 	}
 
 	@Override
-	public void sort(Comparator<? super T> comparator) {
-		Arrays.sort(this.elements, 0, this.size, comparator);
-	}
-
-	@Override
 	@SuppressWarnings("unchecked")
 	public T[] toArray(Class<T> innerType) {
 		return Arrays.copyOf(this.elements, this.size, (Class<T[]>) innerType.arrayType());
@@ -220,7 +265,7 @@ public final class Vector<T> implements MutableList<T> {
 	public Vector<T> copy() {
 		final T[] newElements = makeArray(this.elements.length);
 		System.arraycopy(this.elements, 0, newElements, 0, this.size);
-		return new Vector<>(newElements, this.size, this.growthFactor);
+		return new Vector<>(newElements, this.size);
 	}
 
 	public static class Iter<T> implements Iterator<T> {

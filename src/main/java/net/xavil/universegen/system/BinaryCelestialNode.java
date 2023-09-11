@@ -6,44 +6,44 @@ import net.xavil.hawklib.math.OrbitalShape;
 
 // The position of this node represents the barycenter of the binary system
 public final class BinaryCelestialNode extends CelestialNode {
-	private CelestialNode a;
-	private CelestialNode b;
+	public CelestialNode inner;
+	public CelestialNode outer;
 
 	// binary orbits always share a common orbital plane
 	public OrbitalPlane orbitalPlane;
-	public OrbitalShape orbitalShapeA;
+	public OrbitalShape orbitalShapeInner;
 	// this is always the larger of the two
-	public OrbitalShape orbitalShapeB;
+	public OrbitalShape orbitalShapeOuter;
 	public double phase;
 
 	public BinaryCelestialNode() {
 	}
 
-	private BinaryCelestialNode(CelestialNode a, CelestialNode b) {
+	public BinaryCelestialNode(CelestialNode a, CelestialNode b) {
 		super(a.massYg + b.massYg);
-		this.a = a;
-		this.b = b;
+		this.inner = a;
+		this.outer = b;
 	}
 
 	public BinaryCelestialNode(double massYg, CelestialNode a, CelestialNode b, OrbitalPlane orbitalPlane,
 			OrbitalShape orbitalShapeA, OrbitalShape orbitalShapeB, double phase) {
 		super(massYg);
-		this.a = a;
-		this.b = b;
+		this.inner = a;
+		this.outer = b;
 		this.orbitalPlane = orbitalPlane;
-		this.orbitalShapeA = orbitalShapeA;
-		this.orbitalShapeB = orbitalShapeB;
+		this.orbitalShapeInner = orbitalShapeA;
+		this.orbitalShapeOuter = orbitalShapeB;
 		this.phase = phase;
 	}
 
 	public BinaryCelestialNode(CelestialNode a, CelestialNode b, OrbitalPlane orbitalPlane,
 			OrbitalShape orbitalShapeA, OrbitalShape orbitalShapeB, double phase) {
 		super(a.massYg + b.massYg);
-		this.a = a;
-		this.b = b;
+		this.inner = a;
+		this.outer = b;
 		this.orbitalPlane = orbitalPlane;
-		this.orbitalShapeA = orbitalShapeA;
-		this.orbitalShapeB = orbitalShapeB;
+		this.orbitalShapeInner = orbitalShapeA;
+		this.orbitalShapeOuter = orbitalShapeB;
 		this.phase = phase;
 	}
 
@@ -51,67 +51,75 @@ public final class BinaryCelestialNode extends CelestialNode {
 			double squishFactor, double maxOrbitalRadiusTm, double phase) {
 		final var node = new BinaryCelestialNode(a, b);
 
-		if (a.massYg > b.massYg) {
-			node.a = a;
-			node.b = b;
-		} else {
-			node.a = b;
-			node.b = a;
-		}
+		node.setSiblings(a, b);
 
 		// object with the smaller mass has the larger orbit.
 		final var majorB = maxOrbitalRadiusTm;
 		final var minorB = squishFactor * maxOrbitalRadiusTm;
-		final var shapeB = OrbitalShape.fromAxes(majorB, minorB);
-		final var shapeA = OrbitalShape.fromEccentricity(shapeB.eccentricity(),
-				(node.b.massYg / node.a.massYg) * shapeB.semiMajor());
-
+		node.setOrbitalShapes(OrbitalShape.fromAxes(majorB, minorB));
 		node.orbitalPlane = orbitalPlane;
-		node.orbitalShapeA = shapeA;
-		node.orbitalShapeB = shapeB;
 		node.phase = phase;
 		return node;
 	}
 
+	public void setSiblings(CelestialNode a, CelestialNode b) {
+		if (a.massYg > b.massYg) {
+			this.inner = a;
+			this.outer = b;
+		} else {
+			this.inner = b;
+			this.outer = a;
+		}
+		this.massYg = this.inner.massYg + this.outer.massYg;
+	}
+
+	public void setOrbitalShapes(OrbitalShape outerShape) {
+		final var innerShape = new OrbitalShape(outerShape.eccentricity(),
+				(this.outer.massYg / this.inner.massYg) * outerShape.semiMajor());
+
+		this.orbitalShapeInner = innerShape;
+		this.orbitalShapeOuter = outerShape;
+	}
+
 	public OrbitalShape getCombinedShape() {
-		return new OrbitalShape(this.orbitalShapeB.eccentricity(),
-				this.orbitalShapeA.semiMajor() + this.orbitalShapeB.semiMajor());
+		return new OrbitalShape(this.orbitalShapeOuter.eccentricity(),
+				this.orbitalShapeInner.semiMajor() + this.orbitalShapeOuter.semiMajor());
 	}
 
 	public Ellipse getEllipseA(OrbitalPlane referencePlane, double celestialTime) {
 		final var plane = this.orbitalPlane.withReferencePlane(referencePlane);
-		return Ellipse.fromOrbit(this.position, plane, orbitalShapeA, this.apsidalRate * celestialTime, false);
+		return Ellipse.fromOrbit(this.position, plane, orbitalShapeInner, this.apsidalRate * celestialTime, false);
 	}
 
 	public Ellipse getEllipseB(OrbitalPlane referencePlane, double celestialTime) {
 		final var plane = this.orbitalPlane.withReferencePlane(referencePlane);
-		return Ellipse.fromOrbit(this.position, plane, orbitalShapeB, this.apsidalRate * celestialTime, true);
+		return Ellipse.fromOrbit(this.position, plane, orbitalShapeOuter, this.apsidalRate * celestialTime, true);
 	}
 
-	public void setA(CelestialNode node) {
-		this.a = node;
+	public void setInner(CelestialNode node) {
+		this.inner = node;
 	}
 
-	public void setB(CelestialNode node) {
-		this.b = node;
+	public void setOuter(CelestialNode node) {
+		this.outer = node;
 	}
 
 	public void replace(CelestialNode oldNode, CelestialNode newNode) {
-		if (oldNode == this.a) {
-			this.a = newNode;
-		} else if (oldNode == this.b) {
-			this.b = newNode;
+		if (oldNode == this.inner) {
+			this.inner = newNode;
+		} else if (oldNode == this.outer) {
+			this.outer = newNode;
 		} else {
 			throw new IllegalArgumentException("tried to replace binary child that was not in the binary node");
 		}
 	}
 
-	public CelestialNode getA() {
-		return this.a;
+	public CelestialNode getInner() {
+		return this.inner;
 	}
 
-	public CelestialNode getB() {
-		return this.b;
+	public CelestialNode getOuter() {
+		return this.outer;
 	}
 
 }

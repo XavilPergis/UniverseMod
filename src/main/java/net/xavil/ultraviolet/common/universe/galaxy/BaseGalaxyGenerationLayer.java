@@ -11,7 +11,9 @@ import net.xavil.ultraviolet.common.NameTemplate;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.DoubleField3;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.ultraviolet.common.universe.system.StarSystemGeneratorImpl;
+import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
+import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
+import net.xavil.ultraviolet.common.universe.system.RealisticStarSystemGenerator;
 import net.xavil.universegen.LinearSpline;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.hash.FastHasher;
@@ -138,10 +140,10 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			this.ctx = ctx;
 
 			final var fields = ctx.galaxy.densityFields;
-			this.stellarDensity = new InterpolatedField(fields.stellarDensity, ctx.volumeMin, ctx.volumeMax);
-			this.stellarAge = new InterpolatedField(fields.minAgeFactor, ctx.volumeMin, ctx.volumeMax);
-			// this.stellarDensity = fields.stellarDensity;
-			// this.stellarAge = fields.minAgeFactor;
+			// this.stellarDensity = new InterpolatedField(fields.stellarDensity, ctx.volumeMin, ctx.volumeMax);
+			// this.stellarAge = new InterpolatedField(fields.minAgeFactor, ctx.volumeMin, ctx.volumeMax);
+			this.stellarDensity = fields.stellarDensity;
+			this.stellarAge = fields.minAgeFactor;
 
 			// since we're using trilinear interpolation, there's likely an analytic
 			// solution to the average density of the sector. but i forgor all of my high
@@ -251,8 +253,10 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public StarSystem generateFullSystem(GalaxySector.SectorElementHolder elem) {
 		final var rng = Rng.wrap(new Random(elem.systemSeed));
 
-		final var systemGenerator = new StarSystemGeneratorImpl(rng, this.parentGalaxy, elem);
-		final var rootNode = systemGenerator.generate();
+		final var ctx = new StarSystemGenerator.Context(rng, this.parentGalaxy, elem);
+		final var systemGenerator = new RealisticStarSystemGenerator();
+		// final var systemGenerator = new BasicStarSystemGenerator();
+		final var rootNode = systemGenerator.generate(ctx);
 		rootNode.assignIds();
 
 		final var name = NameTemplate.SECTOR_NAME.generate(rng);

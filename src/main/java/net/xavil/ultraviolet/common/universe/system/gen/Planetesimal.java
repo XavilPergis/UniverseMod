@@ -3,6 +3,7 @@ package net.xavil.ultraviolet.common.universe.system.gen;
 import java.util.function.BiConsumer;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -21,34 +22,34 @@ import net.xavil.hawklib.math.OrbitalShape;
 public class Planetesimal {
 
 	public final AccreteContext ctx;
+	private final StableRandom rng;
 	private int id;
 	private double mass;
 	private OrbitalShape orbitalShape;
-	private Planetesimal moonOf = null;
+	private Planetesimal satteliteOf = null;
 	private double inclination;
 	private double rotationalRate;
-	private final MutableList<Planetesimal> moons = new Vector<>();
+	private final MutableList<Planetesimal> sattelites = new Vector<>();
 	private final MutableList<Ring> rings = new Vector<>();
 	public boolean sweptGas = false;
 
 	public record Ring(Interval interval, double mass, double eccentricity) {
 	}
 
-	private Planetesimal(AccreteContext ctx) {
+	public Planetesimal(AccreteContext ctx) {
 		this.ctx = ctx;
 		this.id = ctx.nextPlanetesimalId++;
+		this.rng = ctx.rng.split(this.id);
 	}
 
-	private Planetesimal(AccreteContext ctx, double semiMajor, double inclination, Interval bounds) {
-		this.ctx = ctx;
-		this.id = ctx.nextPlanetesimalId++;
-		// var semiMajor = ctx.rng.uniformDouble(bounds.lower(), bounds.higher());
-		var eccentricity = randomEccentricity(ctx);
+	private Planetesimal(AccreteContext ctx, double semiMajor, double inclination) {
+		this(ctx);
+		final var eccentricity = randomEccentricity(ctx, this.rng);
 		Assert.isTrue(eccentricity >= 0 && eccentricity <= 1);
 		this.orbitalShape = new OrbitalShape(eccentricity, semiMajor);
 		this.mass = ctx.params.initialPlanetesimalMass;
 		this.inclination = inclination;
-		this.rotationalRate = ctx.rng.uniformDouble(0, 0.000872664626);
+		this.rotationalRate = ctx.rng.uniformDouble("rotational_rate", 0, 0.000872664626);
 	}
 
 	public double hillSphereRadius(double parentMass) {
@@ -56,8 +57,8 @@ public class Planetesimal {
 				* Math.cbrt(this.mass / (3 * parentMass));
 	}
 
-	public static Planetesimal random(AccreteContext ctx, double semiMajor, double inclination, Interval bounds) {
-		return new Planetesimal(ctx, semiMajor, inclination, bounds);
+	public static Planetesimal random(AccreteContext ctx, double semiMajor, double inclination) {
+		return new Planetesimal(ctx, semiMajor, inclination);
 	}
 
 	public static Planetesimal defaulted(AccreteContext ctx) {
@@ -73,7 +74,7 @@ public class Planetesimal {
 	}
 
 	public Planetesimal getParentBody() {
-		return this.moonOf;
+		return this.satteliteOf;
 	}
 
 	public void setMass(double newMass) {
@@ -90,26 +91,26 @@ public class Planetesimal {
 		Assert.isTrue(newOrbitalShape.eccentricity() >= 0 && newOrbitalShape.eccentricity() <= 1);
 	}
 
-	public Iterable<Planetesimal> getMoons() {
-		return this.moons.iterable();
+	public Iterable<Planetesimal> getSattelites() {
+		return this.sattelites.iterable();
 	}
 
 	public void addMoon(Planetesimal newMoon) {
-		this.moons.push(newMoon);
-		newMoon.moonOf = this;
+		this.sattelites.push(newMoon);
+		newMoon.satteliteOf = this;
 	}
 
 	public void clearMoons() {
-		this.moons.clear();
+		this.sattelites.clear();
 	}
 
 	public void transformMoons(BiConsumer<MutableList<Planetesimal>, MutableList<Planetesimal>> consumer) {
-		final var prev = MutableList.copyOf(this.moons);
-		this.moons.clear();
-		consumer.accept(prev, this.moons);
+		final var prev = new Vector<>(this.sattelites);
+		this.sattelites.clear();
+		consumer.accept(prev, this.sattelites);
 
-		for (var moon : this.moons.iterable()) {
-			moon.moonOf = this;
+		for (var moon : this.sattelites.iterable()) {
+			moon.satteliteOf = this;
 		}
 	}
 
@@ -198,8 +199,8 @@ public class Planetesimal {
 		// return radiusCm * Units.m_PER_Rsol / 1000;
 	}
 
-	public static double randomEccentricity(AccreteContext ctx) {
-		return 1 - Math.pow(1 - ctx.rng.uniformDouble(), ctx.params.eccentricityCoefficient);
+	public static double randomEccentricity(AccreteContext ctx, StableRandom rng) {
+		return 1 - Math.pow(1 - rng.uniformDouble("eccentricity"), ctx.params.eccentricityCoefficient);
 	}
 
 	public static double reducedMass(double mass) {
@@ -212,17 +213,17 @@ public class Planetesimal {
 	}
 
 	public boolean canSweepGas() {
-		return this.mass > criticalMass();
+		return this.mass >= criticalMass();
 	}
 
 	public double distanceToStar() {
-		Assert.isReferentiallyNotEqual(this.moonOf, this);
+		Assert.isReferentiallyNotEqual(this.satteliteOf, this);
 
 		var cur = this;
 		for (var i = 0; i < 10; ++i) {
-			if (cur.moonOf == null)
+			if (cur.satteliteOf == null)
 				return cur.orbitalShape.semiMajor();
-			cur = cur.moonOf;
+			cur = cur.satteliteOf;
 		}
 
 		Mod.LOGGER.error("star distance lookup failed");
@@ -230,8 +231,9 @@ public class Planetesimal {
 	}
 
 	private double timeUntilTidallyLockedMyr(PlanetaryCelestialNode node, double parentMassYg, double semiMajorTm) {
+		// FIXME: this is bad lmao
 		if (Double.isNaN(node.type.rigidity))
-			return Double.NaN;
+			return Double.POSITIVE_INFINITY;
 
 		final var meanRadiusM = Units.u_PER_ku * node.radius;
 		final var denom = 1e9 * node.massYg * Math.pow(1e9 * parentMassYg, 2);
@@ -265,7 +267,7 @@ public class Planetesimal {
 		node.massYg = this.mass * Units.Yg_PER_Msol;
 		final var shape = new OrbitalShape(this.orbitalShape.eccentricity(),
 				this.orbitalShape.semiMajor() * Units.Tm_PER_au);
-		final var plane = OrbitalPlane.fromInclination(this.inclination, this.ctx.rng);
+		final var plane = OrbitalPlane.fromInclination(this.inclination, this.rng.split("orbital_plane"));
 
 		if (node instanceof UnaryCelestialNode unaryNode) {
 			unaryNode.rotationalRate = this.rotationalRate;
@@ -290,11 +292,11 @@ public class Planetesimal {
 
 		// this random offset distributes the celestial bodies randomly around their
 		// orbits, so that they don't all form a straight line.
-		final var offset = this.ctx.rng.uniformDouble(0, 2.0 * Math.PI);
-		final var orbit = new CelestialNodeChild<>(parent, node, shape, plane, offset);
+		final var phase = this.rng.uniformDouble("orbital_phase", 0, 2.0 * Math.PI);
+		final var orbit = new CelestialNodeChild<>(parent, node, shape, plane, phase);
 		parent.insertChild(orbit);
 
-		for (final var moon : this.moons.iterable()) {
+		for (final var moon : this.sattelites.iterable()) {
 			moon.convertToPlanetNode(node);
 		}
 	}
@@ -307,9 +309,9 @@ public class Planetesimal {
 	}
 
 	public Interval sweptDustLimits() {
-		final var effectLimits = effectLimits();
-		final var inner = effectLimits.lower() / (1 + ctx.params.cloudEccentricity);
-		final var outer = effectLimits.higher() / (1 - ctx.params.cloudEccentricity);
+		final var m = reducedMass(mass);
+		final var inner = this.orbitalShape.periapsisDistance() * (1 - m) / (1 + ctx.params.cloudEccentricity);
+		final var outer = this.orbitalShape.apoapsisDistance() * (1 + m) / (1 - ctx.params.cloudEccentricity);
 		return new Interval(Math.max(0, inner), outer);
 	}
 
@@ -331,14 +333,14 @@ public class Planetesimal {
 		final var actualArea = Math.PI * (Mth.square(ringOuter) - Mth.square(ringInner));
 
 		final var percentLoss = 1.0 - (actualArea / idealArea);
-		
+
 		parent.setMass(parent.mass + child.mass * percentLoss);
 		final var ringMass = child.mass * (1.0 - percentLoss);
 		parent.rings.push(new Ring(new Interval(ringInner, ringOuter), ringMass, 0.0));
 
 		// FIXME: update rings when the radius changes
 		// we could probably do all the ring handling stuff right at the end tbh
-		
+
 		// TODO: eccentricity should probably factor in somehow, but generally, rings
 		// are extremely circular
 	}

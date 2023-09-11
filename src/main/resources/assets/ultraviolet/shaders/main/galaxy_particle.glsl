@@ -11,7 +11,7 @@ uniform sampler2D uBillboardTexture;
 out vec4 fColor;
 
 void main() {
-    vec4 s1 = texture(uBillboardTexture, texCoord0) * vertexColor;
+    vec4 s1 = 0.5 * texture(uBillboardTexture, texCoord0) * vertexColor;
     fColor = vec4(s1.a * vertexColor.rgb * vertexColor.a, 1.0);
 }
 

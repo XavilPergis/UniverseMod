@@ -17,7 +17,7 @@ public final class BloomEffect {
 	public static final Settings DEFAULT_SETTINGS = new Settings(8, 0.1, 1.1, 0.9);
 
 	public static void render(GlFramebuffer output, GlTexture2d input) {
-		render(new Settings(8, 0.9, 1.5, 0.5), output, input);
+		render(new Settings(10, 0.1, 1.5, 0.6), output, input);
 	}
 
 	private static void drawDownsample(GlFramebuffer output, GlTexture2d input, int level) {
@@ -81,7 +81,7 @@ public final class BloomEffect {
 				// start with half resolution!
 				currentSize = currentSize.floorDiv(2);
 				final var level = downsampleStack.size();
-				if (currentSize.x <= MINUMUM_RESOLUTION || currentSize.y <= MINUMUM_RESOLUTION)
+				if (currentSize.x <= 3 || currentSize.y <= 3)
 					break;
 				final var target = disposer.attach(RenderTexture.getTemporary(currentSize, DESC));
 				drawDownsample(target.framebuffer, previous, level);

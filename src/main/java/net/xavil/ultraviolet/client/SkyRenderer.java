@@ -77,14 +77,14 @@ public class SkyRenderer implements Disposable {
 	private CachedCamera<?> createCamera(Camera camera, TransformStack tfm,
 			double nearPlane, double farPlane,
 			float partialTick) {
-		double n = 0;
-		var offset = Vec3.ZERO;
+		tfm.push();
+		// double n = 0;
+		// var offset = Vec3.ZERO;
 		// n = ((System.nanoTime() / 1e8) % 100) / 100;
 		// offset = Vec3.from(0, 10000000, 0);
 		// tfm = new TransformStack();
-		tfm.push();
-		tfm.appendTranslation(new Vec3(n, 0.01 * n, 0));
-		tfm.appendTranslation(offset);
+		// tfm.appendTranslation(new Vec3(n, 0.01 * n, 0));
+		// tfm.appendTranslation(offset);
 		tfm.prependRotation(CachedCamera.orientationFromMinecraftCamera(camera).inverse());
 		final var invView = tfm.copyCurrent();
 		tfm.pop();
@@ -187,7 +187,7 @@ public class SkyRenderer implements Disposable {
 		target.bind();
 		target.clear();
 		// target.clearColorAttachment("fColor", new Color(0.1, 0.1, 0.12, 1));
-		target.clearColorAttachment("fColor", Color.BLACK);
+		// target.clearColorAttachment("fColor", Color.BLACK);
 
 		// ticket management
 		final var location = EntityAccessor.getWorldType(this.client.player);
@@ -227,7 +227,7 @@ public class SkyRenderer implements Disposable {
 			final var galaxyCamera = createCamera(srcCamera, cameraTransform, 1e2, 1e10, partialTick);
 			galaxyCamera.setupRenderMatrices();
 			if (this.galaxyRenderingContext != null) {
-				this.galaxyRenderingContext.draw(galaxyCamera, Vec3.ZERO);
+				// this.galaxyRenderingContext.draw(galaxyCamera, Vec3.ZERO);
 			}
 			if (this.starRenderer != null) {
 				profiler.popPush("stars");
@@ -236,7 +236,7 @@ public class SkyRenderer implements Disposable {
 
 			// system
 			profiler.popPush("system");
-			final var systemCamera = createCamera(srcCamera, cameraTransform, 1e-6, 1e3, partialTick);
+			final var systemCamera = createCamera(srcCamera, cameraTransform, 1e-7, 1e3, partialTick);
 			drawSystem(systemCamera, galaxy, partialTick);
 
 			profiler.pop();

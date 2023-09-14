@@ -37,13 +37,13 @@ void main() {
 	n = pow(n, 0.2);
 	n = 1.0 - n;
 
-	float brightness = mix(6.0, 15.0, 3.0 * uStarColor.a / (3.0 * uStarColor.a + 1.0));
+	float brightness = mix(15.0, 25.0, 3.0 * uStarColor.a / (3.0 * uStarColor.a + 1.0));
 
 	vec3 starColor = uStarColor.rgb;
 	vec3 col = vec3(0.0);
 	col += brightness * starColor * n;
 	vec3 toEye = normalize(uCameraPos - posWorld);
-	col += 6.0 * starColor * fresnelFactor(toEye, normWorld, 1.0);
+	col += 12.0 * starColor * fresnelFactor(toEye, normWorld, 1.0);
 	// col += 1.5 * starColor;
     fColor = vec4(col, 1.0);
 }

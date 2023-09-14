@@ -6,6 +6,16 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 // defines the shape of the orbital ellipse
 public record OrbitalShape(double eccentricity, double semiMajor) {
 
+	public static final OrbitalShape ZERO = new OrbitalShape(0, 0);
+
+	public OrbitalShape withEccentricity(double eccentricity) {
+		return new OrbitalShape(eccentricity, semiMajor);
+	}
+
+	public OrbitalShape withSemiMajor(double semiMajor) {
+		return new OrbitalShape(eccentricity, semiMajor);
+	}
+
 	public static OrbitalShape fromEccentricity(double eccentricity, double semiMajor) {
 		return new OrbitalShape(eccentricity, semiMajor);
 	}

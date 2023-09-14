@@ -129,17 +129,21 @@ public class RealisticStarSystemGenerator implements StarSystemGenerator {
 		var metallicity = this.galaxy.densityFields.metallicity.sample(this.info.systemPosTm);
 		if (metallicity > MAX_METALLICITY) {
 			// Mod.LOGGER.warn(
-			// 		"Tried to generate star system with a metallicity of '{}', which is greater than the limit of '{}'",
-			// 		metallicity, MAX_METALLICITY);
+			// "Tried to generate star system with a metallicity of '{}', which is greater
+			// than the limit of '{}'",
+			// metallicity, MAX_METALLICITY);
 			metallicity = MAX_METALLICITY;
 		}
 
 		metallicity = this.rootRng.weightedDouble("metallicity", 4, 0.001, 0.1);
 
 		final var params = new SimulationParameters();
+		params.randomize(this.rootRng.split("params"));
+
 		final var stableInterval = getStableOrbitInterval(node, OrbitalPlane.ZERO).mul(1.0 / Units.Tm_PER_au);
 		final var nodeMass = Units.Msol_PER_Yg * node.massYg;
-		final var ctx = new AccreteContext(params, this.rootRng.split("system_gen"), stellarProperties.luminosityLsol, nodeMass,
+		final var ctx = new AccreteContext(params, this.rootRng.split("system_gen"), this.galaxy,
+				stellarProperties.luminosityLsol, nodeMass,
 				this.info.systemAgeMyr,
 				metallicity, stableInterval);
 

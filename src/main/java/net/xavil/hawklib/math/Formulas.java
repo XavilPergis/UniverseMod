@@ -1,6 +1,9 @@
 package net.xavil.hawklib.math;
 
 import static net.xavil.hawklib.Units.*;
+
+import net.xavil.hawklib.Units;
+
 import static net.xavil.hawklib.Constants.*;
 
 public class Formulas {
@@ -16,6 +19,7 @@ public class Formulas {
 	 * @return (s) The orbital period.
 	 */
 	public static double orbitalPeriod(double semiMajor, double mass) {
+		// (ab)^n = a^n * b^n
 		final var a = u_PER_Tu * semiMajor;
 		final var mu = (GRAVITATIONAL_CONSTANT_m3_PER_kg_s2 * ku_PER_Yu * mass);
 		return 2 * Math.PI * Math.sqrt(Math.pow(a, 3.0) / mu);
@@ -49,12 +53,7 @@ public class Formulas {
 	 * @return (Tm) The radius of the roche sphere.
 	 */
 	public static double rocheLimit(double parentMass, double childMass, double childRadius) {
-		final var au_PER_km = 1 / km_PER_au;
-		final var childRadiusAu = childRadius * au_PER_km;
-		final var parentMassMsol = parentMass / Yg_PER_Msol;
-		final var childMassMsol = childMass / Yg_PER_Msol;
-		final var limitAu = childRadiusAu * Math.cbrt(2 * (parentMassMsol / childMassMsol));
-		return limitAu * Tm_PER_au;
+		return Units.Tu_PER_ku * childRadius * Math.cbrt(2 * (parentMass / childMass));
 	}
 
 	/**
@@ -87,10 +86,7 @@ public class Formulas {
 	 */
 	public static double hillSphereRadius(double parentMass, double childMass,
 			double childEccentricity, double childSemiMajor) {
-		final var parentMassMsol = parentMass / Yg_PER_Msol;
-		final var childMassMsol = childMass / Yg_PER_Msol;
-		final var radiusAu = childSemiMajor * (1 - childEccentricity) * Math.cbrt(childMassMsol / (3 * parentMassMsol));
-		return radiusAu * Tm_PER_au;
+		return Tm_PER_au * childSemiMajor * (1 - childEccentricity) * Math.cbrt(childMass / (3 * parentMass));
 	}
 
 	/**

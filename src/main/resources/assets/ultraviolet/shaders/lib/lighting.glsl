@@ -104,8 +104,9 @@ vec3 brdfCookTorrance(in LightingContext ctx, in Light light, in vec3 toLight) {
 }
 
 float lightFalloff(float d) {
-	// return 1.0 / (d * d + 1.0);
-	return 1.0 / (d);
+	return 100.0 / (d * d + 1.0);
+	// return 1.0 / (d);
+	// return 1.0;
 }
 
 vec3 lightContribution(in LightingContext ctx, in Light light) {

@@ -3,6 +3,7 @@ package net.xavil.ultraviolet.common.universe.system.gen;
 import java.util.Comparator;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.SortingStrategy;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -50,6 +51,8 @@ public class DustBands {
 			final var discArea = Math.PI * (Mth.square(rh) - Mth.square(rl));
 			final var bandMass = discArea * (prev + cur) / 2.0;
 
+			Assert.isTrue(!Double.isNaN(bandMass));
+
 			totalMass += bandMass;
 			bands.push(new Band(new Interval(rl, rh), bandMass));
 
@@ -61,7 +64,7 @@ public class DustBands {
 		for (final var band : bands.iterable()) {
 			band.mass *= initialMass / totalMass;
 		}
-		
+
 		double tmp = 0.0;
 		for (final var band : bands.iterable()) {
 			tmp += band.mass;
@@ -101,17 +104,6 @@ public class DustBands {
 				Comparator.comparingDouble(b -> b.interval.lower));
 		this.gasBands.sort(SortingStrategy.UNSTABLE | SortingStrategy.ALMOST_SORTED,
 				Comparator.comparingDouble(b -> b.interval.lower));
-
-		// double totalDustMass = 0.0;
-		// for (final var band : this.dustBands.iterable()) {
-		// 	totalDustMass += band.mass;
-		// }
-		// double totalGasMass = 0.0;
-		// for (final var band : this.gasBands.iterable()) {
-		// 	totalGasMass += band.mass;
-		// }
-		// Mod.LOGGER.info("total mass: dust={}, gas={}", totalDustMass, totalGasMass);
-		
 	}
 
 	public boolean hasDust(Interval interval) {
@@ -146,18 +138,15 @@ public class DustBands {
 		return accumulatedMass;
 	}
 
-	public void sweep(AccreteContext ctx, Planetesimal planetesimal) {
-		final var dustSweepInterval = planetesimal.sweptDustLimits();
-		final var criticalMass = planetesimal.criticalMass();
-		
+	public void sweep(AccreteContext ctx, Planetesimal node) {
+		final var dustSweepInterval = node.sweptDustLimits();
+		final var criticalMass = node.criticalMass();
+
 		double accumulatedMass = removeMaterial(dustSweepInterval, this.dustBands);
 
-		// final var k = ctx.params.dustToGasRatio * ctx.systemMetallicity;
-		// return ;
-
-		if (planetesimal.getMass() + accumulatedMass >= criticalMass) {
-			final var r = planetesimal.getOrbitalShape().semiMajor();
-			final var m = Math.sqrt(criticalMass / planetesimal.getMass());
+		if (node.mass + accumulatedMass >= criticalMass) {
+			final var r = node.orbitalShape.semiMajor();
+			final var m = Math.sqrt(criticalMass / node.mass);
 
 			final var l = r - (m / (m + 1)) * (r - dustSweepInterval.lower);
 			final var h = r + (m / (m + 1)) * (dustSweepInterval.higher - r);
@@ -165,23 +154,12 @@ public class DustBands {
 			final var gasSweepInterval = new Interval(l, h);
 
 			final var gasMass = removeMaterial(gasSweepInterval, this.gasBands);
-			planetesimal.sweptGas |= gasMass > 0.0;
+			node.sweptGas |= gasMass > 0.0;
 			accumulatedMass += gasMass;
 		}
 
-		planetesimal.setMass(planetesimal.getMass() + accumulatedMass);
-	}
-
-	private static double getMassDensity(AccreteContext ctx, double d, Planetesimal planetesimal, boolean hasGas) {
-		final var criticalMass = planetesimal.criticalMass();
-		// mass density for the dust in the disc around the planet
-		final var dustDensity = discDensityAt(ctx, d);
-
-		if (!hasGas || planetesimal.getMass() < criticalMass)
-			return dustDensity;
-
-		final var k = ctx.params.dustToGasRatio * ctx.systemMetallicity;
-		return dustDensity * k / (1 + Math.sqrt(criticalMass / planetesimal.getMass()) * (k - 1));
+		node.mass += accumulatedMass;
+		node.stellarProperties.load(node.mass * Units.Msol_PER_Yg, node.age);
 	}
 
 	// the "height factor" of the disc at a given distance from the center
@@ -192,8 +170,37 @@ public class DustBands {
 
 	// the mass density of the dust at a given distance from the center
 	private static double discDensityAt(AccreteContext ctx, double d) {
-		return ctx.params.eccentricityCoefficient * Math.sqrt(ctx.stellarMassMsol)
+		// inflection point
+		final var k = 0.25 * Math.pow(ctx.stellarMassMsol, 0.5);
+		// steepness
+		final var n = 100;
+
+		// mask values apst this will be treated as 1, used to avoid generating
+		// intermediate infinities
+		final var L = 0.999;
+		
+		final var kn = k * n;
+		
+		// the values of d at which `mask(d) = L` and `mask(d) = 1-L` respectively
+		// x=k\sqrt[kn]{\frac{R}{\left(1-R\right)}}
+		final var maskLimitH = k * Math.pow((1 - L) / L, 1 / kn);
+		// substitute L for 1-L in previous equation
+		final var maskLimitL = k * Math.pow(L / (1 - L), 1 / kn);
+		final double mask;
+		if (d <= maskLimitL) {
+			mask = 0;
+		} else if (d >= maskLimitH) {
+			mask = 1;
+		} else {
+			// m\left(x\right)=\frac{x^{kn}}{k^{kn}+x^{kn}}\left\{x\ge0\right\}
+			mask = Math.pow(d, kn) / (Math.pow(k, kn) + Math.pow(d, kn));
+		}
+
+		// f\left(x\right)=Ee^{-ax^{\frac{1}{N}}}\left\{x\ge0\right\}
+		final var density = ctx.params.eccentricityCoefficient * Math.sqrt(ctx.stellarMassMsol)
 				* Math.exp(-ctx.params.dustDensityAlpha * Math.pow(d, 1 / ctx.params.dustDensityN));
+
+		return mask * density;
 	}
 
 }

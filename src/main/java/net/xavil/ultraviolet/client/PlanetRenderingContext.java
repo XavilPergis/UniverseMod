@@ -171,7 +171,7 @@ public final class PlanetRenderingContext {
 
 			shader.setUniform("uLightColor" + i, star.getColor().withA(star.luminosityLsol));
 
-			final var pos = camera.toCameraSpace(this.origin.add(star.position).mul(1 / camera.metersPerUnit));
+			final var pos = camera.toCameraSpace(this.origin.add(star.position));
 			shader.setUniform("uLightPos" + i, pos.withW(1));
 
 			shader.setUniform("uLightRadius" + i, star.radius * Units.u_PER_ku / camera.metersPerUnit);
@@ -258,6 +258,8 @@ public final class PlanetRenderingContext {
 		}
 
 		final var ringShader = UltravioletShaders.SHADER_RING.get();
+		ringShader.setUniform("uParentPos", camera.toCameraSpace(this.origin.add(pos)));
+		ringShader.setUniform("uParentRadius", node.radius);
 		builder.end().draw(ringShader, DRAW_STATE_OPAQUE);
 
 		this.renderedPlanetCount += 1;

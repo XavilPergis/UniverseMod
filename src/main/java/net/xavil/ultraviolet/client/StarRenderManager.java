@@ -180,7 +180,7 @@ public final class StarRenderManager implements Disposable {
 		//   -10       -8                                                                0
 		// <- -                                                                          + ->
 
-		final var origin = this.originOffset.add(this.floatingOrigin);
+		final var origin = this.floatingOrigin;
 		final var offset = camera.posTm.sub(origin).mul(1e12 / camera.metersPerUnit);
 
 		{
@@ -250,7 +250,8 @@ public final class StarRenderManager implements Disposable {
 		final var colorHolder = ctx.colorHolder;
 		final var toStar = ctx.toStar;
 
-		final var actualOrigin = this.originOffset.add(this.floatingOrigin);
+		// final var actualOrigin = this.originOffset.add(this.floatingOrigin);
+		final var actualOrigin = this.floatingOrigin;
 
 		final var levelSize = this.sectorTicket.info.radiusForLevel(sector.level);
 		for (int i = 0; i < sector.elements.size(); ++i) {
@@ -267,6 +268,7 @@ public final class StarRenderManager implements Disposable {
 			}
 
 			Vec3.sub(elem.systemPosTm, elem.systemPosTm, actualOrigin);
+			Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
 			Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 / ctx.camera.metersPerUnit);
 
 			StellarCelestialNode.blackBodyColorFromTable(colorHolder, elem.temperatureK);
@@ -311,7 +313,7 @@ public final class StarRenderManager implements Disposable {
 		//   -10       -8                                                                0
 		// <- -                                                                          + ->
 
-		final var origin = this.originOffset.add(this.floatingOrigin);
+		final var origin = this.floatingOrigin;
 		final var offset = camera.posTm.sub(origin).mul(1e12 / camera.metersPerUnit);
 
 		{
@@ -321,7 +323,7 @@ public final class StarRenderManager implements Disposable {
 			poseStack.mulPose(camera.orientation.toMinecraft());
 			// poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
 			poseStack.translate(-offset.x, -offset.y, -offset.z);
-			// poseStack.translate(org.x, org.y, org.z);
+			// poseStack.translate(this.originOffset.x, this.originOffset.y, this.originOffset.z);
 			final var inverseViewRotationMatrix = poseStack.last().normal().copy();
 			if (inverseViewRotationMatrix.invert()) {
 				RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);

@@ -107,7 +107,7 @@ Material gasGiantField(in vec3 pos, in float seed) {
 	col += C * smoothstep(c3, c2, n) * smoothstep(c1, c2, n);
 	col += D * smoothstep(0.0, c3, n) * smoothstep(c2, c3, n);
 
-    return Material(2e25 * col.rgb * col.a, col.rgb, 1.0, 0.0);
+    return Material(4.0 * col.rgb * col.a, col.rgb, 1.0, 0.0);
 }
 
 // =============== === ===== ======= ===============
@@ -133,10 +133,7 @@ Material gasGiantBaseColor(vec3 pos) {
 }
 
 Light makeStarLight(in vec3 posWorld, in vec4 color, in float radius) {
-	return makeSphereLight(posWorld, color.rgb * color.a * 3.827e26, radius);
-	// return makePointLight(posWorld, color.rgb * color.a);
-	// return makePointLight(posWorld, color.rgb * color.a * 100.0);
-	// return makePointLight(posWorld, vec3(1.0e3));
+	return makeSphereLight(posWorld, color.rgb * color.a, radius);
 }
 
 float sampleHeight(vec3 normWorld) {
@@ -172,7 +169,7 @@ Material shadeElw(vec3 fragPosWorld, vec3 normWorld, inout vec3 newNorm) {
 }
 Material shadeBrownDwarf(vec3 fragPosWorld, vec3 normWorld) {
 	Material mat = gasGiantBaseColor(normWorld);
-	mat.emissiveFlux += 5e24 * vec3(1.0, 0.2, 0.0);
+	mat.emissiveFlux += vec3(1.0, 0.2, 0.0);
 	return mat;
 }
 Material shadeGasGiant(vec3 fragPosWorld, vec3 normWorld) {
@@ -261,16 +258,22 @@ void main() {
 	// 	newNorm = normalize(newNorm + normOffset);
 	// }
 	LightingContext ctx = makeLightingContext(material, uMetersPerUnit, uCameraPos, posWorld, newNorm);
-
 	vec3 res = vec3(0.0);
-	Light l0 = makeStarLight(uLightPos0.xyz, uLightColor0, 1.0 * uLightRadius0);
-	res += lightContribution(ctx, l0);
-	Light l1 = makeStarLight(uLightPos1.xyz, uLightColor1, 1.0 * uLightRadius1);
-	res += lightContribution(ctx, l1);
+	res += lightContribution(ctx, makeStarLight(uLightPos0.xyz, uLightColor0, uLightRadius0));
+	res += lightContribution(ctx, makeStarLight(uLightPos1.xyz, uLightColor1, uLightRadius1));
+	res += lightContribution(ctx, makeStarLight(uLightPos2.xyz, uLightColor2, uLightRadius2));
+	res += lightContribution(ctx, makeStarLight(uLightPos3.xyz, uLightColor3, uLightRadius3));
 	res += material.emissiveFlux;
+
+	if (length(res) > 30.0) {
+		res /= length(res);
+		res *= 30.0;
+	}
+
 	vec3 finalColor = res;
 
-	float exposure = 5e-26;
+	// float exposure = 2e-26;
+	float exposure = 1.0;
 	finalColor *= exposure;
 
 	// finalColor = tonemapACESFull(finalColor);

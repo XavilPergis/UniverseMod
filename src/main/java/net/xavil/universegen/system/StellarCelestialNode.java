@@ -77,7 +77,6 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			* Units.ku_PER_Yu / Units.m_PER_Rsol;
 
 	public static final class Properties {
-
 		public double massYg;
 		public double ageMyr;
 
@@ -91,6 +90,12 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 		public void load(double massYg, double ageMyr) {
 			this.massYg = massYg;
 			this.ageMyr = ageMyr;
+
+			// not a star lol
+			if (massYg < 0.08 * Units.Yg_PER_Msol) {
+				this.type = null;
+				return;
+			}
 
 			this.mainSequenceLifetimeMyr = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
 

@@ -130,11 +130,11 @@ public final class ConfigKey<T> {
 
 	public static final ConfigKey<Double>  PLANET_EXAGGERATION_FACTOR   = doubleKey("planetExaggerationFactor", 1.0, Side.CLIENT);
 
-	public static final ConfigKey<Float> STAR_SHADER_STAR_MIN_SIZE           = floatKey("starShaderStarMinSize",          5f,    Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_STAR_MAX_SIZE           = floatKey("starShaderStarMaxSize",          10f,   Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_STAR_SIZE_SQUASH_FACTOR = floatKey("starShaderStarSizeSquashFactor", 1000f, Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_STAR_BRIGHTNESS_FACTOR  = floatKey("starShaderStarBrightnessFactor", 2e10f, Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_DIM_STAR_MIN_ALPHA      = floatKey("starShaderDimStarMinAlpha",      0.05f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_STAR_MIN_SIZE           = floatKey("starShaderStarMinSize",          4f,    Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_STAR_MAX_SIZE           = floatKey("starShaderStarMaxSize",          8f,    Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_STAR_SIZE_SQUASH_FACTOR = floatKey("starShaderStarSizeSquashFactor", 0.2f,  Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_STAR_BRIGHTNESS_FACTOR  = floatKey("starShaderStarBrightnessFactor", 1e4f,  Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_DIM_STAR_MIN_ALPHA      = floatKey("starShaderDimStarMinAlpha",      0.0f,  Side.CLIENT);
 	public static final ConfigKey<Float> STAR_SHADER_DIM_STAR_EXPONENT       = floatKey("starShaderDimStarExponent",      0.1f,  Side.CLIENT);
 
 	public static final ConfigKey<Double>  MIN_GRAVITY       = doubleKey ("minGravity",      0.2,   Side.SERVER);

@@ -55,7 +55,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	private PlanetRenderingContext renderContext = new PlanetRenderingContext();
 
 	public ScreenLayerSystem(HawkScreen3d attachedScreen, Galaxy galaxy, GalaxySectorId systemId) {
-		super(attachedScreen, new CameraConfig(1e-6, false, 1000, false));
+		super(attachedScreen, new CameraConfig(1e-7, false, 1000, false));
 		this.galaxy = galaxy;
 		this.ticket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId);
 		// this.systemRoot = this.ticket.forceLoad().unwrapOrNull();

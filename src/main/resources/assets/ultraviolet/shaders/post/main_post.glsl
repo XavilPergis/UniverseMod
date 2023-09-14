@@ -18,6 +18,8 @@ out vec4 fColor;
 void main() {
     vec3 light = texture(uSampler, texCoord0).rgb;
 
+	// light += 5.0 * vec3(0.2471, 0.3804, 0.9725);
+
 	light *= uExposure;
 
 	light = tonemapACESFull(light);

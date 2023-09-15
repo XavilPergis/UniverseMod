@@ -59,6 +59,9 @@ public class ClientMod implements ClientModInitializer {
 			acceptor.accept(UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 			acceptor.accept(UltravioletShaders.SHADER_BLOOM_UPSAMPLE_LOCATION,   AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 			acceptor.accept(UltravioletShaders.SHADER_MAIN_POSTPROCESS_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+
+			acceptor.accept(UltravioletShaders.SHADER_ATMOSPHERE_LOCATION,            AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_GRAVITATIONAL_LENSING_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 			// @formatter:on
 		});
 

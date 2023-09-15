@@ -126,7 +126,7 @@ public final class PlanetRenderingContext {
 		// if (distanceRatio < 0.0001)
 		// return;
 
-		if (!skip) {
+		if (!skip && node.type != StellarCelestialNode.Type.BLACK_HOLE) {
 			var radiusUnits = 1.0 * radiusM / camera.metersPerUnit;
 			final var builder = vertexBuilder
 					.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_TEX_COLOR_NORMAL);

@@ -25,6 +25,9 @@ public class UltravioletShaders extends HawkShaders {
 	public static final ResourceLocation SHADER_BLOOM_UPSAMPLE_LOCATION = Mod.namespaced("post/bloom/upsample.glsl");
 	public static final ResourceLocation SHADER_MAIN_POSTPROCESS_LOCATION = Mod.namespaced("post/main_post.glsl");
 
+	public static final ResourceLocation SHADER_ATMOSPHERE_LOCATION = Mod.namespaced("post/atmosphere.glsl");
+	public static final ResourceLocation SHADER_GRAVITATIONAL_LENSING_LOCATION = Mod.namespaced("post/gravitational_lensing.glsl");
+
 	public static final Supplier<ShaderProgram> SHADER_PLANET = () -> getShader(SHADER_PLANET_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_RING = () -> getShader(SHADER_RING_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_STAR_BILLBOARD_REALISTIC = () -> getShader(SHADER_STAR_BILLBOARD_REALISTIC_LOCATION);
@@ -35,5 +38,7 @@ public class UltravioletShaders extends HawkShaders {
 	public static final Supplier<ShaderProgram> SHADER_BLOOM_DOWNSAMPLE = () -> getShader(SHADER_BLOOM_DOWNSAMPLE_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_BLOOM_UPSAMPLE = () -> getShader(SHADER_BLOOM_UPSAMPLE_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_MAIN_POSTPROCESS = () -> getShader(SHADER_MAIN_POSTPROCESS_LOCATION);
+	public static final Supplier<ShaderProgram> SHADER_ATMOSPHERE = () -> getShader(SHADER_ATMOSPHERE_LOCATION);
+	public static final Supplier<ShaderProgram> SHADER_GRAVITATIONAL_LENSING = () -> getShader(SHADER_GRAVITATIONAL_LENSING_LOCATION);
 	// @formatter:on
 }

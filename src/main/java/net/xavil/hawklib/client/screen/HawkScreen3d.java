@@ -14,6 +14,7 @@ import net.minecraft.util.Mth;
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 
 import net.xavil.hawklib.client.HawkShaders;
+import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.flexible.BufferLayout;
@@ -42,8 +43,8 @@ public abstract class HawkScreen3d extends HawkScreen {
 		protected OrbitCamera.Cached lastCamera;
 		protected OrbitCamera.Cached camera;
 
-		private Vec3[] frustumPoints = null;
-		private Vec3[] cullingFrustumPoints = null;
+		private CachedCamera.FrustumCorners frustumPoints = null;
+		private CachedCamera.FrustumCorners cullingFrustumPoints = null;
 		private OrbitCamera.Cached cullingCamera = null;
 
 		public Layer3d(HawkScreen3d attachedScreen, CameraConfig cameraConfig) {
@@ -145,7 +146,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 		forEach3dLayer(layer -> {
 			if (layer.lastCamera == null)
 				return;
-			layer.frustumPoints = captureCameraFrustum(layer.lastCamera);
+			layer.frustumPoints = layer.lastCamera.captureFrustumCornersWorld();
 		});
 	}
 
@@ -154,7 +155,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 			if (layer.lastCamera == null)
 				return;
 			layer.cullingCamera = layer.lastCamera;
-			layer.cullingFrustumPoints = captureCameraFrustum(layer.lastCamera);
+			layer.cullingFrustumPoints = layer.lastCamera.captureFrustumCornersWorld();
 		});
 	}
 
@@ -219,54 +220,28 @@ public abstract class HawkScreen3d extends HawkScreen {
 		return false;
 	}
 
-	private Vec3[] captureCameraFrustum(OrbitCamera.Cached camera) {
-		final var frustumPoints = new Vec3[8];
-		// @formatter:off
-		int i = 0;
-		frustumPoints[i++] = camera.ndcToWorld(new Vec3(-1, -1, -1));
-		frustumPoints[i++] = camera.ndcToWorld(new Vec3(-1, -1,  1));
-		frustumPoints[i++] = camera.ndcToWorld(new Vec3(-1,  1, -1));
-		frustumPoints[i++] = camera.ndcToWorld(new Vec3(-1,  1,  1));
-		frustumPoints[i++] = camera.ndcToWorld(new Vec3( 1, -1, -1));
-		frustumPoints[i++] = camera.ndcToWorld(new Vec3( 1, -1,  1));
-		frustumPoints[i++] = camera.ndcToWorld(new Vec3( 1,  1, -1));
-		frustumPoints[i++] = camera.ndcToWorld(new Vec3( 1,  1,  1));
-		// @formatter:on
-		return frustumPoints;
-	}
-
-	private void renderCameraFrustum(OrbitCamera.Cached camera, Vec3[] frustumPoints, Color color) {
-		if (frustumPoints == null)
+	private void renderCameraFrustum(OrbitCamera.Cached camera, CachedCamera.FrustumCorners frustum, Color color) {
+		if (frustum == null)
 			return;
-
-		int i = 0;
-		final var nnn = frustumPoints[i++];
-		final var nnp = frustumPoints[i++];
-		final var npn = frustumPoints[i++];
-		final var npp = frustumPoints[i++];
-		final var pnn = frustumPoints[i++];
-		final var pnp = frustumPoints[i++];
-		final var ppn = frustumPoints[i++];
-		final var ppp = frustumPoints[i++];
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
 				.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
 
 		// near
-		RenderHelper.addLine(builder, camera, nnn, npn, color);
-		RenderHelper.addLine(builder, camera, pnn, ppn, color);
-		RenderHelper.addLine(builder, camera, nnn, pnn, color);
-		RenderHelper.addLine(builder, camera, npn, ppn, color);
+		RenderHelper.addLine(builder, camera, frustum.nnn(), frustum.npn(), color);
+		RenderHelper.addLine(builder, camera, frustum.pnn(), frustum.ppn(), color);
+		RenderHelper.addLine(builder, camera, frustum.nnn(), frustum.pnn(), color);
+		RenderHelper.addLine(builder, camera, frustum.npn(), frustum.ppn(), color);
 		// far
-		RenderHelper.addLine(builder, camera, nnp, npp, color);
-		RenderHelper.addLine(builder, camera, pnp, ppp, color);
-		RenderHelper.addLine(builder, camera, nnp, pnp, color);
-		RenderHelper.addLine(builder, camera, npp, ppp, color);
+		RenderHelper.addLine(builder, camera, frustum.nnp(), frustum.npp(), color);
+		RenderHelper.addLine(builder, camera, frustum.pnp(), frustum.ppp(), color);
+		RenderHelper.addLine(builder, camera, frustum.nnp(), frustum.pnp(), color);
+		RenderHelper.addLine(builder, camera, frustum.npp(), frustum.ppp(), color);
 		// sides
-		RenderHelper.addLine(builder, camera, nnn, nnp, color);
-		RenderHelper.addLine(builder, camera, npn, npp, color);
-		RenderHelper.addLine(builder, camera, pnn, pnp, color);
-		RenderHelper.addLine(builder, camera, ppn, ppp, color);
+		RenderHelper.addLine(builder, camera, frustum.nnn(), frustum.nnp(), color);
+		RenderHelper.addLine(builder, camera, frustum.npn(), frustum.npp(), color);
+		RenderHelper.addLine(builder, camera, frustum.pnn(), frustum.pnp(), color);
+		RenderHelper.addLine(builder, camera, frustum.ppn(), frustum.ppp(), color);
 
 		builder.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(), DRAW_STATE_LINES);
 	}

@@ -135,7 +135,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		// @formatter:on
 	}
 
-	default MutableList<T> collectTo(Supplier<MutableList<T>> listFactory) {
+	default <C extends MutableList<T>> C collectTo(Supplier<C> listFactory) {
 		final var res = listFactory.get();
 		res.extend(this);
 		return res;

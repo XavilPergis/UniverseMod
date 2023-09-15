@@ -189,7 +189,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 
 		// TODO: configurable grid
-		renderGrid(builder, camera, cullingCamera, camera.metersPerUnit / 1e12, 1, 10, 40, partialTick);
+		// renderGrid(builder, camera, cullingCamera, camera.metersPerUnit / 1e12, 1, 10, 40, partialTick);
 	}
 
 }

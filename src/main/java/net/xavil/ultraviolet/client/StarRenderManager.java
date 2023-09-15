@@ -4,6 +4,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 
+import java.time.Instant;
+
 import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
@@ -56,6 +58,9 @@ public final class StarRenderManager implements Disposable {
 
 	private Mode mode = Mode.REALISTIC;
 	private BatchingHint batchingHint = BatchingHint.STATIC;
+
+	private Instant builderTimeoutStart = Instant.now();
+	private double prevPercentComplete = 0.0;
 
 	public enum Mode {
 		// rendered as accurately as i know how to -- used for rendering the background
@@ -149,8 +154,16 @@ public final class StarRenderManager implements Disposable {
 		// switch to "immediate-mode" rendering if we havent yet loaded in all the
 		// sectors.
 		this.drawImmediate = true;
-		if (!this.sectorTicket.attachedManager.isComplete(this.sectorTicket))
-			return;
+		final var percentComplete = this.sectorTicket.attachedManager.percentComplete(this.sectorTicket);
+		if (percentComplete < 1.0) {
+			if (percentComplete != this.prevPercentComplete) {
+				this.builderTimeoutStart = Instant.now();
+				this.prevPercentComplete = percentComplete;
+				return;
+			} else if (Instant.now().isBefore(this.builderTimeoutStart.plusSeconds(5))) {
+				return;
+			}
+		}
 
 		this.starSnapshotPosition = centerPos;
 

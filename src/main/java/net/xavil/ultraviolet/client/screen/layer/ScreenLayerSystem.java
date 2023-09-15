@@ -9,15 +9,23 @@ import net.minecraft.util.Mth;
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
+import java.util.Comparator;
+
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
+import net.xavil.ultraviolet.client.UltravioletShaders;
+import net.xavil.hawklib.Constants;
+import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
+import net.xavil.hawklib.client.gl.shader.ShaderProgram;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.flexible.RenderTexture;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.WorldType;
@@ -35,14 +43,17 @@ import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
+import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.collections.Blackboard;
+import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.Ellipse;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Vec2;
+import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
@@ -197,7 +208,6 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
 			// system.rootNode.updatePositions(time);
 
-			system.pos.mul(1e12 / camera.metersPerUnit);
 			// this.renderContext.setSystemOrigin(system.pos);
 			this.renderContext.begin(system, time);
 			for (final var node : system.rootNode.iterable()) {
@@ -218,6 +228,108 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
 			// }
 		});
+	}
+
+	@Override
+	public RenderTexture renderPost(RenderTexture sceneTexture, RenderTexture previousPassOutput, float partialTick) {
+		final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
+		if (system == null)
+			return previousPassOutput;
+
+		final var universe = this.galaxy.parentUniverse;
+		final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
+
+		// sort back to front for these sort of 3d post-process effects
+		final var allNodes = system.rootNode.iter().collectTo(Vector::new);
+		allNodes.sort(Comparator.comparingDouble(node -> node.position.distanceTo(this.camera.posTm)));
+		allNodes.reverse();
+
+		RenderTexture current = previousPassOutput;
+
+		final var prevMatrices = this.camera.setupRenderMatrices();
+
+		sceneTexture.colorTexture.setWrapMode(GlTexture.WrapMode.MIRRORED_REPEAT);
+
+		for (final var node : allNodes.iterable()) {
+			if (node instanceof StellarCelestialNode starNode
+					&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE) {
+				final var shader = UltravioletShaders.SHADER_GRAVITATIONAL_LENSING.get();
+				
+				final var color = new Vec3.Mutable();
+				StellarCelestialNode.blackBodyColorFromTable(color, 40000);
+
+				shader.setUniform("uAccretionDiscColor", color);
+				// shader.setUniform("uAccretionDiscColor", 1.0, 0.2, 0.0);
+				// shader.setUniform("uAccretionDiscColor", 0.0, 0.0, 0.0);
+				shader.setUniform("uAccretionDiscNormal", 0.5, 1.0, 0.2);
+				shader.setUniform("uAccretionDiscDensityFalloff", 3.0);
+				shader.setUniform("uAccretionDiscInnerPercent", 0.2);
+				shader.setUniform("uAccretionDiscInnerFalloff", 30.0);
+				shader.setUniform("uAccretionDiscDensityFalloffRadial", 4.0);
+				shader.setUniform("uAccretionDiscDensityFalloffVerticalInner", 300.0);
+				shader.setUniform("uAccretionDiscDensityFalloffVerticalOuter", 200.0);
+				shader.setUniform("uAccretionDiscBrightness", 3000.0);
+				shader.setUniform("uEffectLimitFactor", 60.0);
+				shader.setUniform("uGravitationalConstant", 50.0);
+				shader.setUniform("uPosition", this.camera.toCameraSpace(node.position.xyz()));
+				shader.setUniform("uMass", node.massYg);
+				current = doPostProcessEffect(shader, sceneTexture, current);
+			} else if (node instanceof PlanetaryCelestialNode planetNode && planetNode.hasAtmosphere() && !planetNode.hasAtmosphere()) {
+				// i dont wanna deal with running the atmosphere shader multiple times right now
+				final var brightestStars = system.rootNode.iter()
+						.filterCast(StellarCelestialNode.class).collectTo(Vector::new);
+				brightestStars.sort(Comparator.comparingDouble(node2 -> node2.luminosityLsol));
+				brightestStars.reverse();
+				brightestStars.truncate(4);
+
+				final var shader = UltravioletShaders.SHADER_ATMOSPHERE.get();
+				shader.setUniform("uPosition", this.camera.toCameraSpace(node.position.xyz()));
+				for (int i = 0; i < brightestStars.size(); ++i) {
+					final var star = brightestStars.get(i);
+					shader.setUniform("uStarPos" + i, this.camera.toCameraSpace(star.position.xyz()));
+					shader.setUniform("uStarColor" + i, star.getColor().withA(star.luminosityLsol));
+				}
+				current = doPostProcessEffect(shader, sceneTexture, current);
+			}
+		}
+
+		prevMatrices.restore();
+
+		return current;
+	}
+
+	private RenderTexture doPostProcessEffect(ShaderProgram shader, RenderTexture sceneTexture, RenderTexture prev) {
+
+		final var builder = RenderTexture.StaticDescriptor.builder();
+		builder.colorFormat = GlTexture.Format.RGB16_FLOAT;
+		final var current = RenderTexture.getTemporary(builder.build());
+
+		try {
+			// input textures
+			shader.setUniformSampler("uColorTexture", prev.colorTexture);
+			shader.setUniformSampler("uDepthTexture", sceneTexture.depthTexture);
+
+			// camera uniforms
+			final var frustumCorners = this.camera.captureFrustumCornersView();
+			shader.setUniform("uCameraFrustumNearNN", frustumCorners.nnp());
+			shader.setUniform("uCameraFrustumNearNP", frustumCorners.npp());
+			shader.setUniform("uCameraFrustumNearPN", frustumCorners.pnp());
+			shader.setUniform("uCameraFrustumNearPP", frustumCorners.ppp());
+			shader.setUniform("uCameraFrustumFarNN", frustumCorners.nnn());
+			shader.setUniform("uCameraFrustumFarNP", frustumCorners.npn());
+			shader.setUniform("uCameraFrustumFarPN", frustumCorners.pnn());
+			shader.setUniform("uCameraFrustumFarPP", frustumCorners.ppn());
+			shader.setUniform("uMetersPerUnit", this.camera.metersPerUnit);
+			shader.setUniform("uCameraNear", this.camera.nearPlane);
+			shader.setUniform("uCameraFar", this.camera.farPlane);
+
+			current.framebuffer.bind();
+			BufferRenderer.drawFullscreen(shader);
+		} finally {
+			prev.close();
+		}
+
+		return current;
 	}
 
 	private static void addEllipseArc(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,
@@ -314,13 +426,13 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 
-		/*if (!(node.getA() instanceof BinaryCelestialNode))*/ {
+		/* if (!(node.getA() instanceof BinaryCelestialNode)) */ {
 			final var ellipse = node.getEllipseA(node.referencePlane, celestialTime);
 			final var isSelected = selectedId != node.getInner().getId();
 			final var color = getPathColor(BlackboardKeys.BINARY_PATH_COLOR, isSelected);
 			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
 		}
-		/*if (!(node.getB() instanceof BinaryCelestialNode))*/ {
+		/* if (!(node.getB() instanceof BinaryCelestialNode)) */ {
 			final var ellipse = node.getEllipseB(node.referencePlane, celestialTime);
 			final var isSelected = selectedId != node.getOuter().getId();
 			final var color = getPathColor(BlackboardKeys.BINARY_PATH_COLOR, isSelected);

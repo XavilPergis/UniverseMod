@@ -132,6 +132,41 @@ public class CachedCamera<T> {
 		return !(nx || px || ny || py || nz || pz);
 	}
 
+	public record FrustumCorners(
+			Vec3 nnn, Vec3 nnp,
+			Vec3 npn, Vec3 npp,
+			Vec3 pnn, Vec3 pnp,
+			Vec3 ppn, Vec3 ppp) {
+	}
+
+	public FrustumCorners captureFrustumCornersWorld() {
+		// @formatter:off
+		final var nnn = new Vec3(-1, -1, -1).transformBy(this.inverseViewProjectionMatrix);
+		final var nnp = new Vec3(-1, -1,  1).transformBy(this.inverseViewProjectionMatrix);
+		final var npn = new Vec3(-1,  1, -1).transformBy(this.inverseViewProjectionMatrix);
+		final var npp = new Vec3(-1,  1,  1).transformBy(this.inverseViewProjectionMatrix);
+		final var pnn = new Vec3( 1, -1, -1).transformBy(this.inverseViewProjectionMatrix);
+		final var pnp = new Vec3( 1, -1,  1).transformBy(this.inverseViewProjectionMatrix);
+		final var ppn = new Vec3( 1,  1, -1).transformBy(this.inverseViewProjectionMatrix);
+		final var ppp = new Vec3( 1,  1,  1).transformBy(this.inverseViewProjectionMatrix);
+		// @formatter:on
+		return new FrustumCorners(nnn, nnp, npn, npp, pnn, pnp, ppn, ppp);
+	}
+
+	public FrustumCorners captureFrustumCornersView() {
+		// @formatter:off
+		final var nnn = new Vec3(-1, -1, -1).transformBy(this.inverseProjectionMatrix);
+		final var nnp = new Vec3(-1, -1,  1).transformBy(this.inverseProjectionMatrix);
+		final var npn = new Vec3(-1,  1, -1).transformBy(this.inverseProjectionMatrix);
+		final var npp = new Vec3(-1,  1,  1).transformBy(this.inverseProjectionMatrix);
+		final var pnn = new Vec3( 1, -1, -1).transformBy(this.inverseProjectionMatrix);
+		final var pnp = new Vec3( 1, -1,  1).transformBy(this.inverseProjectionMatrix);
+		final var ppn = new Vec3( 1,  1, -1).transformBy(this.inverseProjectionMatrix);
+		final var ppp = new Vec3( 1,  1,  1).transformBy(this.inverseProjectionMatrix);
+		// @formatter:on
+		return new FrustumCorners(nnn, nnp, npn, npp, pnn, pnp, ppn, ppp);
+	}
+
 	public Vec3 toCameraSpace(Vec3 posWorld) {
 		return posWorld.sub(this.pos);
 	}

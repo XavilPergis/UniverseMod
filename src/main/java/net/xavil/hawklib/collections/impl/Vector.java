@@ -121,6 +121,13 @@ public final class Vector<T> implements MutableList<T> {
 		this.size = 0;
 	}
 
+	@Override
+	public void truncate(int size) {
+		if (size >= this.size) return;
+		Arrays.fill(this.elements, size, this.size, null);
+		this.size = size;
+	}
+
 	// Linear time in element count on average
 	@Override
 	public void retain(Predicate<T> predicate) {

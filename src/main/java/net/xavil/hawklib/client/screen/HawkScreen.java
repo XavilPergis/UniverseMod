@@ -52,6 +52,10 @@ public abstract class HawkScreen extends Screen {
 
 		public abstract void render(PoseStack poseStack, Vec2i mousePos, float partialTick);
 
+		public RenderTexture renderPost(RenderTexture sceneTexture, RenderTexture previousPassOutput, float partialTick) {
+			return previousPassOutput;
+		}
+
 		public boolean handleClick(Vec2 mousePos, int button) {
 			return false;
 		}
@@ -190,8 +194,12 @@ public abstract class HawkScreen extends Screen {
 
 	private static final RenderTexture.StaticDescriptor DESC = RenderTexture.StaticDescriptor.create(builder -> {
 		builder.colorFormat = GlTexture.Format.RGBA16_FLOAT;
-		builder.isDepthReadable = false;
-		builder.depthFormat = GlTexture.Format.DEPTH_UNSPECIFIED;
+		builder.isDepthReadable = true;
+		builder.depthFormat = GlTexture.Format.DEPTH24_UINT_NORM;
+	});
+
+	private static final RenderTexture.StaticDescriptor DESC2 = RenderTexture.StaticDescriptor.create(builder -> {
+		builder.colorFormat = GlTexture.Format.RGBA16_FLOAT;
 	});
 
 	@Override
@@ -208,8 +216,8 @@ public abstract class HawkScreen extends Screen {
 
 		// managed code: enter
 		try (final var disposer = Disposable.scope()) {
-			final var output = disposer.attach(RenderTexture
-					.getTemporary(new Vec2i(window.getWidth(), window.getHeight()), DESC));
+			final var output = disposer.attach(RenderTexture.getTemporary(
+					new Vec2i(window.getWidth(), window.getHeight()), DESC));
 			output.framebuffer.bind();
 			output.framebuffer.clear();
 
@@ -219,10 +227,24 @@ public abstract class HawkScreen extends Screen {
 			this.layers.forEach(layer -> layer.render(poseStack, mousePos, partialTick));
 			renderScreenPostLayers(poseStack, mousePos, partialTick);
 
+			var currentPostTexture = output;
+			for (final var layer : this.layers.iterable()) {
+				final var prevPostTexture = currentPostTexture;
+				try {
+					currentPostTexture = layer.renderPost(output, prevPostTexture, partialTick);
+				} finally {
+					if (prevPostTexture != output)
+						prevPostTexture.close();
+				}
+			}
+
+			disposer.attach(currentPostTexture);
+			
 			final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
 			// mainTarget.bind();
 			mainTarget.enableAllColorAttachments();
-			HawkRendering.doPostProcessing(mainTarget, output.colorTexture);
+			
+			HawkRendering.doPostProcessing(mainTarget, currentPostTexture.colorTexture);
 		}
 		// managed code: exit
 

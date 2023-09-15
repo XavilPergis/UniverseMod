@@ -17,7 +17,7 @@ public final class BloomEffect {
 	public static final Settings DEFAULT_SETTINGS = new Settings(8, 0.1, 1.1, 0.9);
 
 	public static void render(GlFramebuffer output, GlTexture2d input) {
-		render(new Settings(10, 0.05, 1.0, 0.1), output, input);
+		render(new Settings(10, 0.07, 1.0, 0.1), output, input);
 	}
 
 	private static void drawDownsample(GlFramebuffer output, GlTexture2d input, int level) {

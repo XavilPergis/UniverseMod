@@ -23,6 +23,8 @@ public interface UniformHolder {
 	}
 
 	default void setUniformSampler(String uniformName, GlTexture texture) {
+		if (texture == null)
+			return;
 		final var uniformType = UniformSlot.Type.from(texture.format().samplerType, texture.type);
 		final var slot = getSlot(uniformName, uniformType);
 		if (slot != null) {

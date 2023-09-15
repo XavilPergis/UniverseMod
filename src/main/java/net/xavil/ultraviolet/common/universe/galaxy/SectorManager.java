@@ -181,15 +181,17 @@ public final class SectorManager {
 		forceLoad(InactiveProfiler.INSTANCE, sectorTicket);
 	}
 
-	public boolean isComplete(SectorTicket<?> sectorTicket) {
+	public double percentComplete(SectorTicket<?> sectorTicket) {
 		final var res = new Object() {
-			boolean complete = true;
+			int total = 0;
+			int complete = 0;
 		};
 		sectorTicket.info.enumerateAffectedSectors(pos -> {
-			res.complete &= isComplete(pos);
-			return res.complete;
+			res.total += 1;
+			res.complete += isComplete(pos) ? 1 : 0;
+			return true;
 		});
-		return res.complete;
+		return res.complete / (double) res.total;
 	}
 
 	public void forceLoad(ProfilerFiller profiler, SectorTicket<?> sectorTicket) {

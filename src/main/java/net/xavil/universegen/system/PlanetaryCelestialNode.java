@@ -77,6 +77,10 @@ public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 		};
 	}
 
+	public boolean hasAtmosphere() {
+		return this.type == Type.EARTH_LIKE_WORLD || this.type == Type.WATER_WORLD;
+	}
+
 	public double surfaceGravityEarthRelative() {
 		final var radiusRearth = Units.Rearth_PER_km * this.radius;
 		final var massMearth = Units.Mearth_PER_Yg * this.massYg;

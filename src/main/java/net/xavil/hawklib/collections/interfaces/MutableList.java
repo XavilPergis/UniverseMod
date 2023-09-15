@@ -31,6 +31,17 @@ public interface MutableList<T> extends MutableCollection, ImmutableList<T> {
 
 	T remove(int index);
 
+	default void reverse() {
+		for (int i = 0; i < this.size() / 2; ++i)
+			this.swap(i, this.size() - i - 1);
+	}
+
+	default void truncate(int size) {
+		while (this.size() > size) {
+			this.pop();
+		}
+	}
+
 	default void push(T value) {
 		this.insert(this.size(), value);
 	}

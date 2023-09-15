@@ -141,7 +141,36 @@ public final class ServerUniverse extends Universe {
 			CelestialNode startingNode) {
 	}
 
-	private StartingSystem startingSystem() {
+	private StartingSystem startingSystemSaggitariusA() {
+		final var properties = new StellarCelestialNode.Properties();
+		properties.load(Yg_PER_Msol * 4.3e6, 13610);
+		final var sagA = StellarCelestialNode.fromProperties(properties);
+
+		properties.load(Yg_PER_Msol * 20, 1);
+		final var starA = StellarCelestialNode.fromProperties(properties);
+		properties.load(Yg_PER_Msol * 7, 3);
+		final var starB = StellarCelestialNode.fromProperties(properties);
+		properties.load(Yg_PER_Msol * 0.15, 3);
+		final var starC = StellarCelestialNode.fromProperties(properties);
+
+		final var earth = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD, Yg_PER_Mearth * (1),
+				1, 287.91);
+		earth.obliquityAngle = Math.toRadians(23.4392811);
+		earth.rotationalRate = 7.29211e-5;
+
+		sagA.insertChild(earth, 0.0167086, Tm_PER_au * (100), Math.toRadians(0.00005), Math.toRadians(-11.26064),
+				Math.toRadians(114.20783), 3);
+		sagA.insertChild(starA, 0.7, Tm_PER_au * 4, Math.toRadians(37), Math.toRadians(93),
+				Math.toRadians(3), 1);
+		sagA.insertChild(starB, 0.3, Tm_PER_au * 10, Math.toRadians(49), Math.toRadians(274),
+				Math.toRadians(45), 4);
+		sagA.insertChild(starC, 0.8, Tm_PER_au * 3, Math.toRadians(293), Math.toRadians(189),
+				Math.toRadians(202), 4);
+
+		return new StartingSystem(13610, "Saggitarius A*", sagA, earth);
+	}
+
+	private StartingSystem startingSystemSol() {
 		// NOTE: reference plane is the ecliptic plane
 		final var sol = StellarCelestialNode.fromMass(StellarCelestialNode.Type.MAIN_SEQUENCE, Yg_PER_Msol * 1);
 		sol.obliquityAngle = Math.toRadians(7.25);
@@ -249,7 +278,7 @@ public final class ServerUniverse extends Universe {
 	public void prepare() {
 		final var rng = Rng.wrap(new Random(getUniqueUniverseSeed() + 4));
 
-		var startingSystem = startingSystem();
+		var startingSystem = startingSystemSaggitariusA();
 		startingSystem.rootNode.assignIds();
 
 		var rootNode = startingSystem.rootNode;

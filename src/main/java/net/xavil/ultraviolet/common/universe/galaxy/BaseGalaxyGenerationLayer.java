@@ -140,10 +140,10 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			this.ctx = ctx;
 
 			final var fields = ctx.galaxy.densityFields;
-			// this.stellarDensity = new InterpolatedField(fields.stellarDensity, ctx.volumeMin, ctx.volumeMax);
-			// this.stellarAge = new InterpolatedField(fields.minAgeFactor, ctx.volumeMin, ctx.volumeMax);
-			this.stellarDensity = fields.stellarDensity;
-			this.stellarAge = fields.minAgeFactor;
+			this.stellarDensity = new InterpolatedField(fields.stellarDensity, ctx.volumeMin, ctx.volumeMax);
+			this.stellarAge = new InterpolatedField(fields.minAgeFactor, ctx.volumeMin, ctx.volumeMax);
+			// this.stellarDensity = fields.stellarDensity;
+			// this.stellarAge = fields.minAgeFactor;
 
 			// since we're using trilinear interpolation, there's likely an analytic
 			// solution to the average density of the sector. but i forgor all of my high

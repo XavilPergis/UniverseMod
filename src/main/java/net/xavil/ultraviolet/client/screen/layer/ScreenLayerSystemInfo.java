@@ -17,6 +17,7 @@ import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.screen.HawkScreen;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.matrices.Vec2i;
 
@@ -99,7 +100,7 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 	}
 
 	@Override
-	public void render(PoseStack poseStack, Vec2i mousePos, float partialTick) {
+	public void render(RenderContext ctx) {
 		// sidebar
 
 		final var selected = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
@@ -108,7 +109,7 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 			return;
 
 		GlManager.pushState();
-		drawInfo(poseStack, selected);
+		drawInfo(ctx.poseStack, selected);
 		GlManager.popState();
 		// GlManager.currentState().invalidate();
 	}

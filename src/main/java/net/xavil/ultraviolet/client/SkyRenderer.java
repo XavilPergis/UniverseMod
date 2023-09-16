@@ -216,7 +216,7 @@ public class SkyRenderer implements Disposable {
 		final var cameraTransform = new TransformStack();
 		final var xz = new Vec2(srcCamera.getPosition().x, srcCamera.getPosition().z);
 		applyCelestialTransform(cameraTransform, xz, location, partialTick);
-		
+
 		// render
 		final var galaxy = this.galaxyTicket.forceLoad().unwrapOrNull();
 		if (galaxy != null) {
@@ -288,6 +288,10 @@ public class SkyRenderer implements Disposable {
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float tickDelta,
 			Camera camera, boolean isSkyVisible) {
 
+		final var worldType = EntityAccessor.getWorldType(this.client.player);
+		if (worldType == null)
+			return false;
+
 		final var profiler = Minecraft.getInstance().getProfiler();
 
 		profiler.push("pushGlState");
@@ -305,19 +309,16 @@ public class SkyRenderer implements Disposable {
 		}
 		profiler.pop();
 
-		profiler.push("aaa");
-		final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
-		mainTarget.enableAllColorAttachments();
-		profiler.pop();
-
 		profiler.push("draw");
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
 		drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
-		// drawCelestialObjects(camera, mainTarget, partialTick);
+		// drawCelestialObjects(camera, GlFramebuffer.MAIN, partialTick);
 		profiler.pop();
-
+		
+		profiler.push("postprocess");
 		final var sceneTexture = this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
-		HawkRendering.doPostProcessing(mainTarget, sceneTexture);
+		HawkRendering.applyPostProcessing(GlFramebuffer.MAIN, sceneTexture);
+		profiler.pop();
 
 		// TODO: draw atmosphere or something
 		// TODO: figure out how the fuck we're gonna make vanilla fog not look like
@@ -326,9 +327,8 @@ public class SkyRenderer implements Disposable {
 		// background image buffer and uses that as the fog color. idk.
 
 		profiler.push("clear");
-		mainTarget.bind();
-		mainTarget.clearDepthAttachment(1.0f);
-		// mainTarget.enableAllColorAttachments();
+		GlFramebuffer.MAIN.bind();
+		GlFramebuffer.MAIN.clearDepthAttachment(1.0f);
 		profiler.pop();
 
 		profiler.push("popGlState");

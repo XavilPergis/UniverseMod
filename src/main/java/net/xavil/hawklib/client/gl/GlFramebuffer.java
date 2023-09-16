@@ -33,8 +33,17 @@ public final class GlFramebuffer extends GlObject {
 	private final MutableMap<Integer, GlFramebufferAttachment> colorAttachments = MutableMap.hashMap();
 	private GlFramebufferAttachment depthAttachment = null;
 
+	private final RenderTarget importedTarget;
+
+	public static final GlFramebuffer MAIN = new GlFramebuffer(Minecraft.getInstance().getMainRenderTarget());
+
+	static {
+		MAIN.enableAllColorAttachments();
+	}
+
 	public GlFramebuffer(RenderTarget imported) {
 		super(imported.frameBufferId, false);
+		this.importedTarget = imported;
 		this.fragmentWrites = GlFragmentWrites.COLOR_ONLY;
 		this.size = new Vec2i(imported.width, imported.height);
 		this.viewport = new Viewport(Vec2i.ZERO, this.size);
@@ -49,6 +58,7 @@ public final class GlFramebuffer extends GlObject {
 
 	public GlFramebuffer(GlFragmentWrites fragmentWrites, Vec2i size) {
 		super(GL45C.glCreateFramebuffers(), true);
+		this.importedTarget = null;
 		this.size = size;
 		this.viewport = new Viewport(Vec2i.ZERO, size);
 		this.fragmentWrites = fragmentWrites;
@@ -94,7 +104,15 @@ public final class GlFramebuffer extends GlObject {
 		}
 	}
 
+	private void updateSizeIfNeeded() {
+		if (this.importedTarget != null) {
+			this.size = new Vec2i(this.importedTarget.width, this.importedTarget.height);
+			this.viewport = new Viewport(Vec2i.ZERO, this.size);
+		}
+	}
+
 	public Vec2i size() {
+		updateSizeIfNeeded();
 		return this.size;
 	}
 
@@ -124,6 +142,7 @@ public final class GlFramebuffer extends GlObject {
 					toString(), textureFormat));
 		}
 		final var texture = new GlTexture2d(false);
+		updateSizeIfNeeded();
 		texture.createStorage(textureFormat, this.size.x, this.size.y);
 		final var target = new GlFramebufferAttachment.Texture2d(true, texture);
 		setColorTarget(fragmentWriteId, target);
@@ -161,10 +180,12 @@ public final class GlFramebuffer extends GlObject {
 		GlFramebufferAttachment target;
 		if (isDepthReadable) {
 			final var texture = new GlTexture2d(false);
+			updateSizeIfNeeded();
 			texture.createStorage(textureFormat, this.size.x, this.size.y);
 			target = new GlFramebufferAttachment.Texture2d(true, texture);
 		} else {
 			final var texture = new GlRenderbuffer();
+			updateSizeIfNeeded();
 			texture.createStorage(textureFormat, this.size.x, this.size.y);
 			target = new GlFramebufferAttachment.Renderbuffer(true, texture);
 		}
@@ -205,6 +226,7 @@ public final class GlFramebuffer extends GlObject {
 	 * @param target The framebuffer to write into
 	 */
 	public void copyTo(GlFramebuffer target) {
+		updateSizeIfNeeded();
 		GL45C.glBlitNamedFramebuffer(
 				this.id, target.id,
 				this.viewport.pos.x, this.viewport.pos.y, this.viewport.size.x, this.viewport.size.y,
@@ -254,6 +276,7 @@ public final class GlFramebuffer extends GlObject {
 	 * before doing any clearing operations, but it is not required.
 	 */
 	public void bind() {
+		updateSizeIfNeeded();
 		GlManager.bindFramebuffer(GL45C.GL_FRAMEBUFFER, this.id);
 		GlManager.setViewport(this.viewport.pos.x, this.viewport.pos.y,
 				this.viewport.size.x, this.viewport.size.y);

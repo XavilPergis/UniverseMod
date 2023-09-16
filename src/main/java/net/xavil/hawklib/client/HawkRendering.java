@@ -50,12 +50,10 @@ public final class HawkRendering {
 	 * @param output The framebuffer to write the post-processing results to
 	 * @param input  The source image to apply the post-processing effects to
 	 */
-	public static void doPostProcessing(GlFramebuffer output, GlTexture2d input) {
+	public static void applyPostProcessing(GlFramebuffer output, GlTexture2d input) {
 		try (final var disposer = Disposable.scope()) {
 			// bloom
-			final var desc = RenderTexture.StaticDescriptor.builder();
-			desc.colorFormat = GlTexture.Format.RGBA32_FLOAT;
-			final var hdrPost = disposer.attach(RenderTexture.getTemporary(input.size().d2(), desc.build()));
+			final var hdrPost = disposer.attach(RenderTexture.HDR_COLOR.acquireTemporary(input.size().d2()));
 			BloomEffect.render(hdrPost.framebuffer, input);
 
 			// tonemapping
@@ -64,11 +62,6 @@ public final class HawkRendering {
 			postShader.setUniform("uExposure", 1f);
 			postShader.setUniformSampler("uSampler", hdrPost.colorTexture);
 			BufferRenderer.drawFullscreen(postShader);
-
-			// final var postShader = HawkShaders.SHADER_BLIT.get();
-			// postShader.setUniform("uExposure", 1f);
-			// postShader.setUniformSampler("uSampler", input);
-			// BufferRenderer.drawFullscreen(postShader);
 		}
 
 	}

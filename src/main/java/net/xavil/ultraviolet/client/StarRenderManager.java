@@ -368,7 +368,7 @@ public final class StarRenderManager implements Disposable {
 	public static void setupStarShader(ShaderProgram shader, CachedCamera<?> camera) {
 		final var universe = MinecraftClientAccessor.getUniverse();
 		final var partialTick = Minecraft.getInstance().getFrameTime();
-		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
+		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
 		shader.setUniform("uMetersPerUnit", camera.metersPerUnit);
 		shader.setUniform("uTime", universe.getCelestialTime(partialTick));		
 

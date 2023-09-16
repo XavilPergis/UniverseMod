@@ -34,6 +34,17 @@ public final class RenderTexture implements Disposable {
 	public final StaticDescriptor descriptor;
 	private int framesSinceLastUsed = 0;
 
+	public static final StaticDescriptor HDR_COLOR_DEPTH = StaticDescriptor.builder()
+			.withColorFormat(GlTexture.Format.RGBA16_FLOAT)
+			.withDepthFormat(GlTexture.Format.DEPTH24_UINT_NORM, true)
+			.build();
+	public static final StaticDescriptor HDR_COLOR = StaticDescriptor.builder()
+			.withColorFormat(GlTexture.Format.RGBA16_FLOAT)
+			.build();
+	public static final StaticDescriptor SDR_COLOR = StaticDescriptor.builder()
+			.withColorFormat(GlTexture.Format.RGBA8_UINT_NORM)
+			.build();
+
 	/**
 	 * Information needed to create a {@link RenderTexture} that is likely not to
 	 * change over the lifetime of an application. This notably does not include the
@@ -55,32 +66,22 @@ public final class RenderTexture implements Disposable {
 		 */
 		public final boolean isDepthReadable;
 
-		public final GlTexture.MinFilter minFilterColor;
-		public final GlTexture.MagFilter magFilterColor;
-		public final GlTexture.WrapMode wrapModeColor;
-
-		public final GlTexture.MinFilter minFilterDepth;
-		public final GlTexture.MagFilter magFilterDepth;
-		public final GlTexture.WrapMode wrapModeDepth;
-
 		private StaticDescriptor(Builder builder) {
 			this.colorFormat = builder.colorFormat;
 			this.depthFormat = builder.depthFormat;
 			this.isDepthReadable = builder.isDepthReadable;
-			this.minFilterColor = builder.minFilterColor;
-			this.magFilterColor = builder.magFilterColor;
-			this.wrapModeColor = builder.wrapModeColor;
-			this.minFilterDepth = builder.minFilterDepth;
-			this.magFilterDepth = builder.magFilterDepth;
-			this.wrapModeDepth = builder.wrapModeDepth;
-		}
-
-		public static StaticDescriptor create(Consumer<Builder> consumer) {
-			return new Builder().with(consumer).build();
 		}
 
 		public static Builder builder() {
 			return new Builder();
+		}
+
+		public RenderTexture acquireTemporary() {
+			return RenderTexture.acquireTemporary(this);
+		}
+
+		public RenderTexture acquireTemporary(Vec2i size) {
+			return RenderTexture.acquireTemporary(size, this);
 		}
 
 		@Override
@@ -96,19 +97,24 @@ public final class RenderTexture implements Disposable {
 		public static final class Builder {
 			public GlTexture.Format colorFormat = GlTexture.Format.RGBA8_UINT_NORM;
 			public GlTexture.Format depthFormat = null;
-			public boolean isDepthReadable = false;
-			public GlTexture.MinFilter minFilterColor = GlTexture.MinFilter.LINEAR;
-			public GlTexture.MagFilter magFilterColor = GlTexture.MagFilter.LINEAR;
-			public GlTexture.WrapMode wrapModeColor = WrapMode.CLAMP_TO_BORDER;
-			public GlTexture.MinFilter minFilterDepth = GlTexture.MinFilter.NEAREST;
-			public GlTexture.MagFilter magFilterDepth = GlTexture.MagFilter.NEAREST;
-			public GlTexture.WrapMode wrapModeDepth = WrapMode.CLAMP_TO_EDGE;
+			public boolean isDepthReadable = true;
 
 			private Builder() {
 			}
 
 			public Builder with(Consumer<Builder> consumer) {
 				consumer.accept(this);
+				return this;
+			}
+
+			public Builder withColorFormat(GlTexture.Format colorFormat) {
+				this.colorFormat = colorFormat;
+				return this;
+			}
+
+			public Builder withDepthFormat(GlTexture.Format depthFormat, boolean isDepthReadable) {
+				this.depthFormat = depthFormat;
+				this.isDepthReadable = isDepthReadable;
 				return this;
 			}
 
@@ -127,18 +133,18 @@ public final class RenderTexture implements Disposable {
 		// color target
 		this.colorTexture = this.framebuffer.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
 		this.colorTexture.setDebugName(String.format("Temporary %d '%s'", id, GlFragmentWrites.COLOR));
-		this.colorTexture.setMinFilter(descriptor.minFilterColor);
-		this.colorTexture.setMagFilter(descriptor.magFilterColor);
-		this.colorTexture.setWrapMode(descriptor.wrapModeColor);
+		this.colorTexture.setMinFilter(GlTexture.MinFilter.LINEAR);
+		this.colorTexture.setMagFilter(GlTexture.MagFilter.LINEAR);
+		this.colorTexture.setWrapMode(WrapMode.CLAMP_TO_BORDER);
 
 		// depth target
 		if (descriptor.depthFormat != null) {
 			this.framebuffer.createDepthTarget(descriptor.isDepthReadable, descriptor.depthFormat);
 			this.depthTexture = this.framebuffer.getDepthAttachment().asTexture2d();
 			if (this.depthTexture != null) {
-				this.depthTexture.setMinFilter(descriptor.minFilterDepth);
-				this.depthTexture.setMagFilter(descriptor.magFilterDepth);
-				this.depthTexture.setWrapMode(descriptor.wrapModeDepth);
+				this.depthTexture.setMinFilter(GlTexture.MinFilter.NEAREST);
+				this.depthTexture.setMagFilter(GlTexture.MagFilter.NEAREST);
+				this.depthTexture.setWrapMode(WrapMode.CLAMP_TO_EDGE);
 			}
 		} else {
 			this.depthTexture = null;
@@ -150,7 +156,8 @@ public final class RenderTexture implements Disposable {
 
 	public static void tick() {
 		if (TEXTURE_RELEASE_THRESHOLD_FRAMES > TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT) {
-			HawkLib.LOGGER.warn("Temporary texture cleanup threshold was set to {}, which is higher than the limit of {}!",
+			HawkLib.LOGGER.warn(
+					"Temporary texture cleanup threshold was set to {}, which is higher than the limit of {}!",
 					TEXTURE_RELEASE_THRESHOLD_FRAMES, TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT);
 			TEXTURE_RELEASE_THRESHOLD_FRAMES = TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT;
 		}
@@ -170,6 +177,7 @@ public final class RenderTexture implements Disposable {
 		});
 	}
 
+	// FIXME: actually release textures on exit/crash lol
 	public static void releaseAll() {
 		FREE_TEXTURES.clear();
 		for (final var texture : ALL_TEXTURES.iterable()) {
@@ -184,7 +192,7 @@ public final class RenderTexture implements Disposable {
 				&& size.y == texture.framebuffer.size().y;
 	}
 
-	public static RenderTexture getTemporary(Vec2i size, StaticDescriptor descriptor) {
+	public static RenderTexture acquireTemporary(Vec2i size, StaticDescriptor descriptor) {
 		RenderTexture tex = null;
 		for (final var texture : FREE_TEXTURES.iterable()) {
 			if (isCompatible(texture, size, descriptor)) {
@@ -202,15 +210,14 @@ public final class RenderTexture implements Disposable {
 		return tex;
 	}
 
-	public static RenderTexture getTemporary(StaticDescriptor descriptor) {
+	public static RenderTexture acquireTemporary(StaticDescriptor descriptor) {
 		final var size = new Vec2i(CLIENT.getWindow().getWidth(), CLIENT.getWindow().getHeight());
-		return getTemporary(size, descriptor);
+		return acquireTemporary(size, descriptor);
 	}
 
-	public static RenderTexture getTemporaryCopy(GlTexture2d textureToCopy) {
-		final var temp = getTemporary(textureToCopy.size().d2(), StaticDescriptor.create(builder -> {
-			builder.colorFormat = textureToCopy.format();
-		}));
+	public static RenderTexture acquireTemporaryCopy(GlTexture2d textureToCopy) {
+		final var desc = StaticDescriptor.builder().withColorFormat(textureToCopy.format()).build();
+		final var temp = acquireTemporary(textureToCopy.size().d2(), desc);
 		temp.framebuffer.bind();
 		temp.framebuffer.clear();
 		BufferRenderer.drawFullscreen(textureToCopy);

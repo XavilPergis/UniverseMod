@@ -56,9 +56,9 @@ public abstract class HawkScreen3d extends HawkScreen {
 
 		@Override
 		@OverridingMethodsMustInvokeSuper
-		public void render(PoseStack poseStack, Vec2i mousePos, float partialTick) {
+		public void render(RenderContext ctx) {
 			final var prevMatrices = this.camera.setupRenderMatrices();
-			render3d(this.camera, partialTick);
+			render3d(this.camera, ctx.partialTick);
 			prevMatrices.restore();
 		}
 
@@ -318,21 +318,19 @@ public abstract class HawkScreen3d extends HawkScreen {
 	}
 
 	@Override
-	public void renderScreenPreLayers(PoseStack poseStack, Vec2i mousePos, float partialTick) {
+	public void renderScreenPreLayers(RenderContext ctx) {
 		forEach3dLayer(layer -> {
-			layer.setup3d(this.camera, partialTick);
+			layer.setup3d(this.camera, ctx.partialTick);
 			layer.lastCamera = layer.camera;
-			layer.camera = setupCamera(layer.cameraConfig, partialTick);
+			layer.camera = setupCamera(layer.cameraConfig, ctx.partialTick);
 			if (layer.lastCamera == null)
 				layer.lastCamera = layer.camera;
 		});
-		super.renderScreenPreLayers(poseStack, mousePos, partialTick);
 	}
 
 	@Override
-	public void renderScreenPostLayers(PoseStack poseStack, Vec2i mousePos, float partialTick) {
-		super.renderScreenPostLayers(poseStack, mousePos, partialTick);
-		final var debugCamera = setupCamera(getDebugCameraConfig(), partialTick);
+	public void renderScreenPostLayers(RenderContext ctx) {
+		final var debugCamera = setupCamera(getDebugCameraConfig(), ctx.partialTick);
 
 		final var prevMatrices = debugCamera.setupRenderMatrices();
 		forEach3dLayer(layer -> {

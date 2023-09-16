@@ -12,10 +12,12 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.HawkRendering;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.RenderTexture;
 import net.xavil.hawklib.collections.Blackboard;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -50,10 +52,9 @@ public abstract class HawkScreen extends Screen {
 		public void tick() {
 		}
 
-		public abstract void render(PoseStack poseStack, Vec2i mousePos, float partialTick);
+		public abstract void render(RenderContext ctx);
 
-		public RenderTexture renderPost(RenderTexture sceneTexture, RenderTexture previousPassOutput, float partialTick) {
-			return previousPassOutput;
+		public void renderPost(RenderTexture sceneTexture, RenderContext ctx) {
 		}
 
 		public boolean handleClick(Vec2 mousePos, int button) {
@@ -64,12 +65,12 @@ public abstract class HawkScreen extends Screen {
 			return false;
 		}
 
-		public boolean handleScroll(double mouseX, double mouseY, double scrollDelta) {
+		public boolean handleScroll(Vec2 mousePos, double scrollDelta) {
 			return false;
 		}
 
 		/**
-		 * This method is used to avoid renderign the minecraft world when it cannot
+		 * This method is used to avoid rendering the minecraft world when it cannot
 		 * possibly be seen.
 		 * 
 		 * @return Whether this layer clobbers everything that has been previously
@@ -153,7 +154,7 @@ public abstract class HawkScreen extends Screen {
 	public final boolean mouseScrolled(double mouseX, double mouseY, double scrollDelta) {
 		if (super.mouseScrolled(mouseX, mouseY, scrollDelta))
 			return true;
-		if (dispatchEvent(layer -> layer.handleScroll(mouseX, mouseY, scrollDelta)))
+		if (dispatchEvent(layer -> layer.handleScroll(Vec2.from(mouseX, mouseY), scrollDelta)))
 			return true;
 		return mouseScrolled(Vec2.from(mouseX, mouseY), scrollDelta);
 	}
@@ -192,16 +193,6 @@ public abstract class HawkScreen extends Screen {
 		return false;
 	}
 
-	private static final RenderTexture.StaticDescriptor DESC = RenderTexture.StaticDescriptor.create(builder -> {
-		builder.colorFormat = GlTexture.Format.RGBA16_FLOAT;
-		builder.isDepthReadable = true;
-		builder.depthFormat = GlTexture.Format.DEPTH24_UINT_NORM;
-	});
-
-	private static final RenderTexture.StaticDescriptor DESC2 = RenderTexture.StaticDescriptor.create(builder -> {
-		builder.colorFormat = GlTexture.Format.RGBA16_FLOAT;
-	});
-
 	@Override
 	public void tick() {
 		super.tick();
@@ -213,53 +204,80 @@ public abstract class HawkScreen extends Screen {
 		GlManager.pushState();
 
 		final var window = this.client.getWindow();
+		final var windowSize = new Vec2i(window.getWidth(), window.getHeight());
 
-		// managed code: enter
-		try (final var disposer = Disposable.scope()) {
-			final var output = disposer.attach(RenderTexture.getTemporary(
-					new Vec2i(window.getWidth(), window.getHeight()), DESC));
-			output.framebuffer.bind();
-			output.framebuffer.clear();
+		final var partialTick = this.client.getFrameTime();
 
-			final var mousePos = Vec2i.from(mouseX, mouseY);
-			final var partialTick = this.client.getFrameTime();
-			renderScreenPreLayers(poseStack, mousePos, partialTick);
-			this.layers.forEach(layer -> layer.render(poseStack, mousePos, partialTick));
-			renderScreenPostLayers(poseStack, mousePos, partialTick);
+		final var mousePos = new Vec2(mouseX, mouseY);
+		final var ctx = new RenderContext(poseStack, windowSize, mousePos, partialTick);
 
-			var currentPostTexture = output;
+		final var disposer = Disposable.scope();
+		try {
+			ctx.currentTexture = RenderTexture.acquireTemporary(RenderTexture.HDR_COLOR_DEPTH);
+			ctx.currentTexture.framebuffer.clear();
+			renderScreenPreLayers(ctx);
 			for (final var layer : this.layers.iterable()) {
-				final var prevPostTexture = currentPostTexture;
-				try {
-					currentPostTexture = layer.renderPost(output, prevPostTexture, partialTick);
-				} finally {
-					if (prevPostTexture != output)
-						prevPostTexture.close();
-				}
+				ctx.currentTexture.framebuffer.bind();
+				layer.render(ctx);
+			}
+			renderScreenPostLayers(ctx);
+
+			final var sceneTexture = disposer.attach(RenderTexture.acquireTemporary(RenderTexture.HDR_COLOR_DEPTH));
+			ctx.currentTexture.framebuffer.copyTo(sceneTexture.framebuffer);
+
+			for (final var layer : this.layers.iterable()) {
+				ctx.currentTexture.framebuffer.bind();
+				layer.renderPost(sceneTexture, ctx);
 			}
 
-			disposer.attach(currentPostTexture);
-			
-			final var mainTarget = new GlFramebuffer(this.client.getMainRenderTarget());
-			// mainTarget.bind();
-			mainTarget.enableAllColorAttachments();
-			
-			HawkRendering.doPostProcessing(mainTarget, currentPostTexture.colorTexture);
+			HawkRendering.applyPostProcessing(GlFramebuffer.MAIN, ctx.currentTexture.colorTexture);
+		} finally {
+			disposer.close();
+			ctx.currentTexture.close();
 		}
-		// managed code: exit
 
 		GlManager.popState();
 		super.render(poseStack, mouseX, mouseY, tickDelta);
 	}
 
-	public void renderScreenPreLayers(PoseStack poseStack, Vec2i mousePos, float partialTick) {
+	// public void renderScreenPreLayers(PoseStack poseStack, Vec2i mousePos, float
+	// partialTick) {
+	// }
+
+	// public void renderScreenPostLayers(PoseStack poseStack, Vec2i mousePos, float
+	// partialTick) {
+	// }
+
+	public static final class RenderContext {
+		public final PoseStack poseStack;
+		public final Vec2i windowSize;
+		public final Vec2 mousePos;
+		public final float partialTick;
+
+		public RenderTexture currentTexture;
+
+		public RenderContext(PoseStack poseStack, Vec2i windowSize, Vec2 mousePos, float partialTick) {
+			this.poseStack = poseStack;
+			this.windowSize = windowSize;
+			this.mousePos = mousePos;
+			this.partialTick = partialTick;
+		}
+
+		public void replaceCurrentTexture(RenderTexture newTexture) {
+			final var prevTexture = this.currentTexture;
+			this.currentTexture = newTexture;
+			prevTexture.close();
+		}
 	}
 
-	public void renderScreenPostLayers(PoseStack poseStack, Vec2i mousePos, float partialTick) {
+	public void renderScreenPreLayers(RenderContext ctx) {
+	}
+
+	public void renderScreenPostLayers(RenderContext ctx) {
 	}
 
 	/**
-	 * Controls whether the client will render the world.
+	 * Controls whether the client will render the world while this screen is.
 	 */
 	public boolean shouldRenderWorld() {
 		return this.layers.iter().all(layer -> !layer.clobbersScreen());

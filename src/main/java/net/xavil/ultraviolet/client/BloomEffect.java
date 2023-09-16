@@ -45,12 +45,6 @@ public final class BloomEffect {
 		BufferRenderer.drawFullscreen(shader);
 	}
 
-	public final static GlTexture.Format BLOOM_FORMAT = GlTexture.Format.RGBA16_FLOAT;
-
-	private final static RenderTexture.StaticDescriptor DESC = RenderTexture.StaticDescriptor.create(builder -> {
-		builder.colorFormat = GlTexture.Format.RGBA32_FLOAT;
-	});
-
 	public static void render(Settings settings, GlFramebuffer output, GlTexture2d input) {
 		if (settings.passes() == 0) {
 			// we always want to write something to `output`, so that callers can assume
@@ -83,7 +77,7 @@ public final class BloomEffect {
 				final var level = downsampleStack.size();
 				if (currentSize.x <= 3 || currentSize.y <= 3)
 					break;
-				final var target = disposer.attach(RenderTexture.getTemporary(currentSize, DESC));
+				final var target = disposer.attach(RenderTexture.HDR_COLOR.acquireTemporary(currentSize));
 				drawDownsample(target.framebuffer, previous, level);
 				downsampleStack.push(target.colorTexture);
 				previous = target.colorTexture;
@@ -93,7 +87,7 @@ public final class BloomEffect {
 			while (!downsampleStack.isEmpty()) {
 				final var level = downsampleStack.size();
 				final var adj = downsampleStack.pop().unwrap();
-				final var target = disposer.attach(RenderTexture.getTemporary(adj.size().d2(), DESC));
+				final var target = disposer.attach(RenderTexture.HDR_COLOR.acquireTemporary(adj.size().d2()));
 				drawUpsample(target.framebuffer, previous, adj, level);
 				previous = target.colorTexture;
 			}
@@ -102,7 +96,7 @@ public final class BloomEffect {
 				drawUpsample(output, previous, input, 0);
 			} else {
 				// idk a better way to do this that avoids the copy operation
-				final var inputCopy = disposer.attach(RenderTexture.getTemporaryCopy(input));
+				final var inputCopy = disposer.attach(RenderTexture.acquireTemporaryCopy(input));
 				drawUpsample(output, previous, inputCopy.colorTexture, 0);
 			}
 		}

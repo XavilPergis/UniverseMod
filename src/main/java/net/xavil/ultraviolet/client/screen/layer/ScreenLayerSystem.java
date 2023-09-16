@@ -47,6 +47,7 @@ import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.collections.Blackboard;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.Color;
@@ -231,20 +232,20 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public RenderTexture renderPost(RenderTexture sceneTexture, RenderTexture previousPassOutput, float partialTick) {
+	public void renderPost(RenderTexture sceneTexture, RenderContext ctx) {
 		final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
 		if (system == null)
-			return previousPassOutput;
+			return;
 
 		final var universe = this.galaxy.parentUniverse;
-		final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : partialTick);
+		final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : ctx.partialTick);
 
 		// sort back to front for these sort of 3d post-process effects
 		final var allNodes = system.rootNode.iter().collectTo(Vector::new);
 		allNodes.sort(Comparator.comparingDouble(node -> node.position.distanceTo(this.camera.posTm)));
 		allNodes.reverse();
 
-		RenderTexture current = previousPassOutput;
+		// RenderTexture current = previousPassOutput;
 
 		final var prevMatrices = this.camera.setupRenderMatrices();
 
@@ -272,7 +273,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				shader.setUniform("uPosition", this.camera.toCameraSpace(node.position.xyz()));
 				shader.setUniform("uMass", node.massYg);
 				sceneTexture.colorTexture.setWrapMode(GlTexture.WrapMode.MIRRORED_REPEAT);
-				current = doPostProcessEffect(shader, sceneTexture, current);
+
+				ctx.replaceCurrentTexture(doPostProcessEffect(shader, sceneTexture, ctx.currentTexture));
 			} else if (node instanceof PlanetaryCelestialNode planetNode && planetNode.hasAtmosphere() && !planetNode.hasAtmosphere()) {
 				// i dont wanna deal with running the atmosphere shader multiple times right now
 				final var brightestStars = system.rootNode.iter()
@@ -288,20 +290,18 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 					shader.setUniform("uStarPos" + i, this.camera.toCameraSpace(star.position.xyz()));
 					shader.setUniform("uStarColor" + i, star.getColor().withA(star.luminosityLsol));
 				}
-				current = doPostProcessEffect(shader, sceneTexture, current);
+				ctx.replaceCurrentTexture(doPostProcessEffect(shader, sceneTexture, ctx.currentTexture));
 			}
 		}
 
 		prevMatrices.restore();
-
-		return current;
 	}
 
 	private RenderTexture doPostProcessEffect(ShaderProgram shader, RenderTexture sceneTexture, RenderTexture prev) {
 
 		final var builder = RenderTexture.StaticDescriptor.builder();
 		builder.colorFormat = GlTexture.Format.RGB16_FLOAT;
-		final var current = RenderTexture.getTemporary(builder.build());
+		final var current = RenderTexture.acquireTemporary(builder.build());
 
 		try {
 			// input textures

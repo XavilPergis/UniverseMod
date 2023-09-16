@@ -12,6 +12,7 @@ import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.screen.HawkScreen;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -32,13 +33,13 @@ public class ScreenLayerBackground extends HawkScreen.Layer2d {
 	}
 
 	@Override
-	public void render(PoseStack poseStack, Vec2i mousePos, float partialTick) {
+	public void render(RenderContext ctx) {
 		final var shader = SHADER_VANILLA_POSITION_COLOR.get();
 		RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
 				.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_COLOR);
-		fillGradient(poseStack.last().pose(), builder,
+		fillGradient(ctx.poseStack.last().pose(), builder,
 				0, 0, this.attachedScreen.width, this.attachedScreen.height,
 				0, this.bottomColor, this.topColor);
 		builder.end().draw(shader, DRAW_STATE_DIRECT_ALPHA_BLENDING);

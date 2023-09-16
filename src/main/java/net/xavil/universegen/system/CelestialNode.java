@@ -36,7 +36,7 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	public final MutableList<CelestialNodeChild<?>> childNodes = new Vector<>();
 
 	public String explicitName;
-	public String suffix;
+	public String suffix = "";
 
 	public final Vec3.Mutable position = new Vec3.Mutable(Vec3.ZERO), lastPosition = new Vec3.Mutable(Vec3.ZERO);
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
@@ -124,7 +124,7 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 			star.assignSuffix(seq, 0);
 			CelestialNode cur = star.parentBinaryNode;
 			while (cur != null) {
-				star.suffix += seq;
+				cur.suffix += seq;
 				cur = cur.parentBinaryNode;
 			}
 		}
@@ -375,7 +375,7 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		var res = "CelestialNode " + this.id;
 		if (this.explicitName != null)
 			res += "(" + this.explicitName + ")";
-		if (this.suffix != null)
+		if (!this.suffix.isEmpty())
 			res += "(" + this.suffix + ")";
 		return res;
 	}

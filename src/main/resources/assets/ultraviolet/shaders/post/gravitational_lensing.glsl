@@ -67,7 +67,6 @@ void main() {
 
 	float swarzchildRadius = 1e21 * SCHWARZSCHILD_FACTOR_m_PER_kg * uMass / uMetersPerUnit;
 
-
 	vec3 centerV = (uViewMatrix * vec4(uPosition, 1.0)).xyz;
 
 	float effectLimit = uEffectLimitFactor * swarzchildRadius;
@@ -126,14 +125,14 @@ void main() {
 			innerDiscT = pow(innerDiscT, uAccretionDiscInnerFalloff);
 			t *= innerDiscT;
 
-			float planeDistance = abs(sdf(rayV.origin, discPlane));
+			float planeDistance = abs(sdf(rayV.origin, discPlane)) / effectLimit;
 			
 			float vert = mix(uAccretionDiscDensityFalloffVerticalInner, uAccretionDiscDensityFalloffVerticalOuter, t);
 			float densityFactor = exp(-vert * planeDistance);
 
 			vec3 col = uAccretionDiscColor;
 			col =  t * uAccretionDiscBrightness * col;
-			discContrib += col * densityFactor * stepSize;
+			discContrib += col * densityFactor * stepSize / effectLimit;
 		}
 
 		// we're just using a simple 2d texture as input for this shader, so we unfortunately don't have any information for what's behind the camera, or off to the side, etc. So we just do something that looks decent, even if it isn't 100% correct.

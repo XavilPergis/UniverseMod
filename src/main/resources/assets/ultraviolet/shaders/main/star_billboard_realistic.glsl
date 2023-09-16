@@ -5,6 +5,8 @@ VARYING_V2F vec3 vertexPos;
 VARYING_V2F vec4 vertexColor;
 flat VARYING_V2F int billboardID;
 
+VARYING_V2F float brightnessFactor;
+
 #include [ultraviolet:common_uniforms.glsl]
 
 #ifdef IS_VERTEX_STAGE
@@ -20,12 +22,14 @@ vec2 uvFromVertex(int id) {
 	else         return vec2(1.0, 0.0);
 }
 
-uniform float uStarMinSize;
-uniform float uStarMaxSize;
-uniform float uStarSizeSquashFactor;
-uniform float uStarBrightnessFactor;
-uniform float uDimStarMinAlpha;
-uniform float uDimStarExponent;
+uniform float uStarSize;
+uniform float uStarLuminosityScale;
+uniform float uStarLuminosityMax;
+uniform float uStarBrightnessScale;
+uniform float uStarBrightnessMax;
+uniform float uMagnitudeBase;
+uniform float uMagnitudePower;
+uniform float uReferenceMagnitude;
 
 void emitPoint(vec4 viewPos, float pointSize) {
 	vec2 uv = uvFromVertex(gl_VertexID);
@@ -42,26 +46,22 @@ void emitPoint(vec4 viewPos, float pointSize) {
 
 void main() {
 	float starLuminosityLsol = aTexCoord0.x;
-
 	vec4 viewPos = uViewMatrix * vec4(aPos, 1.0);
-	float distanceFromCameraTm = length(viewPos.xyz) * (uMetersPerUnit / 1e12);
-	float apparentBrightness = uStarBrightnessFactor * starLuminosityLsol / (4.0 * PI * distanceFromCameraTm * distanceFromCameraTm);
+	float distanceFromCamera_pc = length(viewPos.xyz) * (uMetersPerUnit / 3.086e16);
 
-	// map [0,inf] to [0,1]
-	float size = uStarMaxSize * (2.0 / PI) * atan(apparentBrightness / uStarSizeSquashFactor);
+	float L_L0 = 3.827 / 3.0128e2;
+	starLuminosityLsol = min(uStarLuminosityScale * starLuminosityLsol, uStarLuminosityMax);
+	float appMag = 2.5 * (log(pow(distanceFromCamera_pc, 2.0) / (starLuminosityLsol * L_L0)) / log(uMagnitudeBase)) - 5.0;
 
-	// fade star out if it's too small
-	float alpha = 1.0;
-	if (size < uStarMinSize) {
-		float oldSize = size;
-		size = uStarMinSize;
-		alpha = mix(uDimStarMinAlpha, 1.0, pow(oldSize / uStarMinSize, uDimStarExponent));
+	float d = pow(uMagnitudePower, -0.4 * appMag + 0.4 * uReferenceMagnitude);
+
+	brightnessFactor = min(uStarBrightnessScale * d, uStarBrightnessMax);
+	if (starLuminosityLsol == 0.0) {
+		// brightnessFactor = 1.0;
 	}
 
-	emitPoint(viewPos, 2.0 * size);
-	vertexColor = vec4(aColor.rgb, alpha);
-	// vertexColor = vec4(apparentBrightness / uStarSizeSquashFactor * aColor.rgb, 1.0);
-	// vertexColor = vec4(abs(aColor.rgb), 1.0);
+	emitPoint(viewPos, 2.0 * uStarSize);
+	vertexColor = vec4(aColor.rgb, 1.0);
 }
 
 #endif
@@ -84,7 +84,8 @@ void main() {
 	// fColor = vertexColor;
     vec4 s1 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0)));
 	s1 *= vertexColor;
-	s1 *= 5.0;
+	// s1 *= 5.0;
+	s1 *= brightnessFactor;
     // vec4 s2 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0 / 0.7)));
 
 	vec4 color = vec4(0.0);

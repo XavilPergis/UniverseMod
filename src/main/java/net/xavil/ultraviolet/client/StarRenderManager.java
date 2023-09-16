@@ -370,13 +370,16 @@ public final class StarRenderManager implements Disposable {
 		final var partialTick = Minecraft.getInstance().getFrameTime();
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 		shader.setUniform("uMetersPerUnit", camera.metersPerUnit);
-		shader.setUniform("uTime", universe.getCelestialTime(partialTick));
-		shader.setUniform("uStarMinSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_MIN_SIZE));
-		shader.setUniform("uStarMaxSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_MAX_SIZE));
-		shader.setUniform("uStarSizeSquashFactor", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_SIZE_SQUASH_FACTOR));
-		shader.setUniform("uStarBrightnessFactor", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_BRIGHTNESS_FACTOR));
-		shader.setUniform("uDimStarMinAlpha", ClientConfig.get(ConfigKey.STAR_SHADER_DIM_STAR_MIN_ALPHA));
-		shader.setUniform("uDimStarExponent", ClientConfig.get(ConfigKey.STAR_SHADER_DIM_STAR_EXPONENT));
+		shader.setUniform("uTime", universe.getCelestialTime(partialTick));		
+
+		shader.setUniform("uStarSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_SIZE));
+		shader.setUniform("uStarLuminosityScale", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_SCALE));
+		shader.setUniform("uStarLuminosityMax", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_MAX));
+		shader.setUniform("uStarBrightnessScale", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_SCALE));
+		shader.setUniform("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
+		shader.setUniform("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
+		shader.setUniform("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
+		shader.setUniform("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));
 	}
 
 	@Override

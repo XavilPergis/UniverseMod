@@ -25,124 +25,139 @@ public class DustBands {
 		}
 	}
 
+	private static final class BandGroup {
+		public final double atomicWeight;
+		public MutableList<Band> bands = new Vector<>();
+		public MutableList<Band> prevBands = new Vector<>();
+
+		public BandGroup(double atomicWeight) {
+			this.atomicWeight = atomicWeight;
+		}
+
+		public void setup(AccreteContext ctx, Interval initialInterval, double initialMass) {
+			this.bands.clear();
+
+			final double dr = initialInterval.size() / INITIAL_BAND_RESOLUTION;
+			double prev = discDensityAt(ctx, initialInterval.lower);
+
+			double totalMass = 0;
+			for (int i = 0; i < INITIAL_BAND_RESOLUTION; ++i) {
+				final var tl = i / (double) INITIAL_BAND_RESOLUTION;
+				final var rl = Mth.lerp(tl, initialInterval.lower, initialInterval.higher);
+				final var rh = rl + dr;
+
+				final var cur = discDensityAt(ctx, rh);
+				final var discArea = Math.PI * (Mth.square(rh) - Mth.square(rl));
+				final var bandMass = discArea * (prev + cur) / 2.0;
+
+				Assert.isTrue(!Double.isNaN(bandMass));
+
+				totalMass += bandMass;
+				this.bands.push(new Band(new Interval(rl, rh), bandMass));
+
+				prev = cur;
+			}
+
+			// scale the mass of all bands so that the sum of all their masses becomes
+			// `initialMass`.
+			for (final var band : this.bands.iterable()) {
+				band.mass *= initialMass / totalMass;
+			}
+
+			double tmp = 0.0;
+			for (final var band : this.bands.iterable()) {
+				tmp += band.mass;
+			}
+			Mod.LOGGER.info("set up dust bands: wantedMass={}, actualMass={}", initialMass, tmp);
+		}
+
+		private static double stellarWindDistanceFactor(double d) {
+			return Math.pow(2, -d);
+		}
+
+		public void step(ProtoplanetaryDisc disc, double dt) {
+			final var tmp = this.prevBands;
+			this.prevBands = this.bands;
+			this.bands = tmp;
+
+			final var step = BAND_STEP_FACTOR / this.atomicWeight * dt
+					* Math.sqrt(disc.ctx.stellarLuminosityLsol / 10);
+
+			for (final var band : this.prevBands.iterable()) {
+				double bl = band.interval.lower, bh = band.interval.higher;
+
+				bl += stellarWindDistanceFactor(bl) * step;
+				bh += stellarWindDistanceFactor(bh) * step;
+
+				this.bands.push(new Band(new Interval(bl, bh), band.mass));
+			}
+
+			this.prevBands.clear();
+
+			this.bands.sort(SortingStrategy.UNSTABLE | SortingStrategy.ALMOST_SORTED,
+					Comparator.comparingDouble(b -> b.interval.lower));
+		}
+
+		public double removeMaterial(Interval interval) {
+			double accumulatedMass = 0.0;
+
+			final var tmp = this.prevBands;
+			this.prevBands = this.bands;
+			this.bands = tmp;
+
+			for (final var band : this.prevBands.iterable()) {
+				if (!band.interval.intersects(interval)) {
+					this.bands.push(band);
+					continue;
+				}
+				final var removalInterval = band.interval.intersection(interval);
+				accumulatedMass += band.mass * removalInterval.size() / band.interval.size();
+				if (band.interval.contains(interval.lower)) {
+					final var innerInterval = new Interval(band.interval.lower, interval.lower);
+					final var bandMass = band.mass * innerInterval.size() / band.interval.size();
+					this.bands.push(new Band(innerInterval, bandMass));
+				}
+				if (band.interval.contains(interval.higher)) {
+					final var outerInterval = new Interval(interval.higher, band.interval.higher);
+					final var bandMass = band.mass * outerInterval.size() / band.interval.size();
+					this.bands.push(new Band(outerInterval, bandMass));
+				}
+			}
+
+			this.prevBands.clear();
+
+			return accumulatedMass;
+		}
+
+	}
+
 	private static final int INITIAL_BAND_RESOLUTION = 256;
-	private final MutableList<Band> gasBands = new Vector<>();
-	private final MutableList<Band> dustBands = new Vector<>();
+	private static final double BAND_STEP_FACTOR = 0.07;
+	private final BandGroup gasBands = new BandGroup(1.0);
+	private final BandGroup dustBands = new BandGroup(20.0);
 
 	public DustBands(AccreteContext ctx, Interval initialInterval, double initialMass) {
 		initialMass *= Units.Msol_PER_Yg;
 		final var md = ctx.systemMetallicity * initialMass;
 		final var mg = initialMass - md;
-		setupBands(ctx, initialInterval, md, this.dustBands);
-		setupBands(ctx, initialInterval, mg, this.gasBands);
-	}
-
-	private void setupBands(AccreteContext ctx, Interval initialInterval, double initialMass, MutableList<Band> bands) {
-		final double dr = initialInterval.size() / INITIAL_BAND_RESOLUTION;
-		double prev = discDensityAt(ctx, initialInterval.lower);
-
-		double totalMass = 0;
-		for (int i = 0; i < INITIAL_BAND_RESOLUTION; ++i) {
-			final var tl = i / (double) INITIAL_BAND_RESOLUTION;
-			final var rl = Mth.lerp(tl, initialInterval.lower, initialInterval.higher);
-			final var rh = rl + dr;
-
-			final var cur = discDensityAt(ctx, rh);
-			final var discArea = Math.PI * (Mth.square(rh) - Mth.square(rl));
-			final var bandMass = discArea * (prev + cur) / 2.0;
-
-			Assert.isTrue(!Double.isNaN(bandMass));
-
-			totalMass += bandMass;
-			bands.push(new Band(new Interval(rl, rh), bandMass));
-
-			prev = cur;
-		}
-
-		// scale the mass of all bands so that the sum of all their masses becomes
-		// `initialMass`.
-		for (final var band : bands.iterable()) {
-			band.mass *= initialMass / totalMass;
-		}
-
-		double tmp = 0.0;
-		for (final var band : bands.iterable()) {
-			tmp += band.mass;
-		}
-		Mod.LOGGER.info("set up dust bands: wantedMass={}, actualMass={}", initialMass, tmp);
-	}
-
-	private static double stellarWindDistanceFactor(double d) {
-		return Math.pow(2, -d);
+		this.dustBands.setup(ctx, initialInterval, md);
+		this.gasBands.setup(ctx, initialInterval, mg);
 	}
 
 	public void step(ProtoplanetaryDisc disc, double dt) {
-		final var prevDustBands = new Vector<>(this.dustBands);
-		final var prevGasBands = new Vector<>(this.gasBands);
-
-		final var dustStep = 0.001 * dt * Math.sqrt(disc.ctx.stellarLuminosityLsol / 10);
-		final var gasStep = 0.07 * dt * Math.sqrt(disc.ctx.stellarLuminosityLsol / 10);
-
-		this.dustBands.clear();
-		this.gasBands.clear();
-
-		for (final var band : prevDustBands.iterable()) {
-			final double bl = band.interval.lower, bh = band.interval.higher;
-			this.dustBands.push(new Band(new Interval(
-					bl + stellarWindDistanceFactor(bl) * dustStep,
-					bh + stellarWindDistanceFactor(bh) * dustStep), band.mass));
-		}
-
-		for (final var band : prevGasBands.iterable()) {
-			final double bl = band.interval.lower, bh = band.interval.higher;
-			this.gasBands.push(new Band(new Interval(
-					bl + stellarWindDistanceFactor(bl) * gasStep,
-					bh + stellarWindDistanceFactor(bh) * gasStep), band.mass));
-		}
-
-		this.dustBands.sort(SortingStrategy.UNSTABLE | SortingStrategy.ALMOST_SORTED,
-				Comparator.comparingDouble(b -> b.interval.lower));
-		this.gasBands.sort(SortingStrategy.UNSTABLE | SortingStrategy.ALMOST_SORTED,
-				Comparator.comparingDouble(b -> b.interval.lower));
+		this.gasBands.step(disc, dt);
+		this.dustBands.step(disc, dt);
 	}
 
 	public boolean hasDust(Interval interval) {
-		return this.dustBands.iter().any(band -> band.interval.intersects(interval));
-	}
-
-	public double removeMaterial(Interval interval, MutableList<Band> bands) {
-		double accumulatedMass = 0.0;
-
-		final var prevBands = new Vector<>(bands);
-		bands.clear();
-
-		for (final var band : prevBands.iterable()) {
-			if (!band.interval.intersects(interval)) {
-				bands.push(band);
-				continue;
-			}
-			final var removalInterval = band.interval.intersection(interval);
-			accumulatedMass += band.mass * removalInterval.size() / band.interval.size();
-			if (band.interval.contains(interval.lower)) {
-				final var innerInterval = new Interval(band.interval.lower, interval.lower);
-				final var bandMass = band.mass * innerInterval.size() / band.interval.size();
-				bands.push(new Band(innerInterval, bandMass));
-			}
-			if (band.interval.contains(interval.higher)) {
-				final var outerInterval = new Interval(interval.higher, band.interval.higher);
-				final var bandMass = band.mass * outerInterval.size() / band.interval.size();
-				bands.push(new Band(outerInterval, bandMass));
-			}
-		}
-
-		return accumulatedMass;
+		return this.dustBands.bands.iter().any(band -> band.interval.intersects(interval));
 	}
 
 	public void sweep(AccreteContext ctx, Planetesimal node) {
 		final var dustSweepInterval = node.sweptDustLimits();
 		final var criticalMass = node.criticalMass();
 
-		double accumulatedMass = removeMaterial(dustSweepInterval, this.dustBands);
+		double accumulatedMass = this.dustBands.removeMaterial(dustSweepInterval);
 
 		if (node.mass + accumulatedMass >= criticalMass) {
 			final var r = node.orbitalShape.semiMajor();
@@ -153,19 +168,13 @@ public class DustBands {
 
 			final var gasSweepInterval = new Interval(l, h);
 
-			final var gasMass = removeMaterial(gasSweepInterval, this.gasBands);
+			final var gasMass = this.gasBands.removeMaterial(gasSweepInterval);
 			node.sweptGas |= gasMass > 0.0;
 			accumulatedMass += gasMass;
 		}
 
 		node.mass += accumulatedMass;
 		node.stellarProperties.load(node.mass * Units.Msol_PER_Yg, node.age);
-	}
-
-	// the "height factor" of the disc at a given distance from the center
-	// TODO: probably make this return the actual disc height
-	private static double discHeightAt(AccreteContext ctx, double d) {
-		return 1;
 	}
 
 	// the mass density of the dust at a given distance from the center
@@ -178,9 +187,9 @@ public class DustBands {
 		// mask values apst this will be treated as 1, used to avoid generating
 		// intermediate infinities
 		final var L = 0.999;
-		
+
 		final var kn = k * n;
-		
+
 		// the values of d at which `mask(d) = L` and `mask(d) = 1-L` respectively
 		// x=k\sqrt[kn]{\frac{R}{\left(1-R\right)}}
 		final var maskLimitH = k * Math.pow((1 - L) / L, 1 / kn);

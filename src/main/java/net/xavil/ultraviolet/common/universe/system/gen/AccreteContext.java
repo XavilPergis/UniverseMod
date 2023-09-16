@@ -1,6 +1,5 @@
 package net.xavil.ultraviolet.common.universe.system.gen;
 
-import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;

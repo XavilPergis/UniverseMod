@@ -1,22 +1,24 @@
 package net.xavil.ultraviolet.common.universe.system.gen;
 
 import java.util.function.BiConsumer;
+
+import javax.annotation.Nullable;
+
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
-import net.xavil.hawklib.Constants;
 import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
+import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.universegen.system.UnaryCelestialNode;
-import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
@@ -112,6 +114,12 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 	}
 
 	public double getRadius() {
+		if (this.isBinary) {
+			final var ra = Units.km_PER_au * this.binaryA.orbitalShape.periapsisDistance() + this.binaryA.getRadius();
+			final var rb = Units.km_PER_au * this.binaryB.orbitalShape.periapsisDistance() + this.binaryB.getRadius();
+			return Math.max(ra, rb);
+		}
+
 		final var massYg = this.mass * Units.Yg_PER_Msol;
 		if (this.mass >= 0.08) {
 			// final var stellarProperties = new StellarCelestialNode.Properties();
@@ -157,6 +165,13 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 	private CelestialNode createCelestialNode() {
 		final var massYg = this.mass * Units.Yg_PER_Msol;
 
+		if (this.isBinary) {
+			final var bnode = new BinaryCelestialNode();
+			bnode.massYg = 0;
+			bnode.massYg += this.binaryA.mass * Units.Yg_PER_Msol;
+			bnode.massYg += this.binaryB.mass * Units.Yg_PER_Msol;
+			return bnode;
+		}
 		if (this.sweptGas) {
 			if (massYg >= 0.08 * Units.Yg_PER_Msol) {
 				return StellarCelestialNode.fromMassAndAge(massYg, this.ctx.systemAgeMya);
@@ -171,18 +186,35 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 		}
 	}
 
-	public void convertToPlanetNode(CelestialNode parent) {
+	@Nullable
+	public CelestialNode convertToCelestialNode() {
 		if (this.mass < 3.0 * this.ctx.params.initialPlanetesimalMass)
-			return;
+			return null;
 
-		final var node = createCelestialNode();
+		CelestialNode node = createCelestialNode();
 
-		node.massYg = this.mass * Units.Yg_PER_Msol;
-		final var shape = new OrbitalShape(this.orbitalShape.eccentricity(),
-				this.orbitalShape.semiMajor() * Units.Tm_PER_au);
-		final var plane = OrbitalPlane.fromInclination(this.inclination, this.rng.split("orbital_plane"));
+		if (node instanceof BinaryCelestialNode binaryNode) {
+			final var a = this.binaryA.convertToCelestialNode();
+			final var b = this.binaryB.convertToCelestialNode();
+			if (a == null) {
+				node = b;
+			} else if (b == null) {
+				node = a;
+			} else {
+				final var outer = this.binaryA.mass > this.binaryB.mass ? this.binaryB : this.binaryA;
+				binaryNode.setSiblings(a, b);
+				binaryNode.massYg = a.massYg + b.massYg;
 
+				final var shape = new OrbitalShape(outer.orbitalShape.eccentricity(),
+						outer.orbitalShape.semiMajor() * Units.Tm_PER_au);
+				final var plane = OrbitalPlane.fromInclination(outer.inclination, outer.rng.split("orbital_plane"));
+
+				binaryNode.setOrbitalShapes(shape);
+				binaryNode.orbitalPlane = plane;
+			}
+		}
 		if (node instanceof UnaryCelestialNode unaryNode) {
+			node.massYg = this.mass * Units.Yg_PER_Msol;
 			unaryNode.rotationalRate = this.rotationalRate;
 			unaryNode.obliquityAngle = 0;
 			unaryNode.radius = this.getRadius();
@@ -196,46 +228,64 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 		if (node instanceof StellarCelestialNode starNode) {
 		}
 		if (node instanceof PlanetaryCelestialNode planetNode) {
-			// TODO: try to apply tidal locking to the parent node too
-			final var lockingTime = timeUntilTidallyLockedMyr(planetNode, parent.massYg, shape.semiMajor());
-			final var lockingPercent = Math.min(1.0, this.ctx.systemAgeMya / lockingTime);
-			final var orbitalRate = 2.0 * Math.PI / Formulas.orbitalPeriod(shape.semiMajor(), planetNode.massYg);
-			planetNode.rotationalRate = Mth.lerp(lockingPercent, this.rotationalRate, orbitalRate);
+			// if (this.satteliteOf != null) {
+			// final var parentMass = this.satteliteOf.mass * Units.Yg_PER_Msol;
+			// // TODO: try to apply tidal locking to the parent node too
+			// final var lockingTime = timeUntilTidallyLockedMyr(planetNode, parentMass,
+			// shape.semiMajor());
+			// final var lockingPercent = Math.min(1.0, this.ctx.systemAgeMya /
+			// lockingTime);
+			// final var orbitalRate = 2.0 * Math.PI /
+			// Formulas.orbitalPeriod(shape.semiMajor(), planetNode.massYg);
+			// planetNode.rotationalRate = Mth.lerp(lockingPercent, this.rotationalRate,
+			// orbitalRate);
+			// }
 		}
 
-		// this random offset distributes the celestial bodies randomly around their
-		// orbits, so that they don't all form a straight line.
-		final var phase = this.rng.uniformDouble("orbital_phase", 0, 2.0 * Math.PI);
-		final var orbit = new CelestialNodeChild<>(parent, node, shape, plane, phase);
-		parent.insertChild(orbit);
+		for (final var sattelite : this.sattelites.iterable()) {
+			final var childNode = sattelite.convertToCelestialNode();
+			if (childNode == null)
+				continue;
 
-		for (final var moon : this.sattelites.iterable()) {
-			moon.convertToPlanetNode(node);
+			final var shape = new OrbitalShape(sattelite.orbitalShape.eccentricity(),
+					sattelite.orbitalShape.semiMajor() * Units.Tm_PER_au);
+			final var plane = OrbitalPlane.fromInclination(sattelite.inclination, sattelite.rng.split("orbital_plane"));
+
+			// this random offset distributes the celestial bodies randomly around their
+			// orbits, so that they don't all form a straight line.
+			final var phase = this.rng.uniformDouble("orbital_phase", 0, 2.0 * Math.PI);
+			final var orbit = new CelestialNodeChild<>(node, childNode, shape, plane, phase);
+			node.insertChild(orbit);
 		}
+
+		return node;
 	}
 
 	// // W^1 m^-2
-	// public static double energyFromStar(double starRadiusM, double starTemperature, double objectDistanceM) {
-	// 	final double totalSolarEmission = Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4
-	// 			* Math.pow(starTemperature, 4.0)
-	// 			* Math.pow(starRadiusM, 2.0);
-	// 	return totalSolarEmission / Math.pow(objectDistanceM, 2.0);
+	// public static double energyFromStar(double starRadiusM, double
+	// starTemperature, double objectDistanceM) {
+	// final double totalSolarEmission = Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4
+	// * Math.pow(starTemperature, 4.0)
+	// * Math.pow(starRadiusM, 2.0);
+	// return totalSolarEmission / Math.pow(objectDistanceM, 2.0);
 	// }
 
 	// public double calculateSurfaceTemperature() {
-	// 	if (this.stellarProperties.type != null) {
-	// 		return this.stellarProperties.temperatureK;
-	// 	}
+	// if (this.stellarProperties.type != null) {
+	// return this.stellarProperties.temperatureK;
+	// }
 
-	// 	Planetesimal root = this;
-	// 	while (root.satteliteOf != null) {
-	// 		root = root.satteliteOf;
-	// 	}
+	// Planetesimal root = this;
+	// while (root.satteliteOf != null) {
+	// root = root.satteliteOf;
+	// }
 
-	// 	final var stars = root.iter().filter(node -> node.stellarProperties.type != null).collectTo(Vector::new);
-	// 	for (final var star : stars.iterable()) {
-	// 		energyFromStar(star.stellarProperties.radiusRsol, star.stellarProperties.temperatureK, distance);
-	// 	}
+	// final var stars = root.iter().filter(node -> node.stellarProperties.type !=
+	// null).collectTo(Vector::new);
+	// for (final var star : stars.iterable()) {
+	// energyFromStar(star.stellarProperties.radiusRsol,
+	// star.stellarProperties.temperatureK, distance);
+	// }
 	// }
 
 	public Interval effectLimits() {

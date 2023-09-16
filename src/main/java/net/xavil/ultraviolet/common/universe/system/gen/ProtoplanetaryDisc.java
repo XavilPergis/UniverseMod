@@ -50,6 +50,7 @@ public class ProtoplanetaryDisc {
 		this.dustBands = new DustBands(ctx, dustBandInterval, mass);
 
 		this.root = new Planetesimal(ctx);
+		this.root.sweptGas = true;
 		this.root.mass = ctx.stellarMassMsol;
 		this.root.stellarProperties.load(this.root.mass * Units.Msol_PER_Yg, this.root.age);
 	}
@@ -95,7 +96,9 @@ public class ProtoplanetaryDisc {
 
 		final var planetesimal = Planetesimal.random(this.ctx, semiMajor, inclination);
 
-		planetesimal.mass = rng.weightedDouble("mass", 3, this.ctx.params.initialPlanetesimalMass, 0.3);
+		// planetesimal.mass = rng.weightedDouble("mass", 8,
+		// this.ctx.params.initialPlanetesimalMass, 0.3);
+		planetesimal.mass = rng.weightedDouble("mass", 1, 0.01, 0.3);
 		planetesimal.sweptGas |= planetesimal.mass > Units.Mjupiter_PER_Yg * Units.Yg_PER_Msol
 				|| (planetesimal.canSweepGas() && rng.chance("is_gas_giant", 0.75));
 
@@ -109,9 +112,10 @@ public class ProtoplanetaryDisc {
 		this.root.addSattelite(planetesimal);
 	}
 
-	public void collapseDisc(CelestialNode rootNode) {
+	@Nullable
+	public CelestialNode collapseDisc() {
 		if (this.planetesimalBounds.equals(Interval.ZERO))
-			return;
+			return null;
 
 		// Distribute planetary masses
 		{
@@ -134,7 +138,7 @@ public class ProtoplanetaryDisc {
 				nextRoguePlanetTime = this.ctx.currentSystemAgeMya
 						+ placementRng.uniformDouble("rogue_planet_time", 0, this.ctx.systemAgeMya);
 				if (placementRng.chance("rogue_planet_chance", 0.67)) {
-					placeRoguePlanetesimal(placementRng.split("rogue_planetesimal"));
+					// placeRoguePlanetesimal(placementRng.split("rogue_planetesimal"));
 				}
 			}
 
@@ -151,9 +155,11 @@ public class ProtoplanetaryDisc {
 				doSweep(other, false);
 			}
 
-			transformPlanetesimals((prev, next) -> coalescePlanetesimals(this.ctx, attemptRng, prev, next));
+			transformPlanetesimals((prev, next) -> {
+				this.root = coalescePlanetesimals(this.ctx, attemptRng, this.root, prev, next);
+			});
 
-			final var dt = attemptRng.uniformDouble("dt", 0.5, 5);
+			final var dt = attemptRng.weightedDouble("dt", 2, 0.1, 1);
 			this.dustBands.step(this, dt);
 			this.ctx.currentSystemAgeMya += dt;
 		}
@@ -169,9 +175,7 @@ public class ProtoplanetaryDisc {
 		// Post Accretion
 		// Process Planets
 
-		for (final var planet : this.root.sattelites.iterable()) {
-			planet.convertToPlanetNode(rootNode);
-		}
+		return this.root.convertToCelestialNode();
 	}
 
 	public void transformPlanetesimals(BiConsumer<MutableList<Planetesimal>, MutableList<Planetesimal>> consumer) {
@@ -182,9 +186,11 @@ public class ProtoplanetaryDisc {
 		consumer.accept(prev, this.root.sattelites);
 	}
 
-	public void coalescePlanetesimals(AccreteContext ctx, StableRandom rng,
+	public Planetesimal coalescePlanetesimals(AccreteContext ctx, StableRandom rng,
+			Planetesimal parent,
 			MutableList<Planetesimal> prevBodies, MutableList<Planetesimal> nextBodies) {
 
+		Planetesimal newParent = parent;
 		boolean isFirstIteration = true;
 		boolean didCoalesce;
 		do {
@@ -198,7 +204,7 @@ public class ProtoplanetaryDisc {
 			int i = 0;
 			while (i < prevBodies.size()) {
 				var current = prevBodies.get(i++);
-				final var parent = current.satteliteOf;
+				// final var parent = current.satteliteOf;
 
 				// interactions with parent
 				if (parent != null) {
@@ -214,6 +220,28 @@ public class ProtoplanetaryDisc {
 					if (current.orbitalShape.periapsisDistance() <= rocheLimit) {
 						Planetesimal.convertToRing(parent, current);
 						continue;
+					}
+
+					if (current.mass > 0.1 * parent.mass) {
+						Planetesimal binary = new Planetesimal(this.ctx);
+						binary.isBinary = true;
+						binary.binaryA = parent;
+						binary.binaryB = current;
+						binary.mass = binary.binaryA.mass + binary.binaryB.mass;
+
+						// binary.orbitalShape = Planetesimal.calculateCombinedOrbitalShape(binary.binaryA, binary.binaryB);
+						binary.orbitalShape = parent.orbitalShape;
+				
+						final var maxMass = Math.max(binary.binaryA.mass, binary.binaryB.mass);
+						final var massRatioA = binary.binaryA.mass / maxMass;
+						final var massRatioB = binary.binaryB.mass / maxMass;
+				
+						binary.binaryA.orbitalShape = binary.binaryA.orbitalShape
+								.withSemiMajor(massRatioA * binary.binaryA.orbitalShape.semiMajor());
+						binary.binaryB.orbitalShape = binary.binaryB.orbitalShape
+								.withSemiMajor(massRatioB * binary.binaryB.orbitalShape.semiMajor());
+						
+						newParent = binary;
 					}
 				}
 
@@ -236,6 +264,8 @@ public class ProtoplanetaryDisc {
 
 			isFirstIteration = false;
 		} while (didCoalesce);
+
+		return newParent;
 	}
 
 	/**
@@ -246,33 +276,29 @@ public class ProtoplanetaryDisc {
 	 * @return The combined planetesimal. This may be one of the arguments.
 	 */
 	@Nullable
-	public Planetesimal handlePlanetesimalIntersection(AccreteContext ctx, StableRandom rng, Planetesimal a,
-			Planetesimal b) {
+	public Planetesimal handlePlanetesimalIntersection(AccreteContext ctx, StableRandom rng,
+			Planetesimal a, Planetesimal b) {
 		final var larger = a.mass >= b.mass ? a : b;
 		final var smaller = a.mass >= b.mass ? b : a;
 
 		if (Math.abs(a.orbitalShape.semiMajor() - b.orbitalShape.semiMajor()) <= larger.getRadius()
 				/ Units.km_PER_au) {
-			handleCollision(ctx, rng, a, b);
-		} else {
-			handleGravitationalCapture(ctx, rng, a, b);
+			return handleCollision(ctx, rng, a, b);
 		}
-		return larger;
+		return handleGravitationalCapture(ctx, rng, a, b);
 	}
 
 	// TODO: moons might attain their own debris disc and have a recursive accretion
 	// process
-	public void handleGravitationalCapture(AccreteContext ctx, StableRandom rng, Planetesimal a, Planetesimal b) {
+	public Planetesimal handleGravitationalCapture(AccreteContext ctx, StableRandom rng, Planetesimal a, Planetesimal b) {
 		final var larger = a.mass >= b.mass ? a : b;
 		final var smaller = a.mass >= b.mass ? b : a;
 
 		// TODO: maybe we could do something more interesting than transferring
 		// everything to moons of the new parent
 		larger.transformMoons((prevL, newL) -> smaller.transformMoons((prevS, newS) -> {
-			// newL.extend(prevL.iter().filter(p -> rng.split(p.getId()).chance("ejected",
-			// 0.5)));
-			newL.extend(prevL);
-			newL.extend(prevS);
+			newL.extend(prevL.iter().filter(p -> rng.split(p.id).chance("ejected", 0.5)));
+			newL.extend(prevS.iter().filter(p -> rng.split(p.id).chance("ejected", 0.5)));
 			newL.push(smaller);
 			// Mod.LOGGER.info("capture! {} + {} -> {}", prevL.size(), prevS.size(),
 			// newL.size());
@@ -280,10 +306,10 @@ public class ProtoplanetaryDisc {
 
 		larger.orbitalShape = Planetesimal.calculateCombinedOrbitalShape(a, b);
 
-		moonStuff(ctx, rng.split("resolve"), larger);
+		return moonStuff(ctx, rng.split("resolve"), larger);
 	}
 
-	private void moonStuff(AccreteContext ctx, StableRandom rng, Planetesimal parent) {
+	private Planetesimal moonStuff(AccreteContext ctx, StableRandom rng, Planetesimal parent) {
 
 		// final var hillSphereRadius = parent.hillSphereRadius(ctx.stellarMassMsol);
 		// Assert.isTrue(hillSphereRadius > 0);
@@ -301,15 +327,21 @@ public class ProtoplanetaryDisc {
 			moon.orbitalShape = moon.orbitalShape.withSemiMajor(randomSemiMajor);
 		});
 
+		final var res = new Object() {
+			Planetesimal newParent = parent;
+		};
+
 		final var coalesceRng = rng.split("coalesce");
 		parent.transformMoons((prevMoons, newMoons) -> {
 			// Mod.LOGGER.info("moon count before = {}", prevMoons.size());
-			coalescePlanetesimals(ctx, coalesceRng, prevMoons, newMoons);
+			res.newParent = coalescePlanetesimals(ctx, coalesceRng, parent, prevMoons, newMoons);
 			// Mod.LOGGER.info("moon count after = {}", newMoons.size());
 		});
+
+		return res.newParent;
 	}
 
-	public void handleCollision(AccreteContext ctx, StableRandom rng, Planetesimal a, Planetesimal b) {
+	public Planetesimal handleCollision(AccreteContext ctx, StableRandom rng, Planetesimal a, Planetesimal b) {
 
 		a.mass += b.mass;
 		a.stellarProperties.load(a.mass * Units.Msol_PER_Yg, a.age);
@@ -327,7 +359,7 @@ public class ProtoplanetaryDisc {
 			// newL.size());
 		}));
 
-		moonStuff(ctx, rng.split("resolve"), a);
+		return moonStuff(ctx, rng.split("resolve"), a);
 	}
 
 	public static double rocheLimit(double planetMass, double moonMass, double moonRadius) {

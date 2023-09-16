@@ -119,6 +119,7 @@ public class RealisticStarSystemGenerator implements StarSystemGenerator {
 		return generate();
 	}
 
+	@Nullable
 	public CelestialNode generate() {
 		final var stellarProperties = new StellarCelestialNode.Properties();
 		stellarProperties.load(this.info.massYg, 0.0);
@@ -135,6 +136,7 @@ public class RealisticStarSystemGenerator implements StarSystemGenerator {
 			metallicity = MAX_METALLICITY;
 		}
 
+		// TODO: actually generate metallicity values instead of just doing this
 		metallicity = this.rootRng.weightedDouble("metallicity", 4, 0.001, 0.1);
 
 		final var params = new SimulationParameters();
@@ -150,11 +152,7 @@ public class RealisticStarSystemGenerator implements StarSystemGenerator {
 		final var protoDisc = new ProtoplanetaryDisc(ctx, remainingMass);
 
 		try {
-			// final var res = protoDisc.build();
-			// if (res != null)
-			// return res;
-			protoDisc.collapseDisc(node);
-			return node;
+			return protoDisc.collapseDisc();
 		} catch (Throwable t) {
 			t.printStackTrace();
 			Mod.LOGGER.error("Failed to generate system!");

@@ -227,7 +227,7 @@ public class SkyRenderer implements Disposable {
 			final var galaxyCamera = createCamera(srcCamera, cameraTransform, 1e2, 1e10, partialTick);
 			galaxyCamera.setupRenderMatrices();
 			if (this.galaxyRenderingContext != null) {
-				// this.galaxyRenderingContext.draw(galaxyCamera, Vec3.ZERO);
+				this.galaxyRenderingContext.draw(galaxyCamera, Vec3.ZERO);
 			}
 			if (this.starRenderer != null) {
 				profiler.popPush("stars");

@@ -20,9 +20,9 @@ import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec3;
 
-public class NewGalaxyMapScreen extends HawkScreen3d {
+public class GalaxyMapScreen extends HawkScreen3d {
 
-	public NewGalaxyMapScreen(Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
+	public GalaxyMapScreen(Screen previousScreen, Galaxy galaxy, GalaxySectorId systemToFocus) {
 		super(new TranslatableComponent("narrator.screen.starmap"), previousScreen, new OrbitCamera(1e12),
 				1e3, 1e9);
 

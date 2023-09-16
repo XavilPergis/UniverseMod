@@ -248,31 +248,30 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 		final var prevMatrices = this.camera.setupRenderMatrices();
 
-		sceneTexture.colorTexture.setWrapMode(GlTexture.WrapMode.MIRRORED_REPEAT);
-
 		for (final var node : allNodes.iterable()) {
 			if (node instanceof StellarCelestialNode starNode
 					&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE) {
 				final var shader = UltravioletShaders.SHADER_GRAVITATIONAL_LENSING.get();
 				
 				final var color = new Vec3.Mutable();
-				StellarCelestialNode.blackBodyColorFromTable(color, 40000);
+				StellarCelestialNode.blackBodyColorFromTable(color, 2000);
 
-				shader.setUniform("uAccretionDiscColor", color);
+				// shader.setUniform("uAccretionDiscColor", color);
 				// shader.setUniform("uAccretionDiscColor", 1.0, 0.2, 0.0);
-				// shader.setUniform("uAccretionDiscColor", 0.0, 0.0, 0.0);
+				shader.setUniform("uAccretionDiscColor", 0.0, 0.0, 0.0);
 				shader.setUniform("uAccretionDiscNormal", 0.5, 1.0, 0.2);
 				shader.setUniform("uAccretionDiscDensityFalloff", 3.0);
 				shader.setUniform("uAccretionDiscInnerPercent", 0.2);
 				shader.setUniform("uAccretionDiscInnerFalloff", 30.0);
 				shader.setUniform("uAccretionDiscDensityFalloffRadial", 4.0);
 				shader.setUniform("uAccretionDiscDensityFalloffVerticalInner", 300.0);
-				shader.setUniform("uAccretionDiscDensityFalloffVerticalOuter", 200.0);
-				shader.setUniform("uAccretionDiscBrightness", 3000.0);
+				shader.setUniform("uAccretionDiscDensityFalloffVerticalOuter", 300.0);
+				shader.setUniform("uAccretionDiscBrightness", 1000.0);
 				shader.setUniform("uEffectLimitFactor", 60.0);
 				shader.setUniform("uGravitationalConstant", 50.0);
 				shader.setUniform("uPosition", this.camera.toCameraSpace(node.position.xyz()));
 				shader.setUniform("uMass", node.massYg);
+				sceneTexture.colorTexture.setWrapMode(GlTexture.WrapMode.MIRRORED_REPEAT);
 				current = doPostProcessEffect(shader, sceneTexture, current);
 			} else if (node instanceof PlanetaryCelestialNode planetNode && planetNode.hasAtmosphere() && !planetNode.hasAtmosphere()) {
 				// i dont wanna deal with running the atmosphere shader multiple times right now

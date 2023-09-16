@@ -13,8 +13,8 @@ import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.shader.AttributeSet;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.client.UltravioletShaders;
-import net.xavil.ultraviolet.client.screen.NewGalaxyMapScreen;
-import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
+import net.xavil.ultraviolet.client.screen.GalaxyMapScreen;
+import net.xavil.ultraviolet.client.screen.SystemMapScreen;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
@@ -119,8 +119,8 @@ public class ClientMod implements ClientModInitializer {
 			final var systemTicket = galaxy.sectorManager.createSystemTicket(disposer, systemId.galaxySector());
 			final var system = galaxy.sectorManager.forceLoad(systemTicket).unwrap();
 
-			final var galaxyMap = new NewGalaxyMapScreen(CLIENT.screen, galaxy, systemId.galaxySector());
-			final var systemMap = new NewSystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
+			final var galaxyMap = new GalaxyMapScreen(CLIENT.screen, galaxy, systemId.galaxySector());
+			final var systemMap = new SystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
 			CLIENT.setScreen(systemMap);
 		}
 	}

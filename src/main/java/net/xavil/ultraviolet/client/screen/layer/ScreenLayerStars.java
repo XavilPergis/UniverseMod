@@ -23,7 +23,7 @@ import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
-import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
+import net.xavil.ultraviolet.client.screen.SystemMapScreen;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.galaxy.BaseGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -86,7 +86,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				this.galaxy.sectorManager.forceLoad(ticket);
 				this.galaxy.sectorManager.getSystem(selected).ifSome(system -> {
 					final var id = new SystemId(this.galaxy.galaxyId, selected);
-					final var screen = new NewSystemMapScreen(this.screen, this.galaxy, id, system);
+					final var screen = new SystemMapScreen(this.screen, this.galaxy, id, system);
 					screen.camera.pitch.set(this.screen.camera.pitch.target);
 					screen.camera.yaw.set(this.screen.camera.yaw.target);
 					this.client.setScreen(screen);

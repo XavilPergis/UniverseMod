@@ -2,6 +2,8 @@ package net.xavil.hawklib.client.screen;
 
 import java.util.function.Consumer;
 
+import javax.annotation.OverridingMethodsMustInvokeSuper;
+
 import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.vertex.PoseStack;
@@ -53,6 +55,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 		}
 
 		@Override
+		@OverridingMethodsMustInvokeSuper
 		public void render(PoseStack poseStack, Vec2i mousePos, float partialTick) {
 			final var prevMatrices = this.camera.setupRenderMatrices();
 			render3d(this.camera, partialTick);

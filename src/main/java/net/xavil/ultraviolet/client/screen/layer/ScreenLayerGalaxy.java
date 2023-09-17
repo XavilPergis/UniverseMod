@@ -12,6 +12,7 @@ import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxyType;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
@@ -36,7 +37,7 @@ public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public void render3d(OrbitCamera.Cached camera, float partialTick) {
+	public void render3d(OrbitCamera.Cached camera, RenderContext ctx) {
 		this.galaxyRenderingContext.draw(camera, this.originOffset);
 	}
 

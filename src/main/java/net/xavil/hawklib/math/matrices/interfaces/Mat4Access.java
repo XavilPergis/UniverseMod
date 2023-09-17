@@ -55,7 +55,34 @@ public interface Mat4Access {
 	default Vec3 basisY()      { return new Vec3(this.r0c1(), this.r1c1(), this.r2c1()); }
 	default Vec3 basisZ()      { return new Vec3(this.r0c2(), this.r1c2(), this.r2c2()); }
 	default Vec3 translation() { return new Vec3(this.r0c3(), this.r1c3(), this.r2c3()); }
+
+	default boolean isAffine() { return r3c0() == 0.0 && r3c1() == 0.0 && r3c2() == 0.0 && r3c3() == 1.0; }
 	// @formatter:on
+
+	default Matrix4f asMinecraft() {
+		final var mat = new Matrix4f();
+		storeMinecraft(mat);
+		return mat;
+	}
+
+	default void storeMinecraft(Matrix4f mat) {
+		mat.m00 = (float) this.r0c0();
+		mat.m01 = (float) this.r0c1();
+		mat.m02 = (float) this.r0c2();
+		mat.m03 = (float) this.r0c3();
+		mat.m10 = (float) this.r1c0();
+		mat.m11 = (float) this.r1c1();
+		mat.m12 = (float) this.r1c2();
+		mat.m13 = (float) this.r1c3();
+		mat.m20 = (float) this.r2c0();
+		mat.m21 = (float) this.r2c1();
+		mat.m22 = (float) this.r2c2();
+		mat.m23 = (float) this.r2c3();
+		mat.m30 = (float) this.r3c0();
+		mat.m31 = (float) this.r3c1();
+		mat.m32 = (float) this.r3c2();
+		mat.m33 = (float) this.r3c3();
+	}
 
 	static Mat4Access from(Matrix4f m) {
 		return new Mat4Access() {

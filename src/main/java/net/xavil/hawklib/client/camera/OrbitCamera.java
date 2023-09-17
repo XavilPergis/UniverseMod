@@ -103,25 +103,23 @@ public class OrbitCamera {
 		return new Cached(this, config, partialTick);
 	}
 
-	public static class Cached extends CachedCamera<OrbitCamera> {
+	public static class Cached extends CachedCamera {
 		public final Vec3 focus;
 		public final double scale;
 
 		public Cached(OrbitCamera camera, CameraConfig config, float partialTick) {
-			this(camera, camera.focus.get(partialTick), camera.getPosRaw(partialTick),
+			this(camera.focus.get(partialTick), camera.getPosRaw(partialTick),
 					camera.getOrientation(partialTick), camera.scale.get(partialTick),
 					camera.metersPerUnit,
-					camera.getProjectionMatrix(config, partialTick),
-					config.getNear(camera.scale.get(partialTick)),
-					config.getFar(camera.scale.get(partialTick)));
+					camera.getProjectionMatrix(config, partialTick));
 		}
 
-		public Cached(OrbitCamera camera, Vec3 focus, Vec3 pos, Quat orientation, double scale,
-				double metersPerUnit, Mat4 projectionMatrix,
-				double nearPlane, double farPlane) {
-			super(camera, pos, orientation, metersPerUnit, nearPlane, farPlane, projectionMatrix);
+		public Cached(Vec3 focus, Vec3 pos, Quat orientation, double scale,
+				double metersPerUnit, Mat4 projectionMatrix) {
+			// super(camera, pos, orientation, metersPerUnit, nearPlane, farPlane, projectionMatrix);
 			this.focus = focus;
 			this.scale = scale;
+			load(pos, orientation, projectionMatrix, metersPerUnit);
 		}
 
 	}

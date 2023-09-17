@@ -116,7 +116,7 @@ public final class StarRenderManager implements Disposable {
 		return this.sectorTicket;
 	}
 
-	public void draw(CachedCamera<?> camera, Vec3 centerPos) {
+	public void draw(CachedCamera camera, Vec3 centerPos) {
 		this.sectorTicket.info.centerPos = centerPos;
 
 		if (this.floatingOrigin == null
@@ -124,7 +124,7 @@ public final class StarRenderManager implements Disposable {
 			// TODO: we don't have to rebuild if there arent actually any stars nearby the
 			// camera, since you wouldn't be able to tell there's precision issues past a
 			// certain threshold.
-			this.floatingOrigin = camera.posTm;
+			this.floatingOrigin = camera.posTm.xyz();
 			this.isDirty = true;
 		}
 
@@ -147,7 +147,7 @@ public final class StarRenderManager implements Disposable {
 		}
 	}
 
-	private void buildStarsIfNeeded(CachedCamera<?> camera, Vec3 centerPos) {
+	private void buildStarsIfNeeded(CachedCamera camera, Vec3 centerPos) {
 		if (!this.isDirty)
 			return;
 
@@ -178,7 +178,7 @@ public final class StarRenderManager implements Disposable {
 		this.isDirty = false;
 	}
 
-	private void drawStarsImmediate(CachedCamera<?> camera, Vec3 centerPos) {
+	private void drawStarsImmediate(CachedCamera camera, Vec3 centerPos) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT_QUADS,
 				UltravioletVertexFormats.BILLBOARD_FORMAT);
 		final var ctx = new StarBuildingContext(builder, camera, centerPos, true);
@@ -200,7 +200,7 @@ public final class StarRenderManager implements Disposable {
 			final var poseStack = RenderSystem.getModelViewStack();
 			poseStack.setIdentity();
 
-			poseStack.mulPose(camera.orientation.toMinecraft());
+			poseStack.mulPose(camera.orientation.asMinecraft());
 			// poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
 			poseStack.translate(-offset.x, -offset.y, -offset.z);
 			// poseStack.translate(org.x, org.y, org.z);
@@ -237,11 +237,11 @@ public final class StarRenderManager implements Disposable {
 		final Vec3.Mutable toStar = new Vec3.Mutable();
 
 		final FlexibleVertexConsumer builder;
-		final CachedCamera<?> camera;
+		final CachedCamera camera;
 		final Vec3 centerPos;
 		final boolean isImmediateMode;
 
-		public StarBuildingContext(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 centerPos,
+		public StarBuildingContext(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 centerPos,
 				boolean isImmediateMode) {
 			this.builder = builder;
 			this.camera = camera;
@@ -299,7 +299,7 @@ public final class StarRenderManager implements Disposable {
 		}
 	}
 
-	// private void drawStars(FlexibleVertexConsumer builder, CachedCamera<?>
+	// private void drawStars(FlexibleVertexConsumer builder, CachedCamera
 	// camera, Vec3 centerPos,
 	// boolean isImmediateMode) {
 
@@ -318,7 +318,7 @@ public final class StarRenderManager implements Disposable {
 	// });
 	// }
 
-	private void drawStarsFromBuffer(CachedCamera<?> camera, Vec3 centerPos) {
+	private void drawStarsFromBuffer(CachedCamera camera, Vec3 centerPos) {
 		final var snapshot = camera.setupRenderMatrices();
 
 		//    0         2                                                     9          10
@@ -333,7 +333,7 @@ public final class StarRenderManager implements Disposable {
 			final var poseStack = RenderSystem.getModelViewStack();
 			poseStack.setIdentity();
 
-			poseStack.mulPose(camera.orientation.toMinecraft());
+			poseStack.mulPose(camera.orientation.asMinecraft());
 			// poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
 			poseStack.translate(-offset.x, -offset.y, -offset.z);
 			// poseStack.translate(this.originOffset.x, this.originOffset.y, this.originOffset.z);
@@ -365,7 +365,7 @@ public final class StarRenderManager implements Disposable {
 		snapshot.restore();
 	}
 
-	public static void setupStarShader(ShaderProgram shader, CachedCamera<?> camera) {
+	public static void setupStarShader(ShaderProgram shader, CachedCamera camera) {
 		final var universe = MinecraftClientAccessor.getUniverse();
 		final var partialTick = Minecraft.getInstance().getFrameTime();
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));

@@ -132,25 +132,27 @@ public final class Mat4 implements Hashable, Mat4Access {
 		return new Mat4(r0c0, r0c1, r0c2, r0c3, r1c0, r1c1, r1c2, r1c3, r2c0, r2c1, r2c2, r2c3, r3c0, r3c1, r3c2, r3c3);
 	}
 
-	public static void transform(Vec4.Mutable r, Mat4Access a) {
+	public static Vec4.Mutable transform(Vec4.Mutable out, Vec4.Mutable r, Mat4Access a) {
 		final var x = (a.r0c0() * r.x) + (a.r0c1() * r.y) + (a.r0c2() * r.z) + (a.r0c3() * r.w);
 		final var y = (a.r1c0() * r.x) + (a.r1c1() * r.y) + (a.r1c2() * r.z) + (a.r1c3() * r.w);
 		final var z = (a.r2c0() * r.x) + (a.r2c1() * r.y) + (a.r2c2() * r.z) + (a.r2c3() * r.w);
 		final var w = (a.r3c0() * r.x) + (a.r3c1() * r.y) + (a.r3c2() * r.z) + (a.r3c3() * r.w);
-		r.x = x;
-		r.y = y;
-		r.z = z;
-		r.w = w;
+		out.x = x;
+		out.y = y;
+		out.z = z;
+		out.w = w;
+		return out;
 	}
 
-	public static void transform(Vec3.Mutable r, double ww, Mat4Access a) {
+	public static Vec3.Mutable transform(Vec3.Mutable out, Vec3.Mutable r, double ww, Mat4Access a) {
 		final var x = (a.r0c0() * r.x) + (a.r0c1() * r.y) + (a.r0c2() * r.z) + (a.r0c3() * ww);
 		final var y = (a.r1c0() * r.x) + (a.r1c1() * r.y) + (a.r1c2() * r.z) + (a.r1c3() * ww);
 		final var z = (a.r2c0() * r.x) + (a.r2c1() * r.y) + (a.r2c2() * r.z) + (a.r2c3() * ww);
 		final var w = (a.r3c0() * r.x) + (a.r3c1() * r.y) + (a.r3c2() * r.z) + (a.r3c3() * ww);
-		r.x = x / w;
-		r.y = y / w;
-		r.z = z / w;
+		out.x = x / w;
+		out.y = y / w;
+		out.z = z / w;
+		return out;
 	}
 
 	public static Vec4 mul(Mat4Access a, Vec4Access b) {
@@ -177,7 +179,7 @@ public final class Mat4 implements Hashable, Mat4Access {
 				a * b.r3c0(), a * b.r3c1(), a * b.r3c2(), a * b.r3c3());
 	}
 
-	public static void mulAssign(Mat4.Mutable r, Mat4Access a, Mat4Access b) {
+	public static Mat4.Mutable mul(Mat4.Mutable r, Mat4Access a, Mat4Access b) {
 		// @formatter:off
 		final var r0c0 = (a.r0c0() * b.r0c0()) + (a.r0c1() * b.r1c0()) + (a.r0c2() * b.r2c0()) + (a.r0c3() * b.r3c0());
 		final var r0c1 = (a.r0c0() * b.r0c1()) + (a.r0c1() * b.r1c1()) + (a.r0c2() * b.r2c1()) + (a.r0c3() * b.r3c1());
@@ -199,19 +201,21 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r1c0 = r1c0; r.r1c1 = r1c1; r.r1c2 = r1c2; r.r1c3 = r1c3;
 		r.r2c0 = r2c0; r.r2c1 = r2c1; r.r2c2 = r2c2; r.r2c3 = r2c3;
 		r.r3c0 = r3c0; r.r3c1 = r3c1; r.r3c2 = r3c2; r.r3c3 = r3c3;
+		return r;
 		// @formatter:on
 	}
 
-	public static void mulAssignTranslation(Mat4.Mutable r, Vec3Access a, Mat4Access b) {
+	public static Mat4.Mutable mulTranslation(Mat4.Mutable r, Vec3Access a, Mat4Access b) {
 		// @formatter:off
 		r.r0c0 = b.r0c0() + a.x() * b.r3c0(); r.r0c1 = b.r0c1() + a.x() * b.r3c1(); r.r0c2 = b.r0c2() + a.x() * b.r3c2(); r.r0c3 = b.r0c3() + a.x() * b.r3c3();
 		r.r1c0 = b.r1c0() + a.y() * b.r3c0(); r.r1c1 = b.r1c1() + a.y() * b.r3c1(); r.r1c2 = b.r1c2() + a.y() * b.r3c2(); r.r1c3 = b.r1c3() + a.y() * b.r3c3();
 		r.r2c0 = b.r2c0() + a.z() * b.r3c0(); r.r2c1 = b.r2c1() + a.z() * b.r3c1(); r.r2c2 = b.r2c2() + a.z() * b.r3c2(); r.r2c3 = b.r2c3() + a.z() * b.r3c3();
 		r.r3c0 = b.r3c0();                    r.r3c1 = b.r3c1();                    r.r3c2 = b.r3c2();                    r.r3c3 = b.r3c3();
+		return r;
 		// @formatter:on
 	}
 
-	public static void mulAssignTranslation(Mat4.Mutable r, Mat4Access a, Vec3Access b) {
+	public static Mat4.Mutable mulTranslation(Mat4.Mutable r, Mat4Access a, Vec3Access b) {
 		// @formatter:off
 		r.r0c0 = a.r0c0();
 		r.r0c1 = a.r0c1();
@@ -229,10 +233,11 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r3c1 = a.r3c1();
 		r.r3c2 = a.r3c2();
 		r.r3c3 = (a.r3c0() * b.x()) + (a.r3c1() * b.y()) + (a.r3c2() * b.z()) + (a.r3c3() * 1);
+		return r;
 		// @formatter:on
 	}
 
-	public static void mulAssign(Mat4.Mutable r, Quat a, Mat4Access b) {
+	public static Mat4.Mutable mulRotation(Mat4.Mutable r, Quat a, Mat4Access b) {
 		// @formatter:off
 		final var ii = 2 * a.i * a.i;
 		final var jj = 2 * a.j * a.j;
@@ -264,10 +269,11 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r1c0 = r1c0; r.r1c1 = r1c1; r.r1c2 = r1c2; r.r1c3 = r1c3;
 		r.r2c0 = r2c0; r.r2c1 = r2c1; r.r2c2 = r2c2; r.r2c3 = r2c3;
 		r.r3c0 = b.r3c0(); r.r3c1 = b.r3c1(); r.r3c2 = b.r3c2(); r.r3c3 = b.r3c3();
+		return r;
 		// @formatter:on
 	}
 
-	public static void mulAssign(Mat4.Mutable r, Mat4Access a, Quat b) {
+	public static Mat4.Mutable mulRotation(Mat4.Mutable r, Mat4Access a, Quat b) {
 		// @formatter:off
 		final var ii = 2 * b.i * b.i;
 		final var jj = 2 * b.j * b.j;
@@ -299,29 +305,32 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r1c0 = r1c0; r.r1c1 = r1c1; r.r1c2 = r1c2; r.r1c3 = a.r1c3();
 		r.r2c0 = r2c0; r.r2c1 = r2c1; r.r2c2 = r2c2; r.r2c3 = a.r2c3();
 		r.r3c0 = r3c0; r.r3c1 = r3c1; r.r3c2 = r3c2; r.r3c3 = a.r3c3();
+		return r;
 		// @formatter:on
 	}
 
-	public static void mulAssign(Vec4.Mutable r, Mat4 a, Vec4Access b) {
+	public static Vec4.Mutable mul(Vec4.Mutable r, Mat4Access a, Vec4Access b) {
 		// @formatter:off
-		final var x = (a.r0c0 * b.x()) + (a.r0c1 * b.y()) + (a.r0c2 * b.z()) + (a.r0c3 * b.w());
-		final var y = (a.r1c0 * b.x()) + (a.r1c1 * b.y()) + (a.r1c2 * b.z()) + (a.r1c3 * b.w());
-		final var z = (a.r2c0 * b.x()) + (a.r2c1 * b.y()) + (a.r2c2 * b.z()) + (a.r2c3 * b.w());
-		final var w = (a.r3c0 * b.x()) + (a.r3c1 * b.y()) + (a.r3c2 * b.z()) + (a.r3c3 * b.w());
+		final var x = (a.r0c0() * b.x()) + (a.r0c1() * b.y()) + (a.r0c2() * b.z()) + (a.r0c3() * b.w());
+		final var y = (a.r1c0() * b.x()) + (a.r1c1() * b.y()) + (a.r1c2() * b.z()) + (a.r1c3() * b.w());
+		final var z = (a.r2c0() * b.x()) + (a.r2c1() * b.y()) + (a.r2c2() * b.z()) + (a.r2c3() * b.w());
+		final var w = (a.r3c0() * b.x()) + (a.r3c1() * b.y()) + (a.r3c2() * b.z()) + (a.r3c3() * b.w());
 		r.x = x; r.y = y; r.z = z; r.w = w;
+		return r;
 		// @formatter:on
 	}
 
-	public static void mulAssign(Mat4.Mutable r, double a, Mat4Access b) {
+	public static Mat4.Mutable mul(Mat4.Mutable r, double a, Mat4Access b) {
 		// @formatter:off
 		r.r0c0 = a * b.r0c0(); r.r0c1 = a * b.r0c1(); r.r0c2 = a * b.r0c2(); r.r0c3 = a * b.r0c3();
 		r.r1c0 = a * b.r1c0(); r.r1c1 = a * b.r1c1(); r.r1c2 = a * b.r1c2(); r.r1c3 = a * b.r1c3();
 		r.r2c0 = a * b.r2c0(); r.r2c1 = a * b.r2c1(); r.r2c2 = a * b.r2c2(); r.r2c3 = a * b.r2c3();
 		r.r3c0 = a * b.r3c0(); r.r3c1 = a * b.r3c1(); r.r3c2 = a * b.r3c2(); r.r3c3 = a * b.r3c3();
+		return r;
 		// @formatter:on
 	}
 
-	public static boolean invertAssign(Mat4.Mutable r, Mat4Access a) {
+	public static boolean invert(Mat4.Mutable r, Mat4Access a) {
 		// unique combinations of 2x2 determinants (d2)
 		final var d2r12c23 = a.r1c2() * a.r2c3() - a.r1c3() * a.r2c2();
 		final var d2r12c12 = a.r1c1() * a.r2c2() - a.r1c2() * a.r2c1();
@@ -373,6 +382,134 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r3c0 = n * -d3r123c012; r.r3c1 = n *  d3r023c012; r.r3c2 = n * -d3r013c012; r.r3c3 = n *  d3r012c012;
 		// @formatter:on
 		return true;
+	}
+
+	public static Mat4.Mutable set(Mat4.Mutable r, Mat4Access a) {
+		// @formatter:off
+		r.r0c0 = a.r0c0(); r.r0c1 = a.r0c1(); r.r0c2 = a.r0c2(); r.r0c3 = a.r0c3();
+		r.r1c0 = a.r1c0(); r.r1c1 = a.r1c1(); r.r1c2 = a.r1c2(); r.r1c3 = a.r1c3();
+		r.r2c0 = a.r2c0(); r.r2c1 = a.r2c1(); r.r2c2 = a.r2c2(); r.r2c3 = a.r2c3();
+		r.r3c0 = a.r3c0(); r.r3c1 = a.r3c1(); r.r3c2 = a.r3c2(); r.r3c3 = a.r3c3();
+		// @formatter:on
+		return r;
+	}
+
+	public static Mat4.Mutable setIdentity(Mat4.Mutable r) {
+		return setScale(r, 1);
+	}
+
+	public static Mat4.Mutable setRotation(Mat4.Mutable r, Quat a) {
+		setIdentity(r);
+
+		final var ii = 2 * a.i * a.i;
+		final var jj = 2 * a.j * a.j;
+		final var kk = 2 * a.k * a.k;
+		final var ij = 2 * a.i * a.j;
+		final var jk = 2 * a.j * a.k;
+		final var ki = 2 * a.k * a.i;
+		final var iw = 2 * a.i * a.w;
+		final var jw = 2 * a.j * a.w;
+		final var kw = 2 * a.k * a.w;
+
+		r.r0c0 = 1 - jj - kk;
+		r.r0c1 = ij - kw;
+		r.r0c2 = ki + jw;
+		r.r1c0 = ij + kw;
+		r.r1c1 = 1 - kk - ii;
+		r.r1c2 = jk - iw;
+		r.r2c0 = ki - jw;
+		r.r2c1 = jk + iw;
+		r.r2c2 = 1 - ii - jj;
+		r.r3c3 = 1;
+
+		return r;
+	}
+
+	public static Mat4.Mutable setScale(Mat4.Mutable r, Vec4Access n) {
+		// @formatter:off
+		r.r0c0 = n.x(); r.r0c1 =     0; r.r0c2 =     0; r.r0c3 =     0;
+		r.r1c0 =     0; r.r1c1 = n.y(); r.r1c2 =     0; r.r1c3 =     0;
+		r.r2c0 =     0; r.r2c1 =     0; r.r2c2 = n.z(); r.r2c3 =     0;
+		r.r3c0 =     0; r.r3c1 =     0; r.r3c2 =     0; r.r3c3 = n.w();
+		// @formatter:on
+		return r;
+	}
+
+	public static Mat4.Mutable setScale(Mat4.Mutable r, Vec3Access n) {
+		// @formatter:off
+		r.r0c0 = n.x(); r.r0c1 =     0; r.r0c2 =     0; r.r0c3 =   0;
+		r.r1c0 =     0; r.r1c1 = n.y(); r.r1c2 =     0; r.r1c3 =   0;
+		r.r2c0 =     0; r.r2c1 =     0; r.r2c2 = n.z(); r.r2c3 =   0;
+		r.r3c0 =     0; r.r3c1 =     0; r.r3c2 =     0; r.r3c3 = 1.0;
+		// @formatter:on
+		return r;
+	}
+
+	public static Mat4.Mutable setScale(Mat4.Mutable r, double n) {
+		// @formatter:off
+		r.r0c0 = n; r.r0c1 = 0; r.r0c2 = 0; r.r0c3 = 0;
+		r.r1c0 = 0; r.r1c1 = n; r.r1c2 = 0; r.r1c3 = 0;
+		r.r2c0 = 0; r.r2c1 = 0; r.r2c2 = n; r.r2c3 = 0;
+		r.r3c0 = 0; r.r3c1 = 0; r.r3c2 = 0; r.r3c3 = n;
+		// @formatter:on
+		return r;
+	}
+
+	public static Mat4.Mutable setPerspectiveProjection(Mat4.Mutable r, double fovRad, double aspectRatio, double near,
+			double far) {
+		setIdentity(r);
+		final var f = 1.0 / Math.tan(fovRad / 2.0);
+		r.r0c0 = f / aspectRatio;
+		r.r1c1 = f;
+		r.r2c2 = (far + near) / (near - far);
+		r.r3c2 = -1.0;
+		r.r2c3 = 2.0 * far * near / (near - far);
+		return r;
+	}
+
+	public static Mat4.Mutable setBases(Mat4.Mutable r, Vec3Access x, Vec3Access y, Vec3Access z, Vec3Access pos) {
+		// @formatter:off
+		r.r0c0 = x.x(); r.r0c1 = y.x(); r.r0c2 = z.x(); r.r0c3 = pos.x();
+		r.r1c0 = x.y(); r.r1c1 = y.y(); r.r1c2 = z.y(); r.r1c3 = pos.y();
+		r.r2c0 = x.z(); r.r2c1 = y.z(); r.r2c2 = z.z(); r.r2c3 = pos.z();
+		r.r3c0 =     0; r.r3c1 =     0; r.r3c2 =     0; r.r3c3 =       1;
+		// @formatter:on
+		return r;
+	}
+
+	public static Mat4.Mutable setRotationTranslation(Mat4.Mutable r, Quat rotation, Vec3Access pos) {
+		setIdentity(r);
+		mulRotation(r, r, rotation);
+		mulTranslation(r, r, pos);
+		return r;
+	}
+
+	public static Vec3.Mutable basisX(Vec3.Mutable r, Mat4Access a) {
+		r.x = a.r0c0();
+		r.y = a.r1c0();
+		r.z = a.r2c0();
+		return r;
+	}
+
+	public static Vec3.Mutable basisY(Vec3.Mutable r, Mat4Access a) {
+		r.x = a.r0c1();
+		r.y = a.r1c1();
+		r.z = a.r2c1();
+		return r;
+	}
+
+	public static Vec3.Mutable basisZ(Vec3.Mutable r, Mat4Access a) {
+		r.x = a.r0c2();
+		r.y = a.r1c2();
+		r.z = a.r2c2();
+		return r;
+	}
+
+	public static Vec3.Mutable storeTranslation(Vec3.Mutable r, Mat4Access a) {
+		r.x = a.r0c3();
+		r.y = a.r1c3();
+		r.z = a.r2c3();
+		return r;
 	}
 
 	public Mat4 mul(double scalar) {
@@ -478,31 +615,6 @@ public final class Mat4 implements Hashable, Mat4Access {
 				m.r3c0, m.r3c1, m.r3c2, m.r3c3);
 	}
 
-	public Matrix4f asMinecraft() {
-		final var mat = new Matrix4f();
-		storeMinecraft(mat);
-		return mat;
-	}
-
-	public void storeMinecraft(Matrix4f mat) {
-		mat.m00 = (float) this.r0c0;
-		mat.m01 = (float) this.r0c1;
-		mat.m02 = (float) this.r0c2;
-		mat.m03 = (float) this.r0c3;
-		mat.m10 = (float) this.r1c0;
-		mat.m11 = (float) this.r1c1;
-		mat.m12 = (float) this.r1c2;
-		mat.m13 = (float) this.r1c3;
-		mat.m20 = (float) this.r2c0;
-		mat.m21 = (float) this.r2c1;
-		mat.m22 = (float) this.r2c2;
-		mat.m23 = (float) this.r2c3;
-		mat.m30 = (float) this.r3c0;
-		mat.m31 = (float) this.r3c1;
-		mat.m32 = (float) this.r3c2;
-		mat.m33 = (float) this.r3c3;
-	}
-
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof Mat4Access other) {
@@ -579,42 +691,35 @@ public final class Mat4 implements Hashable, Mat4Access {
 		// @formatter:on
 
 		public Mutable mulAssign(Mat4Access rhs) {
-			Mat4.mulAssign(this, this, rhs);
-			return this;
+			return Mat4.mul(this, this, rhs);
 		}
 
 		public Mutable prependTransform(Mat4Access other) {
-			Mat4.mulAssign(this, this, other);
-			return this;
+			return Mat4.mul(this, this, other);
 		}
 
 		public Mutable appendTransform(Mat4Access other) {
-			Mat4.mulAssign(this, other, this);
-			return this;
+			return Mat4.mul(this, other, this);
 		}
 
 		public Mutable prependRotation(Quat rotation) {
-			Mat4.mulAssign(this, this, rotation);
-			return this;
+			return Mat4.mulRotation(this, this, rotation);
 		}
 
 		public Mutable appendRotation(Quat rotation) {
-			Mat4.mulAssign(this, rotation, this);
-			return this;
+			return Mat4.mulRotation(this, rotation, this);
 		}
 
 		public Mutable prependTranslation(Vec3Access vec) {
-			Mat4.mulAssignTranslation(this, this, vec);
-			return this;
+			return Mat4.mulTranslation(this, this, vec);
 		}
 
 		public Mutable appendTranslation(Vec3Access vec) {
-			Mat4.mulAssignTranslation(this, vec, this);
-			return this;
+			return Mat4.mulTranslation(this, vec, this);
 		}
 
 		public boolean invert() {
-			return Mat4.invertAssign(this, this);
+			return Mat4.invert(this, this);
 		}
 
 		public Mutable loadIdentity() {
@@ -626,13 +731,7 @@ public final class Mat4 implements Hashable, Mat4Access {
 		}
 
 		public Mutable loadFrom(Mat4Access m) {
-			// @formatter:off
-			this.r0c0 = m.r0c0(); this.r0c1 = m.r0c1(); this.r0c2 = m.r0c2(); this.r0c3 = m.r0c3();
-			this.r1c0 = m.r1c0(); this.r1c1 = m.r1c1(); this.r1c2 = m.r1c2(); this.r1c3 = m.r1c3();
-			this.r2c0 = m.r2c0(); this.r2c1 = m.r2c1(); this.r2c2 = m.r2c2(); this.r2c3 = m.r2c3();
-			this.r3c0 = m.r3c0(); this.r3c1 = m.r3c1(); this.r3c2 = m.r3c2(); this.r3c3 = m.r3c3();
-			// @formatter:on
-			return this;
+			return set(this, m);
 		}
 
 		public Mutable loadRotation(Quat a) {
@@ -647,7 +746,7 @@ public final class Mat4 implements Hashable, Mat4Access {
 			final var iw = 2 * a.i * a.w;
 			final var jw = 2 * a.j * a.w;
 			final var kw = 2 * a.k * a.w;
-	
+
 			this.r0c0 = 1 - jj - kk;
 			this.r0c1 = ij - kw;
 			this.r0c2 = ki + jw;
@@ -658,49 +757,24 @@ public final class Mat4 implements Hashable, Mat4Access {
 			this.r2c1 = jk + iw;
 			this.r2c2 = 1 - ii - jj;
 			this.r3c3 = 1;
-	
+
 			return this;
 		}
 
-		public Mutable loadScale(Vec4 n) {
-			// @formatter:off
-			this.r0c0 = n.x; this.r0c1 =   0; this.r0c2 =   0; this.r0c3 =   0;
-			this.r1c0 =   0; this.r1c1 = n.y; this.r1c2 =   0; this.r1c3 =   0;
-			this.r2c0 =   0; this.r2c1 =   0; this.r2c2 = n.z; this.r2c3 =   0;
-			this.r3c0 =   0; this.r3c1 =   0; this.r3c2 =   0; this.r3c3 = n.w;
-			// @formatter:on
-			return this;
+		public Mutable loadScale(Vec4Access n) {
+			return setScale(this, n);
 		}
 
-		public Mutable loadScale(Vec3 n) {
-			// @formatter:off
-			this.r0c0 = n.x; this.r0c1 =   0; this.r0c2 =   0; this.r0c3 =   0;
-			this.r1c0 =   0; this.r1c1 = n.y; this.r1c2 =   0; this.r1c3 =   0;
-			this.r2c0 =   0; this.r2c1 =   0; this.r2c2 = n.z; this.r2c3 =   0;
-			this.r3c0 =   0; this.r3c1 =   0; this.r3c2 =   0; this.r3c3 = 1.0;
-			// @formatter:on
-			return this;
+		public Mutable loadScale(Vec3Access n) {
+			return setScale(this, n);
 		}
 
 		public Mutable loadScale(double n) {
-			// @formatter:off
-			this.r0c0 = n; this.r0c1 = 0; this.r0c2 = 0; this.r0c3 = 0;
-			this.r1c0 = 0; this.r1c1 = n; this.r1c2 = 0; this.r1c3 = 0;
-			this.r2c0 = 0; this.r2c1 = 0; this.r2c2 = n; this.r2c3 = 0;
-			this.r3c0 = 0; this.r3c1 = 0; this.r3c2 = 0; this.r3c3 = n;
-			// @formatter:on
-			return this;
+			return setScale(this, n);
 		}
 
 		public Mutable loadPerspectiveProjection(double fovRad, double aspectRatio, double near, double far) {
-			loadIdentity();
-			final var f = 1.0 / Math.tan(fovRad / 2.0);
-			this.r0c0 = f / aspectRatio;
-			this.r1c1 = f;
-			this.r2c2 = (far + near) / (near - far);
-			this.r3c2 = -1.0;
-			this.r2c3 = 2.0 * far * near / (near - far);
-			return this;
+			return setPerspectiveProjection(this, fovRad, aspectRatio, near, far);
 		}
 
 		@Override

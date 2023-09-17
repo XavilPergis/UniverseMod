@@ -58,7 +58,7 @@ public final class BufferRenderer {
 		setupDefaultShaderUniforms(shader, RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix());
 	}
 
-	public static void setupCameraUniforms(ShaderProgram shader, CachedCamera<?> camera) {
+	public static void setupCameraUniforms(ShaderProgram shader, CachedCamera camera) {
 		shader.setUniform("uCameraPos", camera.pos);
 		shader.setUniform("uCameraNear", camera.nearPlane);
 		shader.setUniform("uCameraFar", camera.farPlane);

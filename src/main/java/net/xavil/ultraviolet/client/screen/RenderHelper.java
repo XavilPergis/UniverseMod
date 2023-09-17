@@ -14,7 +14,7 @@ public final class RenderHelper {
 	public static final ResourceLocation SELECTION_CIRCLE_ICON_LOCATION = Mod
 			.namespaced("textures/misc/selection_circle.png");
 
-	public static void addLine(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end,
+	public static void addLine(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 start, Vec3 end,
 			Color color) {
 		addLine(builder, camera, start, end, color, color);
 	}
@@ -23,7 +23,7 @@ public final class RenderHelper {
 		addLine(builder, start, end, color, color);
 	}
 
-	public static void addLine(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 start, Vec3 end,
+	public static void addLine(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 start, Vec3 end,
 			Color startColor, Color endColor) {
 		addLine(builder, camera.toCameraSpace(start), camera.toCameraSpace(end), startColor, endColor);
 	}

@@ -1,6 +1,7 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
 import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec3;
 
@@ -33,7 +34,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		var scale = currentThreshold;
 		for (var i = 0; i < 100; ++i) {
 			currentThreshold *= scaleFactor;
-			if (camera.uncached.scale.get(partialTick) > currentThreshold)
+			if (camera.scale > currentThreshold)
 				scale = currentThreshold;
 		}
 		return scale;
@@ -184,12 +185,12 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public void render3d(OrbitCamera.Cached camera, float partialTick) {
+	public void render3d(OrbitCamera.Cached camera, RenderContext ctx) {
 		final var cullingCamera = getCullingCamera();
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 
 		// TODO: configurable grid
-		renderGrid(builder, camera, cullingCamera, camera.metersPerUnit / 1e12, 1, 10, 40, partialTick);
+		renderGrid(builder, camera, cullingCamera, camera.metersPerUnit / 1e12, 1, 10, 40, ctx.partialTick);
 	}
 
 }

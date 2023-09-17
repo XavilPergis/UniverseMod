@@ -74,24 +74,32 @@ public class SkyRenderer implements Disposable {
 		}
 	}
 
-	private CachedCamera<?> createCamera(Camera camera, TransformStack tfm,
+	private static Quat orientationFromMinecraftCamera(Camera camera) {
+		final var px = Vec3.from(camera.getLeftVector()).neg();
+		final var py = Vec3.from(camera.getUpVector());
+		final var pz = px.cross(py);
+		return Quat.fromOrthonormalBasis(px, py, pz);
+	}
+
+	private CachedCamera createCamera(Camera camera, TransformStack tfm,
 			double nearPlane, double farPlane,
 			float partialTick) {
 		tfm.push();
 		// double n = 0;
 		// var offset = Vec3.ZERO;
-		// n = ((System.nanoTime() / 1e8) % 100) / 100;
-		// offset = Vec3.from(0, 10000000, 0);
-		// tfm = new TransformStack();
-		// tfm.appendTranslation(new Vec3(n, 0.01 * n, 0));
+		// // offset = new Vec3(0, 10000000, 0);
 		// tfm.appendTranslation(offset);
-		tfm.prependRotation(CachedCamera.orientationFromMinecraftCamera(camera).inverse());
+		// n = ((System.nanoTime() / 1e8) % 100) / 100;
+		// tfm.appendTranslation(new Vec3(0, 100000.0 * n, 0));
+		tfm.prependRotation(orientationFromMinecraftCamera(camera).inverse());
 		final var invView = tfm.copyCurrent();
 		tfm.pop();
 
 		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
 				nearPlane, farPlane, false, partialTick);
-		return new CachedCamera<>(camera, invView, proj, 1e12, nearPlane, farPlane);
+		final var cam = new CachedCamera();
+		cam.load(invView, proj, 1e12);
+		return cam;
 	}
 
 	private void applyPlanetTransform(TransformStack tfm, PlanetaryCelestialNode node, double time, Vec2 coords,
@@ -231,7 +239,7 @@ public class SkyRenderer implements Disposable {
 			}
 			if (this.starRenderer != null) {
 				profiler.popPush("stars");
-				this.starRenderer.draw(galaxyCamera, galaxyCamera.posTm);
+				this.starRenderer.draw(galaxyCamera, galaxyCamera.posTm.xyz());
 			}
 
 			// system
@@ -245,13 +253,13 @@ public class SkyRenderer implements Disposable {
 		this.previousLocation = location;
 	}
 
-	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, float partialTick) {
+	private void drawSystem(CachedCamera camera, Galaxy galaxy, float partialTick) {
 		final var system = this.systemTicket.forceLoad();
 		if (system.isSome())
 			drawSystem(camera, galaxy, system.unwrap(), partialTick);
 	}
 
-	private void drawSystem(CachedCamera<?> camera, Galaxy galaxy, StarSystem system,
+	private void drawSystem(CachedCamera camera, Galaxy galaxy, StarSystem system,
 			float partialTick) {
 		final var profiler = Minecraft.getInstance().getProfiler();
 		final var universe = MinecraftClientAccessor.getUniverse();

@@ -11,6 +11,7 @@ import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.StarRenderManager;
@@ -220,7 +221,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public void render3d(Cached camera, float partialTick) {
+	public void render3d(Cached camera, RenderContext ctx) {
 		final var cullingCamera = getCullingCamera();
 		final var viewCenter = getStarViewCenterPos(cullingCamera);
 		final var ticket = this.starRenderer.getSectorTicket();

@@ -1,7 +1,9 @@
 package net.xavil.hawklib.math.matrices.interfaces;
 
+import net.minecraft.util.Mth;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3i;
 import net.xavil.hawklib.math.matrices.Vec4;
 
 public interface Vec3Access {
@@ -9,6 +11,25 @@ public interface Vec3Access {
 	double x();
 	double y();
 	double z();
+	// @formatter:on
+
+	// @formatter:off
+	default Vec3 add  (Vec3Access rhs)               {return new Vec3(this.x() + rhs.x(), this.y() + rhs.y(), this.z() + rhs.z());}
+	default Vec3 sub  (Vec3Access rhs)               {return new Vec3(this.x() - rhs.x(), this.y() - rhs.y(), this.z() - rhs.z());}
+	default Vec3 mul  (Vec3Access rhs)               {return new Vec3(this.x() * rhs.x(), this.y() * rhs.y(), this.z() * rhs.z());}
+	default Vec3 div  (Vec3Access rhs)               {return new Vec3(this.x() / rhs.x(), this.y() / rhs.y(), this.z() / rhs.z());}
+	default Vec3 add  (double x, double y, double z) {return new Vec3(this.x() + x,       this.y() + y,       this.z() + z      );}
+	default Vec3 sub  (double x, double y, double z) {return new Vec3(this.x() - x,       this.y() - y,       this.z() - z      );}
+	default Vec3 mul  (double x, double y, double z) {return new Vec3(this.x() * x,       this.y() * y,       this.z() * z      );}
+	default Vec3 div  (double x, double y, double z) {return new Vec3(this.x() / x,       this.y() / y,       this.z() / z      );}
+	default Vec3 mul  (double n)                     {return new Vec3(this.x() * n,       this.y() * n,       this.z() * n      );}
+	default Vec3 div  (double n)                     {return new Vec3(this.x() / n,       this.y() / n,       this.z() / n      );}
+	default Vec3 recip(double n)                     {return new Vec3(n / this.x(),       n / this.y(),       n / this.z()      );}
+	default Vec3 recip()                             {return new Vec3(1 / this.x(),       1 / this.y(),       1 / this.z()      );}
+	default Vec3 neg  ()                             {return new Vec3(-this.x(),          -this.y(),          -this.z()         );}
+	default Vec3 abs  ()                             {return new Vec3(Math.abs(this.x()), Math.abs(this.y()), Math.abs(this.z()));}
+	default Vec3i floor()                            {return new Vec3i(Mth.floor(this.x()), Mth.floor(this.y()), Mth.floor(this.z()));}
+	default Vec3i ceil()                             {return new Vec3i(Mth.ceil(this.x()), Mth.ceil(this.y()), Mth.ceil(this.z()));}
 	// @formatter:on
 
 	default double dot(Vec3Access other) {

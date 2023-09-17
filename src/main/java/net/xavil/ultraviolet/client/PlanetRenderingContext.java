@@ -98,14 +98,14 @@ public final class PlanetRenderingContext {
 		return this.renderedStarCount;
 	}
 
-	public void render(VertexBuilder builder, CachedCamera<?> camera, CelestialNode node, boolean skip) {
+	public void render(VertexBuilder builder, CachedCamera camera, CelestialNode node, boolean skip) {
 		if (node instanceof StellarCelestialNode starNode)
 			renderStar(builder, camera, starNode, skip);
 		if (node instanceof PlanetaryCelestialNode planetNode)
 			renderPlanet(builder, camera, planetNode, skip);
 	}
 
-	public void renderStar(VertexBuilder vertexBuilder, CachedCamera<?> camera, StellarCelestialNode node,
+	public void renderStar(VertexBuilder vertexBuilder, CachedCamera camera, StellarCelestialNode node,
 			boolean skip) {
 		var radiusM = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) * Units.u_PER_ku * node.radius;
 
@@ -145,7 +145,7 @@ public final class PlanetRenderingContext {
 		this.renderedStarCount += 1;
 	}
 
-	private void setupShaderCommon(CachedCamera<?> camera, Vec3 sortOrigin, ShaderProgram shader) {
+	private void setupShaderCommon(CachedCamera camera, Vec3 sortOrigin, ShaderProgram shader) {
 
 		final int maxStarCount = 4;
 
@@ -193,7 +193,7 @@ public final class PlanetRenderingContext {
 		shader.setUniform("uRenderingSeed", (float) (FastHasher.hashInt(node.getId()) % 1000000L));
 	}
 
-	public void renderPlanet(VertexBuilder vertexBuilder, CachedCamera<?> camera, PlanetaryCelestialNode node,
+	public void renderPlanet(VertexBuilder vertexBuilder, CachedCamera camera, PlanetaryCelestialNode node,
 			boolean skip) {
 
 		var radiusM = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) * Units.u_PER_ku * node.radius;
@@ -265,7 +265,7 @@ public final class PlanetRenderingContext {
 		this.renderedPlanetCount += 1;
 	}
 
-	private static void renderPlanetLayer(VertexBuilder vertexBuilder, CachedCamera<?> camera,
+	private static void renderPlanetLayer(VertexBuilder vertexBuilder, CachedCamera camera,
 			ResourceLocation texture, Vec3 center, double radius) {
 		final var planetShader = UltravioletShaders.SHADER_PLANET.get();
 		// planetShader.setUniformSampler("uSurfaceAlbedo",
@@ -276,7 +276,7 @@ public final class PlanetRenderingContext {
 		builder.end().draw(planetShader, DRAW_STATE_OPAQUE);
 	}
 
-	private static void addRing(FlexibleVertexConsumer builder, CachedCamera<?> camera,
+	private static void addRing(FlexibleVertexConsumer builder, CachedCamera camera,
 			Vec3 center, double innerRadius, double outerRadius) {
 		int segmentCount = 60;
 		for (var i = 0; i < segmentCount; ++i) {
@@ -307,7 +307,7 @@ public final class PlanetRenderingContext {
 		}
 	}
 
-	private static void addNormSphere(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 center,
+	private static void addNormSphere(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 center,
 			double radius) {
 
 		// final var pose = tfm == null ? null : tfm.get();
@@ -452,7 +452,7 @@ public final class PlanetRenderingContext {
 		}
 	}
 
-	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera,
+	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera camera,
 			Vec3 center, double x, double y, double z, float u, float v) {
 		final var pos = new Vec3(x, 0, z);
 		var norm = y > 0 ? Vec3.YN : Vec3.YP;
@@ -461,7 +461,7 @@ public final class PlanetRenderingContext {
 		builder.vertex(p).uv0(u, v).color(Color.WHITE).normal(norm).endVertex();
 	}
 
-	private static void normSphereVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera,
+	private static void normSphereVertex(FlexibleVertexConsumer builder, CachedCamera camera,
 			Vec3 center, double radius, double x, double y, double z,
 			float u, float v) {
 		final var pos = new Vec3(x, y, z);
@@ -470,7 +470,7 @@ public final class PlanetRenderingContext {
 		builder.vertex(p).normal(n).uv0(u, v).color(Color.WHITE).endVertex();
 	}
 
-	// private static void cubeVertex(VertexConsumer builder, CachedCamera<?>
+	// private static void cubeVertex(VertexConsumer builder, CachedCamera
 	// camera, PoseStack.Pose pose, Color color,
 	// double x, double y, double z, double nx, double ny, double nz, float u, float
 	// v) {

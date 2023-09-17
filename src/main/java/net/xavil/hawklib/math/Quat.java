@@ -8,8 +8,9 @@ import net.minecraft.util.Mth;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
-import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public final class Quat implements Hashable {
 
@@ -26,72 +27,68 @@ public final class Quat implements Hashable {
 
 	public final double w, i, j, k;
 
-	private Quat(double w, double i, double j, double k) {
+	public Quat(double w, double i, double j, double k) {
 		this.w = w;
 		this.i = i;
 		this.j = j;
 		this.k = k;
 	}
 
-	public static Quat fromMinecraft(Quaternion quat) {
-		return new Quat(quat.r(), quat.i(), quat.j(), quat.k());
+	public Quat(Quaternion quat) {
+		this(quat.r(), quat.i(), quat.j(), quat.k());
 	}
 
-	public Quaternion toMinecraft() {
+	public Quaternion asMinecraft() {
 		return new Quaternion((float) i, (float) j, (float) k, (float) w);
 	}
 
-	public static Quat from(double w, double i, double j, double k) {
-		return new Quat(w, i, j, k);
-	}
-
-	public static Quat fromIjk(Vec3 ijk) {
-		return new Quat(0, ijk.x, ijk.y, ijk.z);
+	public static Quat fromIjk(Vec3Access ijk) {
+		return new Quat(0, ijk.x(), ijk.y(), ijk.z());
 	}
 
 	// https://www.euclideanspace.com/maths/geometry/rotations/conversions/matrixToQuaternion/
-	public static Quat fromOrthonormalBasis(Vec3 a, Vec3 b, Vec3 c) {
-		double tr = a.x + b.y + c.z;
+	public static Quat fromOrthonormalBasis(Vec3Access a, Vec3Access b, Vec3Access c) {
+		double tr = a.x() + b.y() + c.z();
 
 		double qw = 0, qx = 0, qy = 0, qz = 0;
 		if (tr > 0) {
 			double S = Math.sqrt(tr + 1.0) * 2; // S=4*qw
 			qw = 0.25 * S;
-			qx = (c.y - b.z) / S;
-			qy = (a.z - c.x) / S;
-			qz = (b.x - a.y) / S;
-		} else if ((a.x > b.y) & (a.x > c.z)) {
-			double S = Math.sqrt(1.0 + a.x - b.y - c.z) * 2; // S=4*qx
-			qw = (c.y - b.z) / S;
+			qx = (c.y() - b.z()) / S;
+			qy = (a.z() - c.x()) / S;
+			qz = (b.x() - a.y()) / S;
+		} else if ((a.x() > b.y()) & (a.x() > c.z())) {
+			double S = Math.sqrt(1.0 + a.x() - b.y() - c.z()) * 2; // S=4*qx
+			qw = (c.y() - b.z()) / S;
 			qx = 0.25 * S;
-			qy = (a.y + b.x) / S;
-			qz = (a.z + c.x) / S;
-		} else if (b.y > c.z) {
-			double S = Math.sqrt(1.0 + b.y - a.x - c.z) * 2; // S=4*qy
-			qw = (a.z - c.x) / S;
-			qx = (a.y + b.x) / S;
+			qy = (a.y() + b.x()) / S;
+			qz = (a.z() + c.x()) / S;
+		} else if (b.y() > c.z()) {
+			double S = Math.sqrt(1.0 + b.y() - a.x() - c.z()) * 2; // S=4*qy
+			qw = (a.z() - c.x()) / S;
+			qx = (a.y() + b.x()) / S;
 			qy = 0.25 * S;
-			qz = (b.z + c.y) / S;
+			qz = (b.z() + c.y()) / S;
 		} else {
-			double S = Math.sqrt(1.0 + c.z - a.x - b.y) * 2; // S=4*qz
-			qw = (b.x - a.y) / S;
-			qx = (a.z + c.x) / S;
-			qy = (b.z + c.y) / S;
+			double S = Math.sqrt(1.0 + c.z() - a.x() - b.y()) * 2; // S=4*qz
+			qw = (b.x() - a.y()) / S;
+			qx = (a.z() + c.x()) / S;
+			qy = (b.z() + c.y()) / S;
 			qz = 0.25 * S;
 		}
 
 		return new Quat(qw, qx, qy, qz);
 	}
 
-	public static Quat fromAffineMatrix(Mat4 m) {
+	public static Quat fromAffineMatrix(Mat4Access m) {
 		return fromOrthonormalBasis(m.basisX(), m.basisY(), m.basisZ());
 	}
 
-	public static Quat axisAngle(Vec3 dir, double angle) {
-		var qx = dir.x * Math.sin(angle / 2);
-		var qy = dir.y * Math.sin(angle / 2);
-		var qz = dir.z * Math.sin(angle / 2);
-		var qw = Math.cos(angle / 2);
+	public static Quat axisAngle(Vec3Access dir, double angle) {
+		final var qx = dir.x() * Math.sin(angle / 2);
+		final var qy = dir.y() * Math.sin(angle / 2);
+		final var qz = dir.z() * Math.sin(angle / 2);
+		final var qw = Math.cos(angle / 2);
 		return new Quat(qw, qx, qy, qz);
 	}
 
@@ -118,7 +115,7 @@ public final class Quat implements Hashable {
 	}
 
 	public Quat inverse() {
-		var len2 = w * w + i * i + j * j + k * k;
+		final var len2 = w * w + i * i + j * j + k * k;
 		return new Quat(w / len2, -i / len2, -j / len2, -k / len2);
 	}
 
@@ -131,13 +128,13 @@ public final class Quat implements Hashable {
 		return new Vec3(i, j, k);
 	}
 
-	public Vec3 transform(Vec3 vec) {
+	public Vec3 transform(Vec3Access vec) {
 		final var f = Mth.fastInvSqrt(w * w + i * i + j * j + k * k);
 		final double normw = f * w, normi = f * i, normj = f * j, normk = f * k;
 
-		final double l00 = normw, l01 =  normi, l02 =  normj, l03 =  normk;
-		final double r00 =     0, r01 =  vec.x, r02 =  vec.y, r03 =  vec.z;
-		final double r10 = normw, r11 = -normi, r12 = -normj, r13 = -normk;
+		final double l00 = normw, l01 =   normi, l02 =   normj, l03 =   normk;
+		final double r00 =     0, r01 = vec.x(), r02 = vec.y(), r03 = vec.z();
+		final double r10 = normw, r11 =  -normi, r12 =  -normj, r13 =  -normk;
 
 		final double w0 = l00 * r00 - l01 * r01 - l02 * r02 - l03 * r03;
 		final double i0 = l00 * r01 + l01 * r00 + l02 * r03 - l03 * r02;
@@ -171,7 +168,7 @@ public final class Quat implements Hashable {
 
 	@Override
 	public String toString() {
-		return "Quat[" + w + " + " + i + "i + " + j + "j + " + k + "k]";
+		return String.format("%d+%di+%dj+%dk", w, i, j, k);
 	}
 
 	@Override

@@ -114,7 +114,7 @@ public class GalaxyRenderingContext implements Disposable {
 		return res;
 	}
 
-	public void draw(CachedCamera<?> camera, Vec3 originOffset) {
+	public void draw(CachedCamera camera, Vec3 originOffset) {
 		buildGalaxyPoints(this.densityFields, camera.metersPerUnit);
 
 		final var snapshot = camera.setupRenderMatrices();
@@ -124,7 +124,7 @@ public class GalaxyRenderingContext implements Disposable {
 			poseStack.setIdentity();
 
 			final var offset = originOffset.mul(1e12 / camera.metersPerUnit).sub(camera.pos);
-			poseStack.mulPose(camera.orientation.toMinecraft());
+			poseStack.mulPose(camera.orientation.asMinecraft());
 			poseStack.translate(offset.x, offset.y, offset.z);
 			final var inverseViewRotationMatrix = poseStack.last().normal().copy();
 			if (inverseViewRotationMatrix.invert()) {

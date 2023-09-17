@@ -23,7 +23,7 @@ public class ClientboundSpaceStationInfoPacket extends ModPacket<ClientGamePacke
 		final var i = buf.readDouble();
 		final var j = buf.readDouble();
 		final var k = buf.readDouble();
-		this.orientation = Quat.from(w, i, j, k);
+		this.orientation = new Quat(w, i, j, k);
 		this.locationNbt = buf.readNbt();
 	}
 

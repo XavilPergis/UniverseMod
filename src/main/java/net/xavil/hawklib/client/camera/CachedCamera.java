@@ -3,81 +3,60 @@ package net.xavil.hawklib.client.camera;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.minecraft.client.Camera;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
-public class CachedCamera<T> {
-	public final T uncached;
+public class CachedCamera {
+	public final Vec3.Mutable pos = new Vec3.Mutable(), posTm = new Vec3.Mutable();
+	public final Vec3.Mutable up = new Vec3.Mutable(), right = new Vec3.Mutable(), forward = new Vec3.Mutable();
+	public final Vec3.Mutable down = new Vec3.Mutable(), left = new Vec3.Mutable(), backward = new Vec3.Mutable();
+	public Quat orientation = Quat.IDENTITY;
+	public double metersPerUnit = 1;
 
-	public final Vec3 pos, posTm;
-	public final Vec3 up, right, forward;
-	public final Vec3 down, left, backward;
-	public final Quat orientation;
-	public final double metersPerUnit;
+	public double nearPlane;
+	public double farPlane;
 
-	public final double nearPlane;
-	public final double farPlane;
+	public final Mat4.Mutable viewMatrix = new Mat4.Mutable();
+	public final Mat4.Mutable projectionMatrix = new Mat4.Mutable();
+	public final Mat4.Mutable inverseProjectionMatrix = new Mat4.Mutable();
+	public final Mat4.Mutable viewProjectionMatrix = new Mat4.Mutable();
+	public final Mat4.Mutable inverseViewProjectionMatrix = new Mat4.Mutable();
 
-	public final Mat4 viewMatrix;
-	public final Mat4 projectionMatrix;
-	public final Mat4 inverseProjectionMatrix;
-	public final Mat4 viewProjectionMatrix;
-	public final Mat4 inverseViewProjectionMatrix;
-
-	public CachedCamera(T camera, Vec3 pos, Quat orientation, double metersPerUnit, double nearPlane, double farPlane,
-			Mat4 projectionMatrix) {
-		this.uncached = camera;
-		this.pos = pos;
-		this.posTm = pos.mul(metersPerUnit / 1e12);
-		this.up = orientation.inverse().transform(Vec3.XP);
-		this.down = this.up.neg();
-		this.right = orientation.inverse().transform(Vec3.YP);
-		this.left = this.right.neg();
-		this.orientation = orientation;
-		this.metersPerUnit = metersPerUnit;
-		this.forward = right.cross(up).normalize();
-		this.backward = this.forward.neg();
-
-		this.nearPlane = nearPlane;
-		this.farPlane = farPlane;
-
-		this.projectionMatrix = projectionMatrix;
-		this.inverseProjectionMatrix = this.projectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
-		this.viewMatrix = Mat4.fromBases(up, right, forward.neg(), pos).inverse().unwrapOr(Mat4.IDENTITY);
-
-		this.viewProjectionMatrix = this.viewMatrix.appendTransform(this.projectionMatrix);
-		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
+	public void load(Vec3Access pos, Quat orientation, Mat4 projectionMatrix, double metersPerUnit) {
+		Mat4.setRotationTranslation(this.viewMatrix, orientation, pos.neg());
+		Mat4.invert(this.viewMatrix, this.viewMatrix);
+		load(this.viewMatrix, projectionMatrix, metersPerUnit);
 	}
 
-	public CachedCamera(T camera, Mat4 viewMatrix, Mat4 projectionMatrix, double metersPerUnit, double nearPlane,
-			double farPlane) {
-		this.uncached = camera;
+	public void load(Mat4Access viewMatrix, Mat4Access projectionMatrix, double metersPerUnit) {
+		Mat4.set(this.viewMatrix, viewMatrix);
+		Mat4.set(this.projectionMatrix, projectionMatrix);
 
-		this.viewMatrix = viewMatrix;
+		Mat4.invert(this.inverseProjectionMatrix, this.projectionMatrix);
+		Mat4.mul(this.viewProjectionMatrix, this.projectionMatrix, this.viewMatrix);
+		Mat4.invert(this.inverseViewProjectionMatrix, this.viewProjectionMatrix);
 
-		this.projectionMatrix = projectionMatrix;
-		this.inverseProjectionMatrix = this.projectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
-		this.viewProjectionMatrix = this.viewMatrix.appendTransform(this.projectionMatrix);
-		this.inverseViewProjectionMatrix = this.viewProjectionMatrix.inverse().unwrapOr(Mat4.IDENTITY);
+		Mat4.storeTranslation(this.pos, viewMatrix);
+		Vec3.mul(this.posTm, metersPerUnit / 1e12, this.pos);
 
-		this.pos = viewMatrix.translation();
-		this.posTm = pos.mul(metersPerUnit / 1e12);
-		this.up = this.viewMatrix.basisX();
-		this.down = this.up.neg();
-		this.right = this.viewMatrix.basisY();
-		this.left = this.right.neg();
-		this.forward = this.viewMatrix.basisZ();
-		this.backward = this.forward.neg();
+		Mat4.basisX(this.up, this.viewMatrix);
+		Mat4.basisY(this.right, this.viewMatrix);
+		Mat4.basisZ(this.forward, this.viewMatrix);
+		Vec3.neg(this.down, this.up);
+		Vec3.neg(this.left, this.right);
+		Vec3.neg(this.backward, this.forward);
 
-		this.nearPlane = nearPlane;
-		this.farPlane = farPlane;
+		this.nearPlane = Mat4.mul(this.inverseProjectionMatrix, Vec3.ZN, 1.0).z;
+		this.farPlane = Mat4.mul(this.inverseProjectionMatrix, Vec3.ZP, 1.0).z;
 
 		this.orientation = Quat.fromAffineMatrix(this.viewMatrix);
 		this.metersPerUnit = metersPerUnit;
+
 	}
 
 	public RenderMatricesSnapshot setupRenderMatrices() {
@@ -87,7 +66,7 @@ public class CachedCamera<T> {
 		final var poseStack = RenderSystem.getModelViewStack();
 		poseStack.setIdentity();
 
-		poseStack.mulPose(this.orientation.toMinecraft());
+		poseStack.mulPose(this.orientation.asMinecraft());
 		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
 		if (inverseViewRotationMatrix.invert()) {
 			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
@@ -186,14 +165,7 @@ public class CachedCamera<T> {
 		var dir = new Vec3(x, y, -1);
 		dir = dir.transformBy(this.inverseProjectionMatrix);
 		dir = this.orientation.inverse().transform(dir);
-		return new Ray(this.pos, dir);
-	}
-
-	public static Quat orientationFromMinecraftCamera(Camera camera) {
-		final var px = Vec3.from(camera.getLeftVector()).neg();
-		final var py = Vec3.from(camera.getUpVector());
-		final var pz = px.cross(py);
-		return Quat.fromOrthonormalBasis(px, py, pz);
+		return new Ray(this.pos.xyz(), dir);
 	}
 
 }

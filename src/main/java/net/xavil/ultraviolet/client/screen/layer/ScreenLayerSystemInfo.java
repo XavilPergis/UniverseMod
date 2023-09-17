@@ -10,16 +10,12 @@ import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
-import net.xavil.universegen.system.BinaryCelestialNode;
-import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
-import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.math.matrices.Vec2i;
 
 public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 

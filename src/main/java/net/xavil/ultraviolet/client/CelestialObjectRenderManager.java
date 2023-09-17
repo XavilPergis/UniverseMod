@@ -43,7 +43,7 @@ public final class CelestialObjectRenderManager {
 		
 	// }
 
-	// public void render(VertexBuilder builder, CachedCamera<?> camera, Context ctx) {
+	// public void render(VertexBuilder builder, CachedCamera camera, Context ctx) {
 
 	// 	final var radiusM = Units.m_PER_Rearth * node.radiusRearth;
 	// 	final var partialTick = CLIENT.getFrameTime();
@@ -97,7 +97,7 @@ public final class CelestialObjectRenderManager {
 	// 	this.renderedPlanetCount += 1;
 	// }
 
-	private static void addRing(FlexibleVertexConsumer builder, CachedCamera<?> camera,
+	private static void addRing(FlexibleVertexConsumer builder, CachedCamera camera,
 			Vec3 center, double innerRadius, double outerRadius) {
 		int segmentCount = 60;
 		for (var i = 0; i < segmentCount; ++i) {
@@ -128,7 +128,7 @@ public final class CelestialObjectRenderManager {
 		}
 	}
 
-	private static void addNormSphere(FlexibleVertexConsumer builder, CachedCamera<?> camera, Vec3 center, double radius) {
+	private static void addNormSphere(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 center, double radius) {
 		final int subdivisions = 10;
 
 		// -X
@@ -270,7 +270,7 @@ public final class CelestialObjectRenderManager {
 		}
 	}
 
-	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera,
+	private static void ringVertex(FlexibleVertexConsumer builder, CachedCamera camera,
 			Vec3Access center, double x, double y, double z, float u, float v) {
 		var pos = new Vec3(x, 0, z);
 		// pos = pose != null ? pos.transformBy(pose) : pos;
@@ -281,7 +281,7 @@ public final class CelestialObjectRenderManager {
 		builder.vertex(p).uv0(u, v).color(Color.WHITE).normal(norm).endVertex();
 	}
 
-	private static void normSphereVertex(FlexibleVertexConsumer builder, CachedCamera<?> camera,
+	private static void normSphereVertex(FlexibleVertexConsumer builder, CachedCamera camera,
 			Vec3Access center, double radius, double x, double y, double z,
 			float u, float v) {
 		var pos = new Vec3(x, y, z);

@@ -158,7 +158,7 @@ public final class ServerUniverse extends Universe {
 		earth.obliquityAngle = Math.toRadians(23.4392811);
 		earth.rotationalRate = 7.29211e-5;
 
-		sagA.insertChild(earth, 0.0167086, Tm_PER_au * (100), Math.toRadians(0.00005), Math.toRadians(-11.26064),
+		sagA.insertChild(earth, 0.0167086, Tm_PER_au * (33), Math.toRadians(0.00005), Math.toRadians(-11.26064),
 				Math.toRadians(114.20783), 3);
 		sagA.insertChild(starA, 0.7, Tm_PER_au * 4, Math.toRadians(37), Math.toRadians(93),
 				Math.toRadians(3), 1);

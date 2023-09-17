@@ -15,6 +15,7 @@ import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
+import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public final class Vec3 implements Hashable, Vec3Access {
@@ -61,25 +62,6 @@ public final class Vec3 implements Hashable, Vec3Access {
 	public static Vec3 broadcast(double n) {return new Vec3(n, n, n);}
 	public static Vec3 from(Vector3f vec)  {return new Vec3(vec.x(), vec.y(), vec.z());}
 	public static Vec3 from(Position vec)  {return new Vec3(vec.x(), vec.y(), vec.z());}
-	// @formatter:on
-
-	// @formatter:off
-	public Vec3 add  (Vec3Access rhs)               {return new Vec3(this.x + rhs.x(), this.y + rhs.y(), this.z + rhs.z());}
-	public Vec3 sub  (Vec3Access rhs)               {return new Vec3(this.x - rhs.x(), this.y - rhs.y(), this.z - rhs.z());}
-	public Vec3 mul  (Vec3Access rhs)               {return new Vec3(this.x * rhs.x(), this.y * rhs.y(), this.z * rhs.z());}
-	public Vec3 div  (Vec3Access rhs)               {return new Vec3(this.x / rhs.x(), this.y / rhs.y(), this.z / rhs.z());}
-	public Vec3 add  (double x, double y, double z) {return new Vec3(this.x + x,       this.y + y,       this.z + z      );}
-	public Vec3 sub  (double x, double y, double z) {return new Vec3(this.x - x,       this.y - y,       this.z - z      );}
-	public Vec3 mul  (double x, double y, double z) {return new Vec3(this.x * x,       this.y * y,       this.z * z      );}
-	public Vec3 div  (double x, double y, double z) {return new Vec3(this.x / x,       this.y / y,       this.z / z      );}
-	public Vec3 mul  (double n)                     {return new Vec3(this.x * n,       this.y * n,       this.z * n      );}
-	public Vec3 div  (double n)                     {return new Vec3(this.x / n,       this.y / n,       this.z / n      );}
-	public Vec3 recip(double n)                     {return new Vec3(n / x,            n / y,            n / z           );}
-	public Vec3 recip()                             {return new Vec3(1.0 / x,          1.0 / y,          1.0 / z         );}
-	public Vec3 neg  ()                             {return new Vec3(-x,               -y,               -z              );}
-	public Vec3 abs  ()                             {return new Vec3(Math.abs(x),      Math.abs(y),      Math.abs(z)     );}
-	public Vec3i floor()                            {return new Vec3i(Mth.floor(x),    Mth.floor(y),     Mth.floor(z)    );}
-	public Vec3i ceil()                             {return new Vec3i(Mth.ceil(x),     Mth.ceil(y),      Mth.ceil(z)     );}
 	// @formatter:on
 
 	// @formatter:off
@@ -158,12 +140,12 @@ public final class Vec3 implements Hashable, Vec3Access {
 		return new Vec3(vec.x() / vec.w(), vec.y() / vec.w(), vec.z() / vec.w());
 	}
 
-	public Vec3 transformBy(Mat4 matrix) {
+	public Vec3 transformBy(Mat4Access matrix) {
 		return transformBy(matrix, 1);
 	}
 
-	public Vec3 transformBy(Mat4 matrix, double w) {
-		return matrix.mul(this, w);
+	public Vec3 transformBy(Mat4Access matrix, double w) {
+		return Mat4.mul(matrix, this, w);
 	}
 
 	public Vec3 rotateX(double angle) {

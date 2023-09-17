@@ -58,14 +58,14 @@ public abstract class HawkScreen3d extends HawkScreen {
 		@OverridingMethodsMustInvokeSuper
 		public void render(RenderContext ctx) {
 			final var prevMatrices = this.camera.setupRenderMatrices();
-			render3d(this.camera, ctx.partialTick);
+			render3d(this.camera, ctx);
 			prevMatrices.restore();
 		}
 
 		public void setup3d(OrbitCamera camera, float partialTick) {
 		}
 
-		public abstract void render3d(OrbitCamera.Cached camera, float partialTick);
+		public abstract void render3d(OrbitCamera.Cached camera, RenderContext ctx);
 
 		public void onMoved(Vec3 displacement) {
 		}

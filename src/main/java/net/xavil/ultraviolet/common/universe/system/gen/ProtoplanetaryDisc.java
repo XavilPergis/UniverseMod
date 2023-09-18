@@ -125,7 +125,7 @@ public class ProtoplanetaryDisc {
 			}
 		}
 
-		double nextRoguePlanetTime = this.rng.uniformDouble("rogue_planet_time", 0, this.ctx.systemAgeMya);
+		double nextRoguePlanetTime = this.rng.uniformDouble("rogue_planet_time", 0, 0.05 * this.ctx.systemAgeMya);
 		double nextPlanetTime = 0;
 
 		final var stepRng = this.rng.split("step");
@@ -136,9 +136,9 @@ public class ProtoplanetaryDisc {
 			final var placementRng = attemptRng.split("placement");
 			if (this.ctx.currentSystemAgeMya >= nextRoguePlanetTime) {
 				nextRoguePlanetTime = this.ctx.currentSystemAgeMya
-						+ placementRng.uniformDouble("rogue_planet_time", 0, this.ctx.systemAgeMya);
+						+ placementRng.uniformDouble("rogue_planet_time", 0, 0.05 * this.ctx.systemAgeMya);
 				if (placementRng.chance("rogue_planet_chance", 0.67)) {
-					// placeRoguePlanetesimal(placementRng.split("rogue_planetesimal"));
+					placeRoguePlanetesimal(placementRng.split("rogue_planetesimal"));
 				}
 			}
 
@@ -152,7 +152,7 @@ public class ProtoplanetaryDisc {
 				// TODO: maybe keep track of which planets need to accrete in a separate list so
 				// we don't need to spend time trying to accrete when accretion would do
 				// basically nothing.
-				doSweep(other, false);
+				// doSweep(other, false);
 			}
 
 			transformPlanetesimals((prev, next) -> {
@@ -225,8 +225,13 @@ public class ProtoplanetaryDisc {
 					if (current.mass > 0.1 * parent.mass) {
 						Planetesimal binary = new Planetesimal(this.ctx);
 						binary.isBinary = true;
-						binary.binaryA = parent;
-						binary.binaryB = current;
+						if (rng.split(binary.id).chance("binary_order", 0.5)) {
+							binary.binaryA = parent;
+							binary.binaryB = current;
+						} else {
+							binary.binaryA = current;
+							binary.binaryB = parent;
+						}
 						binary.mass = binary.binaryA.mass + binary.binaryB.mass;
 
 						// binary.orbitalShape = Planetesimal.calculateCombinedOrbitalShape(binary.binaryA, binary.binaryB);

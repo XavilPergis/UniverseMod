@@ -1,7 +1,6 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
 
 import static net.xavil.hawklib.client.HawkDrawStates.*;
@@ -14,7 +13,6 @@ import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.math.Color;
-import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class ScreenLayerBackground extends HawkScreen.Layer2d {

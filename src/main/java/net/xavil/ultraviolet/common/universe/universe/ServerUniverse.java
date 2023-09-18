@@ -30,12 +30,14 @@ import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSyncCelestialTimePacket;
+import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialRing;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalPlane;
+import net.xavil.hawklib.math.OrbitalShape;
 import net.xavil.hawklib.math.matrices.Vec3i;
 
 public final class ServerUniverse extends Universe {
@@ -139,6 +141,93 @@ public final class ServerUniverse extends Universe {
 
 	private record StartingSystem(double systemAgeMya, String name, CelestialNode rootNode,
 			CelestialNode startingNode) {
+	}
+
+	private StellarCelestialNode makeStar(Rng rng, double massMsol, double ageMyr) {
+		final var properties = new StellarCelestialNode.Properties();
+		properties.load(Yg_PER_Msol * massMsol, ageMyr);
+		return StellarCelestialNode.fromProperties(properties);
+	}
+
+	private BinaryCelestialNode makeBinary(Rng rng, CelestialNode a, CelestialNode b, double ecc, double outerAu,
+			double incDeg) {
+		final var node = new BinaryCelestialNode();
+		node.setSiblings(a, b);
+		node.setOrbitalShapes(new OrbitalShape(ecc, Tm_PER_au * outerAu));
+		node.orbitalPlane = OrbitalPlane.fromInclination(Math.toRadians(incDeg), rng);
+		return node;
+	}
+
+	private PlanetaryCelestialNode makeElw(Rng rng, double massMearth, double radiusRearth) {
+		final var node = new PlanetaryCelestialNode();
+		node.type = PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD;
+		node.massYg = Yg_PER_Mearth * massMearth;
+		node.radius = km_PER_Rearth * radiusRearth;
+		node.obliquityAngle = Math.toRadians(Mth.wrapDegrees(rng.normalDouble(0, 1)));
+		node.rotationalRate = rng.uniformDouble(1e-6, 1e-4);
+		return node;
+	}
+
+	private PlanetaryCelestialNode makeGas(Rng rng, double massMjupiter, double radiusRjupiter) {
+		final var node = new PlanetaryCelestialNode();
+		node.type = PlanetaryCelestialNode.Type.GAS_GIANT;
+		node.massYg = Yg_PER_Mjupiter * massMjupiter;
+		node.radius = km_PER_Rjupiter * radiusRjupiter;
+		node.obliquityAngle = Math.toRadians(Mth.wrapDegrees(rng.normalDouble(0, 1)));
+		node.rotationalRate = rng.uniformDouble(1e-6, 1e-4);
+		return node;
+	}
+
+	private PlanetaryCelestialNode makeRocky(Rng rng, double massMearth, double radiusRearth) {
+		final var node = new PlanetaryCelestialNode();
+		node.type = PlanetaryCelestialNode.Type.ROCKY_WORLD;
+		node.massYg = Yg_PER_Mearth * massMearth;
+		node.radius = km_PER_Rearth * radiusRearth;
+		node.obliquityAngle = Math.toRadians(Mth.wrapDegrees(rng.normalDouble(0, 1)));
+		node.rotationalRate = rng.uniformDouble(1e-6, 1e-4);
+		return node;
+	}
+
+	private void insertOrbit(Rng rng, CelestialNode parent, CelestialNode child, double ecc, double radiusAu,
+			double incDeg) {
+
+		parent.insertChild(child, ecc, Tm_PER_au * radiusAu, Math.toRadians(incDeg),
+				rng.uniformDouble(-Math.PI, Math.PI), rng.uniformDouble(-Math.PI, Math.PI), rng.uniformDouble(0, 1000));
+	}
+
+	private StartingSystem startingSystemTest() {
+		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 5);
+
+		final var sA = makeStar(rng, 0.9, 433);
+		final var sB = makeStar(rng, 0.4, 430);
+		final var sC = makeStar(rng, 0.2, 2943);
+		final var sD = makeStar(rng, 0.22, 2944);
+
+		final var bAB = makeBinary(rng, sA, sB, 0.0012, 0.3, 1.0);
+		final var bCD = makeBinary(rng, sC, sD, 0.0067, 3.4, 53.0);
+		final var bABCD = makeBinary(rng, bAB, bCD, 0.2254, 184.2, 114.0);
+
+		// AB
+		final var earth = makeElw(rng, 1, 1);
+		insertOrbit(rng, bAB, earth, 0.0167086, 1, 2);
+		insertOrbit(rng, bAB, makeRocky(rng, 0.1, 0.2), 0.02, 1.5, -1);
+		insertOrbit(rng, bAB, makeGas(rng, 0.95, 0.98), 0.01, 4, 4);
+		insertOrbit(rng, bAB, makeGas(rng, 0.5, 0.6), 0.01, 12, -1);
+		insertOrbit(rng, bAB, makeGas(rng, 3.7, 2.5), 0.01, 20, 1);
+		final var g1 = makeGas(rng, 0.1, 0.5);
+		final var g2 = makeGas(rng, 0.2, 0.6);
+		final var bg1g2 = makeBinary(rng, g1, g2, 0.0001, 1.1, 24);
+		insertOrbit(rng, bAB, bg1g2, 0.01, 39, -3);
+		insertOrbit(rng, bAB, makeRocky(rng, 0.05, 0.09), 0.3, 50, -32);
+
+		insertOrbit(rng, sC, makeGas(rng, 0.4, 0.5), 0.0001, 0.3, 1);
+		final var r1 = makeRocky(rng, 2.1, 1.4);
+		insertOrbit(rng, sC, r1, 0.001, 0.5, -4);
+
+		insertOrbit(rng, r1, makeRocky(rng, 0.02, 0.05), 0.001, 0.01, 2);
+		insertOrbit(rng, r1, makeRocky(rng, 0.04, 0.06), 0.001, 0.02, 2);
+
+		return new StartingSystem(13610, "Test", bABCD, earth);
 	}
 
 	private StartingSystem startingSystemSaggitariusA() {
@@ -276,9 +365,9 @@ public final class ServerUniverse extends Universe {
 	}
 
 	public void prepare() {
-		final var rng = Rng.wrap(new Random(getUniqueUniverseSeed() + 4));
+		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 4);
 
-		var startingSystem = startingSystemSaggitariusA();
+		var startingSystem = startingSystemTest();
 		startingSystem.rootNode.assignIds();
 
 		var rootNode = startingSystem.rootNode;

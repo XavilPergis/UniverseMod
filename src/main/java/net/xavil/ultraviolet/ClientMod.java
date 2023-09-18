@@ -121,8 +121,8 @@ public class ClientMod implements ClientModInitializer {
 			final var system = galaxy.sectorManager.forceLoad(systemTicket).unwrap();
 
 			final var galaxyMap = new GalaxyMapScreen(CLIENT.screen, galaxy, systemId.galaxySector());
-			// final var systemMap = new NewSystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
-			final var systemMap = new SystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
+			final var systemMap = new NewSystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
+			// final var systemMap = new SystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
 			CLIENT.setScreen(systemMap);
 		}
 	}

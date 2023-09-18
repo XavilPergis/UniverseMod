@@ -88,6 +88,12 @@ public final class Mat4 implements Hashable, Mat4Access {
 				0.0, 0.0, m32, 0.0);
 	}
 
+	public static Mat4 orthographicProjection(double minX, double maxX,
+			double minY, double maxY,
+			double minZ, double maxZ) {
+		return setOrthographicProjection(new Mutable(), minX, maxX, minY, maxY, minZ, maxZ).asImmutable();
+	}
+
 	// @formatter:off
 	@Override public final double r0c0() {return r0c0;}
 	@Override public final double r0c1() {return r0c1;}
@@ -464,6 +470,24 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r2c2 = (far + near) / (near - far);
 		r.r3c2 = -1.0;
 		r.r2c3 = 2.0 * far * near / (near - far);
+		return r;
+	}
+
+	public static Mat4.Mutable setOrthographicProjection(Mat4.Mutable r,
+			double minX, double maxX,
+			double minY, double maxY,
+			double minZ, double maxZ) {
+		setIdentity(r);
+		final var x = maxX - minX;
+		final var y = minY - maxY;
+		final var z = maxZ - minZ;
+		r.r0c0 = 2.0 / x;
+		r.r1c1 = 2.0 / y;
+		r.r2c2 = -2.0 / z;
+		r.r0c3 = -(maxX + minX) / x;
+		r.r1c3 = -(minY + maxY) / y;
+		r.r2c3 = -(maxZ + minZ) / z;
+		r.r3c3 = 1.0;
 		return r;
 	}
 

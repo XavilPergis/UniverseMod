@@ -52,6 +52,15 @@ public interface Vec2Access {
 	default Vec3 y1x() {return new Vec3(y(),1,x());}
 	default Vec3 y1y() {return new Vec3(y(),1,y());}
 
+	default Vec3 xx0() {return new Vec3(x(),x(),0);}
+	default Vec3 xy0() {return new Vec3(x(),y(),0);}
+	default Vec3 yx0() {return new Vec3(y(),x(),0);}
+	default Vec3 yy0() {return new Vec3(y(),y(),0);}
+	default Vec3 xx1() {return new Vec3(x(),x(),1);}
+	default Vec3 xy1() {return new Vec3(x(),y(),1);}
+	default Vec3 yx1() {return new Vec3(y(),x(),1);}
+	default Vec3 yy1() {return new Vec3(y(),y(),1);}
+
 	default Vec3 xxx() {return new Vec3(x(),x(),x());}
 	default Vec3 xxy() {return new Vec3(x(),x(),y());}
 	default Vec3 xyx() {return new Vec3(x(),y(),x());}

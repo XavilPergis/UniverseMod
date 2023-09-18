@@ -13,15 +13,12 @@ import java.util.Comparator;
 
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
 import net.xavil.ultraviolet.client.UltravioletShaders;
-import net.xavil.hawklib.Constants;
-import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
-import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
@@ -34,7 +31,6 @@ import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
-import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.debug.ClientConfig;
 import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
@@ -54,7 +50,6 @@ import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.Ellipse;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Vec2;
-import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
@@ -204,49 +199,94 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	public void render3d(Cached camera, RenderContext ctx) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var cullingCamera = getCullingCamera();
-		this.galaxy.getSystem(this.ticket.id).ifSome(system -> {
-			final var universe = this.galaxy.parentUniverse;
-			final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : ctx.partialTick);
-			// system.rootNode.updatePositions(time);
+		final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
+		if (system == null)
+			return;
 
-			// this.renderContext.setSystemOrigin(system.pos);
-			this.renderContext.begin(system, time);
+		final var universe = this.galaxy.parentUniverse;
+		final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : ctx.partialTick);
 
-			final var allNodes = system.rootNode.iter().collectTo(Vector::new);
-			allNodes.sort(Comparator.comparingDouble(node -> node.position.distanceTo(this.camera.posTm)));
-			allNodes.reverse();
+		this.renderContext.begin(system, time);
 
-			for (final var node : allNodes.iterable()) {
-				if (node instanceof StellarCelestialNode starNode
-						&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE) {
-					final var shader = UltravioletShaders.SHADER_GRAVITATIONAL_LENSING.get();
+		final var allNodes = system.rootNode.iter().collectTo(Vector::new);
+		allNodes.sort(Comparator.comparingDouble(node -> node.position.distanceTo(this.camera.posTm)));
+		allNodes.reverse();
 
-					ctx.currentTexture.colorTexture.setWrapMode(GlTexture.WrapMode.MIRRORED_REPEAT);
+		for (final var node : allNodes.iterable()) {
+			if (node instanceof StellarCelestialNode starNode
+					&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE) {
+				final var shader = UltravioletShaders.SHADER_GRAVITATIONAL_LENSING.get();
 
-					final var color = new Vec3.Mutable();
-					StellarCelestialNode.blackBodyColorFromTable(color, 2000);
+				ctx.currentTexture.colorTexture.setWrapMode(GlTexture.WrapMode.MIRRORED_REPEAT);
 
-					shader.setUniform("uAccretionDiscColor", color);
-					// shader.setUniform("uAccretionDiscColor", 1.0, 0.2, 0.0);
-					// shader.setUniform("uAccretionDiscColor", 0.5, 0.0, 1.0);
-					// shader.setUniform("uAccretionDiscColor", 0.0, 0.0, 0.0);
-					shader.setUniform("uAccretionDiscNormal", 0.5, 1.0, 0.2);
-					shader.setUniform("uAccretionDiscDensityFalloff", 3.0);
-					shader.setUniform("uAccretionDiscInnerPercent", 0.2);
-					shader.setUniform("uAccretionDiscInnerFalloff", 30.0);
-					shader.setUniform("uAccretionDiscDensityFalloffRadial", 4.0);
-					shader.setUniform("uAccretionDiscDensityFalloffVerticalInner", 300.0);
-					shader.setUniform("uAccretionDiscDensityFalloffVerticalOuter", 300.0);
-					shader.setUniform("uAccretionDiscBrightness", 1000.0);
-					shader.setUniform("uEffectLimitFactor", 40.0);
-					shader.setUniform("uGravitationalConstant", 50.0);
+				final var color = new Vec3.Mutable();
+				StellarCelestialNode.blackBodyColorFromTable(color, 1200);
+
+				shader.setUniform("uAccretionDiscColor", color);
+				// shader.setUniform("uAccretionDiscColor", 1.0, 0.2, 0.0);
+				// shader.setUniform("uAccretionDiscColor", 0.5, 0.0, 1.0);
+				shader.setUniform("uAccretionDiscColor", 0.0, 0.0, 0.0);
+				shader.setUniform("uAccretionDiscNormal", 0.5, 1.0, 0.2);
+				shader.setUniform("uAccretionDiscDensityFalloff", 3.0);
+				shader.setUniform("uAccretionDiscInnerPercent", 0.2);
+				shader.setUniform("uAccretionDiscInnerFalloff", 100.0);
+				shader.setUniform("uAccretionDiscDensityFalloffRadial", 4.0);
+				shader.setUniform("uAccretionDiscDensityFalloffVerticalInner", 100.0);
+				shader.setUniform("uAccretionDiscDensityFalloffVerticalOuter", 100.0);
+				shader.setUniform("uAccretionDiscBrightness", 250.0);
+				shader.setUniform("uEffectLimitFactor", 30.0);
+				shader.setUniform("uGravitationalConstant", 100.0);
+				shader.setUniform("uPosition", this.camera.toCameraSpace(node.position.xyz()));
+				shader.setUniform("uMass", node.massYg);
+
+				// input textures
+				shader.setUniformSampler("uColorTexture", ctx.currentTexture.colorTexture);
+				shader.setUniformSampler("uDepthTexture", ctx.currentTexture.depthTexture);
+
+				// camera uniforms
+				final var frustumCorners = this.camera.captureFrustumCornersView();
+				shader.setUniform("uCameraFrustumNearNN", frustumCorners.nnp());
+				shader.setUniform("uCameraFrustumNearNP", frustumCorners.npp());
+				shader.setUniform("uCameraFrustumNearPN", frustumCorners.pnp());
+				shader.setUniform("uCameraFrustumNearPP", frustumCorners.ppp());
+				shader.setUniform("uCameraFrustumFarNN", frustumCorners.nnn());
+				shader.setUniform("uCameraFrustumFarNP", frustumCorners.npn());
+				shader.setUniform("uCameraFrustumFarPN", frustumCorners.pnn());
+				shader.setUniform("uCameraFrustumFarPP", frustumCorners.ppn());
+				shader.setUniform("uMetersPerUnit", this.camera.metersPerUnit);
+				shader.setUniform("uCameraNear", this.camera.nearPlane);
+				shader.setUniform("uCameraFar", this.camera.farPlane);
+
+				final var newTexture = RenderTexture.HDR_COLOR_DEPTH.acquireTemporary();
+				newTexture.framebuffer.bind();
+				newTexture.framebuffer.clear();
+				BufferRenderer.drawFullscreen(shader);
+
+				ctx.replaceCurrentTexture(newTexture);
+			} else {
+				this.renderContext.render(builder, camera, node, false);
+
+				if (node instanceof PlanetaryCelestialNode planetNode && planetNode.hasAtmosphere()
+						&& !planetNode.hasAtmosphere()) {
+					// i dont wanna deal with running the atmosphere shader multiple times right now
+					final var brightestStars = system.rootNode.iter()
+							.filterCast(StellarCelestialNode.class).collectTo(Vector::new);
+					brightestStars.sort(Comparator.comparingDouble(node2 -> node2.luminosityLsol));
+					brightestStars.reverse();
+					brightestStars.truncate(4);
+
+					final var shader = UltravioletShaders.SHADER_ATMOSPHERE.get();
 					shader.setUniform("uPosition", this.camera.toCameraSpace(node.position.xyz()));
-					shader.setUniform("uMass", node.massYg);
+					for (int i = 0; i < brightestStars.size(); ++i) {
+						final var star = brightestStars.get(i);
+						shader.setUniform("uStarPos" + i, this.camera.toCameraSpace(star.position.xyz()));
+						shader.setUniform("uStarColor" + i, star.getColor().withA(star.luminosityLsol));
+					}
 
 					// input textures
 					shader.setUniformSampler("uColorTexture", ctx.currentTexture.colorTexture);
 					shader.setUniformSampler("uDepthTexture", ctx.currentTexture.depthTexture);
-		
+
 					// camera uniforms
 					final var frustumCorners = this.camera.captureFrustumCornersView();
 					shader.setUniform("uCameraFrustumNearNN", frustumCorners.nnp());
@@ -260,111 +300,33 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 					shader.setUniform("uMetersPerUnit", this.camera.metersPerUnit);
 					shader.setUniform("uCameraNear", this.camera.nearPlane);
 					shader.setUniform("uCameraFar", this.camera.farPlane);
-		
+
 					final var newTexture = RenderTexture.HDR_COLOR_DEPTH.acquireTemporary();
 					newTexture.framebuffer.bind();
 					newTexture.framebuffer.clear();
 					BufferRenderer.drawFullscreen(shader);
 
 					ctx.replaceCurrentTexture(newTexture);
-				} else {
-					this.renderContext.render(builder, camera, node, false);
 				}
 			}
-
-			for (final var node : allNodes.iterable()) {
-				if (this.showGuides)
-					showOrbitGuides(builder, camera, cullingCamera, node, time);
-			}
-
-			this.renderContext.end();
-
-			// final var selectedId =
-			// getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
-			// final var selectedNode = system.rootNode.lookup(selectedId);
-			// if (selectedNode != null) {
-			// final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
-			// RenderHelper.renderUiBillboard(builder, camera, new TransformStack(), pos,
-			// 0.02 * camera.pos.distanceTo(pos), Color.WHITE,
-			// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
-			// }
-		});
-	}
-
-	@Override
-	public void renderPost(RenderTexture sceneTexture, RenderContext ctx) {
-		final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
-		if (system == null)
-			return;
-
-		final var universe = this.galaxy.parentUniverse;
-		final var time = universe.getCelestialTime(this.client.isPaused() ? 0 : ctx.partialTick);
-
-		// sort back to front for these sort of 3d post-process effects
-		final var allNodes = system.rootNode.iter().collectTo(Vector::new);
-		allNodes.sort(Comparator.comparingDouble(node -> node.position.distanceTo(this.camera.posTm)));
-		allNodes.reverse();
-
-		// RenderTexture current = previousPassOutput;
-
-		final var prevMatrices = this.camera.setupRenderMatrices();
+		}
 
 		for (final var node : allNodes.iterable()) {
-			if (node instanceof PlanetaryCelestialNode planetNode && planetNode.hasAtmosphere()
-					&& !planetNode.hasAtmosphere()) {
-				// i dont wanna deal with running the atmosphere shader multiple times right now
-				final var brightestStars = system.rootNode.iter()
-						.filterCast(StellarCelestialNode.class).collectTo(Vector::new);
-				brightestStars.sort(Comparator.comparingDouble(node2 -> node2.luminosityLsol));
-				brightestStars.reverse();
-				brightestStars.truncate(4);
-
-				final var shader = UltravioletShaders.SHADER_ATMOSPHERE.get();
-				shader.setUniform("uPosition", this.camera.toCameraSpace(node.position.xyz()));
-				for (int i = 0; i < brightestStars.size(); ++i) {
-					final var star = brightestStars.get(i);
-					shader.setUniform("uStarPos" + i, this.camera.toCameraSpace(star.position.xyz()));
-					shader.setUniform("uStarColor" + i, star.getColor().withA(star.luminosityLsol));
-				}
-				ctx.replaceCurrentTexture(doPostProcessEffect(shader, sceneTexture, ctx.currentTexture));
-			}
+			if (this.showGuides)
+				showOrbitGuides(builder, camera, cullingCamera, node, time);
 		}
 
-		prevMatrices.restore();
-	}
+		this.renderContext.end();
 
-	private RenderTexture doPostProcessEffect(ShaderProgram shader, RenderTexture sceneTexture, RenderTexture prev) {
-
-		final var builder = RenderTexture.StaticDescriptor.builder();
-		builder.colorFormat = GlTexture.Format.RGB16_FLOAT;
-		final var current = RenderTexture.acquireTemporary(builder.build());
-
-		try {
-			// input textures
-			shader.setUniformSampler("uColorTexture", prev.colorTexture);
-			shader.setUniformSampler("uDepthTexture", sceneTexture.depthTexture);
-
-			// camera uniforms
-			final var frustumCorners = this.camera.captureFrustumCornersView();
-			shader.setUniform("uCameraFrustumNearNN", frustumCorners.nnp());
-			shader.setUniform("uCameraFrustumNearNP", frustumCorners.npp());
-			shader.setUniform("uCameraFrustumNearPN", frustumCorners.pnp());
-			shader.setUniform("uCameraFrustumNearPP", frustumCorners.ppp());
-			shader.setUniform("uCameraFrustumFarNN", frustumCorners.nnn());
-			shader.setUniform("uCameraFrustumFarNP", frustumCorners.npn());
-			shader.setUniform("uCameraFrustumFarPN", frustumCorners.pnn());
-			shader.setUniform("uCameraFrustumFarPP", frustumCorners.ppn());
-			shader.setUniform("uMetersPerUnit", this.camera.metersPerUnit);
-			shader.setUniform("uCameraNear", this.camera.nearPlane);
-			shader.setUniform("uCameraFar", this.camera.farPlane);
-
-			current.framebuffer.bind();
-			BufferRenderer.drawFullscreen(shader);
-		} finally {
-			prev.close();
-		}
-
-		return current;
+		// final var selectedId =
+		// getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
+		// final var selectedNode = system.rootNode.lookup(selectedId);
+		// if (selectedNode != null) {
+		// final var pos = selectedNode.position.mul(1e12 / camera.metersPerUnit);
+		// RenderHelper.renderUiBillboard(builder, camera, new TransformStack(), pos,
+		// 0.02 * camera.pos.distanceTo(pos), Color.WHITE,
+		// RenderHelper.SELECTION_CIRCLE_ICON_LOCATION);
+		// }
 	}
 
 	private static void addEllipseArc(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,

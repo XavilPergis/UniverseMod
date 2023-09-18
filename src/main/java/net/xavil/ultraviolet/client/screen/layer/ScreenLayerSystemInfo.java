@@ -1,7 +1,5 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
-import java.util.Comparator;
-
 import javax.annotation.Nonnull;
 
 import com.mojang.blaze3d.vertex.PoseStack;

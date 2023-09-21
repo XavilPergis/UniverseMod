@@ -48,10 +48,9 @@ public class ClientMod implements ClientModInitializer {
 
 		HawkRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
 			// @formatter:off
-			acceptor.accept(UltravioletShaders.SHADER_STAR_LOCATION,                     AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
 			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC_LOCATION, AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
 			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_UI_LOCATION,        AttributeSet.POSITION_COLOR, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_PLANET_LOCATION,                   AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
+			acceptor.accept(UltravioletShaders.SHADER_CELESTIAL_NODE_LOCATION,           AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
 			acceptor.accept(UltravioletShaders.SHADER_RING_LOCATION,                     AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
 			acceptor.accept(UltravioletShaders.SHADER_GALAXY_PARTICLE_LOCATION,          AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
 			acceptor.accept(UltravioletShaders.SHADER_SKYBOX_LOCATION,                   AttributeSet.POSITION, GlFragmentWrites.COLOR_ONLY);

@@ -246,7 +246,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 					return;
 
 				final Vec3 s = sector.pos().minBound(), e = sector.pos().maxBound();
-				final var color = ClientConfig.getDebugColor(sector.pos().level()).withA(0.2);
+				final var color = ClientConfig.getDebugColor(sector.pos().level()).withA(0.2f);
 
 				final var nnn = new Vec3(s.x, s.y, s.z);
 				final var nnp = new Vec3(s.x, s.y, e.z);

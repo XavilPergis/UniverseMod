@@ -119,7 +119,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public StarSystem generateFullSystem(GalaxySector.SectorElementHolder elem) {
+	public StarSystem generateFullSystem(GalaxySector sector, GalaxySector.SectorElementHolder elem) {
 		return this.startingSystem;
 	}
 

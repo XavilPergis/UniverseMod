@@ -536,7 +536,7 @@ public abstract class GlTexture extends GlObject {
 	}
 
 	public boolean isValid() {
-		return this.storageAllocated;
+		return this.storageAllocated && !this.isDestroyed();
 	}
 
 	public int id() {
@@ -597,5 +597,24 @@ public abstract class GlTexture extends GlObject {
 			GL45C.glTextureParameteri(this.id, WrapAxis.R.id, mode.id);
 		this.wrapModeS = this.wrapModeT = this.wrapModeR = mode;
 	}
+
+	// public void createStorage(GlTexture.Format textureFormat, int width, int height, int depth) {
+	// 	GlLimits.validateTextureSize(width, height, depth);
+	// 	if (this.textureFormat == textureFormat
+	// 			&& this.size.width == width
+	// 			&& this.size.height == height
+	// 			&& this.size.depth == depth)
+	// 		return;
+
+	// 	switch (this.type) {
+	// 		case D2 -> GL45C.glTextureStorage2D(this.id, 1, textureFormat.id, width, height);
+	// 		case D2_MS -> GL45C.glTextureStorage2DMultisample(this.type.id, 4, textureFormat.id, width, height, true);
+	// 		default -> throw new IllegalStateException(
+	// 				debugDescription() + "Invalid type for 2d texture: " + this.type.description);
+	// 	}
+	// 	this.textureFormat = textureFormat;
+	// 	this.size = new Size(width, height, 1, 1);
+	// 	this.storageAllocated = true;
+	// }
 
 }

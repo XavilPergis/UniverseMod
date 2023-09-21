@@ -3,32 +3,23 @@ package net.xavil.ultraviolet.client.screen;
 import javax.annotation.Nullable;
 
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.blaze3d.vertex.PoseStack;
-
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.xavil.hawklib.client.screen.HawkScreen;
-import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.camera.CachedCamera;
-import net.xavil.hawklib.client.camera.CameraConfig;
-import net.xavil.hawklib.client.camera.OrbitCamera;
-import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
+import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
-import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
-import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGalaxy;
-import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGrid;
-import net.xavil.ultraviolet.client.screen.layer.ScreenLayerStars;
-import net.xavil.ultraviolet.client.screen.layer.ScreenLayerSystem;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
@@ -39,9 +30,9 @@ import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.Quat;
+import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
-import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class NewSystemMapScreen extends HawkScreen {
@@ -58,7 +49,9 @@ public class NewSystemMapScreen extends HawkScreen {
 	public double scrollMultiplier = 1.2;
 	public Vec2 offset = Vec2.ZERO;
 
-	private PlanetRenderingContext renderContext = new PlanetRenderingContext();
+	private PlanetRenderingContext renderContext = this.disposer.attach(new PlanetRenderingContext());
+
+	private final Mesh sphereMesh = this.disposer.attach(new Mesh());
 
 	public NewSystemMapScreen(@Nullable Screen previousScreen, Galaxy galaxy, SystemId systemId, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
@@ -72,6 +65,11 @@ public class NewSystemMapScreen extends HawkScreen {
 		// this.layers.push(new ScreenLayerStars(this, galaxy, system.pos));
 		// this.layers.push(new ScreenLayerSystem(this, galaxy,
 		// systemId.galaxySector()));
+
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.QUADS,
+				BufferLayout.POSITION_TEX_COLOR_NORMAL);
+		RenderHelper.addCubeSphere(builder, Vec3.ZERO, 1, 10);
+		this.sphereMesh.upload(builder.end());
 	}
 
 	public NewSystemMapScreen(@Nullable Screen previousScreen, Galaxy galaxy, SystemNodeId id, StarSystem system) {
@@ -100,7 +98,6 @@ public class NewSystemMapScreen extends HawkScreen {
 	}
 
 	private static final class LayoutNodeBinary extends LayoutNode {
-		public BinaryCelestialNode celestialNode;
 		public double baselineVA;
 		public LayoutNode nodeA;
 		public double baselineVB;
@@ -109,12 +106,13 @@ public class NewSystemMapScreen extends HawkScreen {
 
 	public static final double REFERENCE_RADIUS = Units.km_PER_Rjupiter;
 	public static final double MOBILE_DIAGRAM_OFFSET = 0.5;
-	public static final double BARYCENTER_MARKER_RADIUS = 0.05;
+	public static final double BARYCENTER_MARKER_RADIUS = 0.1;
 	public static final double CHILD_PADDING = 0.1;
 	public static final double SIBLING_PADDING = 0.1;
 
 	private double nodeRadius(UnaryCelestialNode node) {
-		return Math.max(0.025, 2 * node.radius / (node.radius + REFERENCE_RADIUS));
+		// return Math.max(0.025, 2 * node.radius / (node.radius + REFERENCE_RADIUS));
+		return Math.max(0.025, Math.pow(node.radius / REFERENCE_RADIUS, 1.0 / 2.0));
 	}
 
 	private void layoutChildren(LayoutNode res, CelestialNode node) {
@@ -134,6 +132,7 @@ public class NewSystemMapScreen extends HawkScreen {
 
 	private LayoutNodeUnary layoutUnary(UnaryCelestialNode node) {
 		final var res = new LayoutNodeUnary();
+		res.celestialNode = node;
 		final var nodeRadius = nodeRadius(node);
 		res.rectOffsetUN = res.rectOffsetUP = nodeRadius;
 		res.rectOffsetVN = res.rectOffsetVP = nodeRadius;
@@ -144,7 +143,6 @@ public class NewSystemMapScreen extends HawkScreen {
 
 	private LayoutNodeBinary layoutBinary(BinaryCelestialNode node) {
 		final var res = new LayoutNodeBinary();
-		res.celestialNode = node;
 
 		if (!node.childNodes.isEmpty()) {
 			res.rectOffsetUN = res.rectOffsetUP = BARYCENTER_MARKER_RADIUS;
@@ -167,6 +165,7 @@ public class NewSystemMapScreen extends HawkScreen {
 		res.rectOffsetUN += MOBILE_DIAGRAM_OFFSET;
 		res.rectOffsetUP = Math.max(res.rectOffsetUP, res.nodeA.rectOffsetUP);
 		res.rectOffsetUP = Math.max(res.rectOffsetUP, res.nodeB.rectOffsetUP);
+
 		return res;
 	}
 
@@ -182,31 +181,52 @@ public class NewSystemMapScreen extends HawkScreen {
 		return transpose ? new Vec2(pos.y, pos.x) : pos;
 	}
 
-	private void renderCelestialNode(RenderContext ctx, VertexBuilder vertexBuilder, Vec2 pos, LayoutNode layout) {
-		final var builder = vertexBuilder.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_COLOR);
-		final var s = layout.nodeSize;
-		builder.vertex(pos.x + s, pos.y - s, 0).color(Color.GREEN).endVertex();
-		builder.vertex(pos.x - s, pos.y - s, 0).color(Color.GREEN).endVertex();
-		builder.vertex(pos.x - s, pos.y + s, 0).color(Color.MAGENTA).endVertex();
-		builder.vertex(pos.x + s, pos.y + s, 0).color(Color.MAGENTA).endVertex();
-		final var shader = UltravioletShaders.SHADER_VANILLA_POSITION_COLOR.get();
-		builder.end().draw(shader, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
-	}
-
 	private void renderNode(RenderContext ctx, LayoutNode layout, Vec2 pos, boolean isVertical) {
-		// renderCelestialNode(ctx, BufferRenderer.IMMEDIATE_BUILDER, pos, layout);
+		double currentLineStart = 0;
+		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
+				PrimitiveType.LINES,
+				BufferLayout.POSITION_COLOR_NORMAL);
+		for (final var elem : layout.elements.iterable()) {
+			if (elem.node instanceof LayoutNodeBinary) {
+				final var startU = new Vec2(currentLineStart, 0);
+				final var endU = new Vec2(elem.nodeOffset - elem.node.rectOffsetUN, 0);
+				currentLineStart = elem.nodeOffset + elem.node.rectOffsetUP;
+				final var start = pos.add(transpose(startU, !isVertical)).withZ(-9);
+				final var end = pos.add(transpose(endU, !isVertical)).withZ(-9);
+				RenderHelper.addLine(lineBuilder, start, end, Color.WHITE);
+			} else {
+				final var startU = new Vec2(currentLineStart, 0);
+				final var endU = new Vec2(elem.nodeOffset, 0);
+				currentLineStart = elem.nodeOffset;
+				final var start = pos.add(transpose(startU, !isVertical)).withZ(-9);
+				final var end = pos.add(transpose(endU, !isVertical)).withZ(-9);
+				RenderHelper.addLine(lineBuilder, start, end, Color.WHITE);
+			}
+		}
+		RenderSystem.lineWidth(2f);
+		lineBuilder.end().draw(
+				UltravioletShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(),
+				HawkDrawStates.DRAW_STATE_LINES);
 
-		if (shouldRenderDebugInfo()) {
-			// final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-			// PrimitiveType.QUADS,
-			// BufferLayout.POSITION_COLOR);
-			// final var s = layout.nodeSize;
-			// builder.vertex(pos.x + s, pos.y - s, 0).color(Color.GREEN).endVertex();
-			// builder.vertex(pos.x - s, pos.y - s, 0).color(Color.GREEN).endVertex();
-			// builder.vertex(pos.x - s, pos.y + s, 0).color(Color.MAGENTA).endVertex();
-			// builder.vertex(pos.x + s, pos.y + s, 0).color(Color.MAGENTA).endVertex();
-			// final var shader = UltravioletShaders.SHADER_VANILLA_POSITION_COLOR.get();
-			// builder.end().draw(shader, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
+		if (layout instanceof LayoutNodeUnary unaryNode) {
+			this.renderContext.setupLight(0,
+					pos.xy0().add(new Vec3(-10, -20, -20).mul(layout.nodeSize)),
+					new Color(1f, 1f, 1f, 0.08f));
+			this.renderContext.setupLight(1,
+					pos.xy0().add(new Vec3(0, 0, -40).mul(layout.nodeSize)),
+					new Color(1f, 1f, 1f, 0.02f));
+
+			final var modelTfm = new TransformStack();
+			// modelTfm.appendRotation(Quat.axisAngle(Vec3.ZP,
+			// unaryNode.celestialNode.obliquityAngle));
+			modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 8));
+			// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate *
+			// this.celestialTime));
+			modelTfm.appendTransform(Mat4.scale(0.9 * layout.nodeSize));
+			modelTfm.appendTranslation(pos.xy0());
+
+			this.renderContext.render(BufferRenderer.IMMEDIATE_BUILDER, this.camera, unaryNode.celestialNode, modelTfm,
+					false);
 		}
 
 		for (final var elem : layout.elements.iterable()) {
@@ -240,10 +260,18 @@ public class NewSystemMapScreen extends HawkScreen {
 			RenderHelper.addLine(builder, aNN, bNN, Color.WHITE);
 			RenderHelper.addLine(builder, aNN, aPN, Color.WHITE);
 			RenderHelper.addLine(builder, bNN, bPN, Color.WHITE);
-			RenderSystem.lineWidth(1f);
+			if (!bnode.elements.isEmpty()) {
+				final var mNN = pos.add(-BARYCENTER_MARKER_RADIUS, -BARYCENTER_MARKER_RADIUS).xy0();
+				final var mNP = pos.add(-BARYCENTER_MARKER_RADIUS, BARYCENTER_MARKER_RADIUS).xy0();
+				final var mPN = pos.add(BARYCENTER_MARKER_RADIUS, -BARYCENTER_MARKER_RADIUS).xy0();
+				final var mPP = pos.add(BARYCENTER_MARKER_RADIUS, BARYCENTER_MARKER_RADIUS).xy0();
+				RenderHelper.addLine(builder, mNN, mPP, Color.WHITE);
+				RenderHelper.addLine(builder, mNP, mPN, Color.WHITE);
+			}
+			RenderSystem.lineWidth(2f);
 			builder.end().draw(
 					UltravioletShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(),
-					HawkDrawStates.DRAW_STATE_LINES);	
+					HawkDrawStates.DRAW_STATE_LINES);
 		}
 
 		if (shouldRenderDebugInfo()) {
@@ -264,10 +292,10 @@ public class NewSystemMapScreen extends HawkScreen {
 			final var rNP = pos.add(transpose(new Vec2(-layout.rectOffsetUN, layout.rectOffsetVP), !isVertical)).xy0();
 			final var rPN = pos.add(transpose(new Vec2(layout.rectOffsetUP, -layout.rectOffsetVN), !isVertical)).xy0();
 			final var rPP = pos.add(transpose(new Vec2(layout.rectOffsetUP, layout.rectOffsetVP), !isVertical)).xy0();
-			// RenderHelper.addLine(builder, rNN, rNP, Color.MAGENTA);
-			// RenderHelper.addLine(builder, rNP, rPP, Color.MAGENTA);
-			// RenderHelper.addLine(builder, rPP, rPN, Color.MAGENTA);
-			// RenderHelper.addLine(builder, rPN, rNN, Color.MAGENTA);
+			RenderHelper.addLine(builder, rNN, rNP, Color.MAGENTA);
+			RenderHelper.addLine(builder, rNP, rPP, Color.MAGENTA);
+			RenderHelper.addLine(builder, rPP, rPN, Color.MAGENTA);
+			RenderHelper.addLine(builder, rPN, rNN, Color.MAGENTA);
 			// @formatter:on
 			RenderSystem.lineWidth(1f);
 			builder.end().draw(
@@ -278,7 +306,7 @@ public class NewSystemMapScreen extends HawkScreen {
 	}
 
 	private boolean shouldRenderDebugInfo() {
-		return true;
+		return false;
 	}
 
 	@Override
@@ -294,27 +322,55 @@ public class NewSystemMapScreen extends HawkScreen {
 
 		final var window = Minecraft.getInstance().getWindow();
 		final var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
-		// final var proj = Mat4.perspectiveProjection(Math.toRadians(90), aspectRatio,
-		// 0.01, 100.0);
-		final double k = this.scale;
-		final var proj = Mat4.orthographicProjection(aspectRatio * -k, aspectRatio * k, -k, k, -1, 1);
-		// final var proj = Mat4.orthographicProjection(
-		// -aspectRatio * rootLayout.rectOffsetUN, aspectRatio *
-		// rootLayout.rectOffsetUP,
-		// -rootLayout.rectOffsetVN, rootLayout.rectOffsetVP,
-		// -1, 1);
 
-		// final var pos = new Vec3(0, 0, 2);
-		// // final var orientation = Quat.axisAngle(Vec3.XP, Math.PI / 2);
-		// final var orientation = Quat.IDENTITY;
+		final double k = this.scale;
+		final double l = 200;
+		// final var projMat = Mat4.orthographicProjection(aspectRatio * -k, aspectRatio
+		// * k, -k, k, -100, 100);
+		final var projMat = new Mat4.Mutable();
+		// Mat4.setPerspectiveProjection(projMat, Math.toRadians(30 * this.scale), aspectRatio, 0.01, 1000);
+		Mat4.setOrthographicProjection(projMat, aspectRatio * -k, aspectRatio * k, -k, k, -2 * l, 0);
+		// projMat.prependTranslation(this.offset.neg().add(-offset, 0).xy0());
 		final var viewMat = new Mat4.Mutable();
-		// this.camera.load(pos, orientation, proj, 1);
-		this.camera.load(viewMat, proj, 1);
+		// FIXME: the fucking view matrix is broken!!! why!! the translation should be
+		// applied here instead of in the projection matrix, but it just. refuses to do
+		// anything.
+		viewMat.loadIdentity();
+		viewMat.appendTranslation(this.offset.add(offset, 0).withZ(-l));
+		// Mat4.setScale(viewMat, this.scale);
+		Mat4.invert(viewMat, viewMat);
+		this.camera.load(viewMat, projMat, 1);
+		// this.camera.load(this.offset.neg().add(-offset, 0).withZ(-50), Quat.axisAngle(Vec3.YP, Math.PI / 5), projMat.asImmutable(), 1);
 
 		ctx.currentTexture.framebuffer.bind();
-		final var snapshot = this.camera.setupRenderMatrices();
-		renderNode(ctx, rootLayout, this.offset.neg().add(-offset, 0), true);
 
+		// final var snapshot = this.camera.setupRenderMatrices();
+
+		final var snapshot = RenderMatricesSnapshot.capture();
+		RenderSystem.setProjectionMatrix(this.camera.projectionMatrix.asMinecraft());
+
+		final var poseStack = RenderSystem.getModelViewStack();
+		poseStack.setIdentity();
+
+		poseStack.mulPoseMatrix(this.camera.viewMatrix.asMinecraft());
+		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
+		if (inverseViewRotationMatrix.invert()) {
+			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
+		}
+
+		// it would be very nice for simplicity's sake to apply the camera's translation
+		// here, but unfortunately, that can cause stuff to melt into floating point
+		// soup at the scales we're dealing with. So instead, vertices are specified in
+		// a space where the camera is at the origin (like in view space), but the
+		// camera's rotation is not taken into account (like in world space).
+		// Essentially a weird hybrid between the two. This is the same behavior as the
+		// vanilla camera.
+		RenderSystem.applyModelViewMatrix();
+		// return snapshot;
+
+		this.renderContext.begin(0.0);
+		renderNode(ctx, rootLayout, Vec2.ZERO, true);
+		this.renderContext.end();
 		snapshot.restore();
 	}
 
@@ -332,8 +388,19 @@ public class NewSystemMapScreen extends HawkScreen {
 
 	@Override
 	public boolean mouseDragged(Vec2 mousePos, Vec2 delta, int button) {
+		final var window = Minecraft.getInstance().getWindow();
+		final var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
+
+		final var sizeXp = (double) window.getWidth();
+		final var sizeYp = (double) window.getHeight();
+		final var sizeXu = 4.0 * aspectRatio * this.scale;
+		final var sizeYu = 4.0 * this.scale;
+
+		final var dx = delta.x * (sizeXu / sizeXp);
+		final var dy = delta.y * (sizeYu / sizeYp);
+
 		// this.setDragging(true);
-		this.offset = this.offset.add(delta.neg().mul(0.01 * this.scale));
+		this.offset = this.offset.add(new Vec2(-dx, -dy));
 		return true;
 	}
 

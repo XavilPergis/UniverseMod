@@ -369,17 +369,17 @@ public final class StarRenderManager implements Disposable {
 		final var universe = MinecraftClientAccessor.getUniverse();
 		final var partialTick = Minecraft.getInstance().getFrameTime();
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
-		shader.setUniform("uMetersPerUnit", camera.metersPerUnit);
-		shader.setUniform("uTime", universe.getCelestialTime(partialTick));		
+		shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
+		shader.setUniformf("uTime", universe.getCelestialTime(partialTick));		
 
-		shader.setUniform("uStarSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_SIZE));
-		shader.setUniform("uStarLuminosityScale", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_SCALE));
-		shader.setUniform("uStarLuminosityMax", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_MAX));
-		shader.setUniform("uStarBrightnessScale", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_SCALE));
-		shader.setUniform("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
-		shader.setUniform("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
-		shader.setUniform("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
-		shader.setUniform("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));
+		shader.setUniformf("uStarSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_SIZE));
+		shader.setUniformf("uStarLuminosityScale", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_SCALE));
+		shader.setUniformf("uStarLuminosityMax", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_MAX));
+		shader.setUniformf("uStarBrightnessScale", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_SCALE));
+		shader.setUniformf("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
+		shader.setUniformf("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
+		shader.setUniformf("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
+		shader.setUniformf("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));
 	}
 
 	@Override

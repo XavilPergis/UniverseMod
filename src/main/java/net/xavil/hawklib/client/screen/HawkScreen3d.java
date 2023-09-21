@@ -172,16 +172,8 @@ public abstract class HawkScreen3d extends HawkScreen {
 
 	@Override
 	public boolean keyPressed(Keypress keypress) {
-		if (keypress.keyCode == GLFW.GLFW_KEY_F3 && keypress.hasModifiers(GLFW.GLFW_MOD_CONTROL)) {
-			Minecraft.getInstance().reloadResourcePacks();
-			return true;
-		}
-
 		if (keypress.hasModifiers(GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_ALT)) {
-			if (keypress.keyCode == GLFW.GLFW_KEY_R) {
-				GameRendererAccessor.reloadModShaders();
-				return true;
-			} else if (keypress.keyCode == GLFW.GLFW_KEY_F) {
+			if (keypress.keyCode == GLFW.GLFW_KEY_F) {
 				debugCameraFrustum();
 				return true;
 			} else if (keypress.keyCode == GLFW.GLFW_KEY_C) {

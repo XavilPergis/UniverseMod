@@ -59,14 +59,14 @@ public final class BufferRenderer {
 	}
 
 	public static void setupCameraUniforms(ShaderProgram shader, CachedCamera camera) {
-		shader.setUniform("uCameraPos", camera.pos);
-		shader.setUniform("uCameraNear", camera.nearPlane);
-		shader.setUniform("uCameraFar", camera.farPlane);
+		shader.setUniformf("uCameraPos", camera.pos);
+		shader.setUniformf("uCameraNear", camera.nearPlane);
+		shader.setUniformf("uCameraFar", camera.farPlane);
 		// shader.setUniform("uCameraFov", 0.0);
-		shader.setUniform("uMetersPerUnit", camera.metersPerUnit);
-		shader.setUniform("uViewMatrix", camera.viewMatrix);
-		shader.setUniform("uProjectionMatrix", camera.projectionMatrix);
-		shader.setUniform("uViewProjectionMatrix", camera.viewProjectionMatrix);
+		shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
+		shader.setUniformf("uViewMatrix", camera.viewMatrix);
+		shader.setUniformf("uProjectionMatrix", camera.projectionMatrix);
+		shader.setUniformf("uViewProjectionMatrix", camera.viewProjectionMatrix);
 	}
 
 	public static void setupDefaultShaderUniforms(ShaderProgram shader,
@@ -77,11 +77,11 @@ public final class BufferRenderer {
 		// shader.setUniform("uCameraNear", near);
 		// shader.setUniform("uCameraFar", far);
 
-		shader.setUniform("uViewMatrix", Mat4Access.from(modelViewMatrix));
-		shader.setUniform("uProjectionMatrix", Mat4Access.from(projectionMatrix));
+		shader.setUniformf("uViewMatrix", Mat4Access.from(modelViewMatrix));
+		shader.setUniformf("uProjectionMatrix", Mat4Access.from(projectionMatrix));
 
 		final var window = Minecraft.getInstance().getWindow();
-		shader.setUniform("uScreenSize", (float) window.getWidth(), (float) window.getHeight());
+		shader.setUniformf("uScreenSize", (float) window.getWidth(), (float) window.getHeight());
 
 		setupDefaultVanillaUniforms(shader.getWrappedVanillaShader());
 	}

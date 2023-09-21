@@ -1,10 +1,11 @@
 #stages vertex
 
-VARYING_V2F vec2 texCoord0;
-VARYING_V2F vec4 vertexColor;
-VARYING_V2F vec4 vertexPos;
-VARYING_V2F vec4 normal;
-VARYING_V2F vec4 normalRaw;
+VARYING_V2F vec2 vTexCoord0;
+VARYING_V2F vec4 vVertexColor;
+VARYING_V2F vec4 vVertexPosV;
+VARYING_V2F vec4 vVertexPosW;
+VARYING_V2F vec4 vVertexNormalV;
+VARYING_V2F vec4 vVertexNormalW;
 
 #ifdef IS_VERTEX_STAGE
 #include [ultraviolet:common_uniforms.glsl]
@@ -14,13 +15,24 @@ in vec2 aTexCoord0;
 in vec4 aColor;
 in vec3 aNormal;
 
+mat4 getModelMatrix() {
+#ifdef USE_MODEL_MATRIX
+	return uModelMatrix;
+#else
+	return mat4(1.0);
+#endif
+}
+
 void main() {
-    gl_Position = uProjectionMatrix * uViewMatrix * vec4(aPos, 1.0);
-	vertexPos = uViewMatrix * vec4(aPos, 1.0);
-    texCoord0 = aTexCoord0;
-    vertexColor = aColor;
-    normal = uViewMatrix * vec4(aNormal, 0.0);
-    normalRaw = vec4(aNormal, 0.0);
+	vVertexPosW = getModelMatrix() * vec4(aPos, 1.0);
+	vVertexPosV = uViewMatrix * vVertexPosW;
+    gl_Position = uProjectionMatrix * vVertexPosV;
+
+	vVertexNormalW = getModelMatrix() * vec4(aNormal, 0.0);
+    vVertexNormalV = uViewMatrix * vVertexNormalW;
+
+    vTexCoord0 = aTexCoord0;
+    vVertexColor = aColor;
 }
 
 #endif

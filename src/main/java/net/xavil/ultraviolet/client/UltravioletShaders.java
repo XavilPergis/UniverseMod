@@ -13,7 +13,7 @@ public class UltravioletShaders extends HawkShaders {
 	}
 
 	// @formatter:off
-	public static final ResourceLocation SHADER_PLANET_LOCATION = Mod.namespaced("main/planet.glsl");
+	public static final ResourceLocation SHADER_CELESTIAL_NODE_LOCATION = Mod.namespaced("main/celestial_node.glsl");
 	public static final ResourceLocation SHADER_RING_LOCATION = Mod.namespaced("main/ring.glsl");
 	public static final ResourceLocation SHADER_STAR_BILLBOARD_REALISTIC_LOCATION = Mod.namespaced("main/star_billboard_realistic.glsl");
 	public static final ResourceLocation SHADER_STAR_BILLBOARD_UI_LOCATION = Mod.namespaced("main/star_billboard_ui.glsl");
@@ -28,7 +28,7 @@ public class UltravioletShaders extends HawkShaders {
 	public static final ResourceLocation SHADER_ATMOSPHERE_LOCATION = Mod.namespaced("post/atmosphere.glsl");
 	public static final ResourceLocation SHADER_GRAVITATIONAL_LENSING_LOCATION = Mod.namespaced("post/gravitational_lensing.glsl");
 
-	public static final Supplier<ShaderProgram> SHADER_PLANET = () -> getShader(SHADER_PLANET_LOCATION);
+	public static final Supplier<ShaderProgram> SHADER_CELESTIAL_NODE = () -> getShader(SHADER_CELESTIAL_NODE_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_RING = () -> getShader(SHADER_RING_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_STAR_BILLBOARD_REALISTIC = () -> getShader(SHADER_STAR_BILLBOARD_REALISTIC_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_STAR_BILLBOARD_UI = () -> getShader(SHADER_STAR_BILLBOARD_UI_LOCATION);

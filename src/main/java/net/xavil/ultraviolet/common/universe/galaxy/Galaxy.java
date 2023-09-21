@@ -85,7 +85,7 @@ public class Galaxy {
 	}
 
 	public StarSystem generateFullSystem(GalaxySector sector, GalaxySector.SectorElementHolder elem) {
-		return this.generationLayers.get(elem.generationLayer).generateFullSystem(elem);
+		return this.generationLayers.get(elem.generationLayer).generateFullSystem(sector, elem);
 	}
 
 	public Maybe<StarSystem> loadSystem(Disposable.Multi disposer, GalaxySectorId id) {

@@ -15,7 +15,7 @@ public interface Rng {
 
 	double normalDouble(double mean, double standardDeviation);
 
-	default double lerpWeightedDouble(double exponent, double minValue, double maxValue) {
+	default double weightedDouble(double exponent, double minValue, double maxValue) {
 		return Mth.lerp(Math.pow(uniformDouble(), exponent), minValue, maxValue);
 	}
 

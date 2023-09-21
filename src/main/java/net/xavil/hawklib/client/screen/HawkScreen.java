@@ -5,6 +5,8 @@ import java.util.function.Predicate;
 import javax.annotation.Nullable;
 import javax.annotation.OverridingMethodsMustInvokeSuper;
 
+import org.lwjgl.glfw.GLFW;
+
 import com.mojang.blaze3d.vertex.PoseStack;
 
 import net.minecraft.client.Minecraft;
@@ -24,6 +26,7 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec2i;
+import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 
 public abstract class HawkScreen extends Screen {
 
@@ -168,8 +171,20 @@ public abstract class HawkScreen extends Screen {
 		if (super.keyPressed(keyCode, scanCode, modifiers))
 			return true;
 		final var keypress = new Keypress(keyCode, scanCode, modifiers);
+
+		if (keypress.hasModifiers(GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_ALT)) {
+			if (keypress.keyCode == GLFW.GLFW_KEY_R) {
+				GameRendererAccessor.reloadModShaders();
+				return true;
+			} else if (keypress.keyCode == GLFW.GLFW_KEY_F3) {
+				this.client.reloadResourcePacks();
+				return true;
+			}
+		}
+
 		if (keyPressed(keypress))
 			return true;
+
 		return dispatchEvent(layer -> layer.handleKeypress(keypress));
 	}
 

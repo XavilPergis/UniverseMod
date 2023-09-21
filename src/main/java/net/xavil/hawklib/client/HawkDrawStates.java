@@ -48,7 +48,7 @@ public class HawkDrawStates {
 			.enableDepthTest(GlState.DepthFunc.LESS)
 			.depthMask(true)
 			.enableBlending(false)
-			.enableCulling(false)
+			.enableCulling(true)
 			.build();
 
 }

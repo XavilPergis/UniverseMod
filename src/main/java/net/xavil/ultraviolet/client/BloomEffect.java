@@ -2,7 +2,6 @@ package net.xavil.ultraviolet.client;
 
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
-import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
@@ -25,9 +24,9 @@ public final class BloomEffect {
 		output.bind();
 		output.clear();
 		shader.setUniformSampler("uPreviousSampler", input);
-		shader.setUniform("uSrcSize", input.size().d2());
-		shader.setUniform("uDstSize", output.size());
-		shader.setUniform("uLevel", level);
+		shader.setUniformi("uSrcSize", input.size().d2());
+		shader.setUniformi("uDstSize", output.size());
+		shader.setUniformi("uLevel", level);
 		BufferRenderer.drawFullscreen(shader);
 	}
 
@@ -39,9 +38,9 @@ public final class BloomEffect {
 
 		shader.setUniformSampler("uPreviousSampler", prev);
 		shader.setUniformSampler("uAdjacentSampler", adj);
-		shader.setUniform("uSrcSize", prev.size().d2());
-		shader.setUniform("uDstSize", output.size());
-		shader.setUniform("uLevel", level);
+		shader.setUniformi("uSrcSize", prev.size().d2());
+		shader.setUniformi("uDstSize", output.size());
+		shader.setUniformi("uLevel", level);
 		BufferRenderer.drawFullscreen(shader);
 	}
 
@@ -58,13 +57,13 @@ public final class BloomEffect {
 
 		final var downsampleShader = UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE.get();
 		final var upsampleShader = UltravioletShaders.SHADER_BLOOM_UPSAMPLE.get();
-		downsampleShader.setUniform("uQuality", 1);
-		upsampleShader.setUniform("uQuality", 1);
-		downsampleShader.setUniform("uTotalLevels", settings.passes());
-		upsampleShader.setUniform("uTotalLevels", settings.passes());
-		downsampleShader.setUniform("uIntensity", settings.intensity());
-		downsampleShader.setUniform("uThreshold", settings.threshold());
-		downsampleShader.setUniform("uSoftThreshold", settings.softThreshold());
+		downsampleShader.setUniformi("uQuality", 1);
+		upsampleShader.setUniformi("uQuality", 1);
+		downsampleShader.setUniformi("uTotalLevels", settings.passes());
+		upsampleShader.setUniformi("uTotalLevels", settings.passes());
+		downsampleShader.setUniformf("uIntensity", settings.intensity());
+		downsampleShader.setUniformf("uThreshold", settings.threshold());
+		downsampleShader.setUniformf("uSoftThreshold", settings.softThreshold());
 
 		try (final var disposer = Disposable.scope()) {
 			final var downsampleStack = new Vector<GlTexture2d>();

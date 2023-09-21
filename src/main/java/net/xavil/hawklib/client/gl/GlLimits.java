@@ -109,6 +109,14 @@ public final class GlLimits {
 		}
 	}
 
+	public static void validateTextureSize(int width) {
+		if (width > MAX_TEXTURE_SIZE) {
+			throw new IllegalArgumentException(String.format(
+					"The maximum texture size is %d, but the requested size was (%d)",
+					MAX_TEXTURE_SIZE));
+		}
+	}
+
 	public static void validateTextureSize(int width, int height) {
 		if (width > MAX_TEXTURE_SIZE || height > MAX_TEXTURE_SIZE) {
 			throw new IllegalArgumentException(String.format(
@@ -117,7 +125,7 @@ public final class GlLimits {
 		}
 	}
 
-	public static void validateTextureSize3d(int width, int height, int depth) {
+	public static void validateTextureSize(int width, int height, int depth) {
 		if (width > MAX_3D_TEXTURE_SIZE || height > MAX_3D_TEXTURE_SIZE || depth > MAX_3D_TEXTURE_SIZE) {
 			throw new IllegalArgumentException(String.format(
 					"The maximum 3d texture size is %d, but the requested size was (%d, %d, %d)",

@@ -367,8 +367,10 @@ public final class ServerUniverse extends Universe {
 	public void prepare() {
 		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 4);
 
-		var startingSystem = startingSystemTest();
-		startingSystem.rootNode.assignIds();
+		// var startingSystem = startingSystemTest();
+		var startingSystem = startingSystemSol();
+		startingSystem.rootNode.build();
+		startingSystem.rootNode.assignSeeds(rng.uniformLong());
 
 		var rootNode = startingSystem.rootNode;
 		var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);

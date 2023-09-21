@@ -58,7 +58,6 @@ public final class ClientUniverse extends Universe {
 			final var galaxy = this.sectorManager.forceLoad(tempTicket).unwrap();
 
 			final var node = CelestialNode.readNbt(packet.startingSystemNbt);
-			node.assignIds();
 			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy,
 					node, packet.startingId.nodeId());
 			galaxy.addGenerationLayer(this.startingGenerator);

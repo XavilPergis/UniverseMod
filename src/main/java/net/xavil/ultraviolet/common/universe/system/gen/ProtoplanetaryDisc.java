@@ -125,7 +125,7 @@ public class ProtoplanetaryDisc {
 			}
 		}
 
-		double nextRoguePlanetTime = this.rng.uniformDouble("rogue_planet_time", 0, 0.05 * this.ctx.systemAgeMya);
+		double nextRoguePlanetTime = this.rng.uniformDouble("rogue_planet_time", 0, this.ctx.systemAgeMya);
 		double nextPlanetTime = 0;
 
 		final var stepRng = this.rng.split("step");
@@ -136,7 +136,7 @@ public class ProtoplanetaryDisc {
 			final var placementRng = attemptRng.split("placement");
 			if (this.ctx.currentSystemAgeMya >= nextRoguePlanetTime) {
 				nextRoguePlanetTime = this.ctx.currentSystemAgeMya
-						+ placementRng.uniformDouble("rogue_planet_time", 0, 0.05 * this.ctx.systemAgeMya);
+						+ placementRng.uniformDouble("rogue_planet_time", 0, this.ctx.systemAgeMya);
 				if (placementRng.chance("rogue_planet_chance", 0.67)) {
 					placeRoguePlanetesimal(placementRng.split("rogue_planetesimal"));
 				}

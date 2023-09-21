@@ -350,7 +350,7 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 	public Color getColor() {
 		final var res = new Vec3.Mutable();
 		blackBodyColorFromTable(res, this.temperature);
-		return new Color(res.x, res.y, res.z, 1.0);
+		return Color.fromDoubles(res.x, res.y, res.z, 1);
 	}
 
 }

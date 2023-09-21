@@ -11,7 +11,10 @@ import net.minecraft.tags.BlockTags;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
+import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.math.Color;
+import net.xavil.ultraviolet.client.ColorSpline;
 
 public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 
@@ -34,6 +37,7 @@ public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 	}
 
 	public Type type;
+	public ColorSpline gasGiantColorSpline = new ColorSpline();
 
 	public PlanetaryCelestialNode() {
 	}
@@ -48,6 +52,16 @@ public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 		this.type = type;
 		this.radius = Units.km_PER_Rearth * radiusRearth;
 		this.temperature = temperatureK;
+	}
+
+	public void generateColorSpline() {
+		final var rng = Rng.fromSeed(this.seed);
+		final var weirdness = rng.weightedDouble(4, 10, 1);
+		final var splinePointCount = rng.weightedDouble(2, 4, 20);
+
+		this.gasGiantColorSpline.clear();
+		this.gasGiantColorSpline.addControlPoint(1, Color.WHITE);
+		this.gasGiantColorSpline.addControlPoint(0, Color.WHITE);
 	}
 
 	public Holder<DimensionType> dimensionType(MinecraftServer server) {

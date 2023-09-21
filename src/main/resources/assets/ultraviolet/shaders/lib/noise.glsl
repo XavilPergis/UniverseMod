@@ -201,6 +201,10 @@ float noiseSimplex(vec4 v){
 
 }
 
+float noiseSimplex(float n, float s) { return noiseSimplex(vec2(n, s)); }
+float noiseSimplex( vec2 n, float s) { return noiseSimplex(vec3(n, s)); }
+float noiseSimplex( vec3 n, float s) { return noiseSimplex(vec4(n, s)); }
+
 vec2 noiseSimplex2(vec2 v, float seed) {
 	return vec2(
 		noiseSimplex(vec3(v, seed + 865.5)),
@@ -216,13 +220,6 @@ vec3 noiseSimplex3(vec3 v, float seed) {
 	);
 }
 
-float rand(vec2 co){
-    return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
-}
-
-float rand(float n){return fract(sin(n) * 43758.5453123);}
-
-
 struct FbmInfo {
     int octaves;
     float baseAmplitude;
@@ -234,9 +231,26 @@ struct FbmInfo {
 #ifndef FBM_FUNC
 #define FBM_FUNC noiseSimplex
 #endif
-#define DEFAULT_FBM FbmInfo(4, 1.0, 1.0, 0.7, 2.5)
+#define DEFAULT_FBM (FbmInfo(4, 1.0, 1.0, 0.7, 2.5))
 
-float fbm(FbmInfo info, vec3 pos) {
+float noiseFbm(in FbmInfo info, in vec4 pos) {
+    float n = 0.0;
+	float a = info.baseAmplitude;
+    float am = 0.0;
+	float f = info.baseFrequency;
+    for (int i = 0; i < info.octaves; ++i) {
+        n += a * FBM_FUNC(f * pos);
+        am += a;
+        a *= info.amplitudeScale;
+        f *= info.frequencyScale;
+    }
+    return (n / am) * 0.5 + 0.5;
+}
+float noiseFbm(in FbmInfo info, in vec3 pos, in float seed) {
+    return noiseFbm(info, vec4(pos, seed));
+}
+
+float noiseFbm(in FbmInfo info, in vec3 pos) {
     float n = 0.;
     float a = info.baseAmplitude;
     float am = 0.;
@@ -247,7 +261,79 @@ float fbm(FbmInfo info, vec3 pos) {
         a *= info.amplitudeScale;
         f *= info.frequencyScale;
     }
-    return n / am;
+    return (n / am) * 0.5 + 0.5;
+}
+float noiseFbm(in FbmInfo info, in vec2 pos, in float seed) {
+    return noiseFbm(info, vec3(pos, seed));
+}
+
+float noiseFbm(in FbmInfo info, in vec2 pos) {
+    float n = 0.;
+    float a = info.baseAmplitude;
+    float am = 0.;
+    float f = info.baseFrequency;
+    for (int i = 0; i < info.octaves; ++i) {
+        n += a * FBM_FUNC(f * pos);
+        am += a;
+        a *= info.amplitudeScale;
+        f *= info.frequencyScale;
+    }
+    return (n / am) * 0.5 + 0.5;
+}
+float noiseFbm(in FbmInfo info, in float pos, in float seed) {
+    return noiseFbm(info, vec2(pos, seed));
+}
+
+float noiseFbm(in FbmInfo info, in float pos) {
+    return noiseFbm(info, pos, 0.0);
+}
+
+// murmur2 finalizer
+int hash(in int value) {
+    value = value ^ (value >> 16);
+    value = value * 0x85ebca6b;
+    value = value ^ (value >> 13);
+    value = value * 0xc2b2ae35;
+    value = value ^ (value >> 16);
+	return value;
+}
+
+float floatFromInt(in int rngValue) {
+	return float(rngValue >> 8) / float(1 << 24);
+}
+
+float nextFloat(inout int rngValue) {
+	return floatFromInt(rngValue = hash(rngValue));
+}
+float nextFloat(inout int rngValue, in float lo, in float hi) {
+	return mix(lo, hi, nextFloat(rngValue));
+}
+
+float rand(in vec4 pos) {
+	int rng = 0;
+	rng = hash(rng ^ floatBitsToInt(pos.x));
+	rng = hash(rng ^ floatBitsToInt(pos.y));
+	rng = hash(rng ^ floatBitsToInt(pos.z));
+	rng = hash(rng ^ floatBitsToInt(pos.w));
+    return floatFromInt(rng);
+}
+float rand(in vec3 pos) {
+	int rng = 0;
+	rng = hash(rng ^ floatBitsToInt(pos.x));
+	rng = hash(rng ^ floatBitsToInt(pos.y));
+	rng = hash(rng ^ floatBitsToInt(pos.z));
+    return floatFromInt(rng);
+}
+float rand(in vec2 pos) {
+	int rng = 0;
+	rng = hash(rng ^ floatBitsToInt(pos.x));
+	rng = hash(rng ^ floatBitsToInt(pos.y));
+    return floatFromInt(rng);
+}
+float rand(in float pos) {
+	int rng = 0;
+	rng = hash(rng ^ floatBitsToInt(pos));
+    return floatFromInt(rng);
 }
 
 #endif

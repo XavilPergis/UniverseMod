@@ -81,8 +81,8 @@ Light makeStarLight(in vec3 posWorld, in vec4 color, in float radius) {
 }
 
 vec3 contrib(Material material, vec3 lightPos, vec4 lightColor, float lightRadius) {
-	vec3 posWorld = (inverse(uViewMatrix) * normalize(vertexPos)).xyz;
-	LightingContext ctx = makeLightingContext(material, uMetersPerUnit, uCameraPos, posWorld, normalize(lightPos - posWorld));
+	vec3 posWorld = (inverse(uViewMatrix) * normalize(vVertexPosV)).xyz;
+	LightingContext ctx = makeLightingContext(material, uMetersPerUnit, vVertexPosV.xyz, normalize(lightPos - posWorld));
 	vec3 res = lightContribution(ctx, makeStarLight(lightPos, lightColor, lightRadius));
 
 	float parentRadius_u = uParentRadius * 1000.0 / uMetersPerUnit;
@@ -103,12 +103,12 @@ void main() {
     //     discard;
     // }
 
-	vec3 normWorld = (inverse(uViewMatrix) * normalize(normal)).xyz;
-	vec3 posWorld = (inverse(uViewMatrix) * normalize(vertexPos)).xyz;
+	vec3 normWorld = vVertexNormalW.xyz;
+	vec3 posWorld = vVertexPosW.xyz;
 
 	Material material = Material(vec3(0.0), vec3(1.0), 0.5, 0.0);
 
-	// LightingContext ctx = makeLightingContext(material, uMetersPerUnit, uCameraPos, posWorld, normWorld);
+	// LightingContext ctx = makeLightingContext(material, uMetersPerUnit, vVertexPosV.xyz, normWorld);
 	vec3 res = vec3(0.0);
 	res += contrib(material, uLightPos0.xyz, uLightColor0, uLightRadius0);
 	res += contrib(material, uLightPos1.xyz, uLightColor1, uLightRadius1);
@@ -123,7 +123,7 @@ void main() {
 	// 	light *= 0.0;
 	// }
 
-	vec4 baseColor = shadeRing(texCoord0.y);
+	vec4 baseColor = shadeRing(vTexCoord0.y);
 	vec3 finalColor = res * baseColor.rgb;
 
 	float exposure = 1.0;

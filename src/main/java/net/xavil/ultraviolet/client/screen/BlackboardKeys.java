@@ -20,6 +20,6 @@ public final class BlackboardKeys {
 	public static final Blackboard.Key<String, Color> UNARY_PATH_COLOR = Blackboard.Key
 			.create("unary_path_color", new Color(0.5f, 0.4f, 0.1f, 0.5f));
 	public static final Blackboard.Key<String, Color> SELECTED_PATH_COLOR = Blackboard.Key
-			.create("selected_path_color", new Color(0.2, 1.0, 0.2, 1.0));
+			.create("selected_path_color", new Color(0.2f, 1.0f, 0.2f, 1.0f));
 
 }

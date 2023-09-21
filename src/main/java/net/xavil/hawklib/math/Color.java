@@ -5,7 +5,7 @@ import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
-public record Color(float r, float g, float b, float a) implements Hashable {
+public final class Color implements ColorAccess, Hashable {
 
 	public static final Color TRANSPARENT = new Color(0, 0, 0, 0);
 	public static final Color BLACK = new Color(0, 0, 0, 1);
@@ -16,6 +16,60 @@ public record Color(float r, float g, float b, float a) implements Hashable {
 	public static final Color MAGENTA = new Color(1, 0, 1, 1);
 	public static final Color YELLOW = new Color(1, 1, 0, 1);
 	public static final Color WHITE = new Color(1, 1, 1, 1);
+
+	public final float r, g, b, a;
+
+	public Color(float r, float g, float b, float a) {
+		this.r = r;
+		this.g = g;
+		this.b = b;
+		this.a = a;
+	}
+
+	public Color(float r, float g, float b) {
+		this(r, g, b, 1f);
+	}
+
+	public static Color fromDoubles(double r, double g, double b, double a) {
+		return new Color((float) r, (float) g, (float) b, (float) a);
+	}
+
+	public static Color fromDoubles(double r, double g, double b) {
+		return new Color((float) r, (float) g, (float) b, 1f);
+	}
+
+	// @override:off
+	@Override public float r() { return this.r; }
+	@Override public float g() { return this.g; }
+	@Override public float b() { return this.b; }
+	@Override public float a() { return this.a; }
+	// @override:on
+
+	public static final class Mutable {
+		public float r, g, b, a;
+
+		public Mutable() {}
+
+		public Mutable(float r, float g, float b, float a) {
+			this.r = r;
+			this.g = g;
+			this.b = b;
+			this.a = a;
+		}
+
+		public Mutable(float r, float g, float b) {
+			this(r, g, b, 1f);
+		}
+
+	}
+
+	public static Mutable set(Mutable r, ColorAccess c) {
+		r.r = c.r();
+		r.g = c.g();
+		r.b = c.b();
+		r.a = c.a();
+		return r;
+	}
 
 	public static Color fromPackedRgb(int rgb) {
 		float b = (rgb & 0xff) / 255f;
@@ -63,23 +117,23 @@ public record Color(float r, float g, float b, float a) implements Hashable {
 		}
 	}
 
-	public Color withR(double r) {
+	public Color withR(float r) {
 		return new Color(r, g, b, a);
 	}
 
-	public Color withG(double g) {
+	public Color withG(float g) {
 		return new Color(r, g, b, a);
 	}
 
-	public Color withB(double b) {
+	public Color withB(float b) {
 		return new Color(r, g, b, a);
 	}
 
-	public Color withA(double a) {
+	public Color withA(float a) {
 		return new Color(r, g, b, a);
 	}
 
-	public Color mul(double b) {
+	public Color mul(float b) {
 		return new Color(this.r * b, this.g * b, this.b * b, this.a * b);
 	}
 
@@ -111,20 +165,12 @@ public record Color(float r, float g, float b, float a) implements Hashable {
 				Math.max(a.a, b.a));
 	}
 
-	public static Color lerp(double t, Color a, Color b) {
+	public static Color lerp(float t, Color a, Color b) {
 		return new Color(
 				Mth.lerp(t, a.r, b.r),
 				Mth.lerp(t, a.g, b.g),
 				Mth.lerp(t, a.b, b.b),
 				Mth.lerp(t, a.a, b.a));
-	}
-
-	public Color(double r, double g, double b, double a) {
-		this((float) r, (float) g, (float) b, (float) a);
-	}
-
-	public static Color rgb(double r, double g, double b) {
-		return new Color(r, g, b, 1);
 	}
 
 	@Override

@@ -18,9 +18,8 @@ public final class CentralBlackHoleGenerationLayer extends GalaxyGenerationLayer
 	}
 
 	@Override
-	public StarSystem generateFullSystem(SectorElementHolder elem) {
+	public StarSystem generateFullSystem(GalaxySector sector, SectorElementHolder elem) {
 		// TODO Auto-generated method stub
-		throw new UnsupportedOperationException("Unimplemented method 'generateFullSystem'");
+		return null;
 	}
-	
 }

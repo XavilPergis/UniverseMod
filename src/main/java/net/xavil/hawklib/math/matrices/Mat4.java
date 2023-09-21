@@ -71,7 +71,7 @@ public final class Mat4 implements Hashable, Mat4Access {
 	}
 
 	public static Mat4 scale(double n) {
-		return diagonal(Vec4.broadcast(n));
+		return diagonal(Vec3.broadcast(n).xyz1());
 	}
 
 	public static Mat4 perspectiveProjection(double fovRad, double aspectRatio, double near, double far) {
@@ -207,6 +207,26 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r1c0 = r1c0; r.r1c1 = r1c1; r.r1c2 = r1c2; r.r1c3 = r1c3;
 		r.r2c0 = r2c0; r.r2c1 = r2c1; r.r2c2 = r2c2; r.r2c3 = r2c3;
 		r.r3c0 = r3c0; r.r3c1 = r3c1; r.r3c2 = r3c2; r.r3c3 = r3c3;
+		return r;
+		// @formatter:on
+	}
+
+	public static Mat4.Mutable mulScale(Mat4.Mutable r, double s, Mat4Access b) {
+		// @formatter:off
+		r.r0c0 = s * b.r0c0(); r.r0c1 = s * b.r0c1(); r.r0c2 = s * b.r0c2(); r.r0c3 = s * b.r0c3();
+		r.r1c0 = s * b.r1c0(); r.r1c1 = s * b.r1c1(); r.r1c2 = s * b.r1c2(); r.r1c3 = s * b.r1c3();
+		r.r2c0 = s * b.r2c0(); r.r2c1 = s * b.r2c1(); r.r2c2 = s * b.r2c2(); r.r2c3 = s * b.r2c3();
+		r.r3c0 = b.r3c0(); r.r3c1 = b.r3c1(); r.r3c2 = b.r3c2(); r.r3c3 = b.r3c3();
+		return r;
+		// @formatter:on
+	}
+
+	public static Mat4.Mutable mulScale(Mat4.Mutable r, Mat4Access a, double s) {
+		// @formatter:off
+		r.r0c0 = s * a.r0c0(); r.r0c1 = s * a.r0c1(); r.r0c2 = s * a.r0c2(); r.r0c3 = a.r0c3();
+		r.r1c0 = s * a.r1c0(); r.r1c1 = s * a.r1c1(); r.r1c2 = s * a.r1c2(); r.r1c3 = a.r1c3();
+		r.r2c0 = s * a.r2c0(); r.r2c1 = s * a.r2c1(); r.r2c2 = s * a.r2c2(); r.r2c3 = a.r2c3();
+		r.r3c0 = s * a.r3c0(); r.r3c1 = s * a.r3c1(); r.r3c2 = s * a.r3c2(); r.r3c3 = a.r3c3();
 		return r;
 		// @formatter:on
 	}
@@ -456,7 +476,7 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r0c0 = n; r.r0c1 = 0; r.r0c2 = 0; r.r0c3 = 0;
 		r.r1c0 = 0; r.r1c1 = n; r.r1c2 = 0; r.r1c3 = 0;
 		r.r2c0 = 0; r.r2c1 = 0; r.r2c2 = n; r.r2c3 = 0;
-		r.r3c0 = 0; r.r3c1 = 0; r.r3c2 = 0; r.r3c3 = n;
+		r.r3c0 = 0; r.r3c1 = 0; r.r3c2 = 0; r.r3c3 = 1;
 		// @formatter:on
 		return r;
 	}
@@ -740,6 +760,14 @@ public final class Mat4 implements Hashable, Mat4Access {
 
 		public Mutable appendTranslation(Vec3Access vec) {
 			return Mat4.mulTranslation(this, vec, this);
+		}
+
+		public Mutable prependScale(double scale) {
+			return Mat4.mulScale(this, this, scale);
+		}
+
+		public Mutable appendScale(double scale) {
+			return Mat4.mulScale(this, scale, this);
 		}
 
 		public boolean invert() {

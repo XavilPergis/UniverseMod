@@ -85,7 +85,7 @@ public class GalaxyRenderingContext implements Disposable {
 				t = Mth.clamp(t, 0, 1);
 				double size = Mth.lerp(t, 5e6, 5e7);
 				size = size * (1e12 / metersPerUnit);
-				builder.vertex(samplePos).color(Color.WHITE.withA(0.1)).uv0((float) size, 0).endVertex();
+				builder.vertex(samplePos).color(Color.WHITE.withA(0.1f)).uv0((float) size, 0).endVertex();
 				successfulPlacements += 1;
 			}
 		}

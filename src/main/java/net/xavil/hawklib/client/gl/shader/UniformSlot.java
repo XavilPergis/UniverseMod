@@ -359,6 +359,8 @@ public final class UniformSlot {
 				// TODO: report error
 				return true;
 			}
+			if (this.textureValues[i].isDestroyed())
+				continue;
 			// FIXME: we change texture unit bindings but don't tell GlStateManager about
 			// it, which means vanilla has the possibility of getting into a weird state.
 			GL45C.glBindTextureUnit(ctx.currentTextureUnit, this.textureValues[i].id);
@@ -397,13 +399,17 @@ public final class UniformSlot {
 	void upload(ShaderProgram program, UploadContext ctx) {
 		if (this.type.componentType != ComponentType.SAMPLER && !this.isDirty)
 			return;
-		if (uploadSamplers(program, ctx)) {
-		} else if (uploadMatrix(program)) {
-		} else if (this.type.componentType.isFloatType) {
+		this.isDirty = false;
+
+		if (uploadSamplers(program, ctx))
+			return;
+		if (uploadMatrix(program))
+			return;
+
+		if (this.type.componentType.isFloatType) {
 			uploadFloats(program);
 		} else if (this.type.componentType.isIntType) {
 			uploadInts(program);
 		}
-		this.isDirty = false;
 	}
 }

@@ -31,36 +31,55 @@ public final class TransformStack {
 		this.current = mat;
 	}
 
+	// NOTE: "prepend" and "append" refer to the order that transformations happen
+	// in, rather than the order the matricies are multiplied in. `append(A);
+	// append(B);` applies A first, then B second, as if `append(B*A)` were used
+	// instead.
+
 	public TransformStack prependTransform(Mat4Access tfm) {
 		this.current.prependTransform(tfm);
 		this.cached = null;
 		return this;
 	}
-	
+
 	public TransformStack appendTransform(Mat4Access tfm) {
 		this.current.appendTransform(tfm);
 		this.cached = null;
 		return this;
 	}
+
 	public TransformStack prependRotation(Quat tfm) {
 		this.current.prependRotation(tfm);
 		this.cached = null;
 		return this;
 	}
-	
+
 	public TransformStack appendRotation(Quat tfm) {
 		this.current.appendRotation(tfm);
 		this.cached = null;
 		return this;
 	}
-	public TransformStack prependTranslation(Vec3 tfm) {
+
+	public TransformStack prependTranslation(Vec3Access tfm) {
 		this.current.prependTranslation(tfm);
 		this.cached = null;
 		return this;
 	}
-	
-	public TransformStack appendTranslation(Vec3 tfm) {
+
+	public TransformStack appendTranslation(Vec3Access tfm) {
 		this.current.appendTranslation(tfm);
+		this.cached = null;
+		return this;
+	}
+
+	public TransformStack prependScale(double scale) {
+		this.current.prependScale(scale);
+		this.cached = null;
+		return this;
+	}
+
+	public TransformStack appendScale(double scale) {
+		this.current.appendScale(scale);
 		this.cached = null;
 		return this;
 	}

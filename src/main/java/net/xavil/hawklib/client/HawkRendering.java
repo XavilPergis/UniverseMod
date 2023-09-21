@@ -59,7 +59,7 @@ public final class HawkRendering {
 			// tonemapping
 			output.bind();
 			final var postShader = UltravioletShaders.getShader(UltravioletShaders.SHADER_MAIN_POSTPROCESS_LOCATION);
-			postShader.setUniform("uExposure", 1f);
+			postShader.setUniformf("uExposure", 1f);
 			postShader.setUniformSampler("uSampler", hdrPost.colorTexture);
 			BufferRenderer.drawFullscreen(postShader);
 		}

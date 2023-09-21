@@ -1,5 +1,6 @@
 package net.xavil.hawklib.client.gl.shader;
 
+import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.matrices.Vec2i;
@@ -25,6 +26,8 @@ public interface UniformHolder {
 	default void setUniformSampler(String uniformName, GlTexture texture) {
 		if (texture == null)
 			return;
+		Assert.isTrue(!texture.isDestroyed());
+		Assert.isTrue(texture.isValid());
 		final var uniformType = UniformSlot.Type.from(texture.format().samplerType, texture.type);
 		final var slot = getSlot(uniformName, uniformType);
 		if (slot != null) {
@@ -35,7 +38,7 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, int v0) {
+	default void setUniformi(String uniformName, int v0) {
 		final var slot = getSlot(uniformName, UniformSlot.Type.INT1);
 		if (slot != null) {
 			boolean d = false;
@@ -45,7 +48,7 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, int v0, int v1) {
+	default void setUniformi(String uniformName, int v0, int v1) {
 		final var slot = getSlot(uniformName, UniformSlot.Type.INT2);
 		if (slot != null) {
 			boolean d = false;
@@ -56,7 +59,7 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, int v0, int v1, int v2) {
+	default void setUniformi(String uniformName, int v0, int v1, int v2) {
 		final var slot = getSlot(uniformName, UniformSlot.Type.INT3);
 		if (slot != null) {
 			boolean d = false;
@@ -68,7 +71,7 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, int v0, int v1, int v2, int v3) {
+	default void setUniformi(String uniformName, int v0, int v1, int v2, int v3) {
 		final var slot = getSlot(uniformName, UniformSlot.Type.INT4);
 		if (slot != null) {
 			boolean d = false;
@@ -81,7 +84,7 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, float v0) {
+	default void setUniformf(String uniformName, float v0) {
 		final var slot = getSlot(uniformName, UniformSlot.Type.FLOAT1);
 		if (slot != null) {
 			boolean d = false;
@@ -91,7 +94,7 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, float v0, float v1) {
+	default void setUniformf(String uniformName, float v0, float v1) {
 		final var slot = getSlot(uniformName, UniformSlot.Type.FLOAT2);
 		if (slot != null) {
 			boolean d = false;
@@ -102,7 +105,7 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, float v0, float v1, float v2) {
+	default void setUniformf(String uniformName, float v0, float v1, float v2) {
 		final var slot = getSlot(uniformName, UniformSlot.Type.FLOAT3);
 		if (slot != null) {
 			boolean d = false;
@@ -114,7 +117,7 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, float v0, float v1, float v2, float v3) {
+	default void setUniformf(String uniformName, float v0, float v1, float v2, float v3) {
 		final var slot = getSlot(uniformName, UniformSlot.Type.FLOAT4);
 		if (slot != null) {
 			boolean d = false;
@@ -195,47 +198,47 @@ public interface UniformHolder {
 		}
 	}
 
-	default void setUniform(String uniformName, double v0) {
-		setUniform(uniformName, (float) v0);
+	default void setUniformf(String uniformName, double v0) {
+		setUniformf(uniformName, (float) v0);
 	}
 
-	default void setUniform(String uniformName, double v0, double v1) {
-		setUniform(uniformName, (float) v0, (float) v1);
+	default void setUniformf(String uniformName, double v0, double v1) {
+		setUniformf(uniformName, (float) v0, (float) v1);
 	}
 
-	default void setUniform(String uniformName, double v0, double v1, double v2) {
-		setUniform(uniformName, (float) v0, (float) v1, (float) v2);
+	default void setUniformf(String uniformName, double v0, double v1, double v2) {
+		setUniformf(uniformName, (float) v0, (float) v1, (float) v2);
 	}
 
-	default void setUniform(String uniformName, double v0, double v1, double v2, double v3) {
-		setUniform(uniformName, (float) v0, (float) v1, (float) v2, (float) v3);
+	default void setUniformf(String uniformName, double v0, double v1, double v2, double v3) {
+		setUniformf(uniformName, (float) v0, (float) v1, (float) v2, (float) v3);
 	}
 
-	default void setUniform(String uniformName, Vec2i v) {
-		setUniform(uniformName, v.x, v.y);
+	default void setUniformi(String uniformName, Vec2i v) {
+		setUniformi(uniformName, v.x, v.y);
 	}
 
-	default void setUniform(String uniformName, Vec3iAccess v) {
-		setUniform(uniformName, v.x(), v.y(), v.z());
+	default void setUniformi(String uniformName, Vec3iAccess v) {
+		setUniformi(uniformName, v.x(), v.y(), v.z());
 	}
 
-	default void setUniform(String uniformName, Vec2Access v) {
-		setUniform(uniformName, v.x(), v.y());
+	default void setUniformf(String uniformName, Vec2Access v) {
+		setUniformf(uniformName, v.x(), v.y());
 	}
 
-	default void setUniform(String uniformName, Vec3Access v) {
-		setUniform(uniformName, v.x(), v.y(), v.z());
+	default void setUniformf(String uniformName, Vec3Access v) {
+		setUniformf(uniformName, v.x(), v.y(), v.z());
 	}
 
-	default void setUniform(String uniformName, Vec4Access v) {
-		setUniform(uniformName, v.x(), v.y(), v.z(), v.w());
+	default void setUniformf(String uniformName, Vec4Access v) {
+		setUniformf(uniformName, v.x(), v.y(), v.z(), v.w());
 	}
 
-	default void setUniform(String uniformName, Color color) {
-		setUniform(uniformName, color.r(), color.g(), color.b(), color.a());
+	default void setUniformf(String uniformName, Color color) {
+		setUniformf(uniformName, color.r(), color.g(), color.b(), color.a());
 	}
 
-	default void setUniform(String uniformName, Mat4Access v) {
+	default void setUniformf(String uniformName, Mat4Access v) {
 		setUniformMatrix4x4(uniformName,
 				(float) v.r0c0(), (float) v.r0c1(), (float) v.r0c2(), (float) v.r0c3(),
 				(float) v.r1c0(), (float) v.r1c1(), (float) v.r1c2(), (float) v.r1c3(),

@@ -38,14 +38,14 @@ public class CachedCamera {
 		Mat4.set(this.projectionMatrix, projectionMatrix);
 
 		Mat4.invert(this.inverseProjectionMatrix, this.projectionMatrix);
-		Mat4.mul(this.viewProjectionMatrix, this.projectionMatrix, this.viewMatrix);
+		Mat4.mul(this.viewProjectionMatrix, this.projectionMatrix, viewMatrix);
 		Mat4.invert(this.inverseViewProjectionMatrix, this.viewProjectionMatrix);
 
 		Mat4.storeTranslation(this.pos, viewMatrix);
 		Vec3.mul(this.posTm, metersPerUnit / 1e12, this.pos);
 
-		Mat4.basisX(this.up, this.viewMatrix);
-		Mat4.basisY(this.right, this.viewMatrix);
+		Mat4.basisX(this.right, this.viewMatrix);
+		Mat4.basisY(this.up, this.viewMatrix);
 		Mat4.basisZ(this.forward, this.viewMatrix);
 		Vec3.neg(this.down, this.up);
 		Vec3.neg(this.left, this.right);

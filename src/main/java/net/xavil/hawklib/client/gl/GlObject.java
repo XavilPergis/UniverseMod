@@ -96,4 +96,8 @@ public abstract class GlObject implements Disposable {
 				&& this.id == other.id;
 	}
 
+	public final boolean isDestroyed() {
+		return this.destroyed;
+	}
+
 }

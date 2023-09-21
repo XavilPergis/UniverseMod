@@ -13,6 +13,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.StableRandom;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -31,6 +32,7 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	public static final int UNASSINED_ID = -1;
 
 	public int id = UNASSINED_ID;
+	public long seed = 0;
 	public BinaryCelestialNode parentBinaryNode = null;
 	public CelestialNodeChild<?> parentUnaryNode = null;
 	public final MutableList<CelestialNodeChild<?>> childNodes = new Vector<>();
@@ -55,9 +57,21 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	/**
 	 * This method assumes it is being called on the root node.
 	 */
-	public final void assignIds() {
-		assignSubtreeIds(0);
+	public final void build() {
+		buildSubtree(0);
 		assignSuffixes();
+	}
+
+	public final void assignSeeds(long seed) {
+		this.seed = StableRandom.scramble(seed);
+		if (this instanceof BinaryCelestialNode binaryNode) {
+			binaryNode.getInner().assignSeeds(this.seed);
+			binaryNode.getOuter().assignSeeds(this.seed);
+		}
+		for (var child : this.childNodes.iterable()) {
+			child.node.parentUnaryNode = child;
+			child.node.assignSeeds(this.seed);
+		}
 	}
 
 	/**
@@ -71,18 +85,18 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	 * @param startId The ID at which all descendant nodes should be greater than.
 	 * @return The maximum ID contained within `this`, including itself.
 	 */
-	protected final int assignSubtreeIds(int startId) {
+	protected final int buildSubtree(int startId) {
 		this.childNodes.sort(Comparator.comparingDouble(child -> child.orbitalShape.semiMajor()));
 
 		if (this instanceof BinaryCelestialNode binaryNode) {
 			binaryNode.getInner().parentBinaryNode = binaryNode;
 			binaryNode.getOuter().parentBinaryNode = binaryNode;
-			startId = binaryNode.getInner().assignSubtreeIds(startId) + 1;
-			startId = binaryNode.getOuter().assignSubtreeIds(startId) + 1;
+			startId = binaryNode.getInner().buildSubtree(startId) + 1;
+			startId = binaryNode.getOuter().buildSubtree(startId) + 1;
 		}
 		for (var child : this.childNodes.iterable()) {
 			child.node.parentUnaryNode = child;
-			startId = child.node.assignSubtreeIds(startId) + 1;
+			startId = child.node.buildSubtree(startId) + 1;
 		}
 
 		this.id = startId;
@@ -406,6 +420,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 			return null;
 
 		final var id = nbt.getInt("id");
+		final var seed = nbt.getLong("seed");
+		final var explicitName = nbt.contains("name") ? nbt.getString("name") : null;
 		final var mass = nbt.getDouble("mass");
 		final var position = new Vec3(nbt.getDouble("x"), nbt.getDouble("y"), nbt.getDouble("z"));
 		final var apsidalRate = nbt.getDouble("apsidal_rate");
@@ -414,6 +430,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		Vec3.set(node.position, position);
 		node.referencePlane = referencePlane;
 		node.id = id;
+		node.seed = seed;
+		node.explicitName = explicitName;
 		node.massYg = mass;
 		node.apsidalRate = apsidalRate;
 
@@ -462,6 +480,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 			node.insertChild(new CelestialNodeChild<>(node, childNode, orbitalShape, orbitalPlane, phase));
 		}
 
+		node.build();
+
 		return node;
 	}
 
@@ -469,6 +489,9 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		final var nbt = new CompoundTag();
 
 		nbt.putInt("id", node.id);
+		nbt.putLong("seed", node.seed);
+		if (node.explicitName != null)
+			nbt.putString("name", node.explicitName);
 		nbt.putDouble("mass", node.massYg);
 		nbt.putDouble("x", node.position.x);
 		nbt.putDouble("y", node.position.y);

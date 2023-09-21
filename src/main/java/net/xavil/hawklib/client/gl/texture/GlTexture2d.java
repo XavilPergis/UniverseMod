@@ -52,21 +52,27 @@ public final class GlTexture2d extends GlTexture {
 		if (target.getColorTextureId() == -1)
 			return null;
 		final var ms = target instanceof FlexibleRenderTarget flex && flex.isMultisampled();
-		return new GlTexture2d(ms, target.getColorTextureId(), false);
+		final var res = new GlTexture2d(ms, target.getColorTextureId(), false);
+		res.storageAllocated = true;
+		return res;
 	}
 
 	public static GlTexture2d importFromRenderTargetDepth(RenderTarget target) {
 		if (target.getDepthTextureId() == -1)
 			return null;
 		final var ms = target instanceof FlexibleRenderTarget flex && flex.isMultisampled();
-		return new GlTexture2d(ms, target.getDepthTextureId(), false);
+		final var res = new GlTexture2d(ms, target.getDepthTextureId(), false);
+		res.storageAllocated = true;
+		return res;
 	}
 
 	public static GlTexture2d importTexture(ResourceLocation location) {
 		final var client = Minecraft.getInstance();
 		final var texture = client.getTextureManager().getTexture(location);
 		texture.setFilter(true, false);
-		return new GlTexture2d(false, texture.getId(), false);
+		final var res = new GlTexture2d(false, texture.getId(), false);
+		res.storageAllocated = true;
+		return res;
 	}
 
 }

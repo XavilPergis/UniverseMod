@@ -29,14 +29,18 @@ import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.GalaxyTicket;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
+import net.xavil.ultraviolet.debug.ClientConfig;
+import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.Color;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.TransformStack;
+import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -259,6 +263,8 @@ public class SkyRenderer implements Disposable {
 			drawSystem(camera, galaxy, system.unwrap(), partialTick);
 	}
 
+	private final PlanetRenderingContext planetContext = new PlanetRenderingContext();
+
 	private void drawSystem(CachedCamera camera, Galaxy galaxy, StarSystem system,
 			float partialTick) {
 		final var profiler = Minecraft.getInstance().getProfiler();
@@ -272,24 +278,49 @@ public class SkyRenderer implements Disposable {
 
 		profiler.popPush("planet_context_setup");
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-		final var ctx = new PlanetRenderingContext();
+
+		final var modelTfm = new TransformStack();
 
 		profiler.popPush("visit");
-		ctx.setSystemOrigin(system.pos);
-		ctx.begin(system, time);
+		this.planetContext.setSystemOrigin(system.pos);
+		this.planetContext.begin(time);
+		this.planetContext.setupLights(system, camera);
 		system.rootNode.visit(node -> {
 			final var profiler2 = Minecraft.getInstance().getProfiler();
 			profiler2.push("id:" + node.getId());
-			if (EntityAccessor.getWorldType(this.client.player) instanceof WorldType.SystemNode loc) {
-				final var skip = loc.id.nodeId() == node.getId();
-				ctx.render(builder, camera, node, skip);
-			} else {
-				ctx.render(builder, camera, node, false);
+			modelTfm.push();
+
+			if (node instanceof UnaryCelestialNode unaryNode) {
+				final var radiusTm = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) * Units.Tu_PER_ku * unaryNode.radius;
+				final var radiusUnits = radiusTm * (1e12 / camera.metersPerUnit);
+				final var nodePosUnits = node.position.mul(1e12 / camera.metersPerUnit);
+	
+				// final var distanceRatio = radiusTm / camera.posTm.distanceTo(pos);
+				// if (distanceRatio < 0.0001)
+				// return;
+				// final var offset = camera.posTm.mul(1e12 / camera.metersPerUnit);
+	
+				modelTfm.push();
+				// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * this.celestialTime));
+				// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+				// modelTfm.appendScale(radiusUnits);
+				modelTfm.appendTransform(Mat4.scale(radiusUnits));
+				// modelTfm.appendTranslation(nodePosUnits.mul(camera.metersPerUnit / 1e12));
+				// modelTfm.appendRotation(camera.orientation.inverse());
+				modelTfm.appendTranslation(camera.toCameraSpace(nodePosUnits));
+	
+				if (EntityAccessor.getWorldType(this.client.player) instanceof WorldType.SystemNode loc) {
+					final var skip = loc.id.nodeId() == node.getId();
+					this.planetContext.render(builder, camera, unaryNode, modelTfm, skip);
+				} else {
+					this.planetContext.render(builder, camera, unaryNode, modelTfm, false);
+				}
 			}
+			modelTfm.pop();
 			profiler2.pop();
 		});
 
-		ctx.end();
+		this.planetContext.end();
 		profiler.pop();
 	}
 
@@ -348,6 +379,7 @@ public class SkyRenderer implements Disposable {
 
 	@Override
 	public void close() {
+		this.planetContext.close();
 		if (this.hdrSpaceTarget != null)
 			this.hdrSpaceTarget.close();
 		if (this.postProcessTarget != null)

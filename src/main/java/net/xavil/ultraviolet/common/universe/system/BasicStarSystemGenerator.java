@@ -35,14 +35,14 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		CelestialNode root = StellarCelestialNode.fromMassAndAge(ctx.info.massYg, ctx.info.systemAgeMyr);
 		generatePlanets(ctx, rootRng.split("root_planets"), root, 1.0);
 
-		double remainingMass = ctx.info.massYg * ctx.rng.lerpWeightedDouble(8.0, 0.0, 2.0);
+		double remainingMass = ctx.info.massYg * ctx.rng.weightedDouble(8.0, 0.0, 2.0);
 
 		final var planetsRng = rootRng.split("planets");
 		for (int i = 0; i < STAR_ATTEMPT_COUNT; ++i) {
 			if (ctx.rng.chance(0.1))
 				break;
 
-			final var idealStarMass = ctx.rng.lerpWeightedDouble(3.0, MINIMUM_STAR_MASS, ctx.info.massYg);
+			final var idealStarMass = ctx.rng.weightedDouble(3.0, MINIMUM_STAR_MASS, ctx.info.massYg);
 			if (idealStarMass > remainingMass)
 				continue;
 
@@ -252,7 +252,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		orbitalPlane = OrbitalPlane.fromInclination(ctx.rng.uniformDouble(0, 2.0 * Math.PI), ctx.rng);
 		if (closeOrbit) {
 			final var limit = Units.Tm_PER_au * 10;
-			distance = ctx.rng.lerpWeightedDouble(3.0, minDistance, Math.min(maxDistance, limit));
+			distance = ctx.rng.weightedDouble(3.0, minDistance, Math.min(maxDistance, limit));
 			// orbitalPlane = OrbitalPlane.ZERO;
 		} else {
 			distance = ctx.rng.uniformDouble(minDistance, maxDistance);
@@ -313,7 +313,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 				Mod.LOGGER.info("Attempting P-Type [min={}, max={}]", minRadius, maxRadius);
 
 				if (minRadius <= maxRadius) {
-					final var radius = ctx.rng.lerpWeightedDouble(2.0, minRadius, maxRadius);
+					final var radius = ctx.rng.weightedDouble(2.0, minRadius, maxRadius);
 					Mod.LOGGER.info("Success [radius={}]", radius);
 
 					OrbitalPlane orbitalPlane;

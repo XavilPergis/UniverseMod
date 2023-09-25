@@ -2,23 +2,23 @@ package net.xavil.ultraviolet.debug;
 
 import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 
 public final class ClientConfig {
 
-	public static final Color[] DEBUG_COLORS;
+	public static final ColorRgba[] DEBUG_COLORS;
 
 	static {
-		DEBUG_COLORS = new Color[10];
+		DEBUG_COLORS = new ColorRgba[10];
 		for (int i = 0; i < DEBUG_COLORS.length; ++i) {
 			final var hue = 360f * (i / (float) DEBUG_COLORS.length);
-			DEBUG_COLORS[i] = Color.fromHsva(hue, 1, 1, 1);
+			DEBUG_COLORS[i] = ColorRgba.fromHsva(hue, 1, 1, 1);
 		}
 	}
 
-	public static Color getDebugColor(int i) {
+	public static ColorRgba getDebugColor(int i) {
 		return DEBUG_COLORS[i % DEBUG_COLORS.length];
 	}
 

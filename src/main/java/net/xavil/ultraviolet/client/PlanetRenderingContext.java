@@ -2,6 +2,7 @@ package net.xavil.ultraviolet.client;
 
 import java.util.Comparator;
 import net.minecraft.client.Minecraft;
+import net.minecraft.util.Mth;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.StableRandom;
@@ -27,8 +28,9 @@ import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.universegen.system.UnaryCelestialNode;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.ColorAccess;
+import net.xavil.hawklib.math.ColorHsva;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
@@ -60,7 +62,7 @@ public final class PlanetRenderingContext implements Disposable {
 
 	public static final class Light {
 		public final Vec3.Mutable pos = new Vec3.Mutable();
-		public final Color.Mutable color = new Color.Mutable();
+		public final ColorRgba.Mutable color = new ColorRgba.Mutable();
 	}
 
 	public PlanetRenderingContext() {
@@ -132,30 +134,104 @@ public final class PlanetRenderingContext implements Disposable {
 		return -1;
 	}
 
+	private record ColorTableInfo(Rng rng, Vector<ColorRgba> colors, float vibrancy, float weirdness) {}
+
+	private void addColor(ColorTableInfo info, double r, double g, double b, double a) {
+		final var hsva = ColorHsva.fromRgba((float) r, (float) g, (float) b, (float) a);
+		// hsva.s *= info.rng.weightedDouble(2.0, info.vibrancy, 0.3);
+		// hsva.s *= Mth.lerp(info.vibrancy, 0.6, 1.0);
+		// hsva.v *= info.rng.uniformDouble(0.1, 1.0);
+		// hsva.h -= 360 * info.rng.weightedDouble(2.0, 0.0, info.weirdness);
+		// if (hsva.h < 0)
+		// 	hsva.h += 360;
+		info.colors.push(hsva.toRgba());
+	}
+
+	private void makeColorTable(Rng rng, Vector<ColorRgba> colors, float vibrancy, float weirdness) {
+		final var info = new ColorTableInfo(rng, colors, vibrancy, weirdness);
+
+		// rgb, a is emissive strength
+
+		if (rng.chance(0.5)) {
+			// crimson/red
+			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
+			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
+			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
+			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
+			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
+			addColor(info, 0.412f, 0.090f, 0.035f, 0f); // brighter red
+			addColor(info, 0.380f, 0.157f, 0.086f, 0f); // brighter red (less saturation)
+		} else {
+			// beige
+			addColor(info, 1.000f, 0.918f, 0.796f, 0f); // bright beige
+			addColor(info, 1.000f, 0.918f, 0.796f, 0f); // bright beige
+			addColor(info, 0.890f, 0.812f, 0.690f, 0f); // bright beige
+			addColor(info, 0.890f, 0.812f, 0.690f, 0f); // bright beige
+			addColor(info, 0.929f, 0.678f, 0.361f, 0f); // bright orangeish
+			addColor(info, 0.890f, 0.616f, 0.275f, 0f); // bright orangeish
+		}
+		// bright
+		addColor(info, 0.239f, 0.255f, 0.878f, 0f); // bright violet-blue
+		addColor(info, 0.145f, 0.235f, 0.929f, 0f); // bright blue
+		addColor(info, 0.145f, 0.918f, 0.929f, 0f); // bright cyan
+		addColor(info, 0.176f, 0.651f, 0.902f, 0f); // bright blue
+		if (rng.chance(0.1)) {
+			addColor(info, 0.000f, 1.000f, 0.055f, 1f); // bright green
+		}
+		// white
+		addColor(info, 0.969f, 0.949f, 0.929f, 0f); // white
+		addColor(info, 1.000f, 0.980f, 0.957f, 0f); // white
+		addColor(info, 0.969f, 0.965f, 0.949f, 0f); // white
+
+		// addColor(info, 0.169, 0.000, 1.000, 0); // violet
+		// addColor(info, 0.000, 0.012, 1.000, 0); // blue
+		// addColor(info, 0.000, 0.776, 1.000, 0); // cyan-blue
+		// addColor(info, 0.000, 1.000, 0.071, 1); // green
+		// addColor(info, 1.000, 0.000, 0.000, 0); // red
+	}
+
+	private ColorRgba pickColor(Rng rng, Vector<ColorRgba> colors) {
+		final var randomIndex = rng.uniformInt(0, colors.size());
+		final var color = colors.remove(randomIndex);
+		Mod.LOGGER.info("picked index #{}", randomIndex);
+
+		final var hsva = color.toHsva();
+
+		// small chance for any color to become emissive
+		if (rng.chance(0.01)) {
+			hsva.a = (float) rng.weightedDouble(2.0, 0.1, 2.5);
+		}
+
+		// hsva.s *= rng.weightedDouble(2.0, 0.1, 2.5);
+		// hsva.v *= rng.weightedDouble(2.0, 0.1, 2.5);
+
+		return hsva.toRgba();
+	}
+
 	private GlTexture1d generateGasGiantGradientTexture(PlanetaryCelestialNode node) {
 		try (final var disposer = Disposable.scope()) {
 			final var tex = disposer.attach(new GlClientTexture());
 			tex.createStorage(512, 1, 1);
+			final var colorSpline = new ColorSpline();			
 
 			final var rng = Rng.fromSeed(node.seed);
 
-			// high weirdness values mean high color spread
-			final var weirdness = rng.weightedDouble(4.0, 10.0, 1.0);
+			final var colors = new Vector<ColorRgba>();
+			final var vibrancy = (float) rng.weightedDouble(4.0, 0.0, 1.0);
+			final var weirdness = (float) rng.weightedDouble(16.0, 0.0, 1.0);
+			makeColorTable(rng, colors, vibrancy, weirdness);
 
-			final var colorSpline = new ColorSpline();
-			colorSpline.addControlPoint(0f, new Color(0.22f, 0.145f, 0.047f));
-			colorSpline.addControlPoint(0.5f, new Color(0.22f, 0.145f, 0.047f).mul(3));
-			colorSpline.addControlPoint(0.7f, new Color(0.922f, 0.847f, 0.765f));
-			colorSpline.addControlPoint(0.75f, new Color(0.22f, 0.145f, 0.047f));
-			colorSpline.addControlPoint(1f, new Color(1f, 0.98f, 0.957f));
-			// colorSpline.addControlPoint(0f, new Color(1f, 0f, 0f));
-			// colorSpline.addControlPoint(0.5f, new Color(0f, 1f, 0f));
-			// colorSpline.addControlPoint(1f, new Color(0f, 0f, 1f));
+			Mod.LOGGER.info("----------");
+			
+			final var minStep = Mth.lerp(weirdness, 0.3, 0.1);
+			float t = 0;
+			while (t < 1 && colors.size() > 1) {
+				colorSpline.addControlPoint(t, pickColor(rng, colors));
+				t += rng.uniformDouble(minStep, 0.6);
+			}
+			colorSpline.addControlPoint(1f, pickColor(rng, colors));
 
-			colorSpline.sample(0, 1, tex.sizeX(), (i, r, g, b, a) -> {
-				tex.setPixel(i, 0, 0, r, g, b, a);
-			});
-
+			colorSpline.sample(0, 1, tex.sizeX(), tex::setPixel);
 			return tex.create1d(GlTexture.Format.RGBA8_UINT_NORM);
 		}
 	}
@@ -178,7 +254,7 @@ public final class PlanetRenderingContext implements Disposable {
 
 	public void resetLights() {
 		for (var i = 0; i < this.lights.length; ++i) {
-			setupLight(i, Vec3.ZERO, Color.TRANSPARENT);
+			setupLight(i, Vec3.ZERO, ColorRgba.TRANSPARENT);
 		}
 	}
 
@@ -189,7 +265,7 @@ public final class PlanetRenderingContext implements Disposable {
 			this.lights[i] = new Light();
 		final var shader = UltravioletShaders.SHADER_CELESTIAL_NODE.get();
 		Vec3.set(this.lights[i].pos, pos);
-		Color.set(this.lights[i].color, color);
+		ColorRgba.set(this.lights[i].color, color);
 		shader.setUniformf("uLightPos" + i, pos.x(), pos.y(), pos.z(), 1);
 		shader.setUniformf("uLightColor" + i, color.r(), color.g(), color.b(), color.a());
 	}
@@ -246,7 +322,7 @@ public final class PlanetRenderingContext implements Disposable {
 		BufferRenderer.setupCameraUniforms(shader, camera);
 		BufferRenderer.setupDefaultShaderUniforms(shader);
 
-		if (!skip) {
+		if (!skip && !(node instanceof StellarCelestialNode starNode && starNode.type == StellarCelestialNode.Type.BLACK_HOLE)) {
 			this.sphereMesh.draw(shader, DRAW_STATE_OPAQUE);
 		}
 	}
@@ -288,7 +364,7 @@ public final class PlanetRenderingContext implements Disposable {
 		var norm = y > 0 ? Vec3.YN : Vec3.YP;
 		norm = norm.normalize();
 		final var p = camera.toCameraSpace(pos).add(center);
-		builder.vertex(p).uv0(u, v).color(Color.WHITE).normal(norm).endVertex();
+		builder.vertex(p).uv0(u, v).color(ColorRgba.WHITE).normal(norm).endVertex();
 	}
 
 }

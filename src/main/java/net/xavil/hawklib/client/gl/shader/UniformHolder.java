@@ -2,7 +2,7 @@ package net.xavil.hawklib.client.gl.shader;
 
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 import net.xavil.hawklib.math.matrices.interfaces.Vec2Access;
@@ -234,7 +234,7 @@ public interface UniformHolder {
 		setUniformf(uniformName, v.x(), v.y(), v.z(), v.w());
 	}
 
-	default void setUniformf(String uniformName, Color color) {
+	default void setUniformf(String uniformName, ColorRgba color) {
 		setUniformf(uniformName, color.r(), color.g(), color.b(), color.a());
 	}
 

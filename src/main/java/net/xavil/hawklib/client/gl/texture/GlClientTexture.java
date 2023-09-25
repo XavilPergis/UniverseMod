@@ -96,6 +96,14 @@ public final class GlClientTexture implements Disposable {
 		this.data.putInt(pixelIndex(x, y, z), rgba);
 	}
 
+	public void setPixel(int x, float r, float g, float b, float a) {
+		setPixel(x, 0, 0, packRgba(r, g, b, a));
+	}
+
+	public void setPixel(int x, int y, float r, float g, float b, float a) {
+		setPixel(x, y, 0, packRgba(r, g, b, a));
+	}
+
 	public void setPixel(int x, int y, int z, float r, float g, float b, float a) {
 		setPixel(x, y, z, packRgba(r, g, b, a));
 	}

@@ -11,6 +11,7 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.NameTemplate;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.DoubleField3;
+import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
 import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
@@ -186,6 +187,9 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		
 		int offset = 0;
 		for (var i = 0; i < info.starAttemptCount; ++i) {
+			if (Thread.interrupted())
+				break;
+
 			// I think this retry behavior is warranted. We do a coarse esimate of the
 			// average density of the sector, and then multiply that with the sector volume
 			// to get the approximate amount of stars we expect to see in the sector. Say we
@@ -251,13 +255,14 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public StarSystem generateFullSystem(GalaxySector sector, GalaxySector.SectorElementHolder elem) {
+	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.SectorElementHolder elem) {
 		final var rng = new StableRandom(elem.systemSeed);
 
-		final var ctxRng = Rng.fromSeed(rng.uniformLong("context"));
-		final var ctx = new StarSystemGenerator.Context(ctxRng, this.parentGalaxy, elem);
-		final var systemGenerator = new RealisticStarSystemGenerator();
-		// final var systemGenerator = new BasicStarSystemGenerator();
+		// sector.elements.
+
+		final var ctx = new StarSystemGenerator.Context(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
+		// final var systemGenerator = new RealisticStarSystemGenerator();
+		final var systemGenerator = new BasicStarSystemGenerator();
 
 		final var rootNode = systemGenerator.generate(ctx);
 		rootNode.build();
@@ -266,7 +271,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		final var nameRng = Rng.fromSeed(rng.uniformLong("name"));
 		final var name = NameTemplate.SECTOR_NAME.generate(nameRng);
 
-		return new StarSystem(name, this.parentGalaxy, elem.systemPosTm.xyz(), rootNode);
+		return new StarSystem(name, this.parentGalaxy, elem, rootNode);
 	}
 
 }

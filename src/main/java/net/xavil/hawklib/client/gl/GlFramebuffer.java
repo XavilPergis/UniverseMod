@@ -14,7 +14,7 @@ import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec2i;
 
 public final class GlFramebuffer extends GlObject {
@@ -387,7 +387,7 @@ public final class GlFramebuffer extends GlObject {
 	 * @param fragmentWriteId The color attachment to clear
 	 * @param color           The value to clear the specified color attachment to
 	 */
-	public void clearColorAttachment(String fragmentWriteId, Color color) {
+	public void clearColorAttachment(String fragmentWriteId, ColorRgba color) {
 		final var index = this.fragmentWrites.getFragmentWriteId(fragmentWriteId);
 		final var attachment = this.colorAttachments.get(index).unwrapOrNull();
 
@@ -401,7 +401,7 @@ public final class GlFramebuffer extends GlObject {
 	}
 
 	/**
-	 * Like {@link #clearColorAttachment(String, Color)}, but uses
+	 * Like {@link #clearColorAttachment(String, ColorRgba)}, but uses
 	 * {@link GlFramebufferAttachment#colorClearState} as the clear value.
 	 */
 	public void clearColorAttachment(String fragmentWriteId) {

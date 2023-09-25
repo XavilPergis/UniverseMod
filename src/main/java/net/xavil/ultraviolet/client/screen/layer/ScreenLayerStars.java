@@ -80,6 +80,12 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 
 	@Override
 	public boolean handleKeypress(Keypress keypress) {
+		if (keypress.keyCode == GLFW.GLFW_KEY_K) {
+			this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
+		}
+		if (keypress.keyCode == GLFW.GLFW_KEY_L) {
+			this.starRenderer.setMode(StarRenderManager.Mode.MAP);
+		}
 		if (keypress.keyCode == GLFW.GLFW_KEY_R) {
 			final var selected = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
 			if (selected != null) {

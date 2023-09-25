@@ -43,8 +43,10 @@ out vec4 fColor;
 #include [ultraviolet:lib/util.glsl]
 
 struct FragmentInfo {
+	vec3 posM;
 	vec3 posW;
 	vec3 posV;
+	vec3 normalM;
 	vec3 normalW;
 	vec3 normalV;
 
@@ -78,11 +80,13 @@ vec3 applyLighting(in Material material, in FragmentInfo frag) {
 #undef ULTRAVIOLET_CELESTIAL_SHADING_IMPLS_
 
 void main() {
+	vec3 vpM = vVertexPosM.xyz;
 	vec3 vpW = vVertexPosW.xyz;
 	vec3 vpV = vVertexPosV.xyz;
+	vec3 vnM = normalize(vVertexNormalM.xyz);
 	vec3 vnW = normalize(vVertexNormalW.xyz);
 	vec3 vnV = normalize(vVertexNormalV.xyz);
-	FragmentInfo fragInfo = FragmentInfo(vpW, vpV, vnW, vnV, vpV, vnV);
+	FragmentInfo fragInfo = FragmentInfo(vpM, vpW, vpV, vnM, vnW, vnV, vpV, vnV);
 
 	vec3 color = vec3(1.0, 0.0, 1.0);
 	switch (uNodeType) {

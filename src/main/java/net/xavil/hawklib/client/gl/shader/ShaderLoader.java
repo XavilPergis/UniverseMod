@@ -153,7 +153,7 @@ public final class ShaderLoader {
 				String.format("shader include cycle detected while loading shader root '%s':\n",
 						ctx.rootLocation.toString()));
 
-		final var provokingIndex = ctx.includeStack.iter().position(n -> n.include().equals(cycleCause));
+		final var provokingIndex = ctx.includeStack.iter().indexOf(n -> n.include().equals(cycleCause));
 		for (int i = 0; i < ctx.includeStack.size(); ++i) {
 			final var info = ctx.includeStack.get(i);
 			message.append("  ");

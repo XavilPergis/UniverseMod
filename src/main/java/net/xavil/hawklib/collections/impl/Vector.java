@@ -14,7 +14,7 @@ import net.xavil.hawklib.collections.iterator.SizeHint;
 
 public final class Vector<T> implements MutableList<T> {
 
-	private T[] elements = makeArray(0);
+	private T[] elements = ListUtil.makeTypedObjectArray(0);
 	private int size = 0;
 	private boolean unordered = false;
 
@@ -23,7 +23,7 @@ public final class Vector<T> implements MutableList<T> {
 
 	public Vector(ImmutableList<T> elements) {
 		try {
-			this.elements = makeArray(elements.size());
+			this.elements = ListUtil.makeTypedObjectArray(elements.size());
 			this.size = elements.size();
 			if (elements instanceof Vector<T> src) {
 				System.arraycopy(src.elements, 0, this.elements, 0, this.size);
@@ -35,14 +35,14 @@ public final class Vector<T> implements MutableList<T> {
 				Assert.isEqual(i, elements.size());
 			}
 		} catch (Throwable t) {
-			this.elements = makeArray(0);
+			this.elements = ListUtil.makeTypedObjectArray(0);
 			this.size = 0;
 			throw t;
 		}
 	}
 
 	public Vector(int initialCapacity) {
-		this.elements = makeArray(initialCapacity);
+		this.elements = ListUtil.makeTypedObjectArray(initialCapacity);
 	}
 
 	@SafeVarargs
@@ -76,11 +76,6 @@ public final class Vector<T> implements MutableList<T> {
 		return this.elements;
 	}
 
-	@SuppressWarnings("unchecked")
-	private static <T> T[] makeArray(int length) {
-		return (T[]) new Object[length];
-	}
-
 	private static int nextCapacity(int cur) {
 		if (cur == 0)
 			return 16;
@@ -90,7 +85,7 @@ public final class Vector<T> implements MutableList<T> {
 	}
 
 	private void resizeStorage(int newCapacity) {
-		final T[] newElements = makeArray(newCapacity);
+		final T[] newElements = ListUtil.makeTypedObjectArray(newCapacity);
 		final T[] oldElements = this.elements;
 		this.elements = newElements;
 		System.arraycopy(oldElements, 0, newElements, 0, this.size);
@@ -123,7 +118,8 @@ public final class Vector<T> implements MutableList<T> {
 
 	@Override
 	public void truncate(int size) {
-		if (size >= this.size) return;
+		if (size >= this.size)
+			return;
 		Arrays.fill(this.elements, size, this.size, null);
 		this.size = size;
 	}
@@ -154,26 +150,50 @@ public final class Vector<T> implements MutableList<T> {
 	}
 
 	@Override
-	public void extend(IntoIterator<? extends T> elements) {
+	public void extend(int index, IntoIterator<? extends T> elements) {
+		if (this.unordered) {
+			// honestly, this doesn't make a whole lot of sense. If the collection is
+			// unordered, then what is the point of inserting at a specific index?
+			swapExtend(index, elements);
+		} else {
+			shiftExtend(index, elements);
+		}
+	}
+
+	public void shiftExtend(int index, IntoIterator<? extends T> elements) {
+		ListUtil.checkBounds(index, this.size, false);
+
 		final var iter = elements.iter();
-		final var minCount = iter.sizeHint().lowerBound();
-		final var lowerBoundEnd = this.size + minCount;
-		reserve(minCount);
-		for (int i = this.size; i < lowerBoundEnd; ++i) {
-			iter.hasNext();
-			this.elements[i] = iter.next();
-			this.size += 1;
+		final var minElementCount = iter.sizeHint().lowerBound();
+
+		// reserve enough space so we know we can do the arraycopy
+		reserve(minElementCount);
+
+		// batch shifts together for lower bound - we won't hit the slow path for simple
+		// copies from one collection to another, but will if we eg filter.
+		if (minElementCount > 0) {
+			final var copyCount = Math.min(minElementCount, this.size - index);
+			System.arraycopy(this.elements, index, this.elements, index + minElementCount, copyCount);
+
+			for (int i = index; i < index + minElementCount; ++i) {
+				this.elements[i] = iter.next();
+			}
+			this.size += minElementCount;
 		}
 
-		while (iter.hasNext()) {
-			reserve(1);
-			for (int i = this.size; i < this.elements.length; ++i) {
-				if (!iter.hasNext())
-					break;
-				this.elements[i] = iter.next();
-				this.size += 1;
-			}
-		}
+		// do it the slow way :(
+		for (int i = index + minElementCount; iter.hasNext(); ++i)
+			shiftInsert(i, iter.next());
+	}
+
+	public void swapExtend(int index, IntoIterator<? extends T> elements) {
+		ListUtil.checkBounds(index, this.size, false);
+
+		final var iter = elements.iter();
+		reserve(iter.sizeHint().lowerBound());
+
+		for (int i = index; iter.hasNext(); ++i)
+			swapInsert(i, iter.next());
 	}
 
 	@Override
@@ -183,46 +203,68 @@ public final class Vector<T> implements MutableList<T> {
 
 	@Override
 	public T get(int index) {
+		ListUtil.checkBounds(index, this.size, true);
 		return this.elements[index];
 	}
 
 	@Override
 	public void insert(int index, T value) {
-		Assert.isTrue(index <= this.size);
-		reserve(1);
 		if (this.unordered) {
 			// honestly, this doesn't make a whole lot of sense. If the collection is
 			// unordered, then what is the point of inserting at a specific index?
-			this.elements[this.size] = this.elements[index];
-			this.elements[index] = value;
-			this.size += 1;
+			swapInsert(index, value);
 		} else {
-			final var copyLen = this.size - index;
-			System.arraycopy(this.elements, index, this.elements, index + 1, copyLen);
-			this.elements[index] = value;
-			this.size += 1;
+			shiftInsert(index, value);
 		}
+	}
+
+	public void shiftInsert(int index, T value) {
+		ListUtil.checkBounds(index, this.size, false);
+		reserve(1);
+		final var copyLen = this.size - index;
+		System.arraycopy(this.elements, index, this.elements, index + 1, copyLen);
+		this.elements[index] = value;
+		this.size += 1;
+	}
+
+	public void swapInsert(int index, T value) {
+		ListUtil.checkBounds(index, this.size, false);
+		reserve(1);
+		this.elements[this.size] = this.elements[index];
+		this.elements[index] = value;
+		this.size += 1;
 	}
 
 	@Override
 	public T remove(int index) {
-		Assert.isTrue(index < this.size);
-		T old = this.elements[index];
 		if (this.unordered) {
-			this.elements[index] = this.elements[this.size - 1];
-			this.elements[this.size - 1] = null;
-			this.size -= 1;
+			return swapRemove(index);
 		} else {
-			final var copyLen = this.size - index - 1;
-			System.arraycopy(this.elements, index + 1, this.elements, index, copyLen);
-			this.size -= 1;
+			return shiftRemove(index);
 		}
+	}
+
+	public T shiftRemove(int index) {
+		ListUtil.checkBounds(index, this.size, true);
+		final T old = this.elements[index];
+		final var copyLen = this.size - index - 1;
+		System.arraycopy(this.elements, index + 1, this.elements, index, copyLen);
+		this.size -= 1;
+		return old;
+	}
+
+	public T swapRemove(int index) {
+		ListUtil.checkBounds(index, this.size, true);
+		final T old = this.elements[index];
+		this.elements[index] = this.elements[this.size - 1];
+		this.elements[this.size - 1] = null;
+		this.size -= 1;
 		return old;
 	}
 
 	@Override
 	public T set(int index, T value) {
-		Assert.isTrue(index < this.size);
+		ListUtil.checkBounds(index, this.size, true);
 		final var old = this.elements[index];
 		this.elements[index] = value;
 		return old;
@@ -230,7 +272,8 @@ public final class Vector<T> implements MutableList<T> {
 
 	@Override
 	public void swap(int indexA, int indexB) {
-		Assert.isTrue(indexA < this.size && indexB < this.size);
+		ListUtil.checkBounds(indexA, this.size, true);
+		ListUtil.checkBounds(indexB, this.size, true);
 		final T tmp = this.elements[indexA];
 		this.elements[indexA] = this.elements[indexB];
 		this.elements[indexB] = tmp;
@@ -240,7 +283,7 @@ public final class Vector<T> implements MutableList<T> {
 	public void optimize() {
 		if (this.elements.length == this.size)
 			return;
-		T[] newElements = makeArray(this.size);
+		T[] newElements = ListUtil.makeTypedObjectArray(this.size);
 		T[] oldElements = this.elements;
 		this.elements = newElements;
 		System.arraycopy(oldElements, 0, newElements, 0, this.size);
@@ -270,7 +313,7 @@ public final class Vector<T> implements MutableList<T> {
 	}
 
 	public Vector<T> copy() {
-		final T[] newElements = makeArray(this.elements.length);
+		final T[] newElements = ListUtil.makeTypedObjectArray(this.elements.length);
 		System.arraycopy(this.elements, 0, newElements, 0, this.size);
 		return new Vector<>(newElements, this.size);
 	}

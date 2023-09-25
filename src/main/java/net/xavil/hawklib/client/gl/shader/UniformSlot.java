@@ -3,6 +3,7 @@ package net.xavil.hawklib.client.gl.shader;
 import org.lwjgl.opengl.GL45C;
 
 import net.xavil.hawklib.HawkLib;
+import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 
 public final class UniformSlot {
@@ -363,6 +364,8 @@ public final class UniformSlot {
 				continue;
 			// FIXME: we change texture unit bindings but don't tell GlStateManager about
 			// it, which means vanilla has the possibility of getting into a weird state.
+			// GlManager.activeTexture(GL45C.GL_TEXTURE0 + ctx.currentTextureUnit);
+			// GlManager.bindTexture(this.textureValues[i].type, this.textureValues[i].id);
 			GL45C.glBindTextureUnit(ctx.currentTextureUnit, this.textureValues[i].id);
 			GL45C.glProgramUniform1i(program.id, this.location, ctx.currentTextureUnit);
 			ctx.currentTextureUnit += 1;

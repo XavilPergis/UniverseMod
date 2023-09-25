@@ -17,7 +17,7 @@ import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class GalaxyMapScreen extends HawkScreen3d {
@@ -28,7 +28,7 @@ public class GalaxyMapScreen extends HawkScreen3d {
 
 		BlackboardKeys.SELECTED_STAR_SYSTEM.insert(blackboard, systemToFocus);
 
-		this.layers.push(new ScreenLayerBackground(this, Color.BLACK));
+		this.layers.push(new ScreenLayerBackground(this, ColorRgba.BLACK));
 		this.layers.push(new ScreenLayerGrid(this));
 		this.layers.push(new ScreenLayerGalaxy(this, galaxy, Vec3.ZERO));
 

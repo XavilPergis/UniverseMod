@@ -12,19 +12,19 @@ import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class ScreenLayerBackground extends HawkScreen.Layer2d {
 
-	public Color bottomColor;
-	public Color topColor;
+	public ColorRgba bottomColor;
+	public ColorRgba topColor;
 
-	public ScreenLayerBackground(HawkScreen screen, Color color) {
+	public ScreenLayerBackground(HawkScreen screen, ColorRgba color) {
 		this(screen, color, color);
 	}
 
-	public ScreenLayerBackground(HawkScreen screen, Color bottomColor, Color topColor) {
+	public ScreenLayerBackground(HawkScreen screen, ColorRgba bottomColor, ColorRgba topColor) {
 		super(screen);
 		this.bottomColor = bottomColor;
 		this.topColor = topColor;
@@ -44,7 +44,7 @@ public class ScreenLayerBackground extends HawkScreen.Layer2d {
 	}
 
 	private static void fillGradient(Matrix4f matrix, FlexibleVertexConsumer builder, int x1, int y1, int x2, int y2,
-			int z, Color colorA, Color colorB) {
+			int z, ColorRgba colorA, ColorRgba colorB) {
 		final var nn = new Vec3(x1, y1, z).transformBy(matrix);
 		final var np = new Vec3(x1, y2, z).transformBy(matrix);
 		final var pn = new Vec3(x2, y1, z).transformBy(matrix);

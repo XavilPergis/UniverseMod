@@ -34,23 +34,28 @@ vec2 fbm2(in vec3 pos, in int N, in float seed, in float fI, in float aI, in flo
 vec3 shadeCelestialObject(inout FragmentInfo frag, in GasGiant node) {
 	int rng = uRenderingSeed;
 
-	vec3 pos = frag.normalW;
+	vec3 pos = frag.normalM;
 
-	// float n = abs(pos.y);
 	float n = 0.0;
-	pos.y *= mix(5.0, 7.0, pow(nextFloat(rng), 2.0));
+	pos.y *= mix(3.0, 20.0, nextFloat(rng));
 	pos.y += nextFloat(rng, -1000.0, 1000.0);
 
-	pos.xz += 1.0 * fbm2(pos, 4, 10.0, 1.0, 1.0, 4.0, 0.5);
-	pos.xz += 2.0 * fbm2(pos, 4, 10.0, 1.0, 1.0, 3.0, 0.5);
+	pos.xz *= nextFloat(rng, 1.0, 0.2);
+	pos.xz += 1.0 * fbm2(pos, 3, 10.0, 5.0, 1.0, 4.0, 0.4);
+	// pos.xz += 2.0 * fbm2(pos, 4, 10.0, 1.0, 1.0, 3.0, 0.5);
 	pos.xz /= mix(3.0, 7.0, nextFloat(rng));
 	n += fbm01(pos, 4, 1.0, 1.0, 2.0, 0.5);
 
-	n = pow(n, 2.0);
+	float a = nextFloat(rng, 1.0, 15.0);
+	float b = nextFloat(rng, 2.0, 50.0);
 
-	vec3 baseColor = texture(node.colorGradient, n).rgb;
-    return applyLighting(Material(vec3(0.0), baseColor, 1.0, 0.0), frag);
-	// return baseColor;
+	n = pow(n, a);
+	n *= b;
+	// n = min(1.0, n);
+	n = (2.0 / PI) * atan(n);
+
+	vec4 baseColor = texture(node.colorGradient, n);
+    return applyLighting(Material(baseColor.rgb * baseColor.a, baseColor.rgb, 1.0, 0.0), frag);
 	// return vec3(n);
 }
 

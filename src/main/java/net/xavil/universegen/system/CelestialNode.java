@@ -13,6 +13,7 @@ import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.StableRandom;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -63,14 +64,15 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	}
 
 	public final void assignSeeds(long seed) {
-		this.seed = StableRandom.scramble(seed);
+		final var rng = Rng.fromSeed(seed);
+		this.seed = rng.uniformLong();
 		if (this instanceof BinaryCelestialNode binaryNode) {
-			binaryNode.getInner().assignSeeds(this.seed);
-			binaryNode.getOuter().assignSeeds(this.seed);
+			binaryNode.getInner().assignSeeds(rng.uniformLong());
+			binaryNode.getOuter().assignSeeds(rng.uniformLong());
 		}
 		for (var child : this.childNodes.iterable()) {
 			child.node.parentUnaryNode = child;
-			child.node.assignSeeds(this.seed);
+			child.node.assignSeeds(rng.uniformLong());
 		}
 	}
 

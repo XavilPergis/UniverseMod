@@ -368,12 +368,11 @@ public final class ServerUniverse extends Universe {
 		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 4);
 
 		// var startingSystem = startingSystemTest();
-		var startingSystem = startingSystemSol();
+		final var startingSystem = startingSystemSol();
 		startingSystem.rootNode.build();
 		startingSystem.rootNode.assignSeeds(rng.uniformLong());
 
-		var rootNode = startingSystem.rootNode;
-		var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);
+		final var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);
 
 		try (final var disposer = Disposable.scope()) {
 			final var sectorPos = Vec3i.ZERO;
@@ -388,7 +387,8 @@ public final class ServerUniverse extends Universe {
 					new UniverseSectorId(sectorPos, elementIndex));
 			final var galaxy = this.sectorManager.forceLoad(tempTicket2).unwrap();
 
-			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, rootNode, startingNodeId);
+			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, startingSystem.systemAgeMya,
+					startingSystem.name, startingSystem.rootNode, startingNodeId);
 			galaxy.addGenerationLayer(this.startingGenerator);
 			final var startingId = this.startingGenerator.getStartingSystemId();
 

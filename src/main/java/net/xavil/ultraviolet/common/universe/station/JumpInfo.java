@@ -15,7 +15,7 @@ public final class JumpInfo implements Disposable {
 
 	public void tick() {
 		// 299792458
-		final double speed = 10;
+		final double speed = 1000;
 		this.jump.travel(speed * Units.Tm_PER_ly * 0.05);
 	}
 

@@ -37,7 +37,7 @@ import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.universegen.system.UnaryCelestialNode;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Mat4;

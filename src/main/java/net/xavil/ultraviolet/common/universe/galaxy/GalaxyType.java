@@ -28,7 +28,7 @@ public enum GalaxyType {
 			// (i think) central bulge is full of mostly quite old stars orbiting somewhat
 			// chaotically around the central black hole.
 			var galacticCoreDensity = DoubleField3.sphereCloud(galacticCoreSizeFactor * radius)
-					.mulPos(galaxySquish).withExponent(1).mul(700);
+					.mulPos(galaxySquish).withExponent(4).mul(700);
 			// var galacticCoreAge = DoubleField3.random().lerp(1, galaxyAge);
 
 			// galactic halo is a very large region of very low stellar density that extends
@@ -90,7 +90,7 @@ public enum GalaxyType {
 			// spokes = spokes.mulPos(discSquish);
 			spokes = spokes.spiralAboutY(spiralFactor, 1.2 * radius);
 			spokes = spokes.mul(spokesDisc);
-			spokes = spokes.mul(700.0);
+			spokes = spokes.mul(200.0);
 			// var spokesAge = DoubleField3.random().withExponent(1e5).lerp(1, galaxyAge);
 
 

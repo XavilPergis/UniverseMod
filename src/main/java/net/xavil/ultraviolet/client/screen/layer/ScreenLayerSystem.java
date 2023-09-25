@@ -48,7 +48,7 @@ import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.collections.Blackboard;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.Ellipse;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.TransformStack;
@@ -338,7 +338,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			modelTfm.pop();
 		}
 
-		for (final var node : allNodes.iterable()) {
+		for (final var node : system.rootNode.iterable()) {
 			if (this.showGuides)
 				showOrbitGuides(builder, camera, cullingCamera, node, time);
 		}
@@ -357,7 +357,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	private static void addEllipseArc(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, Ellipse ellipse, Color color, double endpointAngleL,
+			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, double endpointAngleL,
 			double endpointAngleH, int maxDepth, boolean fadeOut) {
 
 		final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
@@ -419,7 +419,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	private static void addEllipse(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, Ellipse ellipse, Color color, boolean fadeOut) {
+			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, boolean fadeOut) {
 		var basePathSegments = 32;
 		var maxDepth = 4;
 		for (var i = 0; i < basePathSegments; ++i) {
@@ -429,7 +429,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		}
 	}
 
-	private Color getPathColor(Blackboard.Key<String, Color> key, boolean selected) {
+	private ColorRgba getPathColor(Blackboard.Key<String, ColorRgba> key, boolean selected) {
 		return selected ? getBlackboardOrDefault(key) : getBlackboardOrDefault(BlackboardKeys.SELECTED_PATH_COLOR);
 	}
 

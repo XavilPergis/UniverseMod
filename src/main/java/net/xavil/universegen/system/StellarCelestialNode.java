@@ -6,7 +6,7 @@ import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Constants;
 import net.xavil.hawklib.Units;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
@@ -347,10 +347,10 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 		out.z = Mth.lerp(frac, BLACK_BODY_COLOR_TABLE[3 * i + 2], BLACK_BODY_COLOR_TABLE[3 * i + 5]);
 	}
 
-	public Color getColor() {
+	public ColorRgba getColor() {
 		final var res = new Vec3.Mutable();
 		blackBodyColorFromTable(res, this.temperature);
-		return Color.fromDoubles(res.x, res.y, res.z, 1);
+		return ColorRgba.fromDoubles(res.x, res.y, res.z, 1);
 	}
 
 }

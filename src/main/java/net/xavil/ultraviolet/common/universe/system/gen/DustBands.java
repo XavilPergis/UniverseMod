@@ -7,6 +7,7 @@ import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.SortingStrategy;
 import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.ultraviolet.Mod;
@@ -14,13 +15,15 @@ import net.xavil.ultraviolet.Mod;
 public class DustBands {
 
 	private static final class Band {
-		public final Interval interval;
+		// public final Interval interval;
+		public double bandL, bandH;
 		// assume the band's mass is distributed uniformly throughout the band - not
 		// really accurate, but maybe it'll be fine lol
 		public double mass;
 
-		public Band(Interval interval, double mass) {
-			this.interval = interval;
+		public Band(double bandL, double bandH, double mass) {
+			this.bandL = bandL;
+			this.bandH = bandH;
 			this.mass = mass;
 		}
 	}
@@ -53,7 +56,7 @@ public class DustBands {
 				Assert.isTrue(!Double.isNaN(bandMass));
 
 				totalMass += bandMass;
-				this.bands.push(new Band(new Interval(rl, rh), bandMass));
+				this.bands.push(new Band(rl, rh, bandMass));
 
 				prev = cur;
 			}
@@ -68,7 +71,6 @@ public class DustBands {
 			for (final var band : this.bands.iterable()) {
 				tmp += band.mass;
 			}
-			Mod.LOGGER.info("set up dust bands: wantedMass={}, actualMass={}", initialMass, tmp);
 		}
 
 		private static double stellarWindDistanceFactor(double d) {
@@ -76,55 +78,100 @@ public class DustBands {
 		}
 
 		public void step(ProtoplanetaryDisc disc, double dt) {
-			final var tmp = this.prevBands;
-			this.prevBands = this.bands;
-			this.bands = tmp;
-
 			final var step = BAND_STEP_FACTOR / this.atomicWeight * dt
 					* Math.sqrt(disc.ctx.stellarLuminosityLsol / 10);
 
-			for (final var band : this.prevBands.iterable()) {
-				double bl = band.interval.lower, bh = band.interval.higher;
-
-				bl += stellarWindDistanceFactor(bl) * step;
-				bh += stellarWindDistanceFactor(bh) * step;
-
-				this.bands.push(new Band(new Interval(bl, bh), band.mass));
+			for (final var band : this.bands.iterable()) {
+				band.bandL += stellarWindDistanceFactor(band.bandL) * step;
+				band.bandH += stellarWindDistanceFactor(band.bandH) * step;
+				if (band.bandL > band.bandH) {
+					final var tmp = band.bandL;
+					band.bandL = band.bandH;
+					band.bandH = tmp;
+				}
 			}
 
-			this.prevBands.clear();
-
 			this.bands.sort(SortingStrategy.UNSTABLE | SortingStrategy.ALMOST_SORTED,
-					Comparator.comparingDouble(b -> b.interval.lower));
+					Comparator.comparingDouble(b -> b.bandL));
+		}
+
+		// a linear scan is likely faster for small arrays, but i think our band list is
+		// large enough that this might help with perf. idk though.
+		private int findStartIndex(Interval interval) {
+			int boundL = 0, boundH = this.bands.size() - 1;
+			while (boundL != boundH && boundH >= 0) {
+				final var curI = (boundL + boundH) / 2;
+				final var cur = this.bands.get(curI).bandL;
+
+				if (cur < interval.lower) {
+					boundL = curI + 1;
+				} else if (cur > interval.lower) {
+					boundH = curI - 1;
+				} else {
+					boundL = boundH = curI;
+				}
+			}
+
+			final var bandValue = this.bands.get(boundL).bandL;
+			if (interval.lower > bandValue)
+				return boundL + 1;
+
+			// the band array might contain intervals with duplicate starting values, which
+			// means we might not return the index of the first band we collide with, but
+			// since we're dealing with floats and this whole thing is approximate anyways,
+			// im not dealing with it for now.
+			return boundL;
 		}
 
 		public double removeMaterial(Interval interval) {
 			double accumulatedMass = 0.0;
 
-			final var tmp = this.prevBands;
-			this.prevBands = this.bands;
-			this.bands = tmp;
+			// final var tmp = this.prevBands;
+			// this.prevBands = this.bands;
+			// this.bands = tmp;
 
-			for (final var band : this.prevBands.iterable()) {
-				if (!band.interval.intersects(interval)) {
-					this.bands.push(band);
-					continue;
+			int i = findStartIndex(interval);
+
+			// outside the upper edge of all the bands
+			if (i >= this.bands.size())
+				return accumulatedMass;
+
+			for (; i < this.bands.size(); ++i) {
+				final var band = this.bands.get(i);
+
+				// after we stop intersecting a band, we won't intersect any others
+				if (interval.higher < band.bandL)
+					return accumulatedMass;
+				Assert.isTrue(interval.intersects(band.bandL, band.bandH));
+
+				final var sweepRatio = 0.5;
+
+				final var removalSize = Math.max(0, Math.min(band.bandH, interval.higher)
+						- Math.max(band.bandL, interval.lower));
+				accumulatedMass += sweepRatio * band.mass * (removalSize / Interval.size(band.bandL, band.bandH));
+
+				if (Interval.contains(band.bandL, band.bandH, interval.lower)) {
+					final var bandMass = band.mass * (interval.lower - band.bandL)
+							/ Interval.size(band.bandL, band.bandH);
+					this.bands.insert(i, new Band(band.bandL, interval.lower, bandMass));
+					i += 1;
 				}
-				final var removalInterval = band.interval.intersection(interval);
-				accumulatedMass += band.mass * removalInterval.size() / band.interval.size();
-				if (band.interval.contains(interval.lower)) {
-					final var innerInterval = new Interval(band.interval.lower, interval.lower);
-					final var bandMass = band.mass * innerInterval.size() / band.interval.size();
-					this.bands.push(new Band(innerInterval, bandMass));
+
+				if (Interval.contains(band.bandL, band.bandH, interval.higher)) {
+					final var bandMass = band.mass * (band.bandH - interval.higher)
+							/ Interval.size(band.bandL, band.bandH);
+					this.bands.insert(i, new Band(interval.higher, band.bandH, bandMass));
+					i += 1;
 				}
-				if (band.interval.contains(interval.higher)) {
-					final var outerInterval = new Interval(interval.higher, band.interval.higher);
-					final var bandMass = band.mass * outerInterval.size() / band.interval.size();
-					this.bands.push(new Band(outerInterval, bandMass));
+
+				final var innerMass = band.mass * (1.0 - sweepRatio);
+				if (innerMass > 1e-14) {
+					band.mass = innerMass;
 				}
 			}
 
-			this.prevBands.clear();
+			// this.bands.sort(SortingStrategy.UNSTABLE, Comparator.comparingDouble(b ->
+			// b.bandL));
 
 			return accumulatedMass;
 		}
@@ -149,32 +196,57 @@ public class DustBands {
 		this.dustBands.step(disc, dt);
 	}
 
-	public boolean hasDust(Interval interval) {
-		return this.dustBands.bands.iter().any(band -> band.interval.intersects(interval));
+	// public boolean hasDust(Interval interval) {
+	// return this.dustBands.bands.iter().any(band ->
+	// interval.intersects(band.bandL, band.bandH));
+	// }
+
+	public void sweep(AccreteContext ctx, Planetesimal node, double periapsis, double apoapsis) {
+
+		// nodes in very close proximity to their parents (like moons) should probably
+		// not sweep
+
+		if (node.isBinary) {
+			final var apA = node.binaryA.orbitalShape.apoapsisDistance();
+			final var apB = node.binaryB.orbitalShape.apoapsisDistance();
+			sweep(ctx, node.binaryA, Math.max(0, periapsis - apA), apoapsis + apA);
+			sweep(ctx, node.binaryB, Math.max(0, periapsis - apB), apoapsis + apB);
+			return;
+		}
+
+		if (node.shouldContinueSweeping) {
+			final var dustSweepInterval = node.sweptDustLimits(periapsis, apoapsis);
+			final var criticalMass = node.criticalMass();
+
+			double accumulatedMass = this.dustBands.removeMaterial(dustSweepInterval);
+
+			if (node.mass + accumulatedMass >= criticalMass) {
+				final var r = node.orbitalShape.semiMajor();
+				final var m = Math.sqrt(criticalMass / node.mass);
+
+				final var l = r - (m / (m + 1)) * (r - dustSweepInterval.lower);
+				final var h = r + (m / (m + 1)) * (dustSweepInterval.higher - r);
+
+				final var gasSweepInterval = new Interval(l, h);
+
+				final var gasMass = this.gasBands.removeMaterial(gasSweepInterval);
+				node.sweptGas |= gasMass > 0.0;
+				accumulatedMass += gasMass;
+			}
+
+			node.mass += accumulatedMass;
+			node.stellarProperties.load(node.mass * Units.Msol_PER_Yg, node.age);
+		}
+
+		for (final var child : node.sattelites.iterable()) {
+			sweep(ctx, child,
+					periapsis + child.orbitalShape.periapsisDistance(),
+					apoapsis + child.orbitalShape.apoapsisDistance());
+		}
 	}
 
 	public void sweep(AccreteContext ctx, Planetesimal node) {
-		final var dustSweepInterval = node.sweptDustLimits();
-		final var criticalMass = node.criticalMass();
-
-		double accumulatedMass = this.dustBands.removeMaterial(dustSweepInterval);
-
-		if (node.mass + accumulatedMass >= criticalMass) {
-			final var r = node.orbitalShape.semiMajor();
-			final var m = Math.sqrt(criticalMass / node.mass);
-
-			final var l = r - (m / (m + 1)) * (r - dustSweepInterval.lower);
-			final var h = r + (m / (m + 1)) * (dustSweepInterval.higher - r);
-
-			final var gasSweepInterval = new Interval(l, h);
-
-			final var gasMass = this.gasBands.removeMaterial(gasSweepInterval);
-			node.sweptGas |= gasMass > 0.0;
-			accumulatedMass += gasMass;
-		}
-
-		node.mass += accumulatedMass;
-		node.stellarProperties.load(node.mass * Units.Msol_PER_Yg, node.age);
+		sweep(ctx, node, 0, 0);
 	}
 
 	// the mass density of the dust at a given distance from the center

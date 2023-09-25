@@ -1,21 +1,32 @@
 package net.xavil.ultraviolet.common.universe.system;
 
-import net.xavil.hawklib.Rng;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
+import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
+import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.universegen.system.CelestialNode;
 
 public interface StarSystemGenerator {
 
 	static final class Context {
-		public final Rng rng;
+		public final long seed;
 		public final Galaxy galaxy;
+		// not really meant to be mutated!
+		public final GalaxySector sector;
+		public final GalaxySectorId sectorId;
 		public final GalaxySector.SectorElementHolder info;
 
-		public Context(Rng rng, Galaxy galaxy, GalaxySector.SectorElementHolder info) {
-			this.rng = rng;
+		public Context(long seed, Galaxy galaxy, GalaxySector sector, GalaxySectorId sectorId,
+				GalaxySector.SectorElementHolder info) {
+			this.seed = seed;
 			this.galaxy = galaxy;
+			this.sector = sector;
+			this.sectorId = sectorId;
 			this.info = info;
+		}
+
+		public SystemId systemId() {
+			return new SystemId(this.galaxy.galaxyId, this.sectorId);
 		}
 	}
 

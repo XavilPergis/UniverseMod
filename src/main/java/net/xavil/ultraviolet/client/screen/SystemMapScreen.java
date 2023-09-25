@@ -17,7 +17,7 @@ import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 
 public class SystemMapScreen extends HawkScreen3d {
 
@@ -25,7 +25,7 @@ public class SystemMapScreen extends HawkScreen3d {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen,
 				new OrbitCamera(1e12), 1e-6, 4e3);
 
-		this.layers.push(new ScreenLayerBackground(this, Color.BLACK));
+		this.layers.push(new ScreenLayerBackground(this, ColorRgba.BLACK));
 		this.layers.push(new ScreenLayerGrid(this));
 		this.layers.push(new ScreenLayerGalaxy(this, galaxy, system.pos));
 		this.layers.push(new ScreenLayerStars(this, galaxy, system.pos));

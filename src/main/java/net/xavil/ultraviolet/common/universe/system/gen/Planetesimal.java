@@ -43,6 +43,7 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 	public double rotationalRate;
 	public final MutableList<Ring> rings = new Vector<>();
 	public boolean sweptGas = false;
+	public boolean shouldContinueSweeping = true;
 
 	public record Ring(Interval interval, double mass, double eccentricity) {
 	}
@@ -73,19 +74,30 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 		return new Planetesimal(ctx, semiMajor, inclination);
 	}
 
-	public void addSattelite(Planetesimal newMoon) {
-		this.sattelites.push(newMoon);
-		newMoon.satteliteOf = this;
-	}
-
 	public void transformMoons(BiConsumer<MutableList<Planetesimal>, MutableList<Planetesimal>> consumer) {
 		final var prev = new Vector<>(this.sattelites);
 		this.sattelites.clear();
 		consumer.accept(prev, this.sattelites);
 
-		for (var moon : this.sattelites.iterable()) {
-			moon.satteliteOf = this;
+		for (final var sattelite : this.sattelites.iterable()) {
+			sattelite.satteliteOf = this;
 		}
+	}
+
+	public void removeSattelite(Planetesimal sattelite) {
+		final var i = this.sattelites.indexOf(sattelite);
+		Assert.isNotEqual(i, -1);
+		this.sattelites.remove(i);
+		sattelite.satteliteOf = null;
+	}
+
+	public void addSattelite(Planetesimal sattelite) {
+		if (sattelite.satteliteOf == this)
+			return;
+		if (sattelite.satteliteOf != null)
+			sattelite.satteliteOf.removeSattelite(sattelite);
+		sattelite.satteliteOf = this;
+		this.sattelites.push(sattelite);
 	}
 
 	public Iterable<Ring> getRings() {
@@ -296,9 +308,13 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 	}
 
 	public Interval sweptDustLimits() {
+		return sweptDustLimits(this.orbitalShape.periapsisDistance(), this.orbitalShape.apoapsisDistance());
+	}
+
+	public Interval sweptDustLimits(double periapsis, double apoapsis) {
 		final var m = reducedMass(mass);
-		final var inner = this.orbitalShape.periapsisDistance() * (1 - m) / (1 + ctx.params.cloudEccentricity);
-		final var outer = this.orbitalShape.apoapsisDistance() * (1 + m) / (1 - ctx.params.cloudEccentricity);
+		final var inner = periapsis * (1 - m) / (1 + ctx.params.cloudEccentricity);
+		final var outer = apoapsis * (1 + m) / (1 - ctx.params.cloudEccentricity);
 		return new Interval(Math.max(0, inner), outer);
 	}
 

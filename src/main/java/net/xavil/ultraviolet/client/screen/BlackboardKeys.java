@@ -2,7 +2,7 @@ package net.xavil.ultraviolet.client.screen;
 
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.hawklib.collections.Blackboard;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 
 public final class BlackboardKeys {
 	private BlackboardKeys() {
@@ -15,11 +15,11 @@ public final class BlackboardKeys {
 	public static final Blackboard.Key<String, Integer> FOLLOWING_STAR_SYSTEM_NODE = Blackboard.Key
 			.create("following_star_system_node");
 
-	public static final Blackboard.Key<String, Color> BINARY_PATH_COLOR = Blackboard.Key
-			.create("binary_path_color", new Color(0.1f, 0.4f, 0.5f, 0.5f));
-	public static final Blackboard.Key<String, Color> UNARY_PATH_COLOR = Blackboard.Key
-			.create("unary_path_color", new Color(0.5f, 0.4f, 0.1f, 0.5f));
-	public static final Blackboard.Key<String, Color> SELECTED_PATH_COLOR = Blackboard.Key
-			.create("selected_path_color", new Color(0.2f, 1.0f, 0.2f, 1.0f));
+	public static final Blackboard.Key<String, ColorRgba> BINARY_PATH_COLOR = Blackboard.Key
+			.create("binary_path_color", new ColorRgba(0.1f, 0.4f, 0.5f, 0.5f));
+	public static final Blackboard.Key<String, ColorRgba> UNARY_PATH_COLOR = Blackboard.Key
+			.create("unary_path_color", new ColorRgba(0.5f, 0.4f, 0.1f, 0.5f));
+	public static final Blackboard.Key<String, ColorRgba> SELECTED_PATH_COLOR = Blackboard.Key
+			.create("selected_path_color", new ColorRgba(0.2f, 1.0f, 0.2f, 1.0f));
 
 }

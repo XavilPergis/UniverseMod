@@ -9,7 +9,7 @@ import net.xavil.hawklib.client.gl.texture.GlCubemapTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.client.gl.texture.GlTexture.Format;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec2i;
 
 public abstract sealed class GlFramebufferAttachment implements Disposable {
@@ -22,7 +22,7 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 	 */
 	public final boolean owned;
 
-	public ClearState colorClearState = ClearState.setFloat(Color.TRANSPARENT);
+	public ClearState colorClearState = ClearState.setFloat(ColorRgba.TRANSPARENT);
 	public ClearState depthClearState = ClearState.setFloat(1.0f);
 	public ClearState stencilClearState = ClearState.setInt(0);
 

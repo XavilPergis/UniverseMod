@@ -1,5 +1,6 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
+import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -34,6 +35,6 @@ public abstract class GalaxyGenerationLayer {
 
 	public abstract void generateInto(Context ctx, GalaxySector.PackedSectorElements elements);
 
-	public abstract StarSystem generateFullSystem(GalaxySector sector, GalaxySector.SectorElementHolder elem);
+	public abstract StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.SectorElementHolder elem);
 
 }

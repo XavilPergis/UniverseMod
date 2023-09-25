@@ -18,7 +18,7 @@ vec3 shadeCelestialObject(inout FragmentInfo frag, in RockyWorld node, float rou
 	float amp = 1.0;
 	float freq = 1.0;
 	for (int i = 0; i < 8; ++i) {
-		colnoise += amp * noiseSimplex(float(node.seed % 1000) + freq * frag.normalW);
+		colnoise += amp * noiseSimplex(float(node.seed % 1000) + freq * frag.normalM);
 		maxAmplitude += amp;
 		freq *= 2.0;
 		amp *= 0.6;

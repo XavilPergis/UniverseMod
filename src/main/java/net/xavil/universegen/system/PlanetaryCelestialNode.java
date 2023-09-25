@@ -13,7 +13,7 @@ import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.ultraviolet.client.ColorSpline;
 
 public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
@@ -60,8 +60,8 @@ public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 		final var splinePointCount = rng.weightedDouble(2, 4, 20);
 
 		this.gasGiantColorSpline.clear();
-		this.gasGiantColorSpline.addControlPoint(1, Color.WHITE);
-		this.gasGiantColorSpline.addControlPoint(0, Color.WHITE);
+		this.gasGiantColorSpline.addControlPoint(1, ColorRgba.WHITE);
+		this.gasGiantColorSpline.addControlPoint(0, ColorRgba.WHITE);
 	}
 
 	public Holder<DimensionType> dimensionType(MinecraftServer server) {

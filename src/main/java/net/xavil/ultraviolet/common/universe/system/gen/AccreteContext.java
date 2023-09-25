@@ -12,7 +12,6 @@ public class AccreteContext {
 	public final double stellarLuminosityLsol;
 	public final double stellarMassMsol;
 	public final double systemMetallicity;
-	public final Interval stableOrbitInterval;
 	public int nextPlanetesimalId = 0;
 
 	public final double systemAgeMya;
@@ -20,7 +19,7 @@ public class AccreteContext {
 
 	public AccreteContext(SimulationParameters params, StableRandom rng, Galaxy galaxy,
 			double stellarLuminosityLsol,
-			double stellarMassMsol, double stellarAgeMyr, double systemMetallicity, Interval stableOrbitInterval) {
+			double stellarMassMsol, double stellarAgeMyr, double systemMetallicity) {
 		this.params = params;
 		this.rng = rng;
 		this.galaxy = galaxy;
@@ -29,7 +28,6 @@ public class AccreteContext {
 		this.systemAgeMya = stellarAgeMyr;
 		this.currentSystemAgeMya = 0;
 		this.systemMetallicity = systemMetallicity;
-		this.stableOrbitInterval = stableOrbitInterval;
 	}
 
 }

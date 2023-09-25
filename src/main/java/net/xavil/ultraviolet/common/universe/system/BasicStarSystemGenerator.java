@@ -2,7 +2,13 @@ package net.xavil.ultraviolet.common.universe.system;
 
 import javax.annotation.Nullable;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -15,6 +21,7 @@ import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.UnaryCelestialNode;
 
 public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
@@ -28,27 +35,37 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 	// than the maximum radius of the existing binary pair.
 	public static final double SPACING_FACTOR = 2;
 
+	private final SplittableRng rng = new SplittableRng(0);
+	private Logger logger;
+
 	@Override
 	public CelestialNode generate(Context ctx) {
-		final var rootRng = new StableRandom(1);
+		this.logger = LoggerFactory.getLogger(String.format("SystemGenerator '%s'", ctx.systemId().toString()));
+
+		this.rng.setSeed(ctx.seed);
 
 		CelestialNode root = StellarCelestialNode.fromMassAndAge(ctx.info.massYg, ctx.info.systemAgeMyr);
-		generatePlanets(ctx, rootRng.split("root_planets"), root, 1.0);
 
-		double remainingMass = ctx.info.massYg * ctx.rng.weightedDouble(8.0, 0.0, 2.0);
+		double remainingMass = ctx.info.massYg * this.rng.weightedDouble("remaining_mass", 8.0, 0.0, 2.0);
 
-		final var planetsRng = rootRng.split("planets");
+		this.rng.push("generate_secondary_stars");
 		for (int i = 0; i < STAR_ATTEMPT_COUNT; ++i) {
-			if (ctx.rng.chance(0.1))
+			this.rng.advance();
+
+			if (this.rng.chance("stop_iteration", 0.1))
 				break;
 
-			final var idealStarMass = ctx.rng.weightedDouble(3.0, MINIMUM_STAR_MASS, ctx.info.massYg);
+			final var idealStarMass = this.rng.weightedDouble("star_mass", 3.0, MINIMUM_STAR_MASS, ctx.info.massYg);
 			if (idealStarMass > remainingMass)
 				continue;
 
 			final var starNode = StellarCelestialNode.fromMassAndAge(idealStarMass, ctx.info.systemAgeMyr);
-			generatePlanets(ctx, planetsRng.split(i), starNode, 1.0);
-			final var newRoot = mergeStarNodes(ctx, root, starNode, ctx.rng.chance(0.8));
+
+			// this.rng.push("generate_secondary_planets");
+			// generatePlanetsAroundStar(ctx, starNode, 1.0);
+			// this.rng.pop();
+
+			final var newRoot = mergeStarNodes(ctx, root, starNode, this.rng.chance("close_orbit", 0.8));
 
 			// bail if we ran out of places to put new stars
 			if (newRoot == null) {
@@ -59,8 +76,52 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			remainingMass -= idealStarMass;
 			root = newRoot;
 		}
+		this.rng.pop();
+
+		this.rng.push("generate_planets");
+		generatePlanetsRecursively(ctx, root, Double.POSITIVE_INFINITY);
+		this.rng.pop();
+
 
 		return postprocess(root);
+	}
+
+	private void generatePlanetsRecursively(Context ctx, CelestialNode node, double maxRadius) {
+		if (node instanceof BinaryCelestialNode binaryNode) {
+			final var limit = binaryNode.orbitalShapeOuter.periapsisDistance() / SPACING_FACTOR;
+			this.rng.push("generate_inner");
+			generatePlanetsRecursively(ctx, binaryNode.inner, limit);
+			this.rng.pop();
+			this.rng.push("generate_outer");
+			generatePlanetsRecursively(ctx, binaryNode.outer, limit);
+			this.rng.pop();
+		}
+
+		this.rng.push("generate_children");
+		for (int i = 0; i < node.childNodes.size(); ++i) {
+			this.rng.advance();
+			final var child = node.childNodes.get(i);
+			final double innerLimit;
+			if (i == 0) {
+				innerLimit = child.orbitalShape.periapsisDistance() / SPACING_FACTOR;
+			} else {
+				final var prevChild = node.childNodes.get(i - 1);
+				innerLimit = (child.orbitalShape.periapsisDistance() - prevChild.orbitalShape.apoapsisDistance()) / SPACING_FACTOR;
+			}
+			final double outerLimit;
+			if (i == node.childNodes.size() - 1) {
+				outerLimit = (maxRadius - child.orbitalShape.apoapsisDistance()) / SPACING_FACTOR;
+			} else {
+				final var nextChild = node.childNodes.get(i - 1);
+				outerLimit = (nextChild.orbitalShape.apoapsisDistance() - child.orbitalShape.periapsisDistance()) / SPACING_FACTOR;
+			}
+			generatePlanetsRecursively(ctx, child.node, Math.min(innerLimit, outerLimit));
+		}
+		this.rng.pop();
+		
+		this.rng.push("generate_children");		
+		generatePlanetsAroundStar(ctx, node, 1.0, maxRadius);
+		this.rng.pop();
 	}
 
 	private static double radiusFromMass(double mass) {
@@ -72,34 +133,42 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		return Units.km_PER_Rearth * 22.6 * Math.pow(mass_Mearth, -0.0886);
 	}
 
-	private CelestialNode generatePlanet(StableRandom rng, double mass) {
-		final var primary = new PlanetaryCelestialNode();
-		primary.obliquityAngle = rng.weightedDouble("obliquity_angle", 2, 0, 2 / Math.PI);
-		// primary.apsidalRate
-		// primary.rotationalRate
-		primary.massYg = 1;
-		primary.radius = radiusFromMass(primary.massYg);
-		// primary.temperature
-		// primary.type
-		// primary.rings
-		// primary.childNodes
+	private CelestialNode generatePlanet(double mass, double maxDistance) {
+		Assert.isTrue(!Double.isNaN(maxDistance));
+		final CelestialNode res;
+		if (mass * Units.Mearth_PER_Yg > 1e-6 && rng.chance("is_binary", 0.1)) {
+			final var massRatio = this.rng.weightedDouble("partner_mass_ratio", 0.6, 0.5, 0.95);
 
-		if (rng.chance("is_binary", 0.08)) {
-			// final var secondary = generatePlanet(rng.split("binary_partner"));
+			final var semiMajorL = 0;
 
-			// secondary.massYg = primary.massYg * rng.uniformDouble("partner_mass_ratio", 0.05, 0.5);
-			// secondary.radius = radiusFromMass(secondary.massYg);
-			// // secondary.apsidalRate
-			// // secondary.rotationalRate
-			// // secondary.temperature
-			// // secondary.type
-			// // secondary.rings
-			// // secondary.childNodes
+			// higher bound increases by 0.02 au per earth mass
+			final var semiMajorH = 0.02 * massRatio * mass * Units.Mearth_PER_Yg * Units.Tm_PER_au;
 
-			// final var bnode = new BinaryCelestialNode();
-			// bnode.massYg = primary.massYg + secondary.massYg;
-			// bnode.setSiblings(primary, secondary);
-			// bnode.setOrbitalShapes(null);
+			final var eccentricity = rng.uniformDouble("eccentricity", 0.0, 0.1);
+			final var distance = rng.uniformDouble("semi_major", semiMajorL, semiMajorH);
+
+			final var outerShape = new OrbitalShape(eccentricity, Math.min(distance, maxDistance) / (1 + eccentricity));
+			final var innerShape = new OrbitalShape(eccentricity, outerShape.semiMajor() * ((1 - massRatio) * mass / (massRatio * mass)));
+
+			Assert.isTrue(!Double.isNaN(outerShape.semiMajor()));
+			Assert.isTrue(!Double.isNaN(innerShape.semiMajor()));
+
+			final var closestDistance = outerShape.periapsisDistance() - innerShape.periapsisDistance();
+
+			this.rng.push("primary");
+			final var secondary = generatePlanet(massRatio * mass, closestDistance / SPACING_FACTOR);
+			this.rng.pop();
+
+			this.rng.push("secondary");
+			final var primary = generatePlanet((1 - massRatio) * mass, closestDistance / SPACING_FACTOR);
+			this.rng.pop();
+
+			final var node = new BinaryCelestialNode();
+			node.massYg = primary.massYg + secondary.massYg;
+			node.setSiblings(primary, secondary);
+
+			node.orbitalShapeInner = innerShape;
+			node.orbitalShapeOuter = outerShape;
 
 			// fairly distant gas giants with their own moon systems
 			// mid-range earth-like binaries
@@ -107,49 +176,175 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
 			final var ascendingNode = rng.uniformDouble("longitude_of_ascending_node", 0, 2 * Math.PI);
 			final var argPeriapsis = rng.uniformDouble("argument_of_periapsis", 0, 2 * Math.PI);
-			final var inclination = rng.weightedDouble("inclination", 5, 0.0, 0.5 * Math.PI);
+			final var inclination = rng.weightedDouble("inclination", 5, 0.0, 0.05 * Math.PI);
 			final var orbitalPlane = OrbitalPlane.fromOrbitalElements(inclination, ascendingNode, argPeriapsis);
 
-			// bnode.orbitalPlane
-			// bnode.phase
-			// bnode.childNodes
+			node.orbitalPlane = orbitalPlane;
+			node.phase = rng.uniformDouble("phase", 0, 2 * Math.PI);
 			// bnode.apsidalRate
-			// return bnode;
+			res = node;
+		} else {
+			final var node = new PlanetaryCelestialNode();
+			node.obliquityAngle = rng.weightedDouble("obliquity_angle", 2, 0, 2 / Math.PI);
+			// node.apsidalRate
+			node.rotationalRate = rng.uniformDouble("rotational_rate", 0, 0.000872664626);
+			node.massYg = mass;
+			node.radius = radiusFromMass(node.massYg);
+			// node.temperature
+
+			node.type = PlanetaryCelestialNode.Type.ROCKY_WORLD;
+
+			// node.rings
+			// node.childNodes
+
+			node.radius = radiusFromMass(node.massYg);
+			node.type = PlanetaryCelestialNode.Type.ROCKY_WORLD;
+
+			// idk lol, should probably take the escape velocity of gasses into account
+			double gasGiantChance = Mth.inverseLerp(node.massYg, 5.0 * Units.Yg_PER_Mearth, 20.0 * Units.Yg_PER_Mearth);
+			gasGiantChance = Mth.clamp(gasGiantChance, 0, 1);
+			if (this.rng.chance("gas_giant_chance", gasGiantChance)) {
+				node.type = PlanetaryCelestialNode.Type.GAS_GIANT;
+			}
+			if (node.massYg > 13 * Units.Yg_PER_Mjupiter) {
+				node.type = PlanetaryCelestialNode.Type.BROWN_DWARF;
+			}
+
+			res = node;
 		}
 
-		return primary;
+		if (res.massYg > 0.01 * Units.Yg_PER_Mearth) {
+			this.rng.push("secondary");
+			generateMoonsAroundPlanet(res, maxDistance);
+			this.rng.pop();
+		}
+
+		return res;
 	}
 
-	private static double discDensity(double starMass, double r) {
-		// k -> scale factor
-		// N -> peak distance
-		final double k = 1.0, N = 1.0;
-		// this gives lower densities closer to the star
-		return k * Math.E * r / N * Math.exp(-r / N);
-		// final double E = 0.077;
-		// final double A = 5;
-		// final double N = 3;
-		// return E * Math.sqrt(Units.Msol_PER_Yg * starMass) * Math.exp(-A * Math.pow(d, 1 / N));
+	private static double discDensity(double cutoutDistance, double massFactor, double r) {
+		// inflection point
+		final var k = cutoutDistance;
+		// steepness
+		final var n = 100;
+
+		// mask values apst this will be treated as 1, used to avoid generating
+		// intermediate infinities
+		final var L = 0.999;
+
+		final var kn = k * n;
+
+		// the values of d at which `mask(d) = L` and `mask(d) = 1-L` respectively
+		// x=k\sqrt[kn]{\frac{R}{\left(1-R\right)}}
+		final var maskLimitH = k * Math.pow((1 - L) / L, 1 / kn);
+		// substitute L for 1-L in previous equation
+		final var maskLimitL = k * Math.pow(L / (1 - L), 1 / kn);
+		final double mask;
+		if (r <= maskLimitL) {
+			mask = 0;
+		} else if (r >= maskLimitH) {
+			mask = 1;
+		} else {
+			// m\left(x\right)=\frac{x^{kn}}{k^{kn}+x^{kn}}\left\{x\ge0\right\}
+			mask = Math.pow(r, kn) / (Math.pow(k, kn) + Math.pow(r, kn));
+		}
+
+		final double E = 0.2;
+		final double a = 5;
+		final double N = 3;
+
+		// f\left(x\right)=Ee^{-ax^{\frac{1}{N}}}\left\{x\ge0\right\}
+		final var density = E * massFactor
+				* Math.exp(-a * Math.pow(r, 1 / N));
+
+		return mask * density;
 	}
 
 	private static final int MASS_INTEGRATION_SUBDIVISIONS = 16;
 
 	// very simplistic, considers
-	private static double sweptMass(double starMass, double inner, double outer) {
+	private static double sweptMass(double cutoutDistance, double massFactor, double inner, double outer) {
 		final var dr = (outer - inner) / MASS_INTEGRATION_SUBDIVISIONS;
 		double sum = 0.0;
-		// disc density is multiplied 
-		double prev = inner * discDensity(starMass, inner);
+		double prev = inner * discDensity(cutoutDistance, massFactor, inner);
 		for (int i = 1; i <= MASS_INTEGRATION_SUBDIVISIONS; ++i) {
 			final var r = Mth.lerp(i / (double) MASS_INTEGRATION_SUBDIVISIONS, inner, outer);
-			final var cur = r * discDensity(starMass, r);
+			final var cur = r * discDensity(cutoutDistance, massFactor, r);
 			sum += dr * (prev + cur / 2); // trapezoid sum
 			prev = cur;
 		}
 		return Units.Yg_PER_Msol * 2 * Math.PI * sum;
 	}
 
-	private void generatePlanets(Context ctx, StableRandom rng, CelestialNode parent, double initialDiscMass) {
+	private double totalStellarMass(CelestialNode node) {
+		if (node instanceof BinaryCelestialNode binaryNode) {
+			return totalStellarMass(binaryNode.inner) + totalStellarMass(binaryNode.outer);
+		}
+		// if (node instanceof StellarCelestialNode starNode) {
+		// }
+		return node.massYg;
+		// throw new IllegalArgumentException("node was not stellar or binary!");
+	}
+
+	private void generateMoonsAroundPlanet(CelestialNode parent, double maxDistance) {
+
+		// final var stellarMass = totalStellarMass(parent);
+
+		// TODO: pick better minimum and maximum
+		final var discMin = getExclusionRadius(parent);
+		final var discMax = Units.Tm_PER_au
+				* this.rng.weightedDouble("disc_max", 2, 0, 10)
+				* Math.sqrt(Units.Msol_PER_Yg * parent.massYg);
+
+		double discMass = parent.massYg * this.rng.weightedDouble("disc_mass", 2.0, 0.0, 0.7);
+
+		double currentSemiMajor = rng.weightedDouble("initial_semi_major", 5, discMin, discMax);
+		this.rng.push("generation_attempts");
+		for (int i = 0; i < PLANET_ATTEMPT_COUNT; ++i) {
+			this.rng.advance();
+
+			Assert.isTrue(!Double.isNaN(currentSemiMajor));
+
+			final var spacingFactor = this.rng.weightedDouble("spacing_factor", 2, 1, 1.5);
+			final var ecc = this.rng.weightedDouble("eccentricity", 3, 0.0, 0.4);
+
+			final var periapsis = currentSemiMajor * spacingFactor;
+			final var semiMajor = periapsis / (1 - ecc);
+			final var apoapsis = 2 * semiMajor - periapsis;
+
+			Assert.isTrue(!Double.isNaN(semiMajor));
+
+			if (apoapsis > discMax)
+				break;
+
+			currentSemiMajor = 1.35 * apoapsis;
+
+			final var orbitalShape = new OrbitalShape(ecc, semiMajor);
+
+			final var ascendingNode = this.rng.uniformDouble("longitude_of_ascending_node", 0, 2 * Math.PI);
+			final var argPeriapsis = this.rng.uniformDouble("argument_of_periapsis", 0, 2 * Math.PI);
+			final var inclination = this.rng.weightedDouble("inclination", 5, 0.0, 0.05 * Math.PI);
+			final var orbitalPlane = OrbitalPlane.fromOrbitalElements(inclination, ascendingNode, argPeriapsis);
+
+			// final var planetMass = this.rng.uniformDouble("mass") * sweptMass(getExclusionRadius(parent), discMass, periapsis, apoapsis);
+			final var planetMass = this.rng.weightedDouble("mass", 3.0, 0.0, 0.001 * discMass);
+			Assert.isTrue(!Double.isNaN(planetMass));
+
+			final var phase = rng.uniformDouble("phase", 0, 2 * Math.PI);
+			this.rng.push("planet");
+			if (planetMass > Units.Yg_PER_Mearth * 0.001) {
+				final var node = generatePlanet(planetMass, (apoapsis - periapsis) / (4.0 * SPACING_FACTOR));
+				final var child = new CelestialNodeChild<>(parent, node, orbitalShape, orbitalPlane, phase);
+				parent.childNodes.push(child);
+			}
+			this.rng.pop();
+
+
+		}
+		this.rng.pop();
+	}
+
+	private void generatePlanetsAroundStar(Context ctx, CelestialNode parent, double initialDiscMass, double maxDistance) {
 		// TODO: what is metallicity used for? I think some amount of metals are needed
 		// to form actual planets, but im not sure how to work that in.
 		final var systemMetallicity = ctx.galaxy.densityFields.metallicity.sample(ctx.info.systemPosTm);
@@ -158,20 +353,24 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		// final var planetCount = metallicityPlanetCountFactor *
 		// Mth.floor(ctx.rng.lerpWeightedDouble(4.0, 0.0, 30.0));
 
+		final var cutoutDistance = Math.sqrt(Units.Msol_PER_Yg * totalStellarMass(parent));
+
 		// TODO: pick better minimum and maximum
-		final var discMin = 0.0;
-		final var discMax = Units.Tm_PER_au
-				* rng.weightedDouble("disc_max", 2, 0, 100)
+		final var discMin = 0.02;
+		double discMax = Units.Tm_PER_au
+				* this.rng.weightedDouble("disc_max", 2, 0, 100)
 				* Math.sqrt(Units.Msol_PER_Yg * parent.massYg);
+		discMax = Math.min(discMax, maxDistance);
 
 		double discMass = initialDiscMass;
 
 		double currentSemiMajor = rng.weightedDouble("initial_semi_major", 5, discMin, discMax);
+		this.rng.push("generation_attempts");
 		for (int i = 0; i < PLANET_ATTEMPT_COUNT; ++i) {
-			final var planetRng = rng.split(i);
+			this.rng.advance();
 
-			final var spacingFactor = planetRng.weightedDouble("spacing_factor", 2, 1, 1.5);
-			final var ecc = planetRng.weightedDouble("eccentricity", 3);
+			final var spacingFactor = this.rng.weightedDouble("spacing_factor", 2, 1, 1.5);
+			final var ecc = this.rng.weightedDouble("eccentricity", 3);
 
 			final var periapsis = currentSemiMajor * spacingFactor;
 			final var semiMajor = periapsis / (1 - ecc);
@@ -180,37 +379,29 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			if (apoapsis > discMax)
 				break;
 
-			final var distanceFromPrevious = apoapsis - currentSemiMajor;
 			currentSemiMajor = 1.35 * apoapsis;
 
 			final var orbitalShape = new OrbitalShape(ecc, semiMajor);
 
-			final var ascendingNode = rng.uniformDouble("longitude_of_ascending_node", 0, 2 * Math.PI);
-			final var argPeriapsis = rng.uniformDouble("argument_of_periapsis", 0, 2 * Math.PI);
-			final var inclination = rng.weightedDouble("inclination", 5, 0.0, 0.5 * Math.PI);
+			final var ascendingNode = this.rng.uniformDouble("longitude_of_ascending_node", 0, 2 * Math.PI);
+			final var argPeriapsis = this.rng.uniformDouble("argument_of_periapsis", 0, 2 * Math.PI);
+			final var inclination = this.rng.weightedDouble("inclination", 5, 0.0, 0.05 * Math.PI);
 			final var orbitalPlane = OrbitalPlane.fromOrbitalElements(inclination, ascendingNode, argPeriapsis);
 
-			// fixed mass;
-			// {
-			// const fixed a = pos;
-			// const fixed b = fixed(135, 100) * apoapsis;
-			// mass = mass_from_disk_area(a, b, discMax);
-			// mass *= rand.Fixed() * discDensity;
-			// }
-			// if (mass < 0) { // hack around overflow
-			// Output("WARNING: planetary mass has overflowed! (child of %s)\n",
-			// primary->GetName().c_str());
-			// mass = fixed(Sint64(0x7fFFffFFffFFffFFull));
-			// }
-			// assert(mass >= 0);
+			final var planetMass = this.rng.uniformDouble("mass") * sweptMass(cutoutDistance, discMass, periapsis, apoapsis);
+			final var phase = rng.uniformDouble("phase", 0, 2 * Math.PI);
 
-			// final var node = generatePlanet(rng.split("planet"));
-
-			// final var phase = rng.uniformDouble("phase", 0, 2 * Math.PI);
-			// final var child = new CelestialNodeChild<>(parent, node, orbitalShape, orbitalPlane, phase);
-			// parent.childNodes.push(child);
+			this.rng.push("planet");
+			if (planetMass > Units.Yg_PER_Mearth * 0.01) {
+				final var node = generatePlanet(planetMass, (apoapsis - periapsis) / (4.0 * SPACING_FACTOR));
+				final var child = new CelestialNodeChild<>(parent, node, orbitalShape, orbitalPlane, phase);
+				parent.childNodes.push(child);
+			}
+			this.rng.pop();
 
 		}
+		this.rng.pop();
+
 	}
 
 	private static void replaceNode(CelestialNode existing, BinaryCelestialNode newNode) {
@@ -247,23 +438,40 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		if (minDistance > maxDistance)
 			return null;
 
+		this.rng.push("merge_single_star");
+
 		double distance = 0;
-		OrbitalPlane orbitalPlane;
-		orbitalPlane = OrbitalPlane.fromInclination(ctx.rng.uniformDouble(0, 2.0 * Math.PI), ctx.rng);
+		OrbitalPlane orbitalPlane = OrbitalPlane.random(this.rng.rng("orbital_plane"));
 		if (closeOrbit) {
 			final var limit = Units.Tm_PER_au * 10;
-			distance = ctx.rng.weightedDouble(3.0, minDistance, Math.min(maxDistance, limit));
+			distance = this.rng.weightedDouble("distance", 3.0, minDistance, Math.min(maxDistance, limit));
 			// orbitalPlane = OrbitalPlane.ZERO;
 		} else {
-			distance = ctx.rng.uniformDouble(minDistance, maxDistance);
+			distance = this.rng.uniformDouble("distance", minDistance, maxDistance);
 		}
 		Mod.LOGGER.info("Success [distance={}]", distance);
+		final var phase = this.rng.uniformDouble("phase", 0, 2 * Math.PI);
 
-		final var phase = ctx.rng.uniformDouble(0, 2 * Math.PI);
-		final var newNode = BinaryCelestialNode.fromSquishFactor(existing, toInsert,
-				orbitalPlane, 1, distance, phase);
-		replaceNode(existing, newNode);
-		return newNode;
+		final double squishFactor = 1.0;
+
+		CelestialNode res = null;
+		if (UNARY_ORBIT_THRESHOLD * existing.massYg > toInsert.massYg) {
+			final var orbitalShape = OrbitalShape.fromAxes(distance, squishFactor * distance);	
+			final var child = new CelestialNodeChild<>(existing, toInsert, orbitalShape, orbitalPlane, phase);
+			existing.insertChild(child);
+		} else if (UNARY_ORBIT_THRESHOLD * toInsert.massYg > existing.massYg) {
+			final var orbitalShape = OrbitalShape.fromAxes(distance, squishFactor * distance);	
+			final var child = new CelestialNodeChild<>(toInsert, existing, orbitalShape, orbitalPlane, phase);
+			toInsert.insertChild(child);
+		} else {
+			final var bnode = BinaryCelestialNode.fromSquishFactor(existing, toInsert,
+					orbitalPlane, squishFactor, distance, phase);
+			replaceNode(existing, bnode);
+			res = bnode;
+		}
+
+		this.rng.pop();
+		return res;
 	}
 
 	/**
@@ -271,8 +479,8 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 	 * @return The minimum distance that other objects may be placed from this node.
 	 */
 	private static double getExclusionRadius(CelestialNode node) {
-		if (node instanceof StellarCelestialNode starNode) {
-			return 10 * Units.Tu_PER_ku * starNode.radius;
+		if (node instanceof UnaryCelestialNode unaryNode) {
+			return SPACING_FACTOR * Units.Tu_PER_ku * unaryNode.radius;
 		} else if (node instanceof BinaryCelestialNode binaryNode) {
 			return SPACING_FACTOR * binaryNode.orbitalShapeOuter.semiMajor();
 		}
@@ -297,11 +505,16 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 	private CelestialNode mergeStarWithBinary(Context ctx, BinaryCelestialNode existing, StellarCelestialNode toInsert,
 			boolean closeOrbit) {
 
+		CelestialNode res = null;
+
+		this.rng.push("merge_binary");
+
 		// i kinda hate this, but i cant think of a nicer way to do this rn.
 		boolean triedOuter = false, triedInnerA = false, triedInnerB = false;
 		while (!triedOuter || !triedInnerA || !triedInnerB) {
+			this.rng.advance();
 
-			if (!triedOuter && (triedInnerA && triedInnerB || ctx.rng.chance(0.3))) {
+			if (!triedOuter && (triedInnerA && triedInnerB || this.rng.chance("outer_chance", 0.3))) {
 				triedOuter = true;
 
 				// We want to avoid putting nodes into P-type orbits that are too close to their
@@ -313,7 +526,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 				Mod.LOGGER.info("Attempting P-Type [min={}, max={}]", minRadius, maxRadius);
 
 				if (minRadius <= maxRadius) {
-					final var radius = ctx.rng.weightedDouble(2.0, minRadius, maxRadius);
+					final var radius = this.rng.weightedDouble("radius", 2.0, minRadius, maxRadius);
 					Mod.LOGGER.info("Success [radius={}]", radius);
 
 					OrbitalPlane orbitalPlane;
@@ -321,20 +534,21 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 						orbitalPlane = existing.orbitalPlane;
 						// existing.orbitalPlane = OrbitalPlane.ZERO;
 					} else {
-						orbitalPlane = OrbitalPlane.fromInclination(ctx.rng.uniformDouble(0, 2.0 * Math.PI), ctx.rng);
+						orbitalPlane = OrbitalPlane.random(this.rng.rng("orbital_plane"));
 					}
 
 					final var squishFactor = 1;
 					final var newNode = BinaryCelestialNode.fromSquishFactor(existing, toInsert, orbitalPlane,
 							squishFactor, radius,
-							ctx.rng.uniformDouble(0, 2 * Math.PI));
-					return newNode;
+							this.rng.uniformDouble("phase", 0, 2 * Math.PI));
+					res = newNode;
+					break;
 				}
 			} else {
 				var a = existing.getInner();
 				var b = existing.getOuter();
 
-				if (!triedInnerA && ctx.rng.chance(0.5)) {
+				if (!triedInnerA && this.rng.chance("a_or_b", 0.5)) {
 					triedInnerA = true;
 					Mod.LOGGER.info("Attempting S-Type A");
 					a = mergeStarNodes(ctx, a, toInsert, closeOrbit);
@@ -352,12 +566,16 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 						existing.orbitalPlane,
 						1, existing.orbitalShapeOuter.semiMajor(),
 						existing.phase);
-				return newNode;
+				res = newNode;
+				break;
 			}
 		}
 
-		Mod.LOGGER.info("Attempt Failed");
-		return null;
+		this.rng.pop();
+
+		if (res == null)
+			Mod.LOGGER.info("Attempt Failed");
+		return res;
 	}
 
 	private @Nullable CelestialNode mergeStarNodes(Context ctx, CelestialNode existing, StellarCelestialNode toInsert,
@@ -378,11 +596,14 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 	public static final double UNARY_ORBIT_THRESHOLD = 0.05;
 
 	private CelestialNode postprocess(CelestialNode node) {
+
 		final var newChildren = node.childNodes.iter().map(childOrbit -> {
 			final var newChild = postprocess(childOrbit.node);
+			if (newChild == null)
+				return null;
 			return new CelestialNodeChild<CelestialNode>(node, newChild,
 					childOrbit.orbitalShape, childOrbit.orbitalPlane, childOrbit.phase);
-		}).collectTo(Vector::new);
+		}).filterNull().collectTo(Vector::new);
 		node.childNodes.clear();
 		node.childNodes.extend(newChildren);
 
@@ -402,6 +623,8 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 				return a;
 			}
 		}
+
+		// TODO: remove sattelites that are too close to/inside parent body
 
 		return node;
 	}

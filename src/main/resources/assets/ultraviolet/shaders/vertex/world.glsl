@@ -4,8 +4,10 @@ VARYING_V2F vec2 vTexCoord0;
 VARYING_V2F vec4 vVertexColor;
 VARYING_V2F vec4 vVertexPosV;
 VARYING_V2F vec4 vVertexPosW;
+VARYING_V2F vec4 vVertexPosM;
 VARYING_V2F vec4 vVertexNormalV;
 VARYING_V2F vec4 vVertexNormalW;
+VARYING_V2F vec4 vVertexNormalM;
 
 #ifdef IS_VERTEX_STAGE
 #include [ultraviolet:common_uniforms.glsl]
@@ -24,11 +26,13 @@ mat4 getModelMatrix() {
 }
 
 void main() {
-	vVertexPosW = getModelMatrix() * vec4(aPos, 1.0);
+	vVertexPosM = vec4(aPos, 1.0);
+	vVertexPosW = getModelMatrix() * vVertexPosM;
 	vVertexPosV = uViewMatrix * vVertexPosW;
     gl_Position = uProjectionMatrix * vVertexPosV;
 
-	vVertexNormalW = getModelMatrix() * vec4(aNormal, 0.0);
+	vVertexNormalM = vec4(aNormal, 0.0);
+	vVertexNormalW = getModelMatrix() * vVertexNormalM;
     vVertexNormalV = uViewMatrix * vVertexNormalW;
 
     vTexCoord0 = aTexCoord0;

@@ -141,7 +141,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		return res;
 	}
 
-	default Maybe<T> find(Predicate<T> predicate) {
+	default Maybe<T> find(Predicate<? super T> predicate) {
 		while (hasNext()) {
 			final var value = next();
 			if (predicate.test(value))
@@ -150,7 +150,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		return Maybe.none();
 	}
 
-	default int position(Predicate<T> predicate) {
+	default int indexOf(Predicate<? super T> predicate) {
 		for (int i = 0; hasNext(); ++i) {
 			final var value = next();
 			if (predicate.test(value))
@@ -159,7 +159,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		return -1;
 	}
 
-	default boolean any(Predicate<T> predicate) {
+	default boolean any(Predicate<? super T> predicate) {
 		while (hasNext()) {
 			final var value = next();
 			if (predicate.test(value))
@@ -168,7 +168,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		return false;
 	}
 
-	default boolean all(Predicate<T> predicate) {
+	default boolean all(Predicate<? super T> predicate) {
 		while (hasNext()) {
 			final var value = next();
 			if (!predicate.test(value))
@@ -177,7 +177,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		return true;
 	}
 
-	default Maybe<T> min(Comparator<T> comparator) {
+	default Maybe<T> min(Comparator<? super T> comparator) {
 		T minValue = null;
 		while (hasNext()) {
 			final var value = next();
@@ -188,7 +188,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		return Maybe.fromNullable(minValue);
 	}
 
-	default Maybe<T> max(Comparator<T> comparator) {
+	default Maybe<T> max(Comparator<? super T> comparator) {
 		T maxValue = null;
 		while (hasNext()) {
 			final var value = next();
@@ -396,18 +396,37 @@ public interface Iterator<T> extends IntoIterator<T> {
 	}
 
 	default Iterator<T> filter(Predicate<? super T> predicate) {
-		return new Filter<>(this, predicate);
+		return new Filter<>(this) {
+			@Override
+			protected boolean test(T value) {
+				return predicate.test(value);
+			}
+		};
 	}
 
-	final class Filter<T> implements Iterator<T> {
+	default Iterator<T> filterNull() {
+		if (hasProperties(PROPERTY_NONNULL))
+			return this;
+		return new Filter<T>(this) {
+			@Override
+			protected boolean test(T value) {
+				return value != null;
+			}
+
+			@Override
+			public int properties() {
+				return super.properties() | PROPERTY_NONNULL;
+			}
+		};
+	}
+
+	abstract class Filter<T> implements Iterator<T> {
 		private final Iterator<T> source;
-		private final Predicate<? super T> filterPredicate;
 		private boolean hasNext = false;
 		private T current = null;
 
-		public Filter(Iterator<T> source, Predicate<? super T> filterPredicate) {
+		public Filter(Iterator<T> source) {
 			this.source = source;
-			this.filterPredicate = filterPredicate;
 		}
 
 		@Override
@@ -415,12 +434,14 @@ public interface Iterator<T> extends IntoIterator<T> {
 			return this.source.sizeHint().withLowerBound(0);
 		}
 
+		protected abstract boolean test(T value);
+
 		private void loadNext() {
 			if (this.hasNext)
 				return;
 			while (this.source.hasNext()) {
 				this.current = this.source.next();
-				if (this.filterPredicate.test(this.current)) {
+				if (test(this.current)) {
 					this.hasNext = true;
 					break;
 				}
@@ -443,7 +464,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 		@Override
 		public void forEach(Consumer<? super T> consumer) {
 			this.source.forEach(value -> {
-				if (this.filterPredicate.test(value))
+				if (test(value))
 					consumer.accept(value);
 			});
 		}
@@ -592,6 +613,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 	final class Chain<T> implements Iterator<T> {
 		private final Iterator<T>[] sources;
 		private int currentSource = 0;
+		private boolean hasNext = false;
 
 		@SafeVarargs
 		public Chain(Iterator<T>... sources) {
@@ -599,37 +621,31 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 
 		private void loadNext() {
+			if (this.hasNext)
+				return;
 			if (this.currentSource >= this.sources.length)
 				return;
-			var hasNext = this.sources[this.currentSource].hasNext();
-			while (!hasNext) {
+			this.hasNext = this.sources[this.currentSource].hasNext();
+			while (!this.hasNext) {
 				this.currentSource += 1;
 				if (this.currentSource >= this.sources.length) {
 					return;
 				}
-				hasNext = this.sources[this.currentSource].hasNext();
+				this.hasNext = this.sources[this.currentSource].hasNext();
 			}
 
 		}
 
 		@Override
 		public boolean hasNext() {
-			if (this.currentSource >= this.sources.length)
-				return false;
-			var hasNext = this.sources[this.currentSource].hasNext();
-			while (!hasNext) {
-				this.currentSource += 1;
-				if (this.currentSource >= this.sources.length) {
-					return false;
-				}
-				hasNext = this.sources[this.currentSource].hasNext();
-			}
 			loadNext();
-			return hasNext;
+			return this.currentSource < this.sources.length;
 		}
 
 		@Override
 		public T next() {
+			loadNext();
+			this.hasNext = false;
 			return this.sources[this.currentSource].next();
 		}
 
@@ -755,17 +771,22 @@ public interface Iterator<T> extends IntoIterator<T> {
 			return new SizeHint(min, max);
 		}
 
-		@Override
-		public boolean hasNext() {
+		private void skipIfNeeded() {
 			while (this.remaining > 0 && this.source.hasNext()) {
 				this.source.next();
 				this.remaining -= 1;
 			}
+		}
+
+		@Override
+		public boolean hasNext() {
+			skipIfNeeded();
 			return this.source.hasNext();
 		}
 
 		@Override
 		public T next() {
+			skipIfNeeded();
 			return this.source.next();
 		}
 
@@ -835,70 +856,6 @@ public interface Iterator<T> extends IntoIterator<T> {
 		@Override
 		public int properties() {
 			return this.source.properties() | PROPERTY_FUSED;
-		}
-
-		@Override
-		public int count() {
-			return this.source.count();
-		}
-	}
-
-	default Iterator<T> filterNull() {
-		if (hasProperties(PROPERTY_NONNULL))
-			return this;
-		return new FilterNull<>(this);
-	}
-
-	final class FilterNull<T> implements Iterator<T> {
-		private final Iterator<T> source;
-		private boolean hasNext = false;
-		private T current = null;
-
-		public FilterNull(Iterator<T> source) {
-			this.source = source;
-		}
-
-		@Override
-		public SizeHint sizeHint() {
-			return this.source.sizeHint().withLowerBound(0);
-		}
-
-		@Override
-		public boolean hasNext() {
-			if (this.hasNext)
-				return true;
-			while (this.source.hasNext()) {
-				this.current = this.source.next();
-				if (this.current != null) {
-					this.hasNext = true;
-					break;
-				}
-			}
-			return this.hasNext;
-		}
-
-		@Override
-		public T next() {
-			this.hasNext = false;
-			return this.current;
-		}
-
-		@Override
-		public void forEach(Consumer<? super T> consumer) {
-			this.source.forEach(value -> {
-				if (value != null)
-					consumer.accept(value);
-			});
-		}
-
-		@Override
-		public int properties() {
-			return this.source.properties() | PROPERTY_NONNULL;
-		}
-
-		@Override
-		public Iterator<T> filterNull() {
-			return this;
 		}
 
 		@Override

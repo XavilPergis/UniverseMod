@@ -10,7 +10,7 @@ public final class Util {
 
 	private Util() {}
 
-	private static final Executor ASYNC_POOL = new ForkJoinPool(1);
+	public static final Executor ASYNC_POOL = new ForkJoinPool(1);
 
 	public static <T> CompletableFuture<T> makeSupplyFuture(boolean isAsync, Supplier<T> supplier) {
 		return isAsync ? CompletableFuture.supplyAsync(supplier, ASYNC_POOL) : CompletableFuture.completedFuture(supplier.get());

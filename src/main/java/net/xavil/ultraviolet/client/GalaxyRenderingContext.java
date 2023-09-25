@@ -18,7 +18,7 @@ import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.debug.ClientConfig;
 import net.xavil.ultraviolet.debug.ConfigKey;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class GalaxyRenderingContext implements Disposable {
@@ -85,7 +85,7 @@ public class GalaxyRenderingContext implements Disposable {
 				t = Mth.clamp(t, 0, 1);
 				double size = Mth.lerp(t, 5e6, 5e7);
 				size = size * (1e12 / metersPerUnit);
-				builder.vertex(samplePos).color(Color.WHITE.withA(0.1f)).uv0((float) size, 0).endVertex();
+				builder.vertex(samplePos).color(ColorRgba.WHITE.withA(0.1f)).uv0((float) size, 0).endVertex();
 				successfulPlacements += 1;
 			}
 		}

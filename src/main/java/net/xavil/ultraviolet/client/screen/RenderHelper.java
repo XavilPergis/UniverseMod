@@ -5,7 +5,7 @@ import net.minecraft.util.Mth;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class RenderHelper {
@@ -16,20 +16,20 @@ public final class RenderHelper {
 			.namespaced("textures/misc/selection_circle.png");
 
 	public static void addLine(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 start, Vec3 end,
-			Color color) {
+			ColorRgba color) {
 		addLine(builder, camera, start, end, color, color);
 	}
 
-	public static void addLine(FlexibleVertexConsumer builder, Vec3 start, Vec3 end, Color color) {
+	public static void addLine(FlexibleVertexConsumer builder, Vec3 start, Vec3 end, ColorRgba color) {
 		addLine(builder, start, end, color, color);
 	}
 
 	public static void addLine(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 start, Vec3 end,
-			Color startColor, Color endColor) {
+			ColorRgba startColor, ColorRgba endColor) {
 		addLine(builder, camera.toCameraSpace(start), camera.toCameraSpace(end), startColor, endColor);
 	}
 
-	public static void addLine(FlexibleVertexConsumer builder, Vec3 start, Vec3 end, Color startColor, Color endColor) {
+	public static void addLine(FlexibleVertexConsumer builder, Vec3 start, Vec3 end, ColorRgba startColor, ColorRgba endColor) {
 		var normal = end.sub(start).normalize();
 		builder.vertex(start.x, start.y, start.z)
 				.color(startColor.r(), startColor.g(), startColor.b(), startColor.a())
@@ -188,7 +188,7 @@ public final class RenderHelper {
 		final var pos = new Vec3(x, y, z);
 		final var n = pos.normalize();
 		final var p = n.mul(radius).add(center);
-		builder.vertex(p).normal(n).uv0(u, v).color(Color.WHITE).endVertex();
+		builder.vertex(p).normal(n).uv0(u, v).color(ColorRgba.WHITE).endVertex();
 	}
 
 }

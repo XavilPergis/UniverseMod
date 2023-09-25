@@ -314,7 +314,7 @@ public final class SectorManager {
 		try {
 			final var elem = new GalaxySector.SectorElementHolder();
 			sector.elements.load(elem, id.elementIndex());
-			return Maybe.some(this.galaxy.generateFullSystem(sector, elem));
+			return Maybe.some(this.galaxy.generateFullSystem(sector, id, elem));
 		} catch (Throwable t) {
 			Mod.LOGGER.error("failed to generate system because of an exception!");
 			t.printStackTrace();

@@ -16,8 +16,12 @@ public final class Interval implements Hashable {
 		this.higher = higher;
 	}
 
+	public static double size(double l, double h) {
+		return Math.abs(h - l);
+	}
+
 	public double size() {
-		return this.higher - this.lower;
+		return size(this.lower, this.higher);
 	}
 
 	public Interval intersection(Interval other) {
@@ -28,16 +32,32 @@ public final class Interval implements Hashable {
 				Math.min(this.higher, other.higher));
 	}
 
+	public static boolean intersects(double l1, double h1, double l2, double h2) {
+		return !(l1 >= h2 || h1 < l2);
+	}
+
 	public boolean intersects(Interval other) {
-		return !(this.lower >= other.higher || this.higher < other.lower);
+		return intersects(this.lower, this.higher, other.lower, other.higher);
+	}
+
+	public boolean intersects(double otherL, double otherH) {
+		return intersects(this.lower, this.higher, otherL, otherH);
+	}
+
+	public static boolean contains(double l1, double h1, double l2, double h2) {
+		return l1 <= l2 && h1 >= h2;
 	}
 
 	public boolean contains(Interval other) {
-		return this.lower <= other.lower && this.higher >= other.higher;
+		return contains(this.lower, this.higher, other.lower, other.higher);
+	}
+
+	public static boolean contains(double l, double h, double n) {
+		return n >= l && n < h;
 	}
 
 	public boolean contains(double value) {
-		return value >= this.lower && value < this.higher;
+		return contains(this.lower, this.higher, value);
 	}
 
 	public Interval mul(double scale) {

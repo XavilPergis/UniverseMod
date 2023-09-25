@@ -321,6 +321,8 @@ public class Mod implements ModInitializer {
 		syncPacket.uniqueSeed = universe.getUniqueUniverseSeed();
 		// starting system info
 		final var ssg = universe.getStartingSystemGenerator();
+		syncPacket.startingSystemAge = ssg.systemAge;
+		syncPacket.startingSystemName = ssg.systemName;
 		syncPacket.startingId = ssg.getStartingSystemId();
 		syncPacket.startingSystemNbt = CelestialNode.writeNbt(ssg.startingSystem.rootNode);
 		// current info

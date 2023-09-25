@@ -1,6 +1,6 @@
 package net.xavil.hawklib.client.gl;
 
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 
 public abstract sealed class ClearState {
 
@@ -13,7 +13,7 @@ public abstract sealed class ClearState {
 		return state;
 	}
 
-	public static SetFloat setFloat(Color initialColor) {
+	public static SetFloat setFloat(ColorRgba initialColor) {
 		final var state = new SetFloat(4);
 		state.load(initialColor);
 		return state;
@@ -42,7 +42,7 @@ public abstract sealed class ClearState {
 			this.clearValue = new float[count];
 		}
 
-		public void load(Color clearValue) {
+		public void load(ColorRgba clearValue) {
 			this.clearValue[0] = clearValue.r();
 			this.clearValue[1] = clearValue.g();
 			this.clearValue[2] = clearValue.b();

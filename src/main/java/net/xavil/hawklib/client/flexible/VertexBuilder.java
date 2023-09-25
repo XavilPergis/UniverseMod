@@ -14,7 +14,7 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 // this could probably be more efficient by writing to a persistent-mapped buffer.
@@ -362,7 +362,7 @@ public final class VertexBuilder {
 		}
 
 		@Override
-		public GenericVertexDispatcher color(Color color) {
+		public GenericVertexDispatcher color(ColorRgba color) {
 			this.color.setFloat0(color.r());
 			this.color.setFloat1(color.g());
 			this.color.setFloat2(color.b());

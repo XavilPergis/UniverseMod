@@ -5,17 +5,17 @@ import java.util.Comparator;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 
 public final class ColorSpline {
 
-	private record ControlPoint(float t, Color color) {
+	private record ControlPoint(float t, ColorRgba color) {
 	}
 
 	private float minT = Float.POSITIVE_INFINITY, maxT = Float.NEGATIVE_INFINITY;
 	private final MutableList<ColorSpline.ControlPoint> controlPoints = new Vector<>();
 
-	public void addControlPoint(float t, Color color) {
+	public void addControlPoint(float t, ColorRgba color) {
 		this.minT = Math.min(this.minT, t);
 		this.maxT = Math.max(this.maxT, t);
 		this.controlPoints.push(new ControlPoint(t, color));
@@ -25,7 +25,7 @@ public final class ColorSpline {
 			final var hi = this.controlPoints.get(i);
 			if (lo.t == hi.t)
 				throw new IllegalArgumentException(String.format(
-						"Duplicate control point: T-value '%d' is already occupied!",
+						"Duplicate control point: T-value '%f' is already occupied!",
 						lo.t));
 		}
 	}
@@ -34,7 +34,7 @@ public final class ColorSpline {
 		this.controlPoints.clear();
 	}
 
-	public Color sample(float t) {
+	public ColorRgba sample(float t) {
 		for (var i = 1; i < this.controlPoints.size(); ++i) {
 			final var lo = this.controlPoints.get(i - 1);
 			final var hi = this.controlPoints.get(i);
@@ -44,11 +44,11 @@ public final class ColorSpline {
 				final var g = Mth.lerp(st, lo.color.g(), hi.color.g());
 				final var b = Mth.lerp(st, lo.color.b(), hi.color.b());
 				final var a = Mth.lerp(st, lo.color.a(), hi.color.a());
-				return new Color(r, g, b, a);
+				return new ColorRgba(r, g, b, a);
 			}
 		}
 		if (this.controlPoints.isEmpty())
-			return Color.TRANSPARENT;
+			return ColorRgba.TRANSPARENT;
 		final var lo = this.controlPoints.get(0);
 		final var hi = this.controlPoints.get(this.controlPoints.size() - 1);
 		return t <= lo.t ? lo.color : hi.color;

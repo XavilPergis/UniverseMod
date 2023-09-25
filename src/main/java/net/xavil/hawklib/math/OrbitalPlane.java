@@ -11,6 +11,13 @@ public record OrbitalPlane(Quat rotationFromReference) {
 
 	public static final OrbitalPlane ZERO = new OrbitalPlane(Quat.IDENTITY);
 
+	public static OrbitalPlane random(Rng rng) {
+		return fromOrbitalElements(
+				rng.uniformDouble(0, 2.0 * Math.PI),
+				rng.uniformDouble(0, 2.0 * Math.PI),
+				rng.uniformDouble(0, 2.0 * Math.PI));
+	}
+
 	public static OrbitalPlane fromInclination(double inclinationRad, Rng rng) {
 		return fromOrbitalElements(inclinationRad,
 				rng.uniformDouble(0, 2.0 * Math.PI),

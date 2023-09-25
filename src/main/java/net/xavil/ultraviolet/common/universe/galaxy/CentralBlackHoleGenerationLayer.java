@@ -2,6 +2,7 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector.PackedSectorElements;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector.SectorElementHolder;
+import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 
 // TODO
@@ -18,7 +19,7 @@ public final class CentralBlackHoleGenerationLayer extends GalaxyGenerationLayer
 	}
 
 	@Override
-	public StarSystem generateFullSystem(GalaxySector sector, SectorElementHolder elem) {
+	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, SectorElementHolder elem) {
 		// TODO Auto-generated method stub
 		return null;
 	}

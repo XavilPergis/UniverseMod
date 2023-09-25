@@ -14,17 +14,10 @@ in vec2 aTexCoord0;
 vec2 uvFromVertex(int id) {
 	id = id % 4;
 	if (id == 0) return vec2(0.0, 0.0);
-	if (id == 1) return vec2(0.0, 1.0);
+	if (id == 1) return vec2(1.0, 0.0);
 	if (id == 2) return vec2(1.0, 1.0);
-	else         return vec2(1.0, 0.0);
+	else         return vec2(0.0, 1.0);
 }
-
-uniform float uStarMinSize;
-uniform float uStarMaxSize;
-uniform float uStarSizeSquashFactor;
-uniform float uStarBrightnessFactor;
-uniform float uDimStarMinAlpha;
-uniform float uDimStarExponent;
 
 void emitPoint(vec4 viewPos, float pointSize) {
 	vec2 uv = uvFromVertex(gl_VertexID);
@@ -44,6 +37,7 @@ void main() {
 
 	float size = 300000.0 / length(viewPos.xyz);
 	size = clamp(size, 3.0, 15.0);
+	// size = 5.0;
 
 	float alpha = 1.0;
 

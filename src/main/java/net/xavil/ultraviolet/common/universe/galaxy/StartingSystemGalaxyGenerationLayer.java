@@ -21,20 +21,27 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public StarSystem startingSystem;
 	private final GalaxySector.SectorElementHolder startingSystemInfo = new GalaxySector.SectorElementHolder();
 
+	public final double systemAge;
+	public final String systemName;
+
 	private boolean isLocationChosen = false;
 	private final CelestialNode startingNode;
 	private SectorPos startingSystemSectorPos;
 	private int elementIndex = -1;
 
-	public StartingSystemGalaxyGenerationLayer(Galaxy parentGalaxy, CelestialNode startingNode, int startingNodeId) {
+	public StartingSystemGalaxyGenerationLayer(Galaxy parentGalaxy,
+			double systemAge, String systemName,
+			CelestialNode startingNode, int startingNodeId) {
 		super(parentGalaxy, 1);
 		this.startingNodeId = startingNodeId;
 		this.startingNode = startingNode;
+		this.systemAge = systemAge;
+		this.systemName = systemName;
 	}
 
-	private static StellarCelestialNode findPrimaryStar(StarSystem system) {
+	private static StellarCelestialNode findPrimaryStar(CelestialNode node) {
 		StellarCelestialNode primaryStar = null;
-		for (var child : system.rootNode.iterable()) {
+		for (final var child : node.iterable()) {
 			if (child instanceof StellarCelestialNode starNode) {
 				if (primaryStar == null)
 					primaryStar = starNode;
@@ -81,13 +88,14 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		Mod.LOGGER.info("placing starting system in sector at {} (in sector {})",
 				startingSystemPos, this.startingSystemSectorPos.levelCoords());
 
-		this.startingSystem = new StarSystem("Sol", this.parentGalaxy, startingSystemPos.xyz(), this.startingNode);
-		final var primaryStar = findPrimaryStar(this.startingSystem);
+		final var primaryStar = findPrimaryStar(this.startingNode);
 		this.startingSystemInfo.luminosityLsol = primaryStar.luminosityLsol;
 		this.startingSystemInfo.massYg = primaryStar.massYg;
-		this.startingSystemInfo.systemAgeMyr = 4600;
-		this.startingSystemInfo.systemSeed = 0;
+		this.startingSystemInfo.systemAgeMyr = this.systemAge;
+		this.startingSystemInfo.systemSeed = 0xf100f;
 		this.startingSystemInfo.temperatureK = primaryStar.temperature;
+
+		this.startingSystem = new StarSystem(this.systemName, this.parentGalaxy, this.startingSystemInfo, this.startingNode);
 	}
 
 	private void findElementIndex() {
@@ -119,7 +127,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public StarSystem generateFullSystem(GalaxySector sector, GalaxySector.SectorElementHolder elem) {
+	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.SectorElementHolder elem) {
 		return this.startingSystem;
 	}
 

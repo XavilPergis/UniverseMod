@@ -24,7 +24,7 @@ import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -215,7 +215,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 		return false;
 	}
 
-	private void renderCameraFrustum(OrbitCamera.Cached camera, CachedCamera.FrustumCorners frustum, Color color) {
+	private void renderCameraFrustum(OrbitCamera.Cached camera, CachedCamera.FrustumCorners frustum, ColorRgba color) {
 		if (frustum == null)
 			return;
 
@@ -326,8 +326,8 @@ public abstract class HawkScreen3d extends HawkScreen {
 
 		final var prevMatrices = debugCamera.setupRenderMatrices();
 		forEach3dLayer(layer -> {
-			renderCameraFrustum(debugCamera, layer.frustumPoints, Color.YELLOW);
-			renderCameraFrustum(debugCamera, layer.cullingFrustumPoints, Color.CYAN);
+			renderCameraFrustum(debugCamera, layer.frustumPoints, ColorRgba.YELLOW);
+			renderCameraFrustum(debugCamera, layer.cullingFrustumPoints, ColorRgba.CYAN);
 		});
 		prevMatrices.restore();
 	}

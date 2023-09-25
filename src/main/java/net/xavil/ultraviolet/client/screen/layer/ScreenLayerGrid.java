@@ -2,7 +2,7 @@ package net.xavil.ultraviolet.client.screen.layer;
 
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 import com.mojang.blaze3d.systems.RenderSystem;
@@ -67,7 +67,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 
 	private static void addGridSegment(FlexibleVertexConsumer builder,
 			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
-			int maxDepth, Color color,
+			int maxDepth, ColorRgba color,
 			Vec3 startPos, Vec3 endPos) {
 
 		// final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
@@ -100,7 +100,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 
 	private static void addSubdividedLine(FlexibleVertexConsumer builder,
 			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
-			Color color, Vec3 startPos, Vec3 endPos) {
+			ColorRgba color, Vec3 startPos, Vec3 endPos) {
 		addGridSegment(builder, camera, cullingCamera, 20, color, startPos, endPos);
 	}
 
@@ -115,7 +115,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
 
 		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.1f, a2 = 0.33f;
-		var color = new Color(r, g, b, 0.1f);
+		var color = new ColorRgba(r, g, b, 0.1f);
 		final double gridFadeFactor = 2.3;
 
 		var gridOffset = gridCellResolution * gridLineCount / 2;

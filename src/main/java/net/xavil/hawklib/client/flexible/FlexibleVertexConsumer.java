@@ -3,7 +3,7 @@ package net.xavil.hawklib.client.flexible;
 import com.mojang.blaze3d.vertex.DefaultedVertexConsumer;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 
-import net.xavil.hawklib.math.Color;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.interfaces.Vec2Access;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
@@ -25,7 +25,7 @@ public interface FlexibleVertexConsumer {
 	// ===== COLOR ==============================
 	FlexibleVertexConsumer color(float r, float g, float b, float a);
 
-	default FlexibleVertexConsumer color(Color color) {
+	default FlexibleVertexConsumer color(ColorRgba color) {
 		return this.color(color.r(), color.g(), color.b(), color.a());
 	}
 

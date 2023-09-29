@@ -50,6 +50,7 @@ import net.xavil.hawklib.collections.Blackboard;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.Ellipse;
+import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Mat4;
@@ -231,8 +232,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			// final var offset = camera.posTm.mul(1e12 / camera.metersPerUnit);
 
 			modelTfm.push();
-			// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * this.celestialTime));
-			// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+			modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, node.rotationalRate * time));
+			modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
 			// modelTfm.appendScale(radiusUnits);
 			modelTfm.appendTransform(Mat4.scale(radiusUnits));
 			// modelTfm.appendTranslation(nodePosUnits.mul(camera.metersPerUnit / 1e12));
@@ -251,7 +252,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				shader.setUniformf("uAccretionDiscColor", color);
 				// shader.setUniform("uAccretionDiscColor", 1.0, 0.2, 0.0);
 				// shader.setUniform("uAccretionDiscColor", 0.5, 0.0, 1.0);
-				shader.setUniformf("uAccretionDiscColor", 0.0, 0.0, 0.0);
+				// shader.setUniformf("uAccretionDiscColor", 0.0, 0.0, 0.0);
 				shader.setUniformf("uAccretionDiscNormal", 0.5, 1.0, 0.2);
 				shader.setUniformf("uAccretionDiscDensityFalloff", 3.0);
 				shader.setUniformf("uAccretionDiscInnerPercent", 0.2);

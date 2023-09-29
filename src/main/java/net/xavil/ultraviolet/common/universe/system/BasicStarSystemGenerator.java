@@ -33,7 +33,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
 	// how many times larger the radius of an orbit around a binary pair needs to be
 	// than the maximum radius of the existing binary pair.
-	public static final double SPACING_FACTOR = 2;
+	public static final double SPACING_FACTOR = 3;
 
 	private final SplittableRng rng = new SplittableRng(0);
 	private Logger logger;
@@ -69,7 +69,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
 			// bail if we ran out of places to put new stars
 			if (newRoot == null) {
-				Mod.LOGGER.warn("could not place star #{} due to overcrowding!", i);
+				this.logger.warn("could not place star #{} due to overcrowding!", i);
 				break;
 			}
 
@@ -305,19 +305,18 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
 			Assert.isTrue(!Double.isNaN(currentSemiMajor));
 
-			final var spacingFactor = this.rng.weightedDouble("spacing_factor", 2, 1, 1.5);
+			final var spacingFactor = this.rng.weightedDouble("spacing_factor", 3, 1, 1.5);
 			final var ecc = this.rng.weightedDouble("eccentricity", 3, 0.0, 0.4);
 
 			final var periapsis = currentSemiMajor * spacingFactor;
 			final var semiMajor = periapsis / (1 - ecc);
 			final var apoapsis = 2 * semiMajor - periapsis;
+			currentSemiMajor = 1.25 * apoapsis;
 
 			Assert.isTrue(!Double.isNaN(semiMajor));
 
 			if (apoapsis > discMax)
 				break;
-
-			currentSemiMajor = 1.35 * apoapsis;
 
 			final var orbitalShape = new OrbitalShape(ecc, semiMajor);
 
@@ -326,7 +325,6 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			final var inclination = this.rng.weightedDouble("inclination", 5, 0.0, 0.05 * Math.PI);
 			final var orbitalPlane = OrbitalPlane.fromOrbitalElements(inclination, ascendingNode, argPeriapsis);
 
-			// final var planetMass = this.rng.uniformDouble("mass") * sweptMass(getExclusionRadius(parent), discMass, periapsis, apoapsis);
 			final var planetMass = this.rng.weightedDouble("mass", 3.0, 0.0, 0.001 * discMass);
 			Assert.isTrue(!Double.isNaN(planetMass));
 
@@ -338,8 +336,6 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 				parent.childNodes.push(child);
 			}
 			this.rng.pop();
-
-
 		}
 		this.rng.pop();
 	}
@@ -370,16 +366,15 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			this.rng.advance();
 
 			final var spacingFactor = this.rng.weightedDouble("spacing_factor", 2, 1, 1.5);
-			final var ecc = this.rng.weightedDouble("eccentricity", 3);
+			final var ecc = this.rng.weightedDouble("eccentricity", 5);
 
 			final var periapsis = currentSemiMajor * spacingFactor;
 			final var semiMajor = periapsis / (1 - ecc);
 			final var apoapsis = 2 * semiMajor - periapsis;
+			currentSemiMajor = 1.35 * apoapsis;
 
 			if (apoapsis > discMax)
 				break;
-
-			currentSemiMajor = 1.35 * apoapsis;
 
 			final var orbitalShape = new OrbitalShape(ecc, semiMajor);
 
@@ -431,7 +426,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		final var exclusionRadiusB = 2 * Units.Tu_PER_ku * toInsert.radius;
 		final var minDistance = exclusionRadiusA + exclusionRadiusB;
 		final var maxDistance = getMaximumBinaryDistanceForReplacement(existing);
-		Mod.LOGGER.info("Attempting Single [min={}, max={}]", minDistance, maxDistance);
+		this.logger.info("Attempting Single [min={}, max={}]", minDistance, maxDistance);
 
 		// If there is no place that an orbit can be inserted, signal that to the
 		// caller.
@@ -443,13 +438,18 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		double distance = 0;
 		OrbitalPlane orbitalPlane = OrbitalPlane.random(this.rng.rng("orbital_plane"));
 		if (closeOrbit) {
-			final var limit = Units.Tm_PER_au * 10;
-			distance = this.rng.weightedDouble("distance", 3.0, minDistance, Math.min(maxDistance, limit));
+			double limit = Units.Tm_PER_au * 1;
+			if (!this.rng.chance("very_close", 0.6)) {
+				limit = Units.Tm_PER_au * 10;
+			}
+			limit = Math.min(maxDistance, limit);
+			if (limit > minDistance)
+				distance = this.rng.weightedDouble("distance", 3.0, minDistance, limit);
 			// orbitalPlane = OrbitalPlane.ZERO;
 		} else {
-			distance = this.rng.uniformDouble("distance", minDistance, maxDistance);
+			distance = this.rng.weightedDouble("distance", 3.0, maxDistance, minDistance);
 		}
-		Mod.LOGGER.info("Success [distance={}]", distance);
+		this.logger.info("Success [distance={}]", distance);
 		final var phase = this.rng.uniformDouble("phase", 0, 2 * Math.PI);
 
 		final double squishFactor = 1.0;
@@ -523,11 +523,11 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 				final var minRadius = Math.max(getExclusionRadius(existing), getExclusionRadius(toInsert));
 				final var maxRadius = getMaximumBinaryDistanceForReplacement(existing);
 
-				Mod.LOGGER.info("Attempting P-Type [min={}, max={}]", minRadius, maxRadius);
+				this.logger.info("Attempting P-Type [min={}, max={}]", minRadius, maxRadius);
 
 				if (minRadius <= maxRadius) {
 					final var radius = this.rng.weightedDouble("radius", 2.0, minRadius, maxRadius);
-					Mod.LOGGER.info("Success [radius={}]", radius);
+					this.logger.info("Success [radius={}]", radius);
 
 					OrbitalPlane orbitalPlane;
 					if (closeOrbit) {
@@ -550,11 +550,11 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
 				if (!triedInnerA && this.rng.chance("a_or_b", 0.5)) {
 					triedInnerA = true;
-					Mod.LOGGER.info("Attempting S-Type A");
+					this.logger.info("Attempting S-Type A");
 					a = mergeStarNodes(ctx, a, toInsert, closeOrbit);
 				} else if (!triedInnerB) {
 					triedInnerB = true;
-					Mod.LOGGER.info("Attempting S-Type B");
+					this.logger.info("Attempting S-Type B");
 					b = mergeStarNodes(ctx, b, toInsert, closeOrbit);
 				}
 
@@ -574,7 +574,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		this.rng.pop();
 
 		if (res == null)
-			Mod.LOGGER.info("Attempt Failed");
+			this.logger.info("Attempt Failed");
 		return res;
 	}
 
@@ -587,7 +587,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			return mergeStarWithBinary(ctx, binaryNode, toInsert, closeOrbit);
 		}
 
-		Mod.LOGGER.error("tried to merge non-stellar nodes! " + existing + ", " + toInsert);
+		this.logger.error("tried to merge non-stellar nodes! " + existing + ", " + toInsert);
 
 		return existing;
 	}

@@ -7,9 +7,10 @@
 
 struct RockyWorld {
 	int seed;
+	float roughness;
 };
 
-vec3 shadeCelestialObject(inout FragmentInfo frag, in RockyWorld node, float roughness) {
+vec3 shadeCelestialObject(inout FragmentInfo frag, in RockyWorld node) {
 	Material mat = DEFAULT_MATERIAL;
 
 	float colnoise = 0.0;
@@ -29,7 +30,7 @@ vec3 shadeCelestialObject(inout FragmentInfo frag, in RockyWorld node, float rou
 
 	mat.albedo = mix(vec3(0.4), vec3(0.8), smoothstep(0.3, 0.6, colnoise));
 
-	mat.roughness = roughness;
+	mat.roughness = node.roughness;
 	mat.metallic = 0.0;
 
 	return applyLighting(mat, frag);

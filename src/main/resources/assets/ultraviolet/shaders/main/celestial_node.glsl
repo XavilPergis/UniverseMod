@@ -75,6 +75,7 @@ vec3 applyLighting(in Material material, in FragmentInfo frag) {
 #include [ultraviolet:main/celestial/star.glsl]
 #include [ultraviolet:main/celestial/gas_giant.glsl]
 #include [ultraviolet:main/celestial/rocky.glsl]
+#include [ultraviolet:main/celestial/elw.glsl]
 // #include [ultraviolet:main/celestial/brown_dwarf.glsl]
 
 #undef ULTRAVIOLET_CELESTIAL_SHADING_IMPLS_
@@ -104,17 +105,19 @@ void main() {
 			color = shadeCelestialObject(fragInfo, GasGiant(uRenderingSeed, uGasGiantColorGradient));
 			break;
 		case NODE_TYPE_ICE_WORLD:
-			color = shadeCelestialObject(fragInfo, RockyWorld(uRenderingSeed), 0.5);
+			color = shadeCelestialObject(fragInfo, RockyWorld(uRenderingSeed, 0.5));
 			break;
 		case NODE_TYPE_ROCKY_WORLD:
-			color = shadeCelestialObject(fragInfo, RockyWorld(uRenderingSeed), 1.0);
+			color = shadeCelestialObject(fragInfo, RockyWorld(uRenderingSeed, 1.0));
 			break;
 		case NODE_TYPE_ROCKY_ICE_WORLD:
-			color = shadeCelestialObject(fragInfo, RockyWorld(uRenderingSeed), 0.5);
+			color = shadeCelestialObject(fragInfo, RockyWorld(uRenderingSeed, 0.5));
 			break;
 		case NODE_TYPE_WATER_WORLD:
+			color = shadeCelestialObject(fragInfo, EarthLikeWorld(uRenderingSeed, 1.0));
 			break;
 		case NODE_TYPE_EARTH_LIKE_WORLD:
+			color = shadeCelestialObject(fragInfo, EarthLikeWorld(uRenderingSeed, 0.5));
 			break;
 		default:
 			break;

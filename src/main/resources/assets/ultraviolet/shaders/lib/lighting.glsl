@@ -8,9 +8,10 @@ struct Material {
 	vec3 albedo;
 	float roughness;
 	float metallic;
+	bool fresnel;
 };
 
-const Material DEFAULT_MATERIAL = Material(vec3(0.0), vec3(0.0), 1.0, 0.0);
+const Material DEFAULT_MATERIAL = Material(vec3(0.0), vec3(0.0), 1.0, 0.0, true);
 
 #define LIGHT_TYPE_POINT 0
 #define LIGHT_TYPE_SPHERE 1
@@ -93,8 +94,10 @@ vec3 brdfCookTorrance(in LightingContext ctx, in Light light, in vec3 toLight) {
 	specular /= max(4.0 * pdot(normalize(-ctx.fragPosV), ctx.normalV) * pdot(toLight, ctx.normalV), 1e-6);
 
 	vec3 F0 = mix(vec3(0.04), ctx.material.albedo, ctx.material.metallic);
-	vec3 fresnel = fresnelFactor(pdot(ctx.normalV, normalize(-ctx.fragPosV)), F0);
-	// vec3 fresnel = F0;
+	vec3 fresnel = F0;
+	if (ctx.material.fresnel) {
+		fresnel = fresnelFactor(pdot(ctx.normalV, normalize(-ctx.fragPosV)), F0);
+	}
 	// return fresnel;
 	vec3 res = mix(diffuse, specular, fresnel);
 

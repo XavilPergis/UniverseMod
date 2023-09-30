@@ -7,9 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
-import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.SplittableRng;
-import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.Formulas;

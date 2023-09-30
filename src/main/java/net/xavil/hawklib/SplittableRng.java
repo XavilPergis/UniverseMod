@@ -5,7 +5,7 @@ import net.minecraft.util.Mth;
 public final class SplittableRng {
 	private long seed;
 
-	private long[] seedStack = new long[0];
+	private long[] seedStack = null;
 	private int seedStackSize;
 
 	public SplittableRng(long seed) {
@@ -16,8 +16,17 @@ public final class SplittableRng {
 		this.seed = scramble(seed);
 	}
 
+	public void setSeedRaw(long seed) {
+		this.seed = seed;
+	}
+
 	public void advance() {
+		// equivalent to `advanceWith(0)`
 		this.seed = scramble(this.seed);
+	}
+
+	public void advanceWith(long key) {
+		this.seed = uniformLong(key);
 	}
 
 	// https://jonkagstrom.com/bit-mixer-construction/
@@ -53,14 +62,15 @@ public final class SplittableRng {
 	 * @param key The key to derive the new seed from
 	 */
 	public void push(long key) {
-		if (this.seedStackSize == this.seedStack.length) {
-			final var newStack = new long[newCapacity(this.seedStack.length)];
-			System.arraycopy(this.seedStack, 0, newStack, 0, this.seedStackSize);
+		if (this.seedStack == null || this.seedStackSize == this.seedStack.length) {
+			final var oldCap = this.seedStack == null ? 0 : this.seedStack.length;
+			final var newStack = new long[newCapacity(oldCap)];
+			if (this.seedStack != null)
+				System.arraycopy(this.seedStack, 0, newStack, 0, this.seedStackSize);
 			this.seedStack = newStack;
 		}
 		this.seedStack[this.seedStackSize++] = this.seed;
 		this.seed = uniformLong(key);
-		advance();
 	}
 
 	public void push(String key) {
@@ -77,12 +87,14 @@ public final class SplittableRng {
 		this.seed = this.seedStack[--this.seedStackSize];
 	}
 
+	// it's important that this is not called with the current rng seed!
 	public long uniformLong(long key) {
-		return this.seed ^ scramble(key);
+		return scramble(this.seed ^ key);
 	}
 
 	public int uniformInt(long key) {
 		final var value = uniformLong(key);
+		// assumes that the top and bottom 32 bits are equally well-mixed
 		return ((int) (value >>> 32)) ^ (int) value;
 	}
 

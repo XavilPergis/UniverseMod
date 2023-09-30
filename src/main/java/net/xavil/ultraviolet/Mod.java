@@ -37,6 +37,7 @@ import net.xavil.ultraviolet.common.block.ModBlocks;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.item.StarmapItem;
 import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
+import net.xavil.ultraviolet.common.level.ModChunkGenerator;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
@@ -80,6 +81,7 @@ public class Mod implements ModInitializer {
 		ModBlocks.register();
 
 		Registry.register(Registry.CHUNK_GENERATOR, namespaced("empty"), EmptyChunkGenerator.CODEC);
+		Registry.register(Registry.CHUNK_GENERATOR, namespaced("planet"), ModChunkGenerator.CODEC);
 
 		ModNetworking.addServerboundHandler(ServerboundTeleportToLocationPacket.class, Mod::handlePacket);
 		ModNetworking.addServerboundHandler(ServerboundStationJumpPacket.class, Mod::handlePacket);

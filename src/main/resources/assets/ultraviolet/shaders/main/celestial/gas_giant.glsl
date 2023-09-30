@@ -38,10 +38,11 @@ vec3 shadeCelestialObject(inout FragmentInfo frag, in GasGiant node) {
 
 	float n = 0.0;
 	pos.y *= mix(3.0, 20.0, nextFloat(rng));
-	pos.y += nextFloat(rng, -1000.0, 1000.0);
+	pos.y += nextFloat(rng, -1000.0,	 1000.0);
 
 	pos.xz *= nextFloat(rng, 1.0, 0.2);
 	pos.xz += 1.0 * fbm2(pos, 3, 10.0, 5.0, 1.0, 4.0, 0.4);
+	pos.y += 5.0 * fbm01(pos, 1, 0.05, 1.0, 2.0, 0.5);
 	// pos.xz += 2.0 * fbm2(pos, 4, 10.0, 1.0, 1.0, 3.0, 0.5);
 	pos.xz /= mix(3.0, 7.0, nextFloat(rng));
 	n += fbm01(pos, 4, 1.0, 1.0, 2.0, 0.5);
@@ -55,7 +56,9 @@ vec3 shadeCelestialObject(inout FragmentInfo frag, in GasGiant node) {
 	n = (2.0 / PI) * atan(n);
 
 	vec4 baseColor = texture(node.colorGradient, n);
-    return applyLighting(Material(baseColor.rgb * baseColor.a, baseColor.rgb, 1.0, 0.0), frag);
+    return applyLighting(Material(baseColor.rgb * baseColor.a, baseColor.rgb, 1.0, 0.0, false), frag);
+    // return applyLighting(Material(baseColor.rgb * baseColor.a, baseColor.rgb, 1.0, 1.0, false), frag);
+    // return applyLighting(Material(vec3(baseColor.r) * baseColor.a, vec3(baseColor.r), baseColor.g, baseColor.b, false), frag);
 	// return vec3(n);
 }
 

@@ -4,7 +4,7 @@ import java.util.Random;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Rng;
-import net.xavil.hawklib.StableRandom;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.ultraviolet.Mod;
@@ -15,7 +15,6 @@ import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
 import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
-import net.xavil.ultraviolet.common.universe.system.RealisticStarSystemGenerator;
 import net.xavil.universegen.LinearSpline;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.hash.FastHasher;
@@ -256,9 +255,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	@Override
 	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.SectorElementHolder elem) {
-		final var rng = new StableRandom(elem.systemSeed);
-
-		// sector.elements.
+		final var rng = new SplittableRng(elem.systemSeed);
 
 		final var ctx = new StarSystemGenerator.Context(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
 		// final var systemGenerator = new RealisticStarSystemGenerator();
@@ -268,8 +265,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		rootNode.build();
 		rootNode.assignSeeds(rng.uniformLong("root_node_seed"));
 
-		final var nameRng = Rng.fromSeed(rng.uniformLong("name"));
-		final var name = NameTemplate.SECTOR_NAME.generate(nameRng);
+		final var name = NameTemplate.SECTOR_NAME.generate(rng.rng("name"));
 
 		return new StarSystem(name, this.parentGalaxy, elem, rootNode);
 	}

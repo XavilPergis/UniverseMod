@@ -1,11 +1,10 @@
 package net.xavil.ultraviolet.client;
 
 import java.util.Comparator;
-import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Rng;
-import net.xavil.hawklib.StableRandom;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
@@ -299,7 +298,7 @@ public final class PlanetRenderingContext implements Disposable {
 
 		final var shader = UltravioletShaders.SHADER_CELESTIAL_NODE.get();
 
-		shader.setUniformi("uRenderingSeed", new StableRandom(node.getId()).uniformInt("seed"));
+		shader.setUniformi("uRenderingSeed", new SplittableRng(node.getId()).uniformInt("seed"));
 		shader.setUniformi("uNodeType", getNodeTypeInt(node));
 
 		if (clientInfo.gasGiantGradient != null) {

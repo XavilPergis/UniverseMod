@@ -14,7 +14,6 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Rng;
-import net.xavil.hawklib.StableRandom;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;

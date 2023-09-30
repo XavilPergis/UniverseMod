@@ -106,7 +106,7 @@ void main() {
 	vec3 normWorld = vVertexNormalW.xyz;
 	vec3 posWorld = vVertexPosW.xyz;
 
-	Material material = Material(vec3(0.0), vec3(1.0), 0.5, 0.0);
+	Material material = Material(vec3(0.0), vec3(1.0), 0.5, 0.0, true);
 
 	// LightingContext ctx = makeLightingContext(material, uMetersPerUnit, vVertexPosV.xyz, normWorld);
 	vec3 res = vec3(0.0);

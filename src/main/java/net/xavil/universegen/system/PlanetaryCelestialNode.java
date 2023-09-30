@@ -1,23 +1,22 @@
 package net.xavil.universegen.system;
 
 import java.util.OptionalLong;
-import java.util.Random;
 import java.util.function.Supplier;
 
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.dimension.LevelStem;
 import net.minecraft.world.level.levelgen.WorldGenSettings;
-import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
-import net.xavil.hawklib.math.ColorRgba;
-import net.xavil.ultraviolet.client.ColorSpline;
+import net.xavil.ultraviolet.common.level.ModChunkGenerator;
 
 public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 
+	// i dont really like this
 	public enum Type {
 		BROWN_DWARF(false, Double.NaN),
 		GAS_GIANT(false, Double.NaN),
@@ -37,7 +36,6 @@ public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 	}
 
 	public Type type;
-	public ColorSpline gasGiantColorSpline = new ColorSpline();
 
 	public PlanetaryCelestialNode() {
 	}
@@ -54,29 +52,18 @@ public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 		this.temperature = temperatureK;
 	}
 
-	public void generateColorSpline() {
-		final var rng = Rng.fromSeed(this.seed);
-		final var weirdness = rng.weightedDouble(4, 10, 1);
-		final var splinePointCount = rng.weightedDouble(2, 4, 20);
-
-		this.gasGiantColorSpline.clear();
-		this.gasGiantColorSpline.addControlPoint(1, ColorRgba.WHITE);
-		this.gasGiantColorSpline.addControlPoint(0, ColorRgba.WHITE);
-	}
-
 	public Holder<DimensionType> dimensionType(MinecraftServer server) {
 		if (this.type == Type.EARTH_LIKE_WORLD) {
-			var registryAccess = server.registryAccess();
-			var type = registryAccess.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY)
+			final var registryAccess = server.registryAccess();
+			final var type = registryAccess.registryOrThrow(Registry.DIMENSION_TYPE_REGISTRY)
 					.getOrCreateHolder(DimensionType.OVERWORLD_LOCATION);
 			return type;
 		}
 
 		final var ultrawarm = this.temperature > 800;
-		final var natural = this.type == Type.EARTH_LIKE_WORLD;
 
 		return Holder.direct(DimensionType.create(
-				OptionalLong.of(18000), true, false, ultrawarm, natural, 1, false, false, true, true, false,
+				OptionalLong.of(18000), true, false, ultrawarm, false, 1, false, false, true, true, false,
 				-64, 384, 384,
 				BlockTags.INFINIBURN_OVERWORLD, DimensionType.OVERWORLD_EFFECTS, 0.0f));
 	}
@@ -85,8 +72,13 @@ public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 		if (!this.type.isLandable)
 			return null;
 		return () -> {
-			var registryAccess = server.registryAccess();
-			var generator = WorldGenSettings.makeDefaultOverworld(registryAccess, new Random().nextLong());
+			final var registryAccess = server.registryAccess();
+			final ChunkGenerator generator;
+			if (this.type == Type.EARTH_LIKE_WORLD) {
+				generator = WorldGenSettings.makeDefaultOverworld(registryAccess, this.seed);
+			} else {
+				generator = new ModChunkGenerator(registryAccess, this);
+			}
 			return new LevelStem(dimensionType(server), generator);
 		};
 	}

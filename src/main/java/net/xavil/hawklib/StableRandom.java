@@ -6,7 +6,10 @@ import net.minecraft.util.Mth;
  * A source of pseudo-random numbers that is not sensitive to the ordering or
  * amount of rng calls, good for ensuring the stability of
  * procedurally-generated assets while still allowing for their evolution.
+ * 
+ * @deprecated use {@link SplittableRng} instead.
  */
+@Deprecated
 public final class StableRandom {
 	public final long seed;
 

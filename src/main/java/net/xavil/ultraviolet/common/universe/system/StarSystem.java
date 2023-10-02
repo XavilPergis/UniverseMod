@@ -11,9 +11,9 @@ public final class StarSystem {
 	public final Galaxy parentGalaxy;
 	public final Vec3 pos;
 	public CelestialNode rootNode;
-	private GalaxySector.SectorElementHolder systemInfo;
+	private GalaxySector.ElementHolder systemInfo;
 
-	public StarSystem(String name, Galaxy parentGalaxy, GalaxySector.SectorElementHolder systemInfo, CelestialNode rootNode) {
+	public StarSystem(String name, Galaxy parentGalaxy, GalaxySector.ElementHolder systemInfo, CelestialNode rootNode) {
 		this.name = name;
 		this.parentGalaxy = parentGalaxy;
 		this.systemInfo = systemInfo;
@@ -21,7 +21,7 @@ public final class StarSystem {
 		this.rootNode = rootNode;
 	}
 
-	public void copySystemInfo(GalaxySector.SectorElementHolder info) {
+	public void copySystemInfo(GalaxySector.ElementHolder info) {
 		info.loadCopyOf(this.systemInfo);
 	}
 

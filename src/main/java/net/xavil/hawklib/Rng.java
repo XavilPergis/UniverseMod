@@ -45,6 +45,83 @@ public interface Rng {
 
 	static Rng fromSeed(long seed) {
 		return wrap(new Random(seed));
+		// return new Rng() {
+		// 	long state = seed;
+
+		// 	@Override
+		// 	public int uniformInt() {
+		// 		this.state = SplittableRng.scramble(this.state);
+		// 		return (int) (this.state >>> 32);
+		// 	}
+
+		// 	@Override
+		// 	public int uniformInt(int l, int h) {
+		// 		final int s = h - l, m = s - 1;
+
+		// 		// powers of 2 are fine, we just chop off some bits, and the rest are still
+		// 		// randomly set.
+		// 		if ((s & m) == 0)
+		// 			return uniformInt() & m + l;
+
+		// 		// range is too big to fit into an int
+		// 		if (s <= 0) {
+		// 			int r = uniformInt();
+		// 			while (r < l || r >= h)
+		// 				r = uniformInt();
+		// 			return r;
+		// 		}
+
+		// 		// this will at most reject half of the input space
+		// 		int r, k = (Integer.highestOneBit(s) << 1) - 1;
+		// 		while ((r = (uniformInt() >>> 1) & k) > s)
+		// 			;
+
+		// 		return r + l;
+		// 	}
+
+		// 	@Override
+		// 	public long uniformLong() {
+		// 		this.state = SplittableRng.scramble(this.state);
+		// 		return this.state;
+		// 	}
+
+		// 	@Override
+		// 	public long uniformLong(long l, long h) {
+		// 		final long s = h - l, m = s - 1L;
+
+		// 		// powers of 2 are fine, we just chop off some bits, and the rest are still
+		// 		// randomly set.
+		// 		if ((s & m) == 0L)
+		// 			return uniformLong() & m + l;
+
+		// 		// range is too big to fit into a long
+		// 		if (s <= 0L) {
+		// 			long r = uniformLong();
+		// 			while (r < l || r >= h)
+		// 				r = uniformLong();
+		// 			return r;
+		// 		}
+
+		// 		// this will at most reject half of the input space
+		// 		long r, k = (Long.highestOneBit(s) << 1L) - 1L;
+		// 		while ((r = (uniformLong() >>> 1L) & k) > s)
+		// 			;
+
+		// 		return r + l;
+		// 	}
+
+		// 	@Override
+		// 	public double uniformDouble(double minBound, double maxBound) {
+		// 		return 0x1.0p-53 * (uniformLong() >>> 11);
+		// 	}
+
+		// 	@Override
+		// 	public double normalDouble(double mean, double standardDeviation) {
+		// 		// TODO Auto-generated method stub
+		// 		throw new UnsupportedOperationException("Unimplemented method 'normalDouble'");
+		// 	}
+
+		// };
 	}
 
 	static Rng wrap(Random random) {

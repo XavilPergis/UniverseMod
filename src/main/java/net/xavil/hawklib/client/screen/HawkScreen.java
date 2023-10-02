@@ -228,7 +228,7 @@ public abstract class HawkScreen extends Screen {
 
 		final var disposer = Disposable.scope();
 		try {
-			ctx.currentTexture = RenderTexture.acquireTemporary(RenderTexture.HDR_COLOR_DEPTH);
+			ctx.currentTexture = RenderTexture.HDR_COLOR_DEPTH.acquireTemporary();
 			ctx.currentTexture.framebuffer.clear();
 			renderScreenPreLayers(ctx);
 			for (final var layer : this.layers.iterable()) {
@@ -237,7 +237,7 @@ public abstract class HawkScreen extends Screen {
 			}
 			renderScreenPostLayers(ctx);
 
-			final var sceneTexture = disposer.attach(RenderTexture.acquireTemporary(RenderTexture.HDR_COLOR_DEPTH));
+			final var sceneTexture = disposer.attach(RenderTexture.HDR_COLOR_DEPTH.acquireTemporary());
 			ctx.currentTexture.framebuffer.copyTo(sceneTexture.framebuffer);
 
 			for (final var layer : this.layers.iterable()) {

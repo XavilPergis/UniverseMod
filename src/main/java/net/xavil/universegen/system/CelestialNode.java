@@ -226,20 +226,6 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 		this.childNodes.forEach(child -> child.node.visit(consumer));
 	}
 
-	/**
-	 * Visit each direct descendant, instead of recursively visiting like
-	 * {@link #visit(Consumer)} does.
-	 * 
-	 * @param consumer The consumer that accepts each node.
-	 */
-	public void visitDirectDescendants(Consumer<CelestialNode> consumer) {
-		if (this instanceof BinaryCelestialNode binaryNode) {
-			consumer.accept(binaryNode.getInner());
-			consumer.accept(binaryNode.getOuter());
-		}
-		this.childNodes.forEach(child -> consumer.accept(child.node));
-	}
-
 	@Override
 	public Iterator<CelestialNode> iter() {
 		final var stack = Vector.fromElements(this);
@@ -251,13 +237,13 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 
 			@Override
 			public CelestialNode next() {
-				final var node = stack.remove(stack.size() - 1);
+				final var node = stack.popOrNull();
 				for (final var child : node.childNodes.iterable()) {
 					stack.push(child.node);
 				}
 				if (node instanceof BinaryCelestialNode bin) {
-					stack.push(bin.getInner());
 					stack.push(bin.getOuter());
+					stack.push(bin.getInner());
 				}
 				return node;
 			}

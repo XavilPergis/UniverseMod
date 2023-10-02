@@ -19,6 +19,7 @@ import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
+import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
@@ -57,9 +58,11 @@ public abstract class HawkScreen3d extends HawkScreen {
 		@Override
 		@OverridingMethodsMustInvokeSuper
 		public void render(RenderContext ctx) {
-			final var prevMatrices = this.camera.setupRenderMatrices();
+			final var snapshot = RenderMatricesSnapshot.capture();
+			this.camera.applyProjection();
+			CachedCamera.applyView(this.camera.orientation);
 			render3d(this.camera, ctx);
-			prevMatrices.restore();
+			snapshot.restore();
 		}
 
 		public void setup3d(OrbitCamera camera, float partialTick) {
@@ -324,12 +327,14 @@ public abstract class HawkScreen3d extends HawkScreen {
 	public void renderScreenPostLayers(RenderContext ctx) {
 		final var debugCamera = setupCamera(getDebugCameraConfig(), ctx.partialTick);
 
-		final var prevMatrices = debugCamera.setupRenderMatrices();
+		final var snapshot = RenderMatricesSnapshot.capture();
+		debugCamera.applyProjection();
+		CachedCamera.applyView(debugCamera.orientation);
 		forEach3dLayer(layer -> {
 			renderCameraFrustum(debugCamera, layer.frustumPoints, ColorRgba.YELLOW);
 			renderCameraFrustum(debugCamera, layer.cullingFrustumPoints, ColorRgba.CYAN);
 		});
-		prevMatrices.restore();
+		snapshot.restore();
 	}
 
 }

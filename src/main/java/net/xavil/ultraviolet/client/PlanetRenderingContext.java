@@ -192,7 +192,7 @@ public final class PlanetRenderingContext implements Disposable {
 	private ColorRgba pickColor(Rng rng, Vector<ColorRgba> colors) {
 		final var randomIndex = rng.uniformInt(0, colors.size());
 		final var color = colors.remove(randomIndex);
-		Mod.LOGGER.info("picked index #{}", randomIndex);
+		// Mod.LOGGER.info("picked index #{}", randomIndex);
 
 		final var hsva = color.toHsva();
 
@@ -220,7 +220,7 @@ public final class PlanetRenderingContext implements Disposable {
 			final var weirdness = (float) rng.weightedDouble(16.0, 0.0, 1.0);
 			makeColorTable(rng, colors, vibrancy, weirdness);
 
-			Mod.LOGGER.info("----------");
+			// Mod.LOGGER.info("----------");
 			
 			final var minStep = Mth.lerp(weirdness, 0.3, 0.1);
 			float t = 0;

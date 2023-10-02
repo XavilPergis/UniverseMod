@@ -2,8 +2,8 @@ package net.xavil.ultraviolet.common.universe.station;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
-import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -16,11 +16,12 @@ public final class SpaceStation {
 
 	public final Universe universe;
 	public final Level level;
+
+	// universe-relative
 	public Quat orientation = Quat.IDENTITY;
+
 	public String name;
 	private StationLocation location;
-
-	private JumpInfo jumpInfo = null;
 
 	private Vec3 pos = Vec3.ZERO;
 	private Vec3 prevPos = Vec3.ZERO;
@@ -44,14 +45,23 @@ public final class SpaceStation {
 		this.location = location;
 	}
 
-	private void setJumpInfo(@Nullable JumpInfo info) {
-		if (this.jumpInfo != null)
-			this.jumpInfo.close();
-		this.jumpInfo = info;
-	}
+	// private void setJumpInfo(@Nullable JumpInfo info) {
+	// if (this.jumpInfo != null)
+	// this.jumpInfo.close();
+	// this.jumpInfo = info;
+	// }
 
 	public Vec3 getGavityAt(Vec3Access pos) {
 		return Vec3.YN.mul(0.05);
+	}
+
+	public void applyMovement(Vec3Access delta) {
+		// -delta.z is forward, relative to the orientation of the station
+		// delta.y is up, delta.x is right
+		if (this.location instanceof StationLocation.SystemRelative loc) {
+			final var transformed = this.orientation.transform(delta);
+			loc.pos = loc.pos.add(transformed);
+		}
 	}
 
 	public void tick() {
@@ -59,12 +69,17 @@ public final class SpaceStation {
 		this.prevPos = pos;
 		this.pos = this.location.getPos();
 
-		if (this.jumpInfo != null) {
-			this.jumpInfo.tick();
-			if (this.jumpInfo.complete()) {
-				setJumpInfo(null);
-			}
-		}
+		// final double speed_c = 10000;
+		// final double speed_ly_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s *
+		// Units.Tu_PER_u * Units.ly_PER_Tm);
+		// this.jump.travel(speed_ly_PER_s / Constants.Tick_PER_s);
+
+		// if (this.jumpInfo != null) {
+		// this.jumpInfo.tick();
+		// if (this.jumpInfo.complete()) {
+		// setJumpInfo(null);
+		// }
+		// }
 	}
 
 	public Vec3 getPos(float partialTick) {
@@ -80,13 +95,21 @@ public final class SpaceStation {
 	// prepare to jump to system; do countdown n stuff
 	// TODO: instant jump
 	public void prepareForJump(SystemNodeId id, boolean isJumpInstant) {
-		if (this.jumpInfo != null)
+		if (this.location.isJump())
 			return;
 		final var jump = StationLocation.JumpingSystem.create(this.universe, this.location, id).unwrapOrNull();
 		if (jump != null) {
-			setJumpInfo(new JumpInfo(this, jump));
 			setLocation(jump);
 		}
 	}
+
+	// public static CompoundTag toNbt(SpaceStation station) {
+	// 	final var nbt = new CompoundTag();
+	// 	return nbt;
+	// }
+
+	// public static SpaceStation fromNbt(Universe universe, CompoundTag nbt) {
+	// 	return null;
+	// }
 
 }

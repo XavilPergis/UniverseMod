@@ -9,11 +9,9 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
-import net.xavil.hawklib.Util;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
@@ -24,106 +22,163 @@ import net.xavil.hawklib.math.matrices.Vec3i;
 public final class SectorManager {
 
 	public final class SectorTicketTracker {
+		/**
+		 * This specific ticket instance is shared with the outside world, which can
+		 * make arbitrary changes.
+		 */
 		public final SectorTicket<?> loanedTicket;
-		private SectorTicketInfo prevInfo = null;
-
-		private MutableSet<SectorPos> prevSectors = MutableSet.hashSet(), newSectors = MutableSet.hashSet();
+		/**
+		 * This ticket info represents the sectors that this ticket is currently keeping
+		 * loaded.
+		 */
+		private SectorTicketInfo currentInfo = null;
+		/**
+		 * The current set of sectors covered by currentInfo
+		 */
+		private MutableSet<SectorPos> currentSectors = MutableSet.hashSet();
+		// scratch space
+		private MutableSet<SectorPos> newSectors = MutableSet.hashSet();
 
 		public SectorTicketTracker(SectorTicket<?> loanedTicket) {
 			this.loanedTicket = loanedTicket;
 		}
 
 		public void update(MutableSet<SectorPos> toLoad, MutableSet<SectorPos> toUnload) {
-			final var prev = this.prevInfo;
-			final var cur = this.loanedTicket.info;
-			if (Objects.equals(prev, cur))
+			final var cur = this.currentInfo;
+			final var next = this.loanedTicket.info;
+			if (Objects.equals(cur, next))
 				return;
-			if (prev == null && cur != null) {
+			if (cur != null && next != null && !next.shouldUpdate(cur))
+				return;
+
+			if (cur == null && next != null) {
+				// empty -> full
 				this.loanedTicket.info.enumerateAffectedSectors(toLoad::insert);
-			} else if (prev != null && cur == null) {
+			} else if (cur != null && next == null) {
+				// full -> empty
 				this.loanedTicket.info.enumerateAffectedSectors(toUnload::insert);
 			} else {
-				this.newSectors.clear();
+				// full -> full
 				this.loanedTicket.info.enumerateAffectedSectors(this.newSectors::insert);
 
-				this.prevSectors.forEach(sector -> {
+				// find differences between previously-loaded sectors and newly-loaded sectors
+				this.currentSectors.forEach(sector -> {
 					if (!this.newSectors.contains(sector))
 						toUnload.insert(sector);
 				});
 				this.newSectors.forEach(sector -> {
-					if (!this.prevSectors.contains(sector))
+					if (!this.currentSectors.contains(sector))
 						toLoad.insert(sector);
 				});
 
-				var tmp = this.newSectors;
-				this.newSectors = this.prevSectors;
-				this.prevSectors = tmp;
+				final var tmp = this.newSectors;
+				this.newSectors = this.currentSectors;
+				this.currentSectors = tmp;
 
-				// final var diff = this.loanedTicket.info.diff(prev);
-				// toLoad.extend(diff.added());
-				// toUnload.extend(diff.removed());
+				this.newSectors.clear();
 			}
-			this.prevInfo = cur != null ? cur.copy() : null;
+			this.currentInfo = next != null ? next.clone() : null;
 		}
 	}
 
 	public final class SystemTicketTracker {
 		public final SystemTicket loanedTicket;
-		private Maybe<GalaxySectorId> prevId = Maybe.none();
+		private GalaxySectorId currentId = null;
 
 		public SystemTicketTracker(SystemTicket loanedTicket) {
 			this.loanedTicket = loanedTicket;
 		}
+
+		public void update(MutableSet<SectorPos> sectorsToLoad, MutableSet<SectorPos> sectorsToUnload,
+				MutableSet<GalaxySectorId> toLoad, MutableSet<GalaxySectorId> toUnload) {
+			final var cur = this.currentId;
+			final var next = this.loanedTicket.id;
+			if (Objects.equals(cur, next))
+				return;
+
+			// NOTE: system tickets force the sectors they reside within to be loaded
+			if (cur != null && next != null) {
+				toLoad.insert(next);
+				toUnload.insert(cur);
+				if (!Objects.equals(cur.sectorPos(), next.sectorPos())) {
+					sectorsToLoad.insert(next.sectorPos());
+					sectorsToUnload.insert(cur.sectorPos());
+				}
+			} else if (cur == null && next != null) {
+				toLoad.insert(next);
+				sectorsToLoad.insert(next.sectorPos());
+			} else if (cur != null && next == null) {
+				toUnload.insert(cur);
+				sectorsToUnload.insert(cur.sectorPos());
+			}
+
+			this.currentId = next;
+		}
 	}
 
 	private final class SectorSlot {
-		// NOTE: lots of stuff that is tracked per-slot for systems is tracked inside of
-		// GalaxySector for sector slots instead.
+		// system slots have a 1:1 correlation with the systems they contain, but sector
+		// slots are created only for each sector root, so this class needs to keep
+		// track of multiple sectors at once.
 		public final GalaxySector sector;
 
-		public final MutableMap<SectorPos, CompletableFuture<GalaxySector>> waitingFutures = MutableMap.hashMap();
+		public final class SectorFutures {
+			public final CompletableFuture<GalaxySector.PackedElements> elementFuture;
+			public final CompletableFuture<GalaxySector> sectorFuture;
+
+			public SectorFutures(Galaxy galaxy, GalaxySector sector) {
+				this.elementFuture = new CompletableFuture<>();
+				this.elementFuture.completeAsync(() -> galaxy.generateSectorElements(sector.pos()));
+				this.sectorFuture = new CompletableFuture<>();
+			}
+		}
+
+		// public final MutableMap<SectorPos, CompletableFuture<GalaxySector>>
+		// waitingFutures = MutableMap.hashMap();
+		public final MutableMap<SectorPos, SectorFutures> sectorFutures = MutableMap
+				.hashMap();
 
 		public SectorSlot(Vec3i coords) {
 			this.sector = new GalaxySector(coords);
 		}
 
-		public CompletableFuture<GalaxySector> getSectorFuture(SectorPos pos) {
-			return this.waitingFutures.get(pos)
-					.unwrapOrElse(() -> CompletableFuture.completedFuture(this.sector.lookupSubtree(pos)));
-		}
+		// public CompletableFuture<GalaxySector> getSectorFuture(SectorPos pos) {
+		// return this.waitingFutures.get(pos)
+		// .unwrapOrElse(() ->
+		// CompletableFuture.completedFuture(this.sector.lookupSubtree(pos)));
+		// }
 
 		private boolean isSectorLoaded(SectorPos pos) {
-			final var sector = this.sector.lookupSubtree(pos);
+			final var sector = this.sector.lookupNode(pos);
 			return sector != null && sector.isLoaded();
 		}
 
 		public void load(SectorPos pos) {
 			final var isInitialLoad = !isSectorLoaded(pos);
 			this.sector.load(pos);
-			if (isInitialLoad) {
-				final var sector = this.sector.lookupSubtree(pos);
-				final var prev = this.waitingFutures.insert(pos,
-						Util.makeSupplyFuture(Universe.IS_UNIVERSE_GEN_ASYNC, () -> {
-							final var elements = galaxy.generateSectorElements(pos);
-							synchronized (sector) {
-								if (!Thread.interrupted())
-									sector.elements = elements;
-							}
-							return sector;
-						}));
-				Assert.isTrue(prev.isNone());
+			if (!isInitialLoad)
+				return;
+			final var sector = this.sector.lookupNode(pos);
+			if (sector == null) {
+				Mod.LOGGER.error("tried to generate null sector {}", pos);
+				return;
 			}
+
+			final var prev = sectorFutures.insert(pos, new SectorFutures(galaxy, sector));
+			Assert.isTrue(prev.isNone());
 		}
 
-		public void unload(SectorPos pos) {
-			final var sector = this.sector.lookupSubtree(pos);
+		public boolean unload(SectorPos pos) {
+			final var sector = this.sector.lookupNode(pos);
 			if (sector == null) {
 				Mod.LOGGER.error("tried to remove null sector {}", pos);
 			}
-			this.waitingFutures.remove(pos).ifSome(future -> future.cancel(true));
-			if (this.sector.unload(pos)) {
-				sectorMap.remove(pos.rootCoords());
-			}
+
+			final var futures = this.sectorFutures.remove(pos).unwrapOrNull();
+			if (futures != null)
+				futures.elementFuture.cancel(false);
+
+			return this.sector.unload(pos);
 		}
 	}
 
@@ -144,19 +199,31 @@ public final class SectorManager {
 			this.referenceCount += 1;
 			if (this.system != null || this.waitingFuture != null || this.generationFailed)
 				return;
-			final var sectorSlot = sectorMap.get(this.id.sectorPos().rootCoords()).unwrap();
-			final var sectorFuture = sectorSlot.getSectorFuture(this.id.sectorPos());
-			this.waitingFuture = Util.makeApplyFuture(Universe.IS_UNIVERSE_GEN_ASYNC, sectorFuture,
-					sector -> generateSystem(sector, this.id));
+
+			final var sectorPos = this.id.sectorPos();
+			final var sectorSlot = sectorMap.get(sectorPos.rootCoords()).unwrap();
+
+			final var futures = sectorSlot.sectorFutures.getOrNull(sectorPos);
+			if (futures != null) {
+				this.waitingFuture = futures.sectorFuture.thenApplyAsync(sector -> generateSystem(sector, this.id));
+			} else {
+				final var sector = sectorSlot.sector.lookupNode(sectorPos);
+				if (sector != null && sector.isComplete()) {
+					this.waitingFuture = CompletableFuture.supplyAsync(() -> generateSystem(sector, this.id));
+				} else {
+					Mod.LOGGER.warn("sector generation failure caused system {} generation to fail", this.id);
+				}
+			}
 		}
 
-		public void unload() {
+		public boolean unload() {
 			this.referenceCount -= 1;
 			if (this.referenceCount == 0) {
 				if (this.waitingFuture != null)
 					this.waitingFuture.cancel(false);
-				systemMap.remove(this.id);
+				return true;
 			}
+			return false;
 		}
 	}
 
@@ -165,9 +232,13 @@ public final class SectorManager {
 	private final MutableMap<Vec3i, SectorSlot> sectorMap = MutableMap.hashMap();
 	private final MutableList<SectorTicketTracker> trackedTickets = new Vector<>();
 	private final MutableList<SectorTicketInfo> removedTickets = new Vector<>();
+
 	private final MutableMap<GalaxySectorId, SystemSlot> systemMap = MutableMap.hashMap();
 	private final MutableList<SystemTicketTracker> trackedSystemTickets = new Vector<>();
 	private final MutableList<SystemTicket> removedSystemTickets = new Vector<>();
+
+	private final MutableSet<SectorTicket<?>> allSectorTickets = MutableSet.identityHashSet();
+	private final MutableSet<SystemTicket> allSystemTickets = MutableSet.identityHashSet();
 
 	public SectorManager(Galaxy galaxy) {
 		this.galaxy = galaxy;
@@ -195,8 +266,10 @@ public final class SectorManager {
 	}
 
 	public void forceLoad(ProfilerFiller profiler, SectorTicket<?> sectorTicket) {
-		sectorTicket.info.affectedSectors().forEach(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
-			slot.waitingFutures.get(pos).ifSome(future -> future.join());
+		sectorTicket.info.enumerateAllAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
+			final var futures = slot.sectorFutures.getOrNull(pos);
+			if (futures != null)
+				futures.elementFuture.join();
 		}));
 		applyFinished();
 	}
@@ -205,18 +278,37 @@ public final class SectorManager {
 		return forceLoad(InactiveProfiler.INSTANCE, systemTicket);
 	}
 
+	private void validateSystemTicket(SystemTicket ticket) {
+		if (this != ticket.attachedManager) {
+			throw new IllegalArgumentException(String.format(
+					"ticket's attached manager is not this manager!"));
+		}
+		if (this.trackedSystemTickets.iter().all(t -> t.loanedTicket != ticket)) {
+			throw new IllegalArgumentException(String.format(
+					"ticket was removed from this manager!"));
+		}
+	}
+
 	public Maybe<StarSystem> forceLoad(ProfilerFiller profiler, SystemTicket systemTicket) {
+		validateSystemTicket(systemTicket);
+
+		// ticket doesn't actually load anything lol
 		if (systemTicket.id == null)
 			return Maybe.none();
+
 		final var systemSlot = this.systemMap.get(systemTicket.id).unwrap();
+
+		// ticket's system is already loaded!
 		if (systemSlot.system != null)
 			return Maybe.some(systemSlot.system);
+
 		final var sectorPos = systemTicket.id.sectorPos();
 		final var sectorSlot = this.sectorMap.get(sectorPos.rootCoords()).unwrap();
-		final var sector = sectorSlot.sector.lookupSubtree(sectorPos);
+		final var sector = sectorSlot.sector.lookupNode(sectorPos);
 		if (!sector.isComplete()) {
-			sectorSlot.waitingFutures.get(sectorPos).unwrap().join();
-			Assert.isTrue(sector.isComplete());
+			final var futures = sectorSlot.sectorFutures.get(sectorPos).unwrap();
+			futures.elementFuture.join();
+			applyFinished();
 		}
 		if (sector.elements.size() <= systemTicket.id.elementIndex()) {
 			return Maybe.none();
@@ -245,38 +337,52 @@ public final class SectorManager {
 		profiler.push("collect");
 		final var systemsToLoad = MutableSet.<GalaxySectorId>hashSet();
 		final var systemsToUnload = MutableSet.<GalaxySectorId>hashSet();
-		for (final var ticket : this.trackedSystemTickets.iterable()) {
-			final var prev = ticket.prevId;
-			final var cur = Maybe.fromNullable(ticket.loanedTicket.id);
-			if (cur.equals(prev))
-				continue;
-			prev.ifSome(systemsToUnload::insert);
-			cur.ifSome(systemsToLoad::insert);
-			ticket.prevId = cur;
-		}
-
 		final var sectorsToLoad = MutableSet.<SectorPos>hashSet();
 		final var sectorsToUnload = MutableSet.<SectorPos>hashSet();
-		for (final var ticket : this.trackedTickets.iterable()) {
-			ticket.update(sectorsToLoad, sectorsToUnload);
-		}
 
+		for (final var ticket : this.trackedSystemTickets.iterable())
+			ticket.update(sectorsToLoad, sectorsToUnload, systemsToLoad, systemsToUnload);
+		for (final var ticket : this.trackedTickets.iterable())
+			ticket.update(sectorsToLoad, sectorsToUnload);
+
+		// unload removed systems
 		systemsToUnload.extend(this.removedSystemTickets.iter().map(ticket -> ticket.id));
-		sectorsToUnload.extend(this.removedTickets.iter().flatMap(SectorTicketInfo::affectedSectors));
 		this.removedSystemTickets.clear();
+
+		// unload removed sectors
+		sectorsToUnload.extend(this.removedTickets.iter().flatMap(SectorTicketInfo::allAffectedSectors));
 		this.removedTickets.clear();
 
-		// system tickets force the sectors they reside within to be loaded
-		sectorsToLoad.extend(systemsToLoad.iter().map(GalaxySectorId::sectorPos));
-		sectorsToUnload.extend(systemsToUnload.iter().filterNull().map(GalaxySectorId::sectorPos));
-
 		profiler.popPush("load");
-		sectorsToLoad.forEach(pos -> this.sectorMap.entry(pos.rootCoords()).orInsertWith(SectorSlot::new).load(pos));
-		systemsToLoad.forEach(id -> this.systemMap.entry(id).orInsertWith(SystemSlot::new).load());
+		sectorsToLoad.forEach(pos -> {
+			final var slot = this.sectorMap.entry(pos.rootCoords()).orInsertWith(SectorSlot::new);
+			slot.load(pos);
+		});
+		systemsToLoad.forEach(id -> {
+			final var slot = this.systemMap.entry(id).orInsertWith(SystemSlot::new);
+			slot.load();
+		});
 
 		profiler.popPush("unload");
-		systemsToUnload.forEach(id -> this.systemMap.get(id).ifSome(slot -> slot.unload()));
-		sectorsToUnload.forEach(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> slot.unload(pos)));
+		systemsToUnload.forEach(id -> {
+			final var slot = this.systemMap.get(id).unwrapOrNull();
+			if (slot != null) {
+				if (slot.unload())
+					this.systemMap.remove(id);
+			} else {
+				Mod.LOGGER.error("tried to unload system {} that did not have a system slot", id);
+			}
+		});
+		sectorsToUnload.forEach(pos -> {
+			final var slot = this.sectorMap.get(pos.rootCoords()).unwrapOrNull();
+			if (slot != null) {
+				if (slot.unload(pos))
+					this.sectorMap.remove(pos.rootCoords());
+			} else {
+				Mod.LOGGER.error("tried to unload sector {} (root {}) that did not have a sector slot", pos,
+						pos.rootCoords());
+			}
+		});
 
 		profiler.pop();
 	}
@@ -291,8 +397,17 @@ public final class SectorManager {
 
 	private void applyFinished() {
 		for (final var slot : this.sectorMap.values().iterable()) {
-			slot.waitingFutures.retain((pos, future) -> !future.isDone());
+			slot.sectorFutures.retain((pos, futures) -> {
+				if (!futures.elementFuture.isDone())
+					return true;
+				final var sector = slot.sector.lookupNode(pos);
+				if (sector != null)
+					sector.elements = futures.elementFuture.getNow(null);
+				futures.sectorFuture.complete(sector);
+				return false;
+			});
 		}
+
 		for (final var slot : this.systemMap.values().iterable()) {
 			if (slot.waitingFuture != null && slot.waitingFuture.isDone()) {
 				final var systemOpt = slot.waitingFuture.join();
@@ -312,7 +427,7 @@ public final class SectorManager {
 		if (id.elementIndex() >= sector.elements.size())
 			return Maybe.none();
 		try {
-			final var elem = new GalaxySector.SectorElementHolder();
+			final var elem = new GalaxySector.ElementHolder();
 			sector.elements.load(elem, id.elementIndex());
 			return Maybe.some(this.galaxy.generateFullSystem(sector, id, elem));
 		} catch (Throwable t) {
@@ -326,7 +441,7 @@ public final class SectorManager {
 		final var slot = this.sectorMap.get(pos.rootCoords());
 		if (slot.isNone())
 			return false;
-		final var sector = slot.unwrap().sector.lookupSubtree(pos);
+		final var sector = slot.unwrap().sector.lookupNode(pos);
 		return sector == null ? false : sector.isLoaded();
 	}
 
@@ -334,7 +449,7 @@ public final class SectorManager {
 		final var slot = this.sectorMap.get(pos.rootCoords());
 		if (slot.isNone())
 			return false;
-		final var sector = slot.unwrap().sector.lookupSubtree(pos);
+		final var sector = slot.unwrap().sector.lookupNode(pos);
 		return sector == null ? false : sector.isComplete();
 	}
 
@@ -344,13 +459,19 @@ public final class SectorManager {
 
 	@SuppressWarnings("unchecked")
 	public <T extends SectorTicketInfo> SectorTicket<T> createSectorTicketManual(T info) {
-		final var ticket = new SectorTicket<>(this, info == null ? null : info.copy());
+		Mod.LOGGER.info("creating sector ticket for '{}'", info);
+		final var ticket = new SectorTicket<>(this, info == null ? null : info.clone());
 		this.trackedTickets.push(new SectorTicketTracker(ticket));
+		this.allSectorTickets.insert(ticket);
 		applyTickets(InactiveProfiler.INSTANCE);
 		return (SectorTicket<T>) ticket;
 	}
 
 	public void removeSectorTicket(SectorTicket<?> ticket) {
+		if (!this.allSectorTickets.remove(ticket)) {
+			Mod.LOGGER.warn("tried removing sector ticket for '{}', but it was already removed.", ticket.info);
+			return;
+		}
 		this.trackedTickets.retain(tracker -> tracker.loanedTicket != ticket);
 		if (ticket.info != null)
 			this.removedTickets.push(ticket.info);
@@ -365,12 +486,17 @@ public final class SectorManager {
 		Mod.LOGGER.info("creating system ticket for {}", id);
 		final var ticket = new SystemTicket(this, id);
 		this.trackedSystemTickets.push(new SystemTicketTracker(ticket));
+		this.allSystemTickets.insert(ticket);
 		applyTickets(InactiveProfiler.INSTANCE);
 		return ticket;
 	}
 
 	public void removeSystemTicket(SystemTicket ticket) {
-		Mod.LOGGER.info("removing system ticket for {}", ticket.id);
+		if (!this.allSystemTickets.remove(ticket)) {
+			Mod.LOGGER.warn("tried removing system ticket for '{}', but it was already removed.", ticket.id);
+			return;
+		}
+		Mod.LOGGER.info("removing system ticket for '{}'", ticket.id);
 		this.trackedSystemTickets.retain(tracked -> tracked.loanedTicket != ticket);
 		this.removedSystemTickets.push(ticket);
 		applyTickets(InactiveProfiler.INSTANCE);
@@ -378,21 +504,14 @@ public final class SectorManager {
 
 	public Maybe<GalaxySector> getSector(SectorPos pos) {
 		final var slot = this.sectorMap.get(pos.rootCoords());
-		return slot.map(s -> s.sector.lookupSubtree(pos)).filter(sector -> sector.isComplete());
+		return slot.map(s -> s.sector.lookupNode(pos)).filter(sector -> sector.isComplete());
 	}
 
-	// public Maybe<GalaxySector.InitialElement> getInitial(GalaxySectorId id) {
-	// 	return this.sectorMap.get(id.sectorPos().rootCoords()).flatMap(slot -> {
-	// 		final var sector = slot.sector.lookupSubtree(id.sectorPos());
-	// 		if (!sector.isComplete())
-	// 			return Maybe.none();
-	// 		return Maybe.some(sector.lookupInitial(id.elementIndex()));
-	// 	});
-	// }
-	public boolean loadElement(GalaxySector.SectorElementHolder out, GalaxySectorId id) {
+	public boolean loadElement(GalaxySector.ElementHolder out, GalaxySectorId id) {
 		final var slot = this.sectorMap.getOrNull(id.sectorPos().rootCoords());
-		if (slot == null) return false;
-		final var sector = slot.sector.lookupSubtree(id.sectorPos());
+		if (slot == null)
+			return false;
+		final var sector = slot.sector.lookupNode(id.sectorPos());
 		if (!sector.isComplete())
 			return false;
 		sector.loadElement(out, id.elementIndex());
@@ -414,7 +533,7 @@ public final class SectorManager {
 		if (ticket.info == null)
 			return;
 		ticket.info.enumerateAllAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords()).ifSome(slot -> {
-			final var sector = slot.sector.lookupSubtree(pos);
+			final var sector = slot.sector.lookupNode(pos);
 			if (sector != null && sector.isComplete())
 				sectorConsumer.accept(sector);
 		}));

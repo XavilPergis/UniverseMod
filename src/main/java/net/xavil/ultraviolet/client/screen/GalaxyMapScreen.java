@@ -37,7 +37,7 @@ public class GalaxyMapScreen extends HawkScreen3d {
 					SectorTicketInfo.single(systemToFocus.sectorPos()));
 			galaxy.sectorManager.forceLoad(tempTicket);
 
-			final var elem = new GalaxySector.SectorElementHolder();
+			final var elem = new GalaxySector.ElementHolder();
 			var pos = Vec3.ZERO;
 			if (galaxy.sectorManager.loadElement(elem, systemToFocus)) {
 				pos = elem.systemPosTm.xyz();

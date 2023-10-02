@@ -33,8 +33,8 @@ public abstract class GalaxyGenerationLayer {
 		}
 	}
 
-	public abstract void generateInto(Context ctx, GalaxySector.PackedSectorElements elements);
+	public abstract void generateInto(Context ctx, GalaxySector.PackedElements elements);
 
-	public abstract StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.SectorElementHolder elem);
+	public abstract StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.ElementHolder elem);
 
 }

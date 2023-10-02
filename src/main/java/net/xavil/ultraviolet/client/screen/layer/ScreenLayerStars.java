@@ -52,8 +52,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		this.screen = attachedScreen;
 		this.galaxy = galaxy;
 		this.originOffset = originOffset;
-		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
-				new SectorTicketInfo.Multi(Vec3.ZERO, 1.5 * GalaxySector.BASE_SIZE_Tm, true)));
+		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy, new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED)));
 		this.starRenderer.setOriginOffset(this.originOffset);
 	}
 
@@ -118,7 +117,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			}
 			final var ticket = this.starRenderer.getSectorTicket();
 			this.galaxy.sectorManager.forceLoad(ticket);
-			final var elem = new GalaxySector.SectorElementHolder();
+			final var elem = new GalaxySector.ElementHolder();
 			ticket.attachedManager.enumerate(ticket, sector -> {
 				for (int i = 0; i < sector.elements.size(); ++i) {
 					sector.elements.load(elem, i);
@@ -202,7 +201,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				return;
 			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
 
-			final var elem = new GalaxySector.SectorElementHolder();
+			final var elem = new GalaxySector.ElementHolder();
 			final var pos = elem.systemPosTm;
 			final var proj = new Vec3.Mutable(0, 0, 0);
 			for (int i = 0; i < sector.elements.size(); ++i) {
@@ -247,9 +246,11 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 					.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
 			ticket.attachedManager.enumerate(ticket, sector -> {
 				if (!this.galaxy.sectorManager.isComplete(sector.pos()))
-					return;
-				if (sector.elements.size() == 0)
-					return;
+					;
+				// if (!this.galaxy.sectorManager.isComplete(sector.pos()))
+				// return;
+				// if (sector.elements.size() == 0)
+				// return;
 
 				final Vec3 s = sector.pos().minBound(), e = sector.pos().maxBound();
 				final var color = ClientConfig.getDebugColor(sector.pos().level()).withA(0.2f);

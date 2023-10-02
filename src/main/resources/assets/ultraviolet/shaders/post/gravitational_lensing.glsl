@@ -55,7 +55,6 @@ vec3 bendRay(in Ray ray, in vec3 center) {
 
 // adapted from https://www.youtube.com/watch?v=yhDxBt72PU4
 void main() {
-	// FIXME: black holes are rendered through objects in foreground
     vec3 color = texture(uColorTexture, texCoord0).rgb;
 
 	vec3 camPosView = vec3(0.0);

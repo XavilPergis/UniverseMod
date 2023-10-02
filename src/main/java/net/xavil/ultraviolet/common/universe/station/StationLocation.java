@@ -1,7 +1,5 @@
 package net.xavil.ultraviolet.common.universe.station;
 
-import java.util.Comparator;
-
 import com.mojang.serialization.Codec;
 
 import net.minecraft.nbt.CompoundTag;
@@ -22,12 +20,13 @@ import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
 import net.xavil.hawklib.math.matrices.Vec3;
-
 public abstract sealed class StationLocation implements Disposable {
 
 	public abstract Vec3 getPos();
 
 	public abstract StationLocation update(Universe universe);
+
+	public abstract boolean isJump();
 
 	private static <T> Tag encodeNbt(Codec<T> codec, T value) {
 		return codec.encodeStart(NbtOps.INSTANCE, value).getOrThrow(false, Mod.LOGGER::error);
@@ -159,6 +158,11 @@ public abstract sealed class StationLocation implements Disposable {
 		public void close() {
 			this.ticket.close();
 		}
+
+		@Override
+		public boolean isJump() {
+			return false;
+		}
 	}
 
 	// the station is currently jumping between star systems
@@ -173,12 +177,6 @@ public abstract sealed class StationLocation implements Disposable {
 		private JumpingSystem(Universe universe, SystemTicket ticket, StationLocation current, SystemNodeId target) {
 			this.sourcePos = current.getPos();
 			Assert.isTrue(ticket.isLoaded());
-
-			// final var system = universe.getSystem(target).unwrap();
-			// final var maxMass = system.rootNode.iter()
-			// 		.filter(node -> !(node instanceof BinaryCelestialNode))
-			// 		.max(Comparator.comparing(node -> node.massYg)).unwrap();
-			// final var id = new SystemNodeId(target, maxMass.getId());
 			final var id = target;
 			final var dest = new StationLocation.OrbitingCelestialBody(universe, ticket, id);
 			dest.forceLoad(universe);
@@ -244,28 +242,57 @@ public abstract sealed class StationLocation implements Disposable {
 		@Override
 		public void close() {
 		}
+
+		@Override
+		public boolean isJump() {
+			return true;
+		}
 	}
 
 	// the station is currently located within a star system, but not orbiting any
 	// specific system node.
-	// public static final class SystemRelative extends StationLocation {
-	// public SystemId system;
-	// public Vec3 pos;
+	public static final class SystemRelative extends StationLocation {
+		public SystemId system;
+		public Vec3 pos;
 
-	// public SystemRelative(SystemId system, Vec3 pos) {
-	// this.system = system;
-	// this.pos = pos;
-	// }
-	// }
+		public SystemRelative(SystemId system, Vec3 pos) {
+			this.system = system;
+			this.pos = pos;
+		}
 
-	// // public static final class JumpingGalaxy extends StationLocation {
-	// // public StationLocation from, to;
-	// // public double completion;
-	// // }
+		private SystemRelative(Universe universe, CompoundTag nbt) {
+			this.system = decodeNbt(SystemId.CODEC, nbt.get("system"));
+			this.pos = decodeNbt(Vec3.CODEC, nbt.get("pos"));
+		}
+
+		public void writeNbt(CompoundTag nbt) {
+			nbt.put("system", encodeNbt(SystemId.CODEC, this.system));
+			nbt.put("pos", encodeNbt(Vec3.CODEC, this.pos));
+		}
+
+		@Override
+		public void close() {
+		}
+
+		@Override
+		public Vec3 getPos() {
+			return pos;
+		}
+
+		@Override
+		public StationLocation update(Universe universe) {
+			return this;
+		}
+
+		@Override
+		public boolean isJump() {
+			return false;
+		}
+	}
 
 	// public static final class GalaxyRelative extends StationLocation {
-	// public UniverseSectorId id;
-	// public Vec3 pos;
+	// 	public UniverseSectorId id;
+	// 	public Vec3 pos;
 	// }
 
 	public static CompoundTag toNbt(StationLocation location) {
@@ -275,6 +302,9 @@ public abstract sealed class StationLocation implements Disposable {
 			loc.writeNbt(nbt);
 		} else if (location instanceof JumpingSystem loc) {
 			nbt.putString("type", "system_jump");
+			loc.writeNbt(nbt);
+		} else if (location instanceof SystemRelative loc) {
+			nbt.putString("type", "system_relative");
 			loc.writeNbt(nbt);
 		}
 		return nbt;
@@ -286,6 +316,8 @@ public abstract sealed class StationLocation implements Disposable {
 			return new OrbitingCelestialBody(universe, nbt);
 		} else if (type.equals("system_jump")) {
 			return new JumpingSystem(universe, nbt);
+		} else if (type.equals("system_relative")) {
+			return new SystemRelative(universe, nbt);
 		}
 		return null;
 	}

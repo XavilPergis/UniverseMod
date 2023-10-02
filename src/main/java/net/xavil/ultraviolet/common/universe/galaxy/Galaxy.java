@@ -66,7 +66,7 @@ public class Galaxy {
 		this.sectorManager.tick(profiler);
 	}
 
-	public void generateSectorElements(GalaxySector.PackedSectorElements out, SectorPos pos) {
+	public void generateSectorElements(GalaxySector.PackedElements out, SectorPos pos) {
 		final var random = Rng.wrap(new Random(sectorSeed(pos)));
 		final var ctx = new GalaxyGenerationLayer.Context(this, random, pos);
 
@@ -78,13 +78,13 @@ public class Galaxy {
 		out.shrinkToFit();
 	}
 
-	public GalaxySector.PackedSectorElements generateSectorElements(SectorPos pos) {
-		final var elements = new GalaxySector.PackedSectorElements(pos.minBound());
+	public GalaxySector.PackedElements generateSectorElements(SectorPos pos) {
+		final var elements = new GalaxySector.PackedElements(pos.minBound());
 		generateSectorElements(elements, pos);
 		return elements;
 	}
 
-	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.SectorElementHolder elem) {
+	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.ElementHolder elem) {
 		return this.generationLayers.get(elem.generationLayer).generateFullSystem(sector, id, elem);
 	}
 
@@ -98,7 +98,7 @@ public class Galaxy {
 	}
 
 	public Maybe<Vec3> getSystemPos(GalaxySectorId id) {
-		final var elem = new GalaxySector.SectorElementHolder();
+		final var elem = new GalaxySector.ElementHolder();
 		if (this.sectorManager.loadElement(elem, id)) {
 			return Maybe.some(elem.systemPosTm.xyz());
 		}

@@ -102,19 +102,15 @@ public final class Vec3 implements Hashable, Vec3Access {
 		out.z = z;
 	}
 
-	public static void normalize(Mutable out, Vec3Access in) {
-		div(out, in, in.length());
+	public static boolean normalize(Mutable out, Vec3Access in) {
+		final var len = in.length();
+		div(out, in, len);
+		return len > 1e-10;
 	}
 
 	public static void projectOnto(Mutable out, Vec3Access a, Vec3Access b) {
 		normalize(out, b);
 		mul(out, out, a.dot(b));
-	}
-
-	public Vec3 cross(Vec3 other) {
-		return new Vec3(this.y * other.z - this.z * other.y,
-				this.z * other.x - this.x * other.z,
-				this.x * other.y - this.y * other.x);
 	}
 
 	public Vec3 normalize() {
@@ -226,7 +222,7 @@ public final class Vec3 implements Hashable, Vec3Access {
 
 	@Override
 	public String toString() {
-		return String.format("(%d, %d, %d)", x, y, z);
+		return String.format("(%f, %f, %f)", x, y, z);
 	}
 
 	@Override
@@ -273,7 +269,7 @@ public final class Vec3 implements Hashable, Vec3Access {
 
 		@Override
 		public String toString() {
-			return String.format("(%d, %d, %d)", x, y, z);
+			return String.format("(%f, %f, %f)", x, y, z);
 		}
 
 		@Override

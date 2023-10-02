@@ -15,7 +15,7 @@ public final class RealisticStarSystemGenerator implements StarSystemGenerator {
 
 	public static final double MAX_METALLICITY = 0.2;
 
-	public static ProtoplanetaryDisc createDisc(Galaxy galaxy, GalaxySector.SectorElementHolder info) {
+	public static ProtoplanetaryDisc createDisc(Galaxy galaxy, GalaxySector.ElementHolder info) {
 		final var rootRng = new StableRandom(info.systemSeed);
 
 		final var stellarProperties = new StellarCelestialNode.Properties();

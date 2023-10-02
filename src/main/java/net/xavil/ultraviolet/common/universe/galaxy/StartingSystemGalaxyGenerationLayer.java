@@ -19,7 +19,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	public final int startingNodeId;
 	public StarSystem startingSystem;
-	private final GalaxySector.SectorElementHolder startingSystemInfo = new GalaxySector.SectorElementHolder();
+	private final GalaxySector.ElementHolder startingSystemInfo = new GalaxySector.ElementHolder();
 
 	public final double systemAge;
 	public final String systemName;
@@ -105,13 +105,13 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public void generateInto(Context ctx, GalaxySector.PackedSectorElements elements) {
+	public void generateInto(Context ctx, GalaxySector.PackedElements elements) {
 		chooseStartingLocation();
 		if (!this.startingSystemSectorPos.equals(ctx.pos))
 			return;
 
 		elements.beginWriting(1);
-		final var info = new GalaxySector.SectorElementHolder();
+		final var info = new GalaxySector.ElementHolder();
 		info.loadCopyOf(this.startingSystemInfo);
 		info.generationLayer = this.layerId;
 		elements.store(info, elements.size());
@@ -127,7 +127,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.SectorElementHolder elem) {
+	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.ElementHolder elem) {
 		return this.startingSystem;
 	}
 

@@ -11,6 +11,7 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
@@ -118,6 +119,7 @@ public final class StarRenderManager implements Disposable {
 
 	public void draw(CachedCamera camera, Vec3 centerPos) {
 		this.sectorTicket.info.centerPos = centerPos;
+		this.sectorTicket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
 
 		if (this.floatingOrigin == null
 				|| camera.posTm.distanceTo(this.floatingOrigin) > this.floatingOriginThreshold) {
@@ -168,7 +170,7 @@ public final class StarRenderManager implements Disposable {
 		this.starSnapshotPosition = centerPos;
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT_QUADS,
-		UltravioletVertexFormats.BILLBOARD_FORMAT);
+				UltravioletVertexFormats.BILLBOARD_FORMAT);
 		final var ctx = new StarBuildingContext(builder, camera, centerPos, false);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			drawSectorStars(ctx, sector);
@@ -186,16 +188,14 @@ public final class StarRenderManager implements Disposable {
 			drawSectorStars(ctx, sector);
 		});
 
-		final var snapshot = camera.setupRenderMatrices();
-
-		//    0         2                                                     9          10
-		//    *         S                                                     C          c
-		//   -10       -8                                                                0
-		// <- -                                                                          + ->
+		final var snapshot = RenderMatricesSnapshot.capture();
+		camera.applyProjection();
+		// CachedCamera.applyView(camera.orientation);
 
 		final var origin = this.floatingOrigin;
 		final var offset = camera.posTm.sub(origin).mul(1e12 / camera.metersPerUnit);
 
+		// TODO: cleanup
 		{
 			final var poseStack = RenderSystem.getModelViewStack();
 			poseStack.setIdentity();
@@ -211,7 +211,6 @@ public final class StarRenderManager implements Disposable {
 
 			RenderSystem.applyModelViewMatrix();
 		}
-
 
 		if (this.mode == Mode.REALISTIC) {
 			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC.get();
@@ -233,7 +232,7 @@ public final class StarRenderManager implements Disposable {
 
 	private static class StarBuildingContext {
 		final Vec3.Mutable colorHolder = new Vec3.Mutable();
-		final GalaxySector.SectorElementHolder elem = new GalaxySector.SectorElementHolder();
+		final GalaxySector.ElementHolder elem = new GalaxySector.ElementHolder();
 		final Vec3.Mutable toStar = new Vec3.Mutable();
 
 		final FlexibleVertexConsumer builder;
@@ -319,12 +318,8 @@ public final class StarRenderManager implements Disposable {
 	// }
 
 	private void drawStarsFromBuffer(CachedCamera camera, Vec3 centerPos) {
-		final var snapshot = camera.setupRenderMatrices();
-
-		//    0         2                                                     9          10
-		//    *         S                                                     C          c
-		//   -10       -8                                                                0
-		// <- -                                                                          + ->
+		final var snapshot = RenderMatricesSnapshot.capture();
+		camera.applyProjection();
 
 		final var origin = this.floatingOrigin;
 		final var offset = camera.posTm.sub(origin).mul(1e12 / camera.metersPerUnit);
@@ -336,7 +331,8 @@ public final class StarRenderManager implements Disposable {
 			poseStack.mulPose(camera.orientation.asMinecraft());
 			// poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
 			poseStack.translate(-offset.x, -offset.y, -offset.z);
-			// poseStack.translate(this.originOffset.x, this.originOffset.y, this.originOffset.z);
+			// poseStack.translate(this.originOffset.x, this.originOffset.y,
+			// this.originOffset.z);
 			final var inverseViewRotationMatrix = poseStack.last().normal().copy();
 			if (inverseViewRotationMatrix.invert()) {
 				RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
@@ -370,7 +366,7 @@ public final class StarRenderManager implements Disposable {
 		final var partialTick = Minecraft.getInstance().getFrameTime();
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
 		shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
-		shader.setUniformf("uTime", universe.getCelestialTime(partialTick));		
+		shader.setUniformf("uTime", universe.getCelestialTime(partialTick));
 
 		shader.setUniformf("uStarSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_SIZE));
 		shader.setUniformf("uStarLuminosityScale", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_SCALE));

@@ -9,6 +9,7 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
@@ -117,7 +118,8 @@ public class GalaxyRenderingContext implements Disposable {
 	public void draw(CachedCamera camera, Vec3 originOffset) {
 		buildGalaxyPoints(this.densityFields, camera.metersPerUnit);
 
-		final var snapshot = camera.setupRenderMatrices();
+		final var snapshot = RenderMatricesSnapshot.capture();
+		camera.applyProjection();
 
 		{
 			final var poseStack = RenderSystem.getModelViewStack();

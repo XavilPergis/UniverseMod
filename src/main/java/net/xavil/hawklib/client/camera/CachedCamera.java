@@ -36,7 +36,11 @@ public class CachedCamera {
 	public void load(Mat4Access viewMatrix, Mat4Access projectionMatrix, double metersPerUnit) {
 		Mat4.set(this.viewMatrix, viewMatrix);
 		Mat4.set(this.projectionMatrix, projectionMatrix);
+		this.metersPerUnit = metersPerUnit;
+		recalculateCached();
+	}
 
+	public void recalculateCached() {
 		Mat4.invert(this.inverseProjectionMatrix, this.projectionMatrix);
 		Mat4.mul(this.viewProjectionMatrix, this.projectionMatrix, viewMatrix);
 		Mat4.invert(this.inverseViewProjectionMatrix, this.viewProjectionMatrix);
@@ -55,32 +59,40 @@ public class CachedCamera {
 		this.farPlane = Mat4.mul(this.inverseProjectionMatrix, Vec3.ZP, 1.0).z;
 
 		this.orientation = Quat.fromAffineMatrix(this.viewMatrix);
-		this.metersPerUnit = metersPerUnit;
-
 	}
 
-	public RenderMatricesSnapshot setupRenderMatrices() {
-		final var snapshot = RenderMatricesSnapshot.capture();
+	public void applyProjection() {
 		RenderSystem.setProjectionMatrix(this.projectionMatrix.asMinecraft());
+	}
 
+	public void applyView() {
+		applyView(this.viewMatrix);
+	}
+
+	public static void applyView(Mat4Access viewMatrix) {
 		final var poseStack = RenderSystem.getModelViewStack();
 		poseStack.setIdentity();
 
-		poseStack.mulPose(this.orientation.asMinecraft());
+		poseStack.mulPoseMatrix(viewMatrix.asMinecraft());
 		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
 		if (inverseViewRotationMatrix.invert()) {
 			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
 		}
 
-		// it would be very nice for simplicity's sake to apply the camera's translation
-		// here, but unfortunately, that can cause stuff to melt into floating point
-		// soup at the scales we're dealing with. So instead, vertices are specified in
-		// a space where the camera is at the origin (like in view space), but the
-		// camera's rotation is not taken into account (like in world space).
-		// Essentially a weird hybrid between the two. This is the same behavior as the
-		// vanilla camera.
 		RenderSystem.applyModelViewMatrix();
-		return snapshot;
+	}
+
+	public static void applyView(Quat viewMatrix) {
+		final var poseStack = RenderSystem.getModelViewStack();
+		poseStack.setIdentity();
+
+		poseStack.mulPose(viewMatrix.asMinecraft());
+		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
+		if (inverseViewRotationMatrix.invert()) {
+			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
+		}
+
+		RenderSystem.applyModelViewMatrix();
 	}
 
 	public boolean isAabbInFrustum(Vec3 min, Vec3 max) {

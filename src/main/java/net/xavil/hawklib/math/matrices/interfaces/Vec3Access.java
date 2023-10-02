@@ -36,6 +36,13 @@ public interface Vec3Access {
 		return this.x() * other.x() + this.y() * other.y() + this.z() * other.z();
 	}
 
+	default Vec3 cross(Vec3Access other) {
+		return new Vec3(
+				this.y() * other.z() - this.z() * other.y(),
+				this.z() * other.x() - this.x() * other.z(),
+				this.x() * other.y() - this.y() * other.x());
+	}
+
 	default double distanceToSquared(Vec3Access other) {
 		final var dx = this.x() - other.x();
 		final var dy = this.y() - other.y();

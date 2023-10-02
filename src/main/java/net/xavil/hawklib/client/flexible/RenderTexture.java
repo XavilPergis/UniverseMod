@@ -2,6 +2,8 @@ package net.xavil.hawklib.client.flexible;
 
 import java.util.function.Consumer;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.HawkLib;
@@ -19,20 +21,8 @@ import net.xavil.hawklib.math.matrices.Vec2i;
  */
 public final class RenderTexture implements Disposable {
 
-	public static final int TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT = 1000;
-	public static int TEXTURE_RELEASE_THRESHOLD_FRAMES = 5;
-
-	private static int nextRenderTextureId = 0;
-
-	private static final MutableSet<RenderTexture> FREE_TEXTURES = MutableSet.identityHashSet();
-	private static final MutableSet<RenderTexture> ALL_TEXTURES = MutableSet.identityHashSet();
 	private static final Minecraft CLIENT = Minecraft.getInstance();
-
-	public final GlFramebuffer framebuffer;
-	public final GlTexture2d colorTexture;
-	public final GlTexture2d depthTexture;
-	public final StaticDescriptor descriptor;
-	private int framesSinceLastUsed = 0;
+	private static final TexturePool POOL = new TexturePool();
 
 	public static final StaticDescriptor HDR_COLOR_DEPTH = StaticDescriptor.builder()
 			.withColorFormat(GlTexture.Format.RGBA16_FLOAT)
@@ -44,6 +34,13 @@ public final class RenderTexture implements Disposable {
 	public static final StaticDescriptor SDR_COLOR = StaticDescriptor.builder()
 			.withColorFormat(GlTexture.Format.RGBA8_UINT_NORM)
 			.build();
+
+	public final TexturePool pool;
+	public final StaticDescriptor descriptor;
+	private int framesSinceLastUsed = 0;
+	public final GlFramebuffer framebuffer;
+	public final GlTexture2d colorTexture;
+	public final GlTexture2d depthTexture;
 
 	/**
 	 * Information needed to create a {@link RenderTexture} that is likely not to
@@ -58,6 +55,7 @@ public final class RenderTexture implements Disposable {
 		 * testing will be available when rendering to render textures created with this
 		 * descriptor.
 		 */
+		@Nullable
 		public final GlTexture.Format depthFormat;
 		/**
 		 * Whether or not the depth texture is readable. If this is {@code false}, then
@@ -77,11 +75,11 @@ public final class RenderTexture implements Disposable {
 		}
 
 		public RenderTexture acquireTemporary() {
-			return RenderTexture.acquireTemporary(this);
+			return RenderTexture.POOL.acquire(this);
 		}
 
 		public RenderTexture acquireTemporary(Vec2i size) {
-			return RenderTexture.acquireTemporary(size, this);
+			return RenderTexture.POOL.acquire(size, this);
 		}
 
 		@Override
@@ -124,7 +122,9 @@ public final class RenderTexture implements Disposable {
 		}
 	}
 
-	private RenderTexture(int id, Vec2i size, StaticDescriptor descriptor) {
+	private RenderTexture(TexturePool pool, Vec2i size, StaticDescriptor descriptor) {
+		this.pool = pool;
+		final var id = pool.nextRenderTextureId++;
 		this.descriptor = descriptor;
 		this.framebuffer = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY, size);
 		this.framebuffer.setDebugName("Temporary " + id);
@@ -155,35 +155,7 @@ public final class RenderTexture implements Disposable {
 	}
 
 	public static void tick() {
-		if (TEXTURE_RELEASE_THRESHOLD_FRAMES > TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT) {
-			HawkLib.LOGGER.warn(
-					"Temporary texture cleanup threshold was set to {}, which is higher than the limit of {}!",
-					TEXTURE_RELEASE_THRESHOLD_FRAMES, TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT);
-			TEXTURE_RELEASE_THRESHOLD_FRAMES = TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT;
-		}
-		final var toRemove = MutableSet.<RenderTexture>identityHashSet();
-		for (final var texture : FREE_TEXTURES.iterable()) {
-			texture.framesSinceLastUsed += 1;
-			if (texture.framesSinceLastUsed > TEXTURE_RELEASE_THRESHOLD_FRAMES) {
-				toRemove.insert(texture);
-			}
-		}
-		toRemove.forEach(tex -> {
-			HawkLib.LOGGER.info("Released old framebuffer {} with size {} after {} frames",
-					tex.framebuffer.toString(), tex.framebuffer.size(), TEXTURE_RELEASE_THRESHOLD_FRAMES);
-			tex.framebuffer.close();
-			FREE_TEXTURES.remove(tex);
-			ALL_TEXTURES.remove(tex);
-		});
-	}
-
-	// FIXME: actually release textures on exit/crash lol
-	public static void releaseAll() {
-		FREE_TEXTURES.clear();
-		for (final var texture : ALL_TEXTURES.iterable()) {
-			texture.framebuffer.close();
-		}
-		ALL_TEXTURES.clear();
+		POOL.tick();
 	}
 
 	private static boolean isCompatible(RenderTexture texture, Vec2i size, StaticDescriptor descriptor) {
@@ -192,41 +164,95 @@ public final class RenderTexture implements Disposable {
 				&& size.y == texture.framebuffer.size().y;
 	}
 
-	public static RenderTexture acquireTemporary(Vec2i size, StaticDescriptor descriptor) {
-		RenderTexture tex = null;
-		for (final var texture : FREE_TEXTURES.iterable()) {
-			if (isCompatible(texture, size, descriptor)) {
-				tex = texture;
-				break;
-			}
-		}
-		if (tex == null) {
-			HawkLib.LOGGER.info("Created new temporary texture with size {}", size);
-			tex = new RenderTexture(nextRenderTextureId++, size, descriptor);
-			ALL_TEXTURES.insert(tex);
-		}
-		FREE_TEXTURES.remove(tex);
-		tex.framesSinceLastUsed = 0;
-		return tex;
-	}
-
-	public static RenderTexture acquireTemporary(StaticDescriptor descriptor) {
-		final var size = new Vec2i(CLIENT.getWindow().getWidth(), CLIENT.getWindow().getHeight());
-		return acquireTemporary(size, descriptor);
-	}
-
 	public static RenderTexture acquireTemporaryCopy(GlTexture2d textureToCopy) {
 		final var desc = StaticDescriptor.builder().withColorFormat(textureToCopy.format()).build();
-		final var temp = acquireTemporary(textureToCopy.size().d2(), desc);
+		final var temp = POOL.acquire(textureToCopy.size().d2(), desc);
 		temp.framebuffer.bind();
 		temp.framebuffer.clear();
 		BufferRenderer.drawFullscreen(textureToCopy);
 		return temp;
 	}
 
+	public double aspectRatio() {
+		final var size = this.framebuffer.size();
+		return (double) size.x / (double) size.y;
+	}
+
 	@Override
 	public void close() {
-		FREE_TEXTURES.insert(this);
+		if (this.pool != null)
+			this.pool.freeTextures.insert(this);
+	}
+
+	public static final class TexturePool implements Disposable {
+		public static final int TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT = 1000;
+		private static int nextPoolId = 0;
+
+		public final int id;
+		public int textureReleaseThresholdFrames = 1;
+
+		private int nextRenderTextureId = 0;
+		private final MutableSet<RenderTexture> freeTextures = MutableSet.identityHashSet();
+		private final MutableSet<RenderTexture> allTextures = MutableSet.identityHashSet();
+
+		public TexturePool() {
+			this.id = nextPoolId++;
+		}
+
+		// FIXME: the main pool is never actually closed
+		@Override
+		public void close() {
+			this.freeTextures.clear();
+			for (final var texture : this.allTextures.iterable()) {
+				texture.framebuffer.close();
+			}
+			this.allTextures.clear();
+		}
+
+		public void tick() {
+			if (this.textureReleaseThresholdFrames > TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT) {
+				HawkLib.LOGGER.warn(
+						"Temporary texture cleanup threshold was set to {}, which is higher than the limit of {}!",
+						this.textureReleaseThresholdFrames, TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT);
+				this.textureReleaseThresholdFrames = TEXTURE_RELEASE_THRESHOLD_FRAMES_LIMIT;
+			}
+			final var toRemove = MutableSet.<RenderTexture>identityHashSet();
+			for (final var texture : this.freeTextures.iterable()) {
+				texture.framesSinceLastUsed += 1;
+				if (texture.framesSinceLastUsed > this.textureReleaseThresholdFrames) {
+					toRemove.insert(texture);
+				}
+			}
+			toRemove.forEach(tex -> {
+				HawkLib.LOGGER.trace("Released old RenderTexture {} in pool {} with size {} after {} frames",
+						tex.framebuffer.toString(), this.id, tex.framebuffer.size(), tex.framesSinceLastUsed - 1);
+				tex.framebuffer.close();
+				this.freeTextures.remove(tex);
+				this.allTextures.remove(tex);
+			});
+		}
+
+		public void release(RenderTexture texture) {
+			this.freeTextures.insert(texture);
+		}
+
+		public RenderTexture acquire(Vec2i size, StaticDescriptor descriptor) {
+			RenderTexture tex = this.freeTextures.iter()
+					.findOrNull(texture -> isCompatible(texture, size, descriptor));
+			if (tex == null) {
+				HawkLib.LOGGER.trace("Created new RenderTexture in pool {} with size {}", size, this.id);
+				tex = new RenderTexture(this, size, descriptor);
+				this.allTextures.insert(tex);
+			}
+			this.freeTextures.remove(tex);
+			tex.framesSinceLastUsed = 0;
+			return tex;
+		}
+
+		public RenderTexture acquire(StaticDescriptor descriptor) {
+			final var size = new Vec2i(CLIENT.getWindow().getWidth(), CLIENT.getWindow().getHeight());
+			return acquire(size, descriptor);
+		}
 	}
 
 }

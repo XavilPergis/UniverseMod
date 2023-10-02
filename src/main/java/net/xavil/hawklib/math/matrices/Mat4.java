@@ -511,6 +511,20 @@ public final class Mat4 implements Hashable, Mat4Access {
 		return r;
 	}
 
+	public static Mat4.Mutable setLookAt(Mat4.Mutable r,
+			Vec3Access target, Vec3Access position, Vec3Access up) {
+		setIdentity(r);
+
+		final var pz = position.sub(target).normalize();
+		// FIXME: degenerate case when pz and up are colinear is not handled
+		final var px = up.cross(pz).normalize();
+		final var py = pz.cross(px);
+
+		setBases(r, px, py, pz, Vec3.ZERO);
+		mulTranslation(r, position, r);
+		return r;
+	}
+
 	public static Mat4.Mutable setBases(Mat4.Mutable r, Vec3Access x, Vec3Access y, Vec3Access z, Vec3Access pos) {
 		// @formatter:off
 		r.r0c0 = x.x(); r.r0c1 = y.x(); r.r0c2 = z.x(); r.r0c3 = pos.x();

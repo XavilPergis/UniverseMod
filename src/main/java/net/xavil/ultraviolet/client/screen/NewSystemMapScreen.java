@@ -1,9 +1,5 @@
 package net.xavil.ultraviolet.client.screen;
 
-import java.util.Comparator;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import javax.annotation.Nullable;
 
 import org.lwjgl.glfw.GLFW;
@@ -15,35 +11,35 @@ import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.Assert;
-import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Units;
-import net.xavil.hawklib.Util;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.flexible.RenderTexture;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.client.GalaxyRenderingContext;
 import net.xavil.ultraviolet.client.PlanetRenderingContext;
+import net.xavil.ultraviolet.client.StarRenderManager;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
+import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.RealisticStarSystemGenerator;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.ultraviolet.common.universe.system.gen.AccreteContext;
 import net.xavil.ultraviolet.common.universe.system.gen.ProtoplanetaryDisc;
-import net.xavil.ultraviolet.common.universe.system.gen.SimulationParameters;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
+import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.Quat;
@@ -54,7 +50,10 @@ import net.xavil.hawklib.math.matrices.Vec3;
 
 public class NewSystemMapScreen extends HawkScreen {
 
-	private CachedCamera camera = new CachedCamera();
+	private CachedCamera uiCamera = new CachedCamera();
+	private CachedCamera backgroundCamera = new CachedCamera();
+	private final GalaxyRenderingContext galaxyRenderer;
+	private final StarRenderManager starRenderer;
 	public final Galaxy galaxy;
 	private final SystemTicket ticket;
 
@@ -76,6 +75,9 @@ public class NewSystemMapScreen extends HawkScreen {
 		this.ticket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId.galaxySector());
 
 		this.layers.push(new ScreenLayerBackground(this, ColorRgba.BLACK));
+
+		this.galaxyRenderer = this.disposer.attach(new GalaxyRenderingContext(galaxy.densityFields));
+		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy, SectorTicketInfo.visual(Vec3.ZERO)));
 	}
 
 	public NewSystemMapScreen(@Nullable Screen previousScreen, Galaxy galaxy, SystemNodeId id, StarSystem system) {
@@ -176,8 +178,9 @@ public class NewSystemMapScreen extends HawkScreen {
 
 		// res.rectOffsetUN = Math.max(res.rectOffsetUN, res.nodeA.rectOffsetUN);
 		// res.rectOffsetUN = Math.max(res.rectOffsetUN, res.nodeB.rectOffsetUN);
-		// // res.rectOffsetUN += Math.min(0.2, Math.max(res.nodeA.rectOffsetUN, res.nodeB.rectOffsetUN));
-		
+		// // res.rectOffsetUN += Math.min(0.2, Math.max(res.nodeA.rectOffsetUN,
+		// res.nodeB.rectOffsetUN));
+
 		res.rectOffsetUN = Math.max(res.nodeA.rectOffsetUN, res.nodeB.rectOffsetUN);
 		res.rectOffsetUN += Mth.clamp(0.5 * Math.max(res.nodeA.rectOffsetUN, res.nodeB.rectOffsetUN), 0.02, 0.2);
 
@@ -235,15 +238,17 @@ public class NewSystemMapScreen extends HawkScreen {
 					new ColorRgba(1f, 1f, 1f, 0.02f));
 
 			final var modelTfm = new TransformStack();
-			modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -unaryNode.celestialNode.rotationalRate * this.animationTimer));
-			// modelTfm.appendRotation(Quat.axisAngle(Vec3.ZP, unaryNode.celestialNode.obliquityAngle));
+			modelTfm.appendRotation(
+					Quat.axisAngle(Vec3.YP, -unaryNode.celestialNode.rotationalRate * this.animationTimer));
+			// modelTfm.appendRotation(Quat.axisAngle(Vec3.ZP,
+			// unaryNode.celestialNode.obliquityAngle));
 			// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, -Math.PI / 16));
 			modelTfm.appendRotation(Quat.axisAngle(Vec3.ZP, Math.PI / 8));
 			modelTfm.appendTransform(Mat4.scale(0.9 * layout.nodeSize));
 			modelTfm.appendTranslation(pos.xy0());
 
-			this.renderContext.render(BufferRenderer.IMMEDIATE_BUILDER, this.camera, unaryNode.celestialNode, modelTfm,
-					false);
+			this.renderContext.render(BufferRenderer.IMMEDIATE_BUILDER, this.uiCamera, unaryNode.celestialNode,
+					modelTfm, false);
 		}
 
 		for (final var elem : layout.elements.iterable()) {
@@ -326,6 +331,34 @@ public class NewSystemMapScreen extends HawkScreen {
 		return false;
 	}
 
+	private void renderBackground(StarSystem system, RenderContext ctx) {
+		final var t = 0.005 * this.animationTimer;
+
+		final var up = new Vec3(1.0, 2.0, 0.0).normalize();
+
+		Mat4.setLookAt(this.backgroundCamera.viewMatrix, Vec3.ZERO, system.pos, up);
+
+		this.backgroundCamera.metersPerUnit = 1e12;
+
+		final var offset = new Vec3(100 * this.offset.x, -100 * this.offset.y, 0);
+		Mat4.mulTranslation(this.backgroundCamera.viewMatrix, this.backgroundCamera.viewMatrix, offset);
+
+		final var window = Minecraft.getInstance().getWindow();
+		final var aspect = (float) window.getWidth() / (float) window.getHeight();
+
+		Mat4.setPerspectiveProjection(this.backgroundCamera.projectionMatrix, Math.toRadians(60), aspect, 1e4, 1e12);
+		this.backgroundCamera.recalculateCached();
+
+		ctx.currentTexture.framebuffer.bind();
+
+		this.galaxyRenderer.draw(this.backgroundCamera, Vec3.ZERO);
+		this.starRenderer.setOriginOffset(Vec3.ZERO);
+		this.starRenderer.draw(this.backgroundCamera, this.backgroundCamera.posTm.xyz());
+
+		// it might be cool to blur the background or something
+		// or like, do some sort of post processing effect
+	}
+
 	@Override
 	public void renderScreenPostLayers(RenderContext ctx) {
 		this.animationTimer += 10.0 * this.client.getDeltaFrameTime();
@@ -339,62 +372,40 @@ public class NewSystemMapScreen extends HawkScreen {
 		if (system == null)
 			return;
 
-		if (rootNode == null)
-			rootNode = system.rootNode;
+		renderBackground(system, ctx);
+
+		rootNode = rootNode == null ? system.rootNode : rootNode;
 		final var rootLayout = layout(rootNode);
 
+		// TODO: only apply offset when first loading this screen, instead of
+		// calculating it every time (might look weird if layout changes)
 		final var rootWidth = rootLayout.rectOffsetUN + rootLayout.rectOffsetUP;
 		final var offset = rootWidth / 2 - rootLayout.rectOffsetUN;
 
+		// setup camera for ortho UI
 		final var window = Minecraft.getInstance().getWindow();
 		final var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
 
-		final double k = this.scale;
-		final double l = 200;
-		// final var projMat = Mat4.orthographicProjection(aspectRatio * -k, aspectRatio
-		// * k, -k, k, -100, 100);
-		final var projMat = new Mat4.Mutable();
-		// Mat4.setPerspectiveProjection(projMat, Math.toRadians(30 * this.scale),
-		// aspectRatio, 0.01, 1000);
-		Mat4.setOrthographicProjection(projMat, aspectRatio * -k, aspectRatio * k, -k, k, -2 * l, 0);
-		// projMat.prependTranslation(this.offset.neg().add(-offset, 0).xy0());
-		final var viewMat = new Mat4.Mutable();
-		// FIXME: the fucking view matrix is broken!!! why!! the translation should be
-		// applied here instead of in the projection matrix, but it just. refuses to do
-		// anything.
-		viewMat.loadIdentity();
-		viewMat.appendTranslation(this.offset.add(offset, 0).withZ(-l));
-		// Mat4.setScale(viewMat, this.scale);
-		Mat4.invert(viewMat, viewMat);
-		this.camera.load(viewMat, projMat, 1);
-		// this.camera.load(this.offset.neg().add(-offset, 0).withZ(-50),
-		// Quat.axisAngle(Vec3.YP, Math.PI / 5), projMat.asImmutable(), 1);
+		final double frustumDepth = 400;
 
+		final var projMat = new Mat4.Mutable();
+		final var projLR = aspectRatio * this.scale;
+		final var projTB = this.scale;
+		Mat4.setOrthographicProjection(projMat, -projLR, projLR, -projTB, projTB, -frustumDepth, 0);
+
+		final var viewMat = new Mat4.Mutable();
+		viewMat.loadIdentity();
+		viewMat.appendTranslation(this.offset.add(offset, 0).withZ(-0.5 * frustumDepth));
+		Mat4.invert(viewMat, viewMat);
+
+		this.uiCamera.load(viewMat, projMat, 1);
+
+		// draw
 		ctx.currentTexture.framebuffer.bind();
 
-		// final var snapshot = this.camera.setupRenderMatrices();
-
 		final var snapshot = RenderMatricesSnapshot.capture();
-		RenderSystem.setProjectionMatrix(this.camera.projectionMatrix.asMinecraft());
-
-		final var poseStack = RenderSystem.getModelViewStack();
-		poseStack.setIdentity();
-
-		poseStack.mulPoseMatrix(this.camera.viewMatrix.asMinecraft());
-		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
-		if (inverseViewRotationMatrix.invert()) {
-			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
-		}
-
-		// it would be very nice for simplicity's sake to apply the camera's translation
-		// here, but unfortunately, that can cause stuff to melt into floating point
-		// soup at the scales we're dealing with. So instead, vertices are specified in
-		// a space where the camera is at the origin (like in view space), but the
-		// camera's rotation is not taken into account (like in world space).
-		// Essentially a weird hybrid between the two. This is the same behavior as the
-		// vanilla camera.
-		RenderSystem.applyModelViewMatrix();
-		// return snapshot;
+		this.uiCamera.applyProjection();
+		this.uiCamera.applyView();
 
 		this.renderContext.begin(0.0);
 		renderNode(ctx, rootLayout, Vec2.ZERO, true);
@@ -498,7 +509,7 @@ public class NewSystemMapScreen extends HawkScreen {
 		}
 
 		public void setup() {
-			final var elem = new GalaxySector.SectorElementHolder();
+			final var elem = new GalaxySector.ElementHolder();
 			this.system.copySystemInfo(elem);
 			this.disc = RealisticStarSystemGenerator.createDisc(this.system.parentGalaxy, elem);
 		}
@@ -512,7 +523,6 @@ public class NewSystemMapScreen extends HawkScreen {
 				this.currentStep = 0;
 				Mod.LOGGER.info("----------------------------------------");
 			}
-
 
 			while (this.currentStep < step) {
 				try {

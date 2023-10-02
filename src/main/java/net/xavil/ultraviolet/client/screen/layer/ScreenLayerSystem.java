@@ -438,11 +438,10 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			OrbitCamera.Cached cullingCamera, CelestialNode node, double celestialTime) {
 		if (node instanceof BinaryCelestialNode binaryNode) {
 			showBinaryGuides(builder, camera, cullingCamera, binaryNode, celestialTime);
-		} else {
-			final var info = node.getOrbitInfo();
-			if (info != null)
-				showUnaryGuides(builder, camera, cullingCamera, info, celestialTime);
 		}
+		final var info = node.getOrbitInfo();
+		if (info != null)
+			showUnaryGuides(builder, camera, cullingCamera, info, celestialTime);
 	}
 
 	private void showBinaryGuides(VertexBuilder vertexBuilder, OrbitCamera.Cached camera,

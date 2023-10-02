@@ -2,6 +2,9 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 
 import java.util.Random;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.SplittableRng;
@@ -24,6 +27,8 @@ import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
+	public static final Logger LOGGER = LoggerFactory.getLogger(Mod.MOD_ID + "/GalaxyGen");
+
 	public static final int MAXIMUM_STARS_PER_SECTOR = 2000;
 	public static final int MAXIMUM_STAR_PLACEMENT_ATTEMPTS = 16;
 	public static final int DENSITY_SAMPLE_COUNT = 100;
@@ -35,8 +40,8 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		this.densityFields = densityFields;
 	}
 
-	private static long systemSeed(int volumeSeed, int id) {
-		return FastHasher.create().appendInt(volumeSeed).appendInt(id).currentHashInt();
+	private static long systemSeed(long volumeSeed, long id) {
+		return FastHasher.create().appendLong(volumeSeed).appendLong(id).currentHash();
 	}
 
 	public static final int LEVEL_COUNT = GalaxySector.ROOT_LEVEL + 1;
@@ -49,7 +54,6 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	// @formatter:on
 
 	private static final LinearSpline STAR_MASS_SPLINE = new LinearSpline();
-	private static final double SECTORS_PER_ROOT_SECTOR;
 	private static final Interval[] LEVEL_MASS_INTERVALS;
 
 	static {
@@ -59,8 +63,6 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		double sectorsPerRootSector = 0.0;
 		for (var level = 0; level <= GalaxySector.ROOT_LEVEL; ++level)
 			sectorsPerRootSector += Math.pow(8.0, GalaxySector.ROOT_LEVEL - level);
-
-		Mod.LOGGER.info("[galaxygen] sectorsPerRootSector: {}", sectorsPerRootSector);
 
 		final var intervals = new Vector<Interval>();
 		double cumulativePercentage = 0.0;
@@ -74,7 +76,6 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			intervals.push(interval);
 		}
 		LEVEL_MASS_INTERVALS = intervals.toArray(Interval.class);
-		SECTORS_PER_ROOT_SECTOR = sectorsPerRootSector;
 
 		cumulativePercentage = 0.0;
 		for (var i = 0; i < 7; ++i) {
@@ -83,17 +84,18 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		}
 		STAR_MASS_SPLINE.addControlPoint(1, STAR_CLASS_MASSES[7]);
 
-		Mod.LOGGER.info("[galaxygen] star mass interval weights: {}", Vector.fromElements(LEVEL_MASS_INTERVALS));
-		Mod.LOGGER.info("[galaxygen] star mass spline: {}", STAR_MASS_SPLINE);
+		LOGGER.debug("star mass interval weights: {}", Vector.fromElements(LEVEL_MASS_INTERVALS));
+		LOGGER.debug("star mass spline: {}", STAR_MASS_SPLINE);
 	}
 
 	static double levelCoverage(int level) {
-		return Math.pow(8.0, GalaxySector.ROOT_LEVEL - level) / SECTORS_PER_ROOT_SECTOR;
+		return GalaxySector.sectorsPerRootSector(level) / (double) GalaxySector.SUBSECTORS_PER_ROOT_SECTOR;
 	}
 
 	private static class InterpolatedField implements DoubleField3 {
 		public final Vec3 min, max;
 		public final double nnn, nnp, npn, npp, pnn, pnp, ppn, ppp;
+		public final double invLerpFactorX, invLerpFactorY, invLerpFactorZ;
 
 		public InterpolatedField(DoubleField3 field, Vec3 min, Vec3 max) {
 			this.min = min;
@@ -106,24 +108,27 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			this.pnp = field.sample(max.x, min.y, max.z);
 			this.ppn = field.sample(max.x, max.y, min.z);
 			this.ppp = field.sample(max.x, max.y, max.z);
+			this.invLerpFactorX = 1.0 / (this.max.x - this.min.x);
+			this.invLerpFactorY = 1.0 / (this.max.y - this.min.y);
+			this.invLerpFactorZ = 1.0 / (this.max.z - this.min.z);
 		}
 
 		public double sample(double tx, double ty, double tz) {
 			// trilinear interpolation
-			final var xnn = Mth.lerp(tx, this.nnn, this.pnn);
-			final var xnp = Mth.lerp(tx, this.nnp, this.pnp);
-			final var xpn = Mth.lerp(tx, this.npn, this.ppn);
-			final var xpp = Mth.lerp(tx, this.npp, this.ppp);
-			final var yn = Mth.lerp(ty, xnn, xpn);
-			final var yp = Mth.lerp(ty, xnp, xpp);
-			return Mth.lerp(tz, yn, yp);
+			final var xnn = this.nnn + tx * (this.pnn - this.nnn);
+			final var xpn = this.npn + tx * (this.ppn - this.npn);
+			final var xnp = this.nnp + tx * (this.pnp - this.nnp);
+			final var xpp = this.npp + tx * (this.ppp - this.npp);
+			final var yn = xnn + ty * (xpn - xnn);
+			final var yp = xnp + ty * (xpp - xnp);
+			return yn + tz * (yp - yn);
 		}
 
 		@Override
 		public double sample(Vec3Access pos) {
-			final var tx = Mth.inverseLerp(pos.x(), this.min.x, this.max.x);
-			final var ty = Mth.inverseLerp(pos.y(), this.min.y, this.max.y);
-			final var tz = Mth.inverseLerp(pos.z(), this.min.z, this.max.z);
+			final var tx = this.invLerpFactorX * (pos.x() - this.min.x);
+			final var ty = this.invLerpFactorY * (pos.y() - this.min.y);
+			final var tz = this.invLerpFactorZ * (pos.z() - this.min.z);
 			return sample(tx, ty, tz);
 		}
 
@@ -170,24 +175,26 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public void generateInto(Context ctx, GalaxySector.PackedSectorElements elements) {
-		final var volumeSeed = ctx.rng.uniformInt();
+	public void generateInto(Context ctx, GalaxySector.PackedElements elements) {
+		final var volumeSeed = ctx.rng.uniformLong();
+		final var rng = new SplittableRng(volumeSeed);
+
 		final var info = new GenerationInfo(ctx);
 
 		// TODO: find total sector mass and keep track of it as we generate star
 		// systems.
 
 		final var starProps = new StellarCelestialNode.Properties();
-		final var elem = new GalaxySector.SectorElementHolder();
+		final var elem = new GalaxySector.ElementHolder();
 		elem.generationLayer = this.layerId;
 
 		final int startIndex = elements.size();
 		elements.beginWriting(info.starAttemptCount);
-		
+
 		int offset = 0;
-		for (var i = 0; i < info.starAttemptCount; ++i) {
-			if (Thread.interrupted())
-				break;
+		for (int i = 0; i < info.starAttemptCount; ++i) {
+			rng.setSeed(i);
+			elem.systemSeed = rng.uniformLong("system_seed");
 
 			// I think this retry behavior is warranted. We do a coarse esimate of the
 			// average density of the sector, and then multiply that with the sector volume
@@ -203,23 +210,29 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			// "on or off" density field, as it generally causes placement attempts to
 			// "migrate" towards areas of higher densities.
 			for (var j = 0; j < MAXIMUM_STAR_PLACEMENT_ATTEMPTS; ++j) {
-				Vec3.loadRandom(elem.systemPosTm, ctx.rng, ctx.volumeMin, ctx.volumeMax);
-				final var density = info.stellarDensity.sample(elem.systemPosTm);
-				if (density >= ctx.rng.uniformDouble(0.0, info.averageSectorDensity)) {
-					generateStarSystemInfo(elem, starProps, info);
-					elem.systemSeed = systemSeed(volumeSeed, i);
-					elements.store(elem, startIndex + offset);
-					offset += 1;
+				rng.advance();
+
+				elem.systemPosTm.x = rng.uniformDouble("x", ctx.volumeMin.x, ctx.volumeMax.x);
+				elem.systemPosTm.y = rng.uniformDouble("y", ctx.volumeMin.y, ctx.volumeMax.y);
+				elem.systemPosTm.z = rng.uniformDouble("z", ctx.volumeMin.z, ctx.volumeMax.z);
+
+				final var density = info.averageSectorDensity * rng.uniformDouble("density");
+				final var sampledDesnity = info.stellarDensity.sample(elem.systemPosTm);
+				if (density < sampledDesnity)
 					break;
-				}
 			}
+
+			generateStarSystemInfo(elem, starProps, info);
+
+			elements.store(elem, startIndex + offset);
+			offset += 1;
 		}
 
 		elements.endWriting(offset);
 
-		Mod.LOGGER.trace("[galaxygen] average stellar density: {}", info.averageSectorDensity);
-		Mod.LOGGER.trace("[galaxygen] star placement attempt count: {}", info.starAttemptCount);
-		Mod.LOGGER.trace("[galaxygen] successful star placements: {}", offset);
+		LOGGER.trace("average stellar density: {}", info.averageSectorDensity);
+		LOGGER.trace("star placement attempt count: {}", info.starAttemptCount);
+		LOGGER.trace("successful star placements: {}", offset);
 	}
 
 	public static final double MINIMUM_STAR_MASS_YG = Units.Yg_PER_Msol * 0.02;
@@ -236,7 +249,8 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	// Basic system info
 	// the position to sample everything at is contained in the element holder
-	private void generateStarSystemInfo(GalaxySector.SectorElementHolder elem, StellarCelestialNode.Properties props, GenerationInfo info) {
+	private void generateStarSystemInfo(GalaxySector.ElementHolder elem, StellarCelestialNode.Properties props,
+			GenerationInfo info) {
 		final var rng = Rng.wrap(new Random(info.ctx.rng.uniformLong()));
 
 		final var minSystemAgeFactor = Math.min(1, info.stellarAge.sample(elem.systemPosTm));
@@ -245,7 +259,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 				* Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
 
 		final var starMass = generateStarMassForLevel(rng, info.ctx.level);
-		
+
 		props.load(starMass, systemAgeMyr);
 		elem.massYg = starMass;
 		elem.systemAgeMyr = systemAgeMyr;
@@ -254,7 +268,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	@Override
-	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.SectorElementHolder elem) {
+	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.ElementHolder elem) {
 		final var rng = new SplittableRng(elem.systemSeed);
 
 		final var ctx = new StarSystemGenerator.Context(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);

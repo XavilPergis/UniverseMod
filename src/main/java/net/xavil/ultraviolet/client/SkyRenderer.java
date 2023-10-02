@@ -22,6 +22,7 @@ import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
+import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
@@ -163,7 +164,7 @@ public class SkyRenderer implements Disposable {
 		if (galaxy == null)
 			return;
 		if (this.starRenderer == null)
-			this.starRenderer = new StarRenderManager(galaxy, SectorTicketInfo.visual(Vec3.ZERO));
+			this.starRenderer = new StarRenderManager(galaxy, new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED));
 		this.starRenderer.setBatchingHint(StarRenderManager.BatchingHint.STATIC);
 		this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
 		if (this.systemTicket == null)
@@ -237,7 +238,8 @@ public class SkyRenderer implements Disposable {
 			// galaxy
 			profiler.push("galaxy");
 			final var galaxyCamera = createCamera(srcCamera, cameraTransform, 1e2, 1e10, partialTick);
-			galaxyCamera.setupRenderMatrices();
+			galaxyCamera.applyProjection();
+			CachedCamera.applyView(galaxyCamera.orientation);
 			if (this.galaxyRenderingContext != null) {
 				this.galaxyRenderingContext.draw(galaxyCamera, Vec3.ZERO);
 			}
@@ -272,7 +274,8 @@ public class SkyRenderer implements Disposable {
 		final var time = universe.getCelestialTime(partialTick);
 
 		profiler.push("camera");
-		camera.setupRenderMatrices();
+		camera.applyProjection();
+		CachedCamera.applyView(camera.orientation);
 
 		// system.rootNode.updatePositions(time);
 

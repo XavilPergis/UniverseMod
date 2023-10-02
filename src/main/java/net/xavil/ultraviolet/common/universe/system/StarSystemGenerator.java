@@ -14,10 +14,10 @@ public interface StarSystemGenerator {
 		// not really meant to be mutated!
 		public final GalaxySector sector;
 		public final GalaxySectorId sectorId;
-		public final GalaxySector.SectorElementHolder info;
+		public final GalaxySector.ElementHolder info;
 
 		public Context(long seed, Galaxy galaxy, GalaxySector sector, GalaxySectorId sectorId,
-				GalaxySector.SectorElementHolder info) {
+				GalaxySector.ElementHolder info) {
 			this.seed = seed;
 			this.galaxy = galaxy;
 			this.sector = sector;

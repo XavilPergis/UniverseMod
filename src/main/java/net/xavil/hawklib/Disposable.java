@@ -42,12 +42,13 @@ public interface Disposable extends AutoCloseable {
 			return value;
 		}
 
-		public void detach(Disposable value) {
+		public <T extends Disposable> T detach(T value) {
 			for (int i = 0; i < this.children.size(); ++i) {
 				if (this.children.get(i) != value)
 					continue;
 				this.children.remove(i);
 			}
+			return value;
 		}
 
 		@Override

@@ -8,10 +8,12 @@ import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
+import net.xavil.ultraviolet.common.universe.station.SpaceStation;
 
 public final class GlobalData extends SavedData {
 
 	private final MutableList<ResourceLocation> dynamicLevels = new Vector<>();
+	private final MutableList<SpaceStation> spaceStations = new Vector<>();
 
 	private GlobalData() {
 	}
@@ -35,6 +37,13 @@ public final class GlobalData extends SavedData {
 			dynamicLevels.add(StringTag.valueOf(loc.toString()));
 		}
 		nbt.put("dynamic_levels", dynamicLevels);
+
+		final var spaceStations = new ListTag();
+		for (final var station : this.spaceStations.iterable()) {
+			// spaceStations.add(SpaceStation.toNbt(station));
+		}
+		nbt.put("space_stations", spaceStations);
+
 		return nbt;
 	}
 	

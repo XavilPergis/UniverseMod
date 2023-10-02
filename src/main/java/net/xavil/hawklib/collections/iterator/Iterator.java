@@ -9,6 +9,8 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
+import javax.annotation.Nullable;
+
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 
@@ -150,6 +152,16 @@ public interface Iterator<T> extends IntoIterator<T> {
 		return Maybe.none();
 	}
 
+	@Nullable
+	default T findOrNull(Predicate<? super T> predicate) {
+		while (hasNext()) {
+			final var value = next();
+			if (predicate.test(value))
+				return value;
+		}
+		return null;
+	}
+
 	default int indexOf(Predicate<? super T> predicate) {
 		for (int i = 0; hasNext(); ++i) {
 			final var value = next();
@@ -178,6 +190,11 @@ public interface Iterator<T> extends IntoIterator<T> {
 	}
 
 	default Maybe<T> min(Comparator<? super T> comparator) {
+		return Maybe.fromNullable(minOrNull(comparator));
+	}
+
+	@Nullable
+	default T minOrNull(Comparator<? super T> comparator) {
 		T minValue = null;
 		while (hasNext()) {
 			final var value = next();
@@ -185,10 +202,15 @@ public interface Iterator<T> extends IntoIterator<T> {
 				minValue = value;
 			}
 		}
-		return Maybe.fromNullable(minValue);
+		return minValue;
 	}
 
 	default Maybe<T> max(Comparator<? super T> comparator) {
+		return Maybe.fromNullable(maxOrNull(comparator));
+	}
+
+	@Nullable
+	default T maxOrNull(Comparator<? super T> comparator) {
 		T maxValue = null;
 		while (hasNext()) {
 			final var value = next();
@@ -196,7 +218,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 				maxValue = value;
 			}
 		}
-		return Maybe.fromNullable(maxValue);
+		return maxValue;
 	}
 
 	default int count() {

@@ -9,13 +9,14 @@ import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	public static final int STARTING_LOCATION_SAMPLE_ATTEMPTS = 1000;
-	public static final Interval STARTING_LOCATION_ACCEPTABLE_DENSITY = new Interval(0.01, 0.1);
+	public static final Interval STARTING_LOCATION_ACCEPTABLE_DENSITY = new Interval(0.003, 0.005);
 
 	public final int startingNodeId;
 	public StarSystem startingSystem;
@@ -53,12 +54,15 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	private boolean pickLocation(Vec3.Mutable out) {
-		final var random = new Random(this.parentGalaxy.parentUniverse.getUniqueUniverseSeed() + 10);
+		final var rng = new SplittableRng(this.parentGalaxy.parentUniverse.getUniqueUniverseSeed());
+		rng.advanceWith("pick_starting_system_location");
+
 		final var densityFields = this.parentGalaxy.densityFields;
 
 		// TODO: fix this. currently, it always fails
 		for (int i = 0; i < STARTING_LOCATION_SAMPLE_ATTEMPTS; ++i) {
-			final var samplePos = Vec3.random(random,
+			rng.advance();
+			final var samplePos = Vec3.random(rng,
 					Vec3.broadcast(-densityFields.galaxyRadius),
 					Vec3.broadcast(densityFields.galaxyRadius));
 			final var density = densityFields.stellarDensity.sample(samplePos);

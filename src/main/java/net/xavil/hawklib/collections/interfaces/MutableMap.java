@@ -4,6 +4,7 @@ import java.util.IdentityHashMap;
 import java.util.Map;
 import java.util.function.BiPredicate;
 import java.util.function.Function;
+import java.util.function.Supplier;
 
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.xavil.hawklib.Maybe;
@@ -56,7 +57,9 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 
 		public abstract Maybe<V> remove();
 
-		public abstract V orInsertWith(Function<K, V> supplier);
+		public abstract V orInsertWithKey(Function<K, V> supplier);
+
+		public abstract V orInsertWith(Supplier<V> supplier);
 
 		private static final class Impl<K, V> extends EntryMut<K, V> {
 			private final MutableMap<K, V> map;
@@ -82,9 +85,14 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 			}
 
 			@Override
-			public V orInsertWith(Function<K, V> supplier) {
+			public V orInsertWithKey(Function<K, V> supplier) {
+				return orInsertWith(() -> supplier.apply(this.key));
+			}
+
+			@Override
+			public V orInsertWith(Supplier<V> supplier) {
 				return this.map.get(this.key).unwrapOrElse(() -> {
-					final var value = supplier.apply(this.key);
+					final var value = supplier.get();
 					this.map.insert(this.key, value);
 					return value;
 				});

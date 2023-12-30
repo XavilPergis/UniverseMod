@@ -1,14 +1,20 @@
 package net.xavil.ultraviolet.client;
 
 import java.util.Comparator;
+
+import javax.annotation.Nullable;
+
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
@@ -30,6 +36,7 @@ import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.ColorAccess;
 import net.xavil.hawklib.math.ColorHsva;
+import net.xavil.hawklib.math.ColorOklch;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
@@ -133,106 +140,271 @@ public final class PlanetRenderingContext implements Disposable {
 		return -1;
 	}
 
-	private record ColorTableInfo(Rng rng, Vector<ColorRgba> colors, float vibrancy, float weirdness) {}
+	private static abstract sealed class ColorPalette {
 
-	private void addColor(ColorTableInfo info, double r, double g, double b, double a) {
-		final var hsva = ColorHsva.fromRgba((float) r, (float) g, (float) b, (float) a);
-		// hsva.s *= info.rng.weightedDouble(2.0, info.vibrancy, 0.3);
-		// hsva.s *= Mth.lerp(info.vibrancy, 0.6, 1.0);
-		// hsva.v *= info.rng.uniformDouble(0.1, 1.0);
-		// hsva.h -= 360 * info.rng.weightedDouble(2.0, 0.0, info.weirdness);
-		// if (hsva.h < 0)
-		// 	hsva.h += 360;
-		info.colors.push(hsva.toRgba());
+		public final String exclusionGroup;
+
+		public ColorPalette(String exclusionGroup) {
+			this.exclusionGroup = exclusionGroup;
+		}
+
+		@Nullable
+		public abstract ColorRgba pick(Rng rng);
+
+		@Override
+		public abstract ColorPalette clone();
+
+		public static final class AnyOf extends ColorPalette {
+			public final WeightedList<ColorPalette> children;
+
+			public AnyOf(String exclusionGroup, WeightedList<ColorPalette> children) {
+				super(exclusionGroup);
+				this.children = children;
+			}
+
+			@Override
+			@Nullable
+			public ColorRgba pick(Rng rng) {
+				final var node = this.children.pick(rng.uniformDouble());
+				// we ran out of stuff to pick from, abort!
+				if (node == null)
+					return null;
+
+				// throw away any other nodes in the same exclusion group as the chosen node
+				if (node.exclusionGroup != null)
+					this.children.retain(child -> child.value == node
+							|| !node.exclusionGroup.equals(child.value.exclusionGroup));
+
+				if (!(node instanceof AnyOf anyOf && !anyOf.children.isEmpty()))
+					this.children.remove(node);
+
+				ColorRgba color = node.pick(rng);
+				if (color == null) {
+					// i love recursion
+					color = pick(rng);
+				}
+
+				return color;
+			}
+
+			@Override
+			public ColorPalette clone() {
+				return new AnyOf(this.exclusionGroup, new WeightedList<>(
+						this.children.iter().map(child -> child.withValue(child.value.clone()))));
+			}
+		}
+
+		public static final class Color extends ColorPalette {
+			public final ColorRgba color;
+
+			public Color(String exclusionGroup, ColorRgba color) {
+				super(exclusionGroup);
+				this.color = color;
+			}
+
+			@Override
+			public ColorRgba pick(Rng rng) {
+				return this.color;
+			}
+
+			@Override
+			public ColorPalette clone() {
+				return new Color(this.exclusionGroup, this.color);
+			}
+		}
 	}
 
-	private void makeColorTable(Rng rng, Vector<ColorRgba> colors, float vibrancy, float weirdness) {
-		final var info = new ColorTableInfo(rng, colors, vibrancy, weirdness);
-
-		// rgb, a is emissive strength
-
-		if (rng.chance(0.5)) {
-			// crimson/red
-			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
-			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
-			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
-			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
-			addColor(info, 0.122, 0.031, 0.008, 0f); // crimson
-			addColor(info, 0.412f, 0.090f, 0.035f, 0f); // brighter red
-			addColor(info, 0.380f, 0.157f, 0.086f, 0f); // brighter red (less saturation)
-		} else {
-			// beige
-			addColor(info, 1.000f, 0.918f, 0.796f, 0f); // bright beige
-			addColor(info, 1.000f, 0.918f, 0.796f, 0f); // bright beige
-			addColor(info, 0.890f, 0.812f, 0.690f, 0f); // bright beige
-			addColor(info, 0.890f, 0.812f, 0.690f, 0f); // bright beige
-			addColor(info, 0.929f, 0.678f, 0.361f, 0f); // bright orangeish
-			addColor(info, 0.890f, 0.616f, 0.275f, 0f); // bright orangeish
+	private static final class ColorTableBuilder {
+		private record Entry(String exclusionGroup, double weight, WeightedList<ColorPalette> nodes) {
+			public ColorPalette makeNode() {
+				return new ColorPalette.AnyOf(this.exclusionGroup, this.nodes);
+			}
 		}
-		// bright
-		addColor(info, 0.239f, 0.255f, 0.878f, 0f); // bright violet-blue
-		addColor(info, 0.145f, 0.235f, 0.929f, 0f); // bright blue
-		addColor(info, 0.145f, 0.918f, 0.929f, 0f); // bright cyan
-		addColor(info, 0.176f, 0.651f, 0.902f, 0f); // bright blue
-		if (rng.chance(0.1)) {
-			addColor(info, 0.000f, 1.000f, 0.055f, 1f); // bright green
-		}
-		// white
-		addColor(info, 0.969f, 0.949f, 0.929f, 0f); // white
-		addColor(info, 1.000f, 0.980f, 0.957f, 0f); // white
-		addColor(info, 0.969f, 0.965f, 0.949f, 0f); // white
 
-		// addColor(info, 0.169, 0.000, 1.000, 0); // violet
-		// addColor(info, 0.000, 0.012, 1.000, 0); // blue
-		// addColor(info, 0.000, 0.776, 1.000, 0); // cyan-blue
-		// addColor(info, 0.000, 1.000, 0.071, 1); // green
-		// addColor(info, 1.000, 0.000, 0.000, 0); // red
+		private final Vector<Entry> stack = new Vector<>();
+		private Entry current;
+
+		public ColorTableBuilder() {
+			this.current = new Entry(null, -1, new WeightedList<>());
+		}
+
+		public void anyOf(double weight) {
+			anyOf(null, weight);
+		}
+
+		public void anyOf(String exclusionGroup, double weight) {
+			this.stack.push(this.current);
+			this.current = new Entry(exclusionGroup, weight, new WeightedList<>());
+		}
+
+		public void end() {
+			final var prev = this.current;
+			this.current = this.stack.popOrThrow();
+			this.current.nodes.push(prev.weight, prev.makeNode());
+		}
+
+		public void colorSrgb(double weight, double r, double g, double b, double a) {
+			colorSrgb(null, weight, r, g, b, a);
+		}
+
+		public void colorSrgb(String exclusionGroup, double weight, double r, double g, double b, double a) {
+			var color = new ColorRgba((float) r, (float) g, (float) b, (float) a);
+			color = ColorRgba.srgbToLinear(color);
+			final var node = new ColorPalette.Color(exclusionGroup, color);
+			this.current.nodes.push(weight, node);
+		}
+
+		public void colorOklch(double weight, double L, double C, double h, double a) {
+			colorOklch(null, weight, L, C, h, a);
+		}
+
+		public void colorOklch(String exclusionGroup, double weight, double L, double C, double h, double a) {
+			final var color = ColorOklch.toLinearSrgb((float) L, (float) C, (float) h, (float) a);
+			final var node = new ColorPalette.Color(exclusionGroup, color);
+			this.current.nodes.push(weight, node);
+		}
+
+		public void colorHsv(double weight, double h, double s, double v, double a) {
+			colorHsv(null, weight, h, s, v, a);
+		}
+
+		public void colorHsv(String exclusionGroup, double weight, double h, double s, double v, double a) {
+			var color = ColorHsva.toRgba((float) h, (float) s, (float) v, (float) a);
+			// idk????????
+			color = ColorRgba.srgbToLinear(color);
+			final var node = new ColorPalette.Color(exclusionGroup, color);
+			this.current.nodes.push(weight, node);
+		}
+
+		public ColorPalette build() {
+			return this.current.makeNode();
+		}
 	}
 
-	private ColorRgba pickColor(Rng rng, Vector<ColorRgba> colors) {
-		final var randomIndex = rng.uniformInt(0, colors.size());
-		final var color = colors.remove(randomIndex);
-		// Mod.LOGGER.info("picked index #{}", randomIndex);
+	private void makeColorTable(ColorTableBuilder builder) {
 
-		final var hsva = color.toHsva();
+		// @formatter:off
+		// browns
+		builder.anyOf("base", 20);
+			builder.anyOf("lightness", 2);
+				builder.colorHsv(2, 25, 0.4, 0.2, 0);
+				builder.colorHsv(2, 25, 0.4, 0.3, 0);
+				builder.colorHsv(1, 25, 0.4, 0.4, 0);
+			builder.end();
+			builder.anyOf("lightness", 1);
+				builder.colorHsv(2, 25, 0.4, 0.5, 0);
+				builder.colorHsv(2, 25, 0.4, 0.6, 0);
+				builder.colorHsv(2, 25, 0.4, 0.8, 0);
+				builder.colorSrgb("white", 2, 1, 1, 1, 0);
+			builder.end();
+		builder.end();
 
-		// small chance for any color to become emissive
-		if (rng.chance(0.01)) {
-			hsva.a = (float) rng.weightedDouble(2.0, 0.1, 2.5);
+		// beiges
+		builder.anyOf("base", 20);
+		builder.colorHsv(2, 25, 0.4, 0.8, 0);
+		builder.colorHsv(2, 25, 0.4, 0.7, 0);
+		builder.colorHsv(2, 25, 0.4, 0.6, 0);
+		builder.colorHsv(2, 25, 0.7, 0.5, 0);
+		// builder.colorSrgb(2, 0.8 * 1.000f, 0.8 * 0.918f, 0.8 * 0.796f, 0f); // bright beige
+		// builder.colorSrgb(2, 1.000f, 0.918f, 0.796f, 0f); // bright beige
+		// builder.colorSrgb(2, 0.890f, 0.812f, 0.690f, 0f); // bright beige
+		builder.end();
+
+		// blue/violet
+		builder.anyOf("base", 10);
+		builder.colorHsv(2, 260, 0.4, 0.2, 0f);
+		builder.colorHsv(2, 260, 0.4, 0.3, 0f);
+		builder.colorHsv(2, 260, 0.4, 0.4, 0f);
+		// builder.colorSrgb("white", 2, 1, 1, 1, 0);
+		builder.end();
+
+		// snowball
+		builder.anyOf("base", 8);
+			builder.colorSrgb(200, 1, 1, 1, 0);
+			builder.colorSrgb(200, 0.9, 0.9, 0.9, 0);
+			builder.anyOf("accent", 10);
+				builder.colorHsv(2, 25, 0.4, 0.2, 0);
+				builder.colorHsv(2, 25, 0.4, 0.3, 0);
+				builder.colorHsv(1, 25, 0.4, 0.4, 0);
+			builder.end();
+			builder.colorHsv("accent", 1, 280, 1, 0.9, 0);
+			builder.colorHsv("accent", 1, 35, 1, 0.9, 0);
+			builder.colorHsv("accent", 1, 200, 1, 0.9, 0);
+		builder.end();
+
+		builder.anyOf("base", 3);
+			builder.colorSrgb("white", 2, 1, 1, 1, 0);
+			for (double h = 0; h < 360; h += 50) {
+				if (h >= 50 && h <= 150) continue;
+				builder.anyOf("bright", 1);
+				builder.colorHsv(         1, h, 0.3, 0.8, 0);
+				builder.colorHsv(         1, h, 0.3, 0.7, 0);
+				builder.colorHsv("shade", 1, h, 0.8, 0.8, 0);
+				builder.colorHsv("shade", 1, h, 0.3, 0.5, 0);
+				builder.end();
+			}
+			// builder.colorSrgb(1, 0.239f, 0.255f, 0.878f, 0f); // bright violet-blue
+			// builder.colorSrgb(1, 0.145f, 0.235f, 0.929f, 0f); // bright blue
+			// builder.colorSrgb(1, 0.145f, 0.918f, 0.929f, 0f); // bright cyan
+			// builder.colorSrgb(1, 0.176f, 0.651f, 0.902f, 0f); // bright blue
+			// builder.colorSrgb(0.05, 0.000f, 1.000f, 0.055f, 1f); // bright green
+		builder.end();
+
+		builder.colorSrgb(0.1, 0, 1, 0, 2);
+		// @formatter:on
+
+		// builder.oneOf();
+		// builder.colorSrgb(1, 1, 0, 0, 0);
+		// builder.colorSrgb(1, 0, 1, 0, 0);
+		// builder.colorSrgb(1, 0, 0, 1, 0);
+		// builder.end();
+
+		// builder.oneOf();
+		// builder.colorSrgb(1, 0, 1, 1, 0);
+		// builder.colorSrgb(1, 1, 0, 1, 0);
+		// builder.colorSrgb(1, 1, 1, 0, 0);
+		// builder.end();
+	}
+
+	private ColorPalette getColorTable() {
+		final var builder = new ColorTableBuilder();
+		makeColorTable(builder);
+		return builder.build();
+	}
+
+	private GlTexture1d createGradientTextureFromSpline(ColorSpline spline) {
+		try (final var disposer = Disposable.scope()) {
+			final var tex = disposer.attach(new GlClientTexture());
+			tex.createStorage(GlClientTexture.ClientFormat.RGBA32_FLOAT, 512, 1, 1);
+			spline.sample(0, 1, tex.sizeX(), tex::setPixel);
+			return tex.create1d(GlTexture.Format.RGBA16_FLOAT);
 		}
-
-		// hsva.s *= rng.weightedDouble(2.0, 0.1, 2.5);
-		// hsva.v *= rng.weightedDouble(2.0, 0.1, 2.5);
-
-		return hsva.toRgba();
 	}
 
 	private GlTexture1d generateGasGiantGradientTexture(PlanetaryCelestialNode node) {
-		try (final var disposer = Disposable.scope()) {
-			final var tex = disposer.attach(new GlClientTexture());
-			tex.createStorage(512, 1, 1);
-			final var colorSpline = new ColorSpline();			
+		final var rng = new SplittableRng(node.seed);
 
-			final var rng = Rng.fromSeed(node.seed);
+		final var palette = getColorTable();
 
-			final var colors = new Vector<ColorRgba>();
-			final var vibrancy = (float) rng.weightedDouble(4.0, 0.0, 1.0);
-			final var weirdness = (float) rng.weightedDouble(16.0, 0.0, 1.0);
-			makeColorTable(rng, colors, vibrancy, weirdness);
+		final var colorSpline = new ColorSpline();
 
-			// Mod.LOGGER.info("----------");
-			
-			final var minStep = Mth.lerp(weirdness, 0.3, 0.1);
-			float t = 0;
-			while (t < 1 && colors.size() > 1) {
-				colorSpline.addControlPoint(t, pickColor(rng, colors));
-				t += rng.uniformDouble(minStep, 0.6);
-			}
-			colorSpline.addControlPoint(1f, pickColor(rng, colors));
+		final var pickingRng = rng.rng("picking");
+		ColorRgba endColor = palette.pick(pickingRng);
+		endColor = endColor == null ? ColorRgba.MAGENTA : endColor;
 
-			colorSpline.sample(0, 1, tex.sizeX(), tex::setPixel);
-			return tex.create1d(GlTexture.Format.RGBA8_UINT_NORM);
+		float t = 0;
+		rng.push("spline");
+		while (t < 1) {
+			final var color = palette.pick(pickingRng);
+			if (color == null)
+				break;
+			colorSpline.addControlPoint(t, color);
+			t += rng.weightedDouble("t", 4.0, 0.6, 0.3);
 		}
+		rng.pop();
+		colorSpline.addControlPoint(1f, endColor);
+
+		return createGradientTextureFromSpline(colorSpline);
 	}
 
 	private ClientNodeInfo makeClientInfoIfNeeded(UnaryCelestialNode node) {
@@ -321,7 +493,8 @@ public final class PlanetRenderingContext implements Disposable {
 		BufferRenderer.setupCameraUniforms(shader, camera);
 		BufferRenderer.setupDefaultShaderUniforms(shader);
 
-		if (!skip && !(node instanceof StellarCelestialNode starNode && starNode.type == StellarCelestialNode.Type.BLACK_HOLE)) {
+		if (!skip && !(node instanceof StellarCelestialNode starNode
+				&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE)) {
 			this.sphereMesh.draw(shader, DRAW_STATE_OPAQUE);
 		}
 	}

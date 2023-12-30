@@ -222,8 +222,12 @@ public class Units {
 	// @formatter:on
 
 	// ----- unit conversion -----
+	public static final double Tm_PER_pc = 3.08568e4;
+	public static final double pc_PER_Tm = 1 / Tm_PER_pc;
 	public static final double Tm_PER_ly = 9.461e+3;
 	public static final double ly_PER_Tm = 1 / Tm_PER_ly;
+	public static final double ly_PER_pc = Tm_PER_pc * ly_PER_Tm;
+	public static final double pc_PER_ly = 1 / ly_PER_pc;
 
 	public static final double m_PER_au = 1.496e+11;
 	public static final double Tm_PER_au = 0.149598;

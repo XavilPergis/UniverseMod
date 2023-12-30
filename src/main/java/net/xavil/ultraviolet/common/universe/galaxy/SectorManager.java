@@ -355,11 +355,11 @@ public final class SectorManager {
 
 		profiler.popPush("load");
 		sectorsToLoad.forEach(pos -> {
-			final var slot = this.sectorMap.entry(pos.rootCoords()).orInsertWith(SectorSlot::new);
+			final var slot = this.sectorMap.entry(pos.rootCoords()).orInsertWithKey(SectorSlot::new);
 			slot.load(pos);
 		});
 		systemsToLoad.forEach(id -> {
-			final var slot = this.systemMap.entry(id).orInsertWith(SystemSlot::new);
+			final var slot = this.systemMap.entry(id).orInsertWithKey(SystemSlot::new);
 			slot.load();
 		});
 

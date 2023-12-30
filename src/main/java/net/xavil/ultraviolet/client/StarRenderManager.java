@@ -258,6 +258,15 @@ public final class StarRenderManager implements Disposable {
 			// return;
 		}
 
+		// if (sector.level == 0) return;
+		if (sector.level == 1) return;
+		if (sector.level == 2) return;
+		if (sector.level == 3) return;
+		if (sector.level == 4) return;
+		if (sector.level == 5) return;
+		if (sector.level == 6) return;
+		if (sector.level == 7) return;
+
 		final var elem = ctx.elem;
 		final var colorHolder = ctx.colorHolder;
 		final var toStar = ctx.toStar;

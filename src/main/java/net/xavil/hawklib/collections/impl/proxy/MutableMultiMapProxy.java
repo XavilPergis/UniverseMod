@@ -57,7 +57,7 @@ public final class MutableMultiMapProxy<K, V> implements MutableMultiMap<K, V> {
 
 	@Override
 	public boolean insert(K key, V value) {
-		final var set = this.proxy.entry(key).orInsertWith(k -> this.setFactory.get());
+		final var set = this.proxy.entry(key).orInsertWithKey(k -> this.setFactory.get());
 		return set.insert(value);
 	}
 

@@ -29,6 +29,10 @@ public final class SplittableRng {
 		this.seed = uniformLong(key);
 	}
 
+	public void advanceWith(String key) {
+		this.seed = uniformLong(key);
+	}
+
 	// https://jonkagstrom.com/bit-mixer-construction/
 	/**
 	 * Scrambles the input bits of the given integer. This should agitate the input
@@ -117,7 +121,9 @@ public final class SplittableRng {
 
 	public <E extends Enum<?>> E uniformEnum(long key, Class<E> clazz) {
 		final E[] variants = clazz.getEnumConstants();
-		return variants.length == 0 ? null : variants[uniformInt(key) % variants.length];
+		int i = uniformInt(key);
+		i = i < 0 ? -i : i;
+		return variants.length == 0 ? null : variants[i % variants.length];
 	}
 
 	public boolean chance(long key, double probability) {

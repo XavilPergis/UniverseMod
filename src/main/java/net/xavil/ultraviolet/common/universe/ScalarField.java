@@ -6,7 +6,7 @@ import net.minecraft.util.Mth;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
-public interface DoubleField3 {
+public interface ScalarField {
 
 	/**
 	 * @param position The point to sample the field at.
@@ -17,15 +17,15 @@ public interface DoubleField3 {
 
 	double sample(double x, double y, double z);
 
-	default DoubleField3 optimize() {
+	default ScalarField optimize() {
 		return this;
 	}
 
-	static DoubleField3 uniform(double value) {
+	static ScalarField uniform(double value) {
 		return new UniformField(value);
 	}
 
-	final class UniformField implements DoubleField3 {
+	final class UniformField implements ScalarField {
 		public final double value;
 
 		public UniformField(double value) {
@@ -38,52 +38,52 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 add(DoubleField3 b) {
+		public ScalarField add(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new UniformField(this.value + other.value);
-			return DoubleField3.super.add(b);
+			return ScalarField.super.add(b);
 		}
 
 		@Override
-		public DoubleField3 sub(DoubleField3 b) {
+		public ScalarField sub(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new UniformField(this.value - other.value);
-			return DoubleField3.super.sub(b);
+			return ScalarField.super.sub(b);
 		}
 
 		@Override
-		public DoubleField3 mul(DoubleField3 b) {
+		public ScalarField mul(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new UniformField(this.value * other.value);
-			return DoubleField3.super.mul(b);
+			return ScalarField.super.mul(b);
 		}
 
 		@Override
-		public DoubleField3 withNumerator(DoubleField3 b) {
+		public ScalarField withNumerator(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new UniformField(other.value / this.value);
-			return DoubleField3.super.withNumerator(b);
+			return ScalarField.super.withNumerator(b);
 		}
 
 		@Override
-		public DoubleField3 withDenominator(DoubleField3 b) {
+		public ScalarField withDenominator(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new UniformField(this.value / other.value);
-			return DoubleField3.super.withDenominator(b);
+			return ScalarField.super.withDenominator(b);
 		}
 
 		@Override
-		public DoubleField3 mulPos(Vec3 s) {
+		public ScalarField mulPos(Vec3 s) {
 			return this;
 		}
 
 	}
 
-	static DoubleField3 simplexNoise(double seed) {
+	static ScalarField simplexNoise(double seed) {
 		return new SimplexNoiseField(1.0, 1.0, 0.0, seed);
 	}
 
-	final class SimplexNoiseField implements DoubleField3 {
+	final class SimplexNoiseField implements ScalarField {
 		public final double scale;
 		public final double amplitude;
 		public final double offset;
@@ -103,53 +103,53 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 add(DoubleField3 b) {
+		public ScalarField add(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new SimplexNoiseField(scale, amplitude, offset + other.value, seed);
-			return DoubleField3.super.add(b);
+			return ScalarField.super.add(b);
 		}
 
 		@Override
-		public DoubleField3 sub(DoubleField3 b) {
+		public ScalarField sub(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new SimplexNoiseField(scale, amplitude, offset - other.value, seed);
-			return DoubleField3.super.sub(b);
+			return ScalarField.super.sub(b);
 		}
 
 		@Override
-		public DoubleField3 mul(DoubleField3 b) {
+		public ScalarField mul(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new SimplexNoiseField(scale, amplitude * other.value, offset * other.value, seed);
-			return DoubleField3.super.mul(b);
+			return ScalarField.super.mul(b);
 		}
 
 		@Override
-		public DoubleField3 withDenominator(DoubleField3 b) {
+		public ScalarField withDenominator(ScalarField b) {
 			if (b instanceof UniformField other)
 				return new SimplexNoiseField(scale, amplitude / other.value, offset / other.value, seed);
-			return DoubleField3.super.withDenominator(b);
+			return ScalarField.super.withDenominator(b);
 		}
 
 		@Override
-		public DoubleField3 mulPos(double s) {
+		public ScalarField mulPos(double s) {
 			return new SimplexNoiseField(scale * s, amplitude, offset, seed);
 		}
 	}
 
-	default DoubleField3 add(double value) {
+	default ScalarField add(double value) {
 		return add(uniform(value));
 	}
 
-	default DoubleField3 add(DoubleField3 b) {
+	default ScalarField add(ScalarField b) {
 		if (b instanceof UniformField ub && ub.value == 0.0)
 			return this;
 		return new Add(this, b);
 	}
 
-	final class Add implements DoubleField3 {
-		public final DoubleField3 a, b;
+	final class Add implements ScalarField {
+		public final ScalarField a, b;
 
-		public Add(DoubleField3 a, DoubleField3 b) {
+		public Add(ScalarField a, ScalarField b) {
 			this.a = a;
 			this.b = b;
 		}
@@ -160,7 +160,7 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 optimize() {
+		public ScalarField optimize() {
 			final var na = this.a.optimize();
 			final var nb = this.b.optimize();
 
@@ -175,7 +175,7 @@ public interface DoubleField3 {
 
 			// add(add(a, b), c)
 			if (this.a instanceof Add other && !(this.b instanceof Add)) {
-				final DoubleField3 a = other.a, b = other.b, c = this.b;
+				final ScalarField a = other.a, b = other.b, c = this.b;
 				if (a instanceof UniformField u0 && c instanceof UniformField u1)
 					return new Add(b, uniform(u0.value + u1.value));
 				if (b instanceof UniformField u0 && c instanceof UniformField u1)
@@ -184,7 +184,7 @@ public interface DoubleField3 {
 
 			// add(sub(a, b), c)
 			if (this.a instanceof Sub other && !(this.b instanceof Add)) {
-				final DoubleField3 a = other.a, b = other.b, c = this.b;
+				final ScalarField a = other.a, b = other.b, c = this.b;
 				if (a instanceof UniformField u0 && c instanceof UniformField u1)
 					return new Sub(uniform(u0.value + u1.value), b);
 				if (b instanceof UniformField u0 && c instanceof UniformField u1)
@@ -193,7 +193,7 @@ public interface DoubleField3 {
 
 			// add(a, add(b, c))
 			if (this.b instanceof Add other && !(this.a instanceof Add)) {
-				final DoubleField3 a = this.a, b = other.a, c = other.b;
+				final ScalarField a = this.a, b = other.a, c = other.b;
 				if (a instanceof UniformField u0 && b instanceof UniformField u1)
 					return new Add(c, uniform(u0.value + u1.value));
 				if (a instanceof UniformField u0 && c instanceof UniformField u1)
@@ -202,7 +202,7 @@ public interface DoubleField3 {
 
 			// add(a, sub(b, c))
 			if (this.b instanceof Sub other && !(this.a instanceof Add)) {
-				final DoubleField3 a = this.a, b = other.a, c = other.b;
+				final ScalarField a = this.a, b = other.a, c = other.b;
 				if (a instanceof UniformField u0 && b instanceof UniformField u1)
 					return new Sub(uniform(u0.value + u1.value), c);
 				if (a instanceof UniformField u0 && c instanceof UniformField u1)
@@ -277,20 +277,20 @@ public interface DoubleField3 {
 		}
 	}
 
-	default DoubleField3 sub(double value) {
+	default ScalarField sub(double value) {
 		return sub(uniform(value));
 	}
 
-	default DoubleField3 sub(DoubleField3 b) {
+	default ScalarField sub(ScalarField b) {
 		if (b instanceof UniformField ub && ub.value == 0.0)
 			return this;
 		return new Sub(this, b);
 	}
 
-	final class Sub implements DoubleField3 {
-		public final DoubleField3 a, b;
+	final class Sub implements ScalarField {
+		public final ScalarField a, b;
 
-		public Sub(DoubleField3 a, DoubleField3 b) {
+		public Sub(ScalarField a, ScalarField b) {
 			this.a = a;
 			this.b = b;
 		}
@@ -301,27 +301,27 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 optimize() {
+		public ScalarField optimize() {
 			// turn (a - b) into (a + (0 - b)) because Add's optimize can deal with this
 			// case. This prevents code duplication here.
 			return this.a.add(uniform(0).sub(this.b)).optimize();
 		}
 	}
 
-	default DoubleField3 mul(double value) {
+	default ScalarField mul(double value) {
 		return mul(uniform(value));
 	}
 
-	default DoubleField3 mul(DoubleField3 b) {
+	default ScalarField mul(ScalarField b) {
 		if (b instanceof UniformField ub && ub.value == 1.0)
 			return this;
 		return new Mul(this, b);
 	}
 
-	final class Mul implements DoubleField3 {
-		public final DoubleField3 a, b;
+	final class Mul implements ScalarField {
+		public final ScalarField a, b;
 
-		public Mul(DoubleField3 a, DoubleField3 b) {
+		public Mul(ScalarField a, ScalarField b) {
 			this.a = a;
 			this.b = b;
 		}
@@ -332,7 +332,7 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 optimize() {
+		public ScalarField optimize() {
 			final var na = this.a.optimize();
 			final var nb = this.b.optimize();
 			if (na instanceof UniformField ua && na instanceof UniformField ub) {
@@ -343,30 +343,30 @@ public interface DoubleField3 {
 		}
 	}
 
-	default DoubleField3 withDenominator(double value) {
+	default ScalarField withDenominator(double value) {
 		return withDenominator(uniform(value));
 	}
 
-	default DoubleField3 withDenominator(DoubleField3 b) {
+	default ScalarField withDenominator(ScalarField b) {
 		if (b instanceof UniformField ub && ub.value == 1.0)
 			return this;
 		return new Div(this, b);
 	}
 
-	default DoubleField3 withNumerator(double value) {
+	default ScalarField withNumerator(double value) {
 		return withNumerator(uniform(value));
 	}
 
-	default DoubleField3 withNumerator(DoubleField3 b) {
+	default ScalarField withNumerator(ScalarField b) {
 		if (b instanceof UniformField ub && ub.value == 1.0)
 			return this;
 		return new Div(b, this);
 	}
 
-	final class Div implements DoubleField3 {
-		public final DoubleField3 a, b;
+	final class Div implements ScalarField {
+		public final ScalarField a, b;
 
-		public Div(DoubleField3 a, DoubleField3 b) {
+		public Div(ScalarField a, ScalarField b) {
 			this.a = a;
 			this.b = b;
 		}
@@ -377,7 +377,7 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 optimize() {
+		public ScalarField optimize() {
 			final var na = this.a.optimize();
 			final var nb = this.b.optimize();
 			if (na instanceof UniformField ua && na instanceof UniformField ub) {
@@ -387,11 +387,11 @@ public interface DoubleField3 {
 		}
 	}
 
-	default DoubleField3 withBase(double b) {
+	default ScalarField withBase(double b) {
 		return withBase(uniform(b));
 	}
 
-	default DoubleField3 withBase(DoubleField3 b) {
+	default ScalarField withBase(ScalarField b) {
 		if (b instanceof UniformField ub && ub.value == 0.0)
 			return uniform(0);
 		if (b instanceof UniformField ub && ub.value == 1.0)
@@ -399,11 +399,11 @@ public interface DoubleField3 {
 		return new Pow(b, this);
 	}
 
-	default DoubleField3 withExponent(double b) {
+	default ScalarField withExponent(double b) {
 		return withExponent(uniform(b));
 	}
 
-	default DoubleField3 withExponent(DoubleField3 b) {
+	default ScalarField withExponent(ScalarField b) {
 		if (b instanceof UniformField ub && ub.value == 0.0)
 			return uniform(1.0);
 		if (b instanceof UniformField ub && ub.value == 1.0)
@@ -411,10 +411,10 @@ public interface DoubleField3 {
 		return new Pow(this, b);
 	}
 
-	final class Pow implements DoubleField3 {
-		public final DoubleField3 base, exponent;
+	final class Pow implements ScalarField {
+		public final ScalarField base, exponent;
 
-		public Pow(DoubleField3 base, DoubleField3 exponent) {
+		public Pow(ScalarField base, ScalarField exponent) {
 			this.base = base;
 			this.exponent = exponent;
 		}
@@ -425,7 +425,7 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 optimize() {
+		public ScalarField optimize() {
 			final var na = this.base.optimize();
 			final var nb = this.exponent.optimize();
 			if (na instanceof UniformField ua && na instanceof UniformField ub) {
@@ -435,19 +435,19 @@ public interface DoubleField3 {
 		}
 	}
 
-	default DoubleField3 mulPos(double value) {
+	default ScalarField mulPos(double value) {
 		return mulPos(Vec3.broadcast(value));
 	}
 
-	default DoubleField3 mulPos(Vec3 s) {
+	default ScalarField mulPos(Vec3 s) {
 		return new MulPos(this, s);
 	}
 
-	final class MulPos implements DoubleField3 {
-		public final DoubleField3 a;
+	final class MulPos implements ScalarField {
+		public final ScalarField a;
 		public final Vec3 s;
 
-		public MulPos(DoubleField3 a, Vec3 s) {
+		public MulPos(ScalarField a, Vec3 s) {
 			this.a = a;
 			this.s = s;
 		}
@@ -458,43 +458,43 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 mulPos(Vec3 s) {
+		public ScalarField mulPos(Vec3 s) {
 			return new MulPos(this.a, this.s.mul(s));
 		}
 	}
 
-	default DoubleField3 min(double value) {
+	default ScalarField min(double value) {
 		return min(uniform(value));
 	}
 
-	default DoubleField3 min(DoubleField3 value) {
+	default ScalarField min(ScalarField value) {
 		return clamp(uniform(Double.NEGATIVE_INFINITY), value);
 	}
 
-	default DoubleField3 max(double value) {
+	default ScalarField max(double value) {
 		return max(uniform(value));
 	}
 
-	default DoubleField3 max(DoubleField3 value) {
+	default ScalarField max(ScalarField value) {
 		return clamp(value, uniform(Double.POSITIVE_INFINITY));
 	}
 
-	default DoubleField3 clamp() {
+	default ScalarField clamp() {
 		return clamp(0, 1);
 	}
 
-	default DoubleField3 clamp(double min, double max) {
+	default ScalarField clamp(double min, double max) {
 		return clamp(uniform(min), uniform(max));
 	}
 
-	default DoubleField3 clamp(DoubleField3 min, DoubleField3 max) {
+	default ScalarField clamp(ScalarField min, ScalarField max) {
 		return new Clamp(this, min, max);
 	}
 
-	static class Clamp implements DoubleField3 {
-		public DoubleField3 a, min, max;
+	static class Clamp implements ScalarField {
+		public ScalarField a, min, max;
 
-		public Clamp(DoubleField3 a, DoubleField3 min, DoubleField3 max) {
+		public Clamp(ScalarField a, ScalarField min, ScalarField max) {
 			this.a = a;
 			this.min = min;
 			this.max = max;
@@ -510,18 +510,18 @@ public interface DoubleField3 {
 
 	}
 
-	default DoubleField3 lerp(double min, double max) {
+	default ScalarField lerp(double min, double max) {
 		return lerp(uniform(min), uniform(max));
 	}
 
-	default DoubleField3 lerp(DoubleField3 min, DoubleField3 max) {
+	default ScalarField lerp(ScalarField min, ScalarField max) {
 		return new Lerp(this, min, max);
 	}
 
-	final class Lerp implements DoubleField3 {
-		public final DoubleField3 t, a, b;
+	final class Lerp implements ScalarField {
+		public final ScalarField t, a, b;
 
-		public Lerp(DoubleField3 t, DoubleField3 a, DoubleField3 b) {
+		public Lerp(ScalarField t, ScalarField a, ScalarField b) {
 			this.t = t;
 			this.a = a;
 			this.b = b;
@@ -536,7 +536,7 @@ public interface DoubleField3 {
 		}
 
 		@Override
-		public DoubleField3 optimize() {
+		public ScalarField optimize() {
 			final var nt = this.t.optimize();
 			final var na = this.a.optimize();
 			final var nb = this.b.optimize();
@@ -546,11 +546,11 @@ public interface DoubleField3 {
 		}
 	}
 
-	default DoubleField3 neg() {
+	default ScalarField neg() {
 		return uniform(0).sub(this);
 	}
 
-	static DoubleField3 spokes(double spokeCount, double spokeCurveExponent) {
+	static ScalarField spokes(double spokeCount, double spokeCurveExponent) {
 		return (x, y, z) -> {
 			final var pos = new Vec3(x, y, z);
 			final var angleFromCenter = Math.atan2(pos.x, pos.z);
@@ -559,7 +559,7 @@ public interface DoubleField3 {
 		};
 	}
 
-	default DoubleField3 spiralAboutY(double spiralFactor, double radius) {
+	default ScalarField spiralAboutY(double spiralFactor, double radius) {
 		return (x, y, z) -> {
 			final var len = Math.sqrt(x * x + z * z) / radius;
 			final var angle = 2.0 * Math.PI * spiralFactor * Math.pow(1.0 - len, 2.0);
@@ -579,7 +579,7 @@ public interface DoubleField3 {
 	 *               becomes 0.
 	 * @return
 	 */
-	static DoubleField3 sphereCloud(double radius) {
+	static ScalarField sphereCloud(double radius) {
 		return (x, y, z) -> {
 			final var length = Math.sqrt(x * x + y * y + z * z);
 			return (double) Math.max(0, 1 - length / radius);
@@ -593,7 +593,7 @@ public interface DoubleField3 {
 	// };
 	// }
 
-	static DoubleField3 sdfPoint(Vec3Access P) {
+	static ScalarField sdfPoint(Vec3Access P) {
 		return (x, y, z) -> {
 			final var dx = Math.pow(P.x() - x, 2.0);
 			final var dy = Math.pow(P.y() - y, 2.0);
@@ -616,7 +616,7 @@ public interface DoubleField3 {
 	// };
 	// }
 
-	static DoubleField3 sdfLineSegment(final Vec3 a, final Vec3 b) {
+	static ScalarField sdfLineSegment(final Vec3 a, final Vec3 b) {
 		return (x, y, z) -> {
 			final var v = new Vec3(x, y, z);
 			final var ab = b.sub(a);
@@ -657,36 +657,61 @@ public interface DoubleField3 {
 	 *          be greater than 0.
 	 * @return The remapped field.
 	 */
-	default DoubleField3 sdfCloud(double r) {
+	default ScalarField sdfCloud(double r) {
 		return (x, y, z) -> {
 			final var n = this.sample(x, y, z);
 			return 1.0 - Mth.clamp(n / r, 0, 1);
 		};
 	}
 
-	static DoubleField3 sphereMask(double radius) {
+	static ScalarField sphereMask(double radius) {
 		final var r2 = radius * radius;
 		return (x, y, z) -> x * x + y * y + z * z > r2 ? 0 : 1;
 	}
 
 	// larger values for falloff mean a less prominent falloff. a falloff of 1 means
 	// that the falloff starts at the origin.
-	static DoubleField3 verticalDisc(double radius, double height, double falloffRadius) {
+	static ScalarField verticalDisc(double radius, double height, double falloffRadius) {
 		final var rFalloff = radius / falloffRadius;
-
-		final double densityAtFalloffH = 0.01;
-		final double k = height / Math.log(1.0 / densityAtFalloffH);
 
 		return (x, y, z) -> {
 			final var projectedLen = Math.sqrt(x * x + z * z);
-			var hf = Math.exp(-Math.abs(y) / k);
+			var hf = Math.pow(0.01, Math.abs(y / height));
 			var rf = Mth.clamp((radius - projectedLen) / rFalloff, 0, 1);
 			return rf * hf;
 		};
 	}
 
-	static DoubleField3 cylinderMask(double radius, double height) {
+	static ScalarField cylinderMask(double radius, double height) {
 		final var r2 = radius * radius;
 		return (x, y, z) -> x * x + z * z > r2 || y > height || y < -height ? 0 : 1;
 	}
+
+	// @formatter:off
+	static ScalarField add(ScalarField a, ScalarField b) { return a.add(b); }
+	static ScalarField add(ScalarField a, double b) { return a.add(uniform(b)); }
+	static ScalarField add(double a, ScalarField b) { return uniform(a).add(b); }
+	static ScalarField add(double a, double b) { return uniform(a).add(uniform(b)); }
+
+	static ScalarField sub(ScalarField a, ScalarField b) { return a.sub(b); }
+	static ScalarField sub(ScalarField a, double b) { return a.sub(uniform(b)); }
+	static ScalarField sub(double a, ScalarField b) { return uniform(a).sub(b); }
+	static ScalarField sub(double a, double b) { return uniform(a).sub(uniform(b)); }
+
+	static ScalarField mul(ScalarField a, ScalarField b) { return a.mul(b); }
+	static ScalarField mul(ScalarField a, double b) { return a.mul(uniform(b)); }
+	static ScalarField mul(double a, ScalarField b) { return uniform(a).mul(b); }
+	static ScalarField mul(double a, double b) { return uniform(a).mul(uniform(b)); }
+
+	static ScalarField div(ScalarField a, ScalarField b) { return a.withDenominator(b); }
+	static ScalarField div(ScalarField a, double b) { return a.withDenominator(uniform(b)); }
+	static ScalarField div(double a, ScalarField b) { return uniform(a).withDenominator(b); }
+	static ScalarField div(double a, double b) { return uniform(a).withDenominator(uniform(b)); }
+
+	static ScalarField pow(ScalarField a, ScalarField b) { return a.withExponent(b); }
+	static ScalarField pow(ScalarField a, double b) { return a.withExponent(uniform(b)); }
+	static ScalarField pow(double a, ScalarField b) { return uniform(a).withExponent(b); }
+	static ScalarField pow(double a, double b) { return uniform(a).withExponent(uniform(b)); }
+	// @formatter:on
+
 }

@@ -245,7 +245,8 @@ public class ModChunkGenerator extends ChunkGenerator {
 			rng.pop();
 		}
 
-		out.surfaceHeight += height;
+		final var gravityScale = this.gravity < 1 ? 2.0 - Math.pow(this.gravity, 2.0) : Math.pow(this.gravity, -2.0);
+		out.surfaceHeight += height * 0.5 * gravityScale;
 	}
 
 	@Override
@@ -254,7 +255,7 @@ public class ModChunkGenerator extends ChunkGenerator {
 		final var rng = new SplittableRng(this.seed);
 		info.surfaceHeight = 0;
 		calculateSurfaceHeight(info, rng, x, z);
-		final var height = blockHeight(info.surfaceHeight);
+		final var height = blockHeight(info.surfaceHeight, heightAccessor.getHeight());
 
 		final var minY = heightAccessor.getMinBuildHeight();
 		final var maxY = heightAccessor.getMaxBuildHeight();
@@ -273,7 +274,7 @@ public class ModChunkGenerator extends ChunkGenerator {
 		final var rng = new SplittableRng(this.seed);
 		info.surfaceHeight = 0;
 		calculateSurfaceHeight(info, rng, x, z);
-		final var height = blockHeight(info.surfaceHeight);
+		final var height = blockHeight(info.surfaceHeight, heightAccessor.getHeight());
 
 		final var minY = heightAccessor.getMinBuildHeight();
 		final var column = new BlockState[height - minY + 1];
@@ -313,6 +314,7 @@ public class ModChunkGenerator extends ChunkGenerator {
 
 		// -32k to 32k seems like a good enough range :p
 		final var heights = new short[16 * 16];
+		final var chunkHeight = chunk.getHeight();
 
 		final SurfaceColumnInfo info = new SurfaceColumnInfo(makeLevelParameters());
 		final var rng = new SplittableRng(this.seed);
@@ -323,7 +325,7 @@ public class ModChunkGenerator extends ChunkGenerator {
 				final var bz = chunk.getPos().getBlockZ(z);
 				calculateSurfaceHeight(info, rng, bx, bz);
 
-				final var height = blockHeight(info.surfaceHeight);
+				final var height = blockHeight(info.surfaceHeight, chunkHeight);
 				// clamp just in case~
 				heights[(z << 4) | x] = (short) Mth.clamp(height, Short.MIN_VALUE, Short.MAX_VALUE);
 			}
@@ -354,8 +356,8 @@ public class ModChunkGenerator extends ChunkGenerator {
 
 	}
 
-	private int blockHeight(double height) {
-		return 128 + Mth.floor(height);
+	private int blockHeight(double height, int buildHeight) {
+		return Mth.clamp(128 + Mth.floor(height), 10, buildHeight - 10);
 	}
 
 	private BlockState stateForDepth(int depth) {

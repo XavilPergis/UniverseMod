@@ -6,6 +6,7 @@ import java.util.Random;
 
 import org.lwjgl.glfw.GLFW;
 
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -29,7 +30,8 @@ public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
 	public boolean handleKeypress(Keypress keypress) {
 		if (keypress.keyCode == GLFW.GLFW_KEY_P && keypress.hasModifiers(GLFW.GLFW_MOD_CONTROL)) {
 			this.galaxyRenderingContext.close();
-			final var df = GalaxyType.SPIRAL.createDensityFields(13000, new Random());
+			final var rng = new SplittableRng(new Random().nextLong());
+			final var df = GalaxyType.SPIRAL.createDensityFields(13000, rng);
 			this.galaxyRenderingContext = new GalaxyRenderingContext(df);
 			return true;
 		}

@@ -6,6 +6,8 @@ import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
+import net.xavil.hawklib.Constants;
+import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.math.Quat;
@@ -69,17 +71,11 @@ public final class SpaceStation {
 		this.prevPos = pos;
 		this.pos = this.location.getPos();
 
-		// final double speed_c = 10000;
-		// final double speed_ly_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s *
-		// Units.Tu_PER_u * Units.ly_PER_Tm);
-		// this.jump.travel(speed_ly_PER_s / Constants.Tick_PER_s);
-
-		// if (this.jumpInfo != null) {
-		// this.jumpInfo.tick();
-		// if (this.jumpInfo.complete()) {
-		// setJumpInfo(null);
-		// }
-		// }
+		if (this.location instanceof StationLocation.JumpingSystem jump) {
+			final double speed_c = 10000;
+			final double speed_ly_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s * Units.Tu_PER_u * Units.ly_PER_Tm);
+			jump.travel(speed_ly_PER_s / Constants.Tick_PER_s);
+		}
 	}
 
 	public Vec3 getPos(float partialTick) {
@@ -98,9 +94,8 @@ public final class SpaceStation {
 		if (this.location.isJump())
 			return;
 		final var jump = StationLocation.JumpingSystem.create(this.universe, this.location, id).unwrapOrNull();
-		if (jump != null) {
+		if (jump != null)
 			setLocation(jump);
-		}
 	}
 
 	// public static CompoundTag toNbt(SpaceStation station) {

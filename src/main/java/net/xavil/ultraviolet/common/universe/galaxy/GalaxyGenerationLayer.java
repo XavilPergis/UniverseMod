@@ -2,7 +2,6 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public abstract class GalaxyGenerationLayer {
@@ -17,15 +16,13 @@ public abstract class GalaxyGenerationLayer {
 
 	public static final class Context {
 		public final Galaxy galaxy;
-		public final Rng rng;
 		public final SectorPos pos;
 		public final int level;
 		public final Vec3 volumeMin;
 		public final Vec3 volumeMax;
 
-		public Context(Galaxy galaxy, Rng rng, SectorPos pos) {
+		public Context(Galaxy galaxy, SectorPos pos) {
 			this.galaxy = galaxy;
-			this.rng = rng;
 			this.pos = pos;
 			this.level = pos.level();
 			this.volumeMin = pos.minBound();

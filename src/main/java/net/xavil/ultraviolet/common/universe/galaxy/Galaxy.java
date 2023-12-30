@@ -1,13 +1,9 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
-
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
-import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
@@ -15,14 +11,20 @@ import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.universegen.system.CelestialNode;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class Galaxy {
 
 	public static class Info {
-		public GalaxyType type;
-		public double ageMya;
+		public final GalaxyType type;
+		public final long seed;
+		public final double ageMya;
+
+		public Info(GalaxyType type, long seed, double ageMya) {
+			this.type = type;
+			this.seed = seed;
+			this.ageMya = ageMya;
+		}
 
 		public double maxMetallicity() {
 			return 0.2;
@@ -30,11 +32,11 @@ public class Galaxy {
 	}
 
 	public final Universe parentUniverse;
-	public final Info info;
 	public final DensityFields densityFields;
+	public final Info info;
 	public final UniverseSectorId galaxyId;
 
-	private final List<GalaxyGenerationLayer> generationLayers = new ArrayList<>();
+	private final Vector<GalaxyGenerationLayer> generationLayers = new Vector<>();
 
 	public final SectorManager sectorManager = new SectorManager(this);
 
@@ -48,18 +50,15 @@ public class Galaxy {
 	}
 
 	public void addGenerationLayer(GalaxyGenerationLayer layer) {
-		for (final var other : this.generationLayers) {
+		for (final var other : this.generationLayers.iterable()) {
 			if (other.layerId == layer.layerId) {
 				Mod.LOGGER.warn("tried to insert a galaxy generation layer with id {}, but it was already inserted!",
 						layer.layerId);
 				return;
 			}
 		}
-		this.generationLayers.add(layer);
-	}
-
-	private long sectorSeed(SectorPos pos) {
-		return FastHasher.withSeed(this.parentUniverse.getCommonUniverseSeed()).append(pos).currentHash();
+		this.generationLayers.reserveExact(1);
+		this.generationLayers.push(layer);
 	}
 
 	public void tick(ProfilerFiller profiler) {
@@ -67,8 +66,7 @@ public class Galaxy {
 	}
 
 	public void generateSectorElements(GalaxySector.PackedElements out, SectorPos pos) {
-		final var random = Rng.wrap(new Random(sectorSeed(pos)));
-		final var ctx = new GalaxyGenerationLayer.Context(this, random, pos);
+		final var ctx = new GalaxyGenerationLayer.Context(this, pos);
 
 		for (int i = 0; i < this.generationLayers.size(); ++i) {
 			final var genLayer = this.generationLayers.get(i);

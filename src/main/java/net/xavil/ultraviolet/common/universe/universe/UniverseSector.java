@@ -10,7 +10,7 @@ public final class UniverseSector {
 	public final Vec3i pos;
 	public volatile ImmutableList<InitialElement> initialElements = null;
 
-	public record InitialElement(Vec3 pos, Galaxy.Info info, long seed) {
+	public record InitialElement(Vec3 pos, Galaxy.Info info) {
 	}
 
 	public UniverseSector(Vec3i pos) {

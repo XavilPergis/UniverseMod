@@ -14,6 +14,8 @@ public final class GalaxySector {
 	// level 0 is the smallest (base) size.
 	// 0 -> 7, resulting in 8 total levels
 	public static final int ROOT_LEVEL = 7;
+	// the total amount of subsectors contained within the space a single root
+	// sector occupies.
 	public static final int SUBSECTORS_PER_ROOT_SECTOR;
 	public static final double BASE_SIZE_Tm = 10.0 / Units.ly_PER_Tm;
 	public static final double ROOT_SIZE_Tm = sizeForLevel(ROOT_LEVEL);
@@ -251,7 +253,7 @@ public final class GalaxySector {
 		// NOTE: position is stored relative to `sectorOrigin`
 		// x y z age mass luminosity temperature
 		private float[] floatBuffer = null;
-		// systemseed
+		// generationlayer systemseed:systemseed
 		private int[] intBuffer = null;
 
 		private int size = 0, capacity = 0;
@@ -268,7 +270,7 @@ public final class GalaxySector {
 			return this.capacity;
 		}
 
-		public void load(ElementHolder out, int i) {
+		public ElementHolder load(ElementHolder out, int i) {
 			int fi = i * FLOAT_ELEMENT_COUNT;
 			out.systemPosTm.x = this.floatBuffer[fi++] + this.sectorOrigin.x;
 			out.systemPosTm.y = this.floatBuffer[fi++] + this.sectorOrigin.y;
@@ -281,6 +283,7 @@ public final class GalaxySector {
 			out.generationLayer = this.intBuffer[li++];
 			out.systemSeed = (long) this.intBuffer[li++];
 			out.systemSeed |= ((long) this.intBuffer[li++]) << 32;
+			return out;
 		}
 
 		public void store(ElementHolder in, int i) {

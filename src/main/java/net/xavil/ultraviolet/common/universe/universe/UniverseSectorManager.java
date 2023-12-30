@@ -53,48 +53,6 @@ public final class UniverseSectorManager {
 		}
 	}
 
-	// private final class SectorSlot {
-	// public final UniverseSector sector;
-	// public int referenceCount = 0;
-	// public boolean isGenerationQueued = false;
-
-	// // these fields need synchronization
-	// public boolean isGenerated = false;
-	// public final MutableList<ThreadSignal> listeners = new Vector<>();
-	// public final MutableSet<GalaxySlot> waitingGalaxies = MutableSet.hashSet();
-
-	// public SectorSlot(Vec3i coords) {
-	// this.sector = new UniverseSector(coords);
-	// }
-
-	// public synchronized void addGenerationListener(ThreadSignal listener) {
-	// if (this.isGenerated) {
-	// listener.signal();
-	// } else {
-	// this.listeners.push(listener);
-	// }
-	// }
-
-	// public synchronized void addWaitingGalaxy(GalaxySlot slot) {
-	// if (!this.isGenerated)
-	// this.waitingGalaxies.insert(slot);
-	// }
-
-	// public synchronized void notifyGenerationFinished() {
-	// this.isGenerated = true;
-	// this.listeners.forEach(listener -> listener.signal());
-	// this.listeners.clear();
-	// this.waitingGalaxies.forEach(slot -> slot.sectorGenerationListener.signal());
-	// }
-
-	// public synchronized Iterator<GalaxySlot> drainWaiting(Consumer<GalaxySlot>
-	// consumer) {
-	// final var set = MutableSet.hashSet(this.waitingGalaxies);
-	// this.waitingGalaxies.clear();
-	// return set.iter();
-	// }
-	// }
-
 	private final class SectorSlot {
 		public int referenceCount = 0;
 
@@ -273,8 +231,8 @@ public final class UniverseSectorManager {
 		// galaxies are not always unloaded when their ticket is removed.
 
 		profiler.popPush("load");
-		sectorsToLoad.forEach(pos -> this.sectorMap.entry(pos).orInsertWith(SectorSlot::new).load());
-		galaxiesToLoad.forEach(id -> this.galaxyMap.entry(id).orInsertWith(GalaxySlot::new).load());
+		sectorsToLoad.forEach(pos -> this.sectorMap.entry(pos).orInsertWithKey(SectorSlot::new).load());
+		galaxiesToLoad.forEach(id -> this.galaxyMap.entry(id).orInsertWithKey(GalaxySlot::new).load());
 
 		profiler.popPush("unload");
 		galaxiesToUnload.forEach(id -> this.galaxyMap.get(id).ifSome(slot -> slot.unload()));

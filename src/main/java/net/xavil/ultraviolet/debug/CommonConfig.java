@@ -60,7 +60,7 @@ public final class CommonConfig {
 	public <T> Maybe<T> setGlobal(ConfigKey<T> key, T value) {
 		final var hadPrevious = this.globalSlots.containsKey(key.keyId);
 		@SuppressWarnings("unchecked")
-		final var slot = (Slot<T>) this.globalSlots.entry(key.keyId).orInsertWith(k -> new Slot<>(key));
+		final var slot = (Slot<T>) this.globalSlots.entry(key.keyId).orInsertWithKey(k -> new Slot<>(key));
 
 		final var oldValue = slot.value;
 		slot.value = value;
@@ -75,14 +75,14 @@ public final class CommonConfig {
 			// 		player.getGameProfile().getName());
 			// return Maybe.none();
 		}
-		final var slots = this.playerSlots.entry(player.getUUID()).orInsertWith(k -> MutableMap.hashMap());
+		final var slots = this.playerSlots.entry(player.getUUID()).orInsertWithKey(k -> MutableMap.hashMap());
 		final var hadPrevious = slots.containsKey(key.keyId);
 		@SuppressWarnings("unchecked")
-		final var slot = (Slot<T>) slots.entry(key.keyId).orInsertWith(k -> new Slot<>(key));
+		final var slot = (Slot<T>) slots.entry(key.keyId).orInsertWithKey(k -> new Slot<>(key));
 
 		final var oldValue = slot.value;
 		slot.value = value;
-		this.dirtyPlayerSlots.entry(player.getUUID()).orInsertWith(k -> MutableSet.hashSet()).insert(key.keyId);
+		this.dirtyPlayerSlots.entry(player.getUUID()).orInsertWithKey(k -> MutableSet.hashSet()).insert(key.keyId);
 		return hadPrevious ? Maybe.some(oldValue) : Maybe.none();
 	}
 

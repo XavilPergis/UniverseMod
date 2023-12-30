@@ -4,8 +4,10 @@ import java.lang.reflect.Array;
 
 import javax.annotation.Nullable;
 
+import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.impl.ImmutableListArray;
+import net.xavil.hawklib.collections.impl.ListUtil;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 
@@ -19,13 +21,20 @@ public interface ImmutableList<T> extends ImmutableCollection, IntoIterator<T> {
 	 */
 	T get(int index);
 
+	// this is the only method that really need be overridden to optimize the whole
+	// family of "last" methods.
+	default T lastOrThrow() {
+		ListUtil.checkBounds(0, size(), true);
+		return this.get(this.size() - 1);
+	}
+
 	default Maybe<T> last() {
-		return isEmpty() ? Maybe.none() : Maybe.some(get(size() - 1));
+		return isEmpty() ? Maybe.none() : Maybe.some(lastOrThrow());
 	}
 
 	@Nullable
 	default T lastOrNull() {
-		return isEmpty() ? null : this.get(this.size() - 1);
+		return isEmpty() ? null : lastOrThrow();
 	}
 
 	static <T> ImmutableList<T> copyOf(ImmutableList<T> other) {
@@ -37,8 +46,9 @@ public interface ImmutableList<T> extends ImmutableCollection, IntoIterator<T> {
 	default T[] toArray(Class<T> innerType) {
 		@SuppressWarnings("unchecked")
 		final T[] elems = (T[]) Array.newInstance(innerType, this.size());
-		for (int i = 0; i < this.size(); ++i)
-			elems[i] = this.get(i);
+		final var writtenCount = this.iter().fillArray(elems);
+		Assert.isEqual(writtenCount, this.size(),
+				"iterator did not yield the same amount of elements as the list contained!!");
 		return elems;
 	}
 

@@ -55,8 +55,10 @@ vec3 shadeCelestialObject(inout FragmentInfo frag, in GasGiant node) {
 	// n = min(1.0, n);
 	n = (2.0 / PI) * atan(n);
 
+	// n = 2.0 * abs(frag.normalM.y);
+
 	vec4 baseColor = texture(node.colorGradient, n);
-    return applyLighting(Material(baseColor.rgb * baseColor.a, baseColor.rgb, 1.0, 0.0, false), frag);
+    return applyLighting(Material(baseColor.rgb * baseColor.a * 3.0, baseColor.rgb, 1.0, 0.0, false), frag);
     // return applyLighting(Material(baseColor.rgb * baseColor.a, baseColor.rgb, 1.0, 1.0, false), frag);
     // return applyLighting(Material(vec3(baseColor.r) * baseColor.a, vec3(baseColor.r), baseColor.g, baseColor.b, false), frag);
 	// return vec3(n);

@@ -1,5 +1,7 @@
 package net.xavil.hawklib.math;
 
+import net.minecraft.util.Mth;
+
 public final class ColorHsva {
 
 	public float h, s, v, a;
@@ -13,6 +15,10 @@ public final class ColorHsva {
 
 	public ColorHsva(float h, float s, float v) {
 		this(h, s, v, 1f);
+	}
+
+	public static ColorHsva toRgba(ColorRgba c) {
+		return fromRgba(c.r, c.g, c.b, c.a);
 	}
 
 	// https://www.cs.rit.edu/~ncs/color/t_convert.html
@@ -41,8 +47,32 @@ public final class ColorHsva {
 		return new ColorHsva(h, s, v, a);
 	}
 
-	public ColorRgba toRgba() {
-		return ColorRgba.fromHsva(h, s, v, a);
+	public static ColorRgba toRgba(ColorHsva c) {
+		return toRgba(c.h, c.s, c.v, c.a);
+	}
+
+	// https://www.cs.rit.edu/~ncs/color/t_convert.html
+	public static ColorRgba toRgba(float h, float s, float v, float a) {
+		if (s == 0) {
+			// achromatic (grey)
+			return new ColorRgba(v, v, v, a);
+		}
+
+		h /= 60; // sector 0 to 5
+		final int i = Mth.floor(h);
+		final float f = h - i; // fractional part of h
+		final float p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
+
+		switch (i) {
+			// @formatter:off
+			case 0:  return new ColorRgba(v, t, p, a);
+			case 1:  return new ColorRgba(q, v, p, a);
+			case 2:  return new ColorRgba(p, v, t, a);
+			case 3:  return new ColorRgba(p, q, v, a);
+			case 4:  return new ColorRgba(t, p, v, a);
+			default: return new ColorRgba(v, p, q, a);
+			// @formatter:on
+		}
 	}
 
 }

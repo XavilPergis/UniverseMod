@@ -12,6 +12,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import net.minecraft.core.Position;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
@@ -200,17 +201,17 @@ public final class Vec3 implements Hashable, Vec3Access {
 				Math.max(a.z, b.z));
 	}
 
-	public static Vec3 random(Random random, Vec3 min, Vec3 max) {
-		var x = random.nextDouble(min.x, max.x);
-		var y = random.nextDouble(min.y, max.y);
-		var z = random.nextDouble(min.z, max.z);
+	public static Vec3 random(SplittableRng rng, Vec3 min, Vec3 max) {
+		var x = rng.uniformDouble("x", min.x, max.x);
+		var y = rng.uniformDouble("y", min.y, max.y);
+		var z = rng.uniformDouble("z", min.z, max.z);
 		return new Vec3(x, y, z);
 	}
 
-	public static Vec3 random(Rng random, Vec3 min, Vec3 max) {
-		var x = random.uniformDouble(min.x, max.x);
-		var y = random.uniformDouble(min.y, max.y);
-		var z = random.uniformDouble(min.z, max.z);
+	public static Vec3 random(Rng rng, Vec3 min, Vec3 max) {
+		var x = rng.uniformDouble(min.x, max.x);
+		var y = rng.uniformDouble(min.y, max.y);
+		var z = rng.uniformDouble(min.z, max.z);
 		return new Vec3(x, y, z);
 	}
 

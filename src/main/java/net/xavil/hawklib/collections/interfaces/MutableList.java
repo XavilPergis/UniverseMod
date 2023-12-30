@@ -9,6 +9,7 @@ import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.collections.CollectionHint;
 import net.xavil.hawklib.collections.SortingStrategy;
+import net.xavil.hawklib.collections.impl.ListUtil;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.impl.proxy.MutableListProxy;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
@@ -48,6 +49,11 @@ public interface MutableList<T> extends MutableCollection, ImmutableList<T> {
 	 */
 	T remove(int index);
 
+	@Override
+	default void clear() {
+		retain(x -> false);
+	}
+
 	/**
 	 * Tests all elements in this list, removing any that failed the predicate.
 	 * 
@@ -77,12 +83,22 @@ public interface MutableList<T> extends MutableCollection, ImmutableList<T> {
 		this.insert(0, value);
 	}
 
+	default T popOrThrow() {
+		ListUtil.checkBounds(0, this.size(), true);
+		return this.remove(this.size() - 1);
+	}
+
+	default T popFrontOrThrow() {
+		ListUtil.checkBounds(0, this.size(), true);
+		return this.remove(0);
+	}
+
 	default Maybe<T> pop() {
-		return this.isEmpty() ? Maybe.none() : Maybe.some(this.remove(this.size() - 1));
+		return this.isEmpty() ? Maybe.none() : Maybe.some(popOrThrow());
 	}
 
 	default Maybe<T> popFront() {
-		return this.isEmpty() ? Maybe.none() : Maybe.some(this.remove(0));
+		return this.isEmpty() ? Maybe.none() : Maybe.some(popFrontOrThrow());
 	}
 
 	/**
@@ -93,11 +109,11 @@ public interface MutableList<T> extends MutableCollection, ImmutableList<T> {
 	 *         list was empty
 	 */
 	default T popOrNull() {
-		return this.isEmpty() ? null : this.remove(this.size() - 1);
+		return this.isEmpty() ? null : popOrThrow();
 	}
 
 	default T popFrontOrNull() {
-		return this.isEmpty() ? null : this.remove(0);
+		return this.isEmpty() ? null : popFrontOrThrow();
 	}
 
 	/**

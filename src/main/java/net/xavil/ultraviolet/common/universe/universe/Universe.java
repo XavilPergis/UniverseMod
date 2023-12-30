@@ -7,6 +7,7 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxyType;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
@@ -144,51 +145,45 @@ public abstract class Universe implements Disposable {
 		return 3.88;
 	}
 
-	private final long sectorSeed(Vec3i volumeCoords) {
-		return FastHasher.withSeed(getCommonUniverseSeed()).append(volumeCoords).currentHash();
-	}
-
-	private final long galaxySeed(UniverseSectorId id) {
-		return FastHasher.withSeed(sectorSeed(id.sectorPos())).appendInt(id.id()).currentHash();
-	}
-
 	public final ImmutableList<UniverseSector.InitialElement> generateSectorElements(Vec3i volumeCoords) {
+		final var rng = new SplittableRng(this.getCommonUniverseSeed());
+		rng.advanceWith(volumeCoords.hash());
+
 		final var volumeMin = volumeCoords.lowerCorner().mul(VOLUME_LENGTH_ZM);
-		final var volumeMax = volumeMin.add(VOLUME_LENGTH_ZM, VOLUME_LENGTH_ZM, VOLUME_LENGTH_ZM);
+		final var volumeMax = volumeCoords.upperCorner().mul(VOLUME_LENGTH_ZM);
 
 		final var elements = new Vector<UniverseSector.InitialElement>();
-		final var random = new Random(sectorSeed(volumeCoords));
 
-		final var maxDensity = ATTEMPT_COUNT / (VOLUME_LENGTH_ZM * VOLUME_LENGTH_ZM * VOLUME_LENGTH_ZM);
+		final var maxDensity = ATTEMPT_COUNT / Math.pow(VOLUME_LENGTH_ZM, 3);
 		for (var i = 0; i < ATTEMPT_COUNT; ++i) {
-			final var galaxyPos = Vec3.random(random, volumeMin, volumeMax);
+			rng.advance();
+			final var galaxyPos = Vec3.random(rng, volumeMin, volumeMax);
 			final var density = sampleDensity(galaxyPos);
-			if (density >= random.nextDouble(0, maxDensity)) {
-				final var id = new UniverseSectorId(volumeCoords, elements.size());
-				final var info = generateGalaxyInfo();
-				final var seed = galaxySeed(id);
-				elements.push(new UniverseSector.InitialElement(galaxyPos, info, seed));
+			if (density >= rng.uniformDouble("density", 0, maxDensity)) {
+				final var info = generateGalaxyInfo(rng);
+				elements.push(new UniverseSector.InitialElement(galaxyPos, info));
 			}
 		}
 
 		return elements;
 	}
 
-	public final Galaxy.Info generateGalaxyInfo() {
-		final var random = new Random(getCommonUniverseSeed());
-
-		final var info = new Galaxy.Info();
-		final var typeIndex = random.nextInt(GalaxyType.values().length);
-		info.type = GalaxyType.values()[typeIndex];
-		// info.type = GalaxyType.ELLIPTICAL;
-		info.ageMya = random.nextInt(100, 10000);
-
-		return info;
+	public final Galaxy.Info generateGalaxyInfo(SplittableRng rng) {
+		// final var galaxyType = rng.uniformEnum("type", GalaxyType.class);
+		// final var galaxyType = GalaxyType.ELLIPTICAL;
+		final var galaxyType = GalaxyType.SPIRAL;
+		final var seed = rng.uniformLong("seed");
+		final var age = rng.uniformDouble("age", 100, 10000);
+		return new Galaxy.Info(galaxyType, seed, age);
 	}
 
 	public final Galaxy generateGalaxy(UniverseSectorId galaxyId, Galaxy.Info info) {
-		final var random = new Random(getCommonUniverseSeed());
-		return new Galaxy(this, galaxyId, info, info.type.createDensityFields(info.ageMya, random));
+		final var rng = new SplittableRng(getCommonUniverseSeed());
+		rng.advanceWith(galaxyId.sectorPos().x);
+		rng.advanceWith(galaxyId.sectorPos().y);
+		rng.advanceWith(galaxyId.sectorPos().z);
+		rng.advanceWith(galaxyId.id());
+		return new Galaxy(this, galaxyId, info, info.type.createDensityFields(info.ageMya, rng));
 	}
 
 }

@@ -5,6 +5,7 @@ import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
+// srgb color, can be either linear or non-linear depending on context.
 public final class ColorRgba implements ColorAccess, Hashable {
 
 	public static final ColorRgba TRANSPARENT = new ColorRgba(0, 0, 0, 0);
@@ -39,16 +40,32 @@ public final class ColorRgba implements ColorAccess, Hashable {
 	}
 
 	// @override:off
-	@Override public float r() { return this.r; }
-	@Override public float g() { return this.g; }
-	@Override public float b() { return this.b; }
-	@Override public float a() { return this.a; }
+	@Override
+	public float r() {
+		return this.r;
+	}
+
+	@Override
+	public float g() {
+		return this.g;
+	}
+
+	@Override
+	public float b() {
+		return this.b;
+	}
+
+	@Override
+	public float a() {
+		return this.a;
+	}
 	// @override:on
 
 	public static final class Mutable {
 		public float r, g, b, a;
 
-		public Mutable() {}
+		public Mutable() {
+		}
 
 		public Mutable(float r, float g, float b, float a) {
 			this.r = r;
@@ -91,30 +108,6 @@ public final class ColorRgba implements ColorAccess, Hashable {
 		float r = (rgba & 0xff) / 255f;
 		rgba >>>= 8;
 		return new ColorRgba(r, g, b, a);
-	}
-
-	// https://www.cs.rit.edu/~ncs/color/t_convert.html
-	public static ColorRgba fromHsva(float h, float s, float v, float a) {
-		if (s == 0) {
-			// achromatic (grey)
-			return new ColorRgba(v, v, v, a);
-		}
-
-		h /= 60; // sector 0 to 5
-		final int i = Mth.floor(h);
-		final float f = h - i; // fractional part of h
-		final float p = v * (1 - s), q = v * (1 - s * f), t = v * (1 - s * (1 - f));
-
-		switch (i) {
-			// @formatter:off
-			case 0:  return new ColorRgba(v, t, p, a);
-			case 1:  return new ColorRgba(q, v, p, a);
-			case 2:  return new ColorRgba(p, v, t, a);
-			case 3:  return new ColorRgba(p, q, v, a);
-			case 4:  return new ColorRgba(t, p, v, a);
-			default: return new ColorRgba(v, p, q, a);
-			// @formatter:on
-		}
 	}
 
 	public ColorHsva toHsva() {
@@ -185,6 +178,26 @@ public final class ColorRgba implements ColorAccess, Hashable {
 	@Override
 	public void appendHash(Hasher hasher) {
 		hasher.appendFloat(this.r).appendFloat(this.g).appendFloat(this.b).appendFloat(this.a);
+	}
+
+	private static float powf(float a, float b) {
+		return (float) Math.pow(a, b);
+	}
+
+	public static float gamma(float c) {
+		return c <= 0.0031308 ? 12.92f * c : 1.055f * powf(c, 1f / 2.4f) - 0.055f;
+	}
+
+	public static float degamma(float c) {
+		return c <= 0.04045f ? c / 12.92f : powf((c + 0.055f) / 1.055f, 2.4f);
+	}
+
+	public static ColorRgba linearToSrgb(ColorRgba c) {
+		return new ColorRgba(gamma(c.r), gamma(c.g), gamma(c.b), c.a);
+	}
+
+	public static ColorRgba srgbToLinear(ColorRgba c) {
+		return new ColorRgba(degamma(c.r), degamma(c.g), degamma(c.b), c.a);
 	}
 
 }

@@ -39,6 +39,7 @@ public class GalaxyRenderingContext implements Disposable {
 	private void buildGalaxyPoints(DensityFields densityFields, double metersPerUnit) {
 		if (!needsRebuild(metersPerUnit))
 			return;
+		this.isInitialized = true;
 
 		final var rng = Rng.wrap(new Random());
 
@@ -55,7 +56,7 @@ public class GalaxyRenderingContext implements Disposable {
 		for (var i = 0; i < initialDensitySampleCount; ++i) {
 			// density is specified in Tm^-3 (ie, number of stars per cubic terameter)
 			Vec3.loadRandom(samplePos, rng, volumeMin, volumeMax);
-			final var density = densityFields.stellarDensity.sample(samplePos);
+			var density = densityFields.stellarDensity.sample(samplePos);
 
 			if (density > highestSeenDensity)
 				highestSeenDensity = density;
@@ -78,13 +79,13 @@ public class GalaxyRenderingContext implements Disposable {
 			final var density = densityFields.stellarDensity.sample(samplePos);
 
 			if (density >= rng.uniformDouble(0, 0.1 * averageDensity)) {
-				double maxT = 2.0 / Math.PI * Math.atan(density / averageDensity);
+				double maxT = 2.0 / Math.PI * Math.atan(10.0 * density / averageDensity);
 				double t = rng.uniformDouble(0, maxT);
 				// size = Math.max(size, 2e7);
 				// size = Mth.clamp(size, 5e6, 7e7);
 				// size = Mth.clamp(size, 1e7, 1e7);
 				t = Mth.clamp(t, 0, 1);
-				double size = Mth.lerp(t, 5e6, 5e7);
+				double size = Mth.lerp(t, 1e7, 1e8);
 				size = size * (1e12 / metersPerUnit);
 				builder.vertex(samplePos).color(ColorRgba.WHITE.withA(0.1f)).uv0((float) size, 0).endVertex();
 				successfulPlacements += 1;
@@ -92,7 +93,6 @@ public class GalaxyRenderingContext implements Disposable {
 		}
 
 		this.pointsBuffer.upload(builder.end());
-		this.isInitialized = true;
 
 		Mod.LOGGER.info("built galaxy dust buffer: {} placements, density in [{},{}]", successfulPlacements,
 				lowestSeenDensity, highestSeenDensity);
@@ -116,7 +116,10 @@ public class GalaxyRenderingContext implements Disposable {
 	}
 
 	public void draw(CachedCamera camera, Vec3 originOffset) {
-		buildGalaxyPoints(this.densityFields, camera.metersPerUnit);
+		try {
+			buildGalaxyPoints(this.densityFields, camera.metersPerUnit);
+		} catch (Throwable t) {
+		}
 
 		final var snapshot = RenderMatricesSnapshot.capture();
 		camera.applyProjection();

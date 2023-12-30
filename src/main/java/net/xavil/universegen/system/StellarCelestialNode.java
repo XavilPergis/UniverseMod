@@ -68,7 +68,9 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 	public static double temperature(double radiusRsol, double luminosityLsol) {
 		var r = Units.m_PER_Rsol * radiusRsol;
 		var l = Units.W_PER_Lsol * luminosityLsol;
-		return Math.pow(l / (4 * Math.PI * r * r * Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4), 0.25);
+		var t = Math.pow(l / (4 * Math.PI * r * r * Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4), 0.25);
+		t = Math.min(t, 50000);
+		return t;
 	}
 
 	public static final double NEUTRON_STAR_MIN_INITIAL_MASS_YG = 10 * Units.Yg_PER_Msol;

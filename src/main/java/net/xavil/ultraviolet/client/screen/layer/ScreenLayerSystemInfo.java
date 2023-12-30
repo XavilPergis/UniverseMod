@@ -76,15 +76,15 @@ public class ScreenLayerSystemInfo extends HawkScreen.Layer2d {
 
 				if (node.parentUnaryNode != null) {
 					final var semiMajor = node.parentUnaryNode.orbitalShape.semiMajor();
-					line += String.format(" §7%.2f au§r", semiMajor / Units.Tm_PER_au);
+					line += String.format(", §7%.2f au§r", semiMajor / Units.Tm_PER_au);
 				}
 
-				if (node instanceof StellarCelestialNode) {
-					line += String.format(" §7%.2f M☉§r", node.massYg / Units.Yg_PER_Msol);
+				if (node instanceof StellarCelestialNode starNode) {
+					line += String.format(", §7%.2f M☉§r, §7%.2f L☉§r, §7%.2f K§r", node.massYg / Units.Yg_PER_Msol, starNode.luminosityLsol, starNode.temperature);
 				} else if (node instanceof PlanetaryCelestialNode) {
-					line += String.format(" §7%.2f Mⴲ§r", node.massYg / Units.Yg_PER_Mearth);
+					line += String.format(", §7%.2f Mⴲ§r", node.massYg / Units.Yg_PER_Mearth);
 					if (node.massYg > 0.01 * Units.Yg_PER_Msol) {
-						line += String.format(" §7(%.2f M☉)§r", node.massYg / Units.Yg_PER_Msol);
+						line += String.format(", §7(%.2f M☉)§r", node.massYg / Units.Yg_PER_Msol);
 					}
 				}
 

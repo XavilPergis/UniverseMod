@@ -6,12 +6,12 @@ public class DensityFields {
 	public final double galaxyAge;
 
 	// how many stars per unit volume there are.
-	public final DoubleField3 stellarDensity;
-	public final DoubleField3 minAgeFactor;
-	public final DoubleField3 metallicity;
+	public final ScalarField stellarDensity;
+	public final ScalarField minAgeFactor;
+	public final ScalarField metallicity;
 
-	public DensityFields(double galaxyRadius, double galaxyAge, DoubleField3 stellarDensity,
-			DoubleField3 minAgeFactor, DoubleField3 metallicity) {
+	public DensityFields(double galaxyRadius, double galaxyAge, ScalarField stellarDensity,
+			ScalarField minAgeFactor, ScalarField metallicity) {
 		this.galaxyRadius = galaxyRadius;
 		this.galaxyAge = galaxyAge;
 		this.stellarDensity = stellarDensity;

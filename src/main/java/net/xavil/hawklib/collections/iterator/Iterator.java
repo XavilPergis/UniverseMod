@@ -11,6 +11,8 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nullable;
 
+import org.jetbrains.annotations.NotNull;
+
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 
@@ -135,6 +137,37 @@ public interface Iterator<T> extends IntoIterator<T> {
 			@Override public void forEach(Consumer<? super T> consumer) { iter.forEachRemaining(consumer); }
 		};
 		// @formatter:on
+	}
+
+	default int fillArray(T[] array) {
+		return fillArray(array, 0, array.length);
+	}
+
+	/**
+	 * Writes as many elements yielded from this iterator as can fit in the slice of
+	 * the given array from start (inclusive) to end (exclusive). This method may
+	 * only partially fill the given array.
+	 * 
+	 * @param array The array to write elements to
+	 * @param start The start index (inclusive)
+	 * @param end   The end index (exclusive)
+	 * @return The amount of elements that were written into the array
+	 * 
+	 * @throws IllegalArgumentException when the end index is greater than the array
+	 *                                  length, the start index is greater than the
+	 *                                  end index, or the start or end index is less
+	 *                                  than than 0.
+	 * @throws NullPointerException     when the array is null.
+	 */
+	default int fillArray(@NotNull T[] array, int start, int end) {
+		if (end > array.length || start > end || start < 0 || end < 0)
+			throw new IllegalArgumentException(String.format(
+					"Invalid range bounds of [%d, %d) for array of length %d",
+					start, end, array.length));
+		int i = start;
+		while (i < end && hasNext())
+			array[i++] = next();
+		return i - start;
 	}
 
 	default <C extends MutableList<T>> C collectTo(Supplier<C> listFactory) {
@@ -495,6 +528,11 @@ public interface Iterator<T> extends IntoIterator<T> {
 		public int properties() {
 			return this.source.properties();
 		}
+	}
+
+	@SuppressWarnings("unchecked")
+	default <U> Iterator<T> mapMatching(Class<U> clazz, Function<? super U, ? extends T> mapper) {
+		return map(x -> clazz.isInstance(x) ? mapper.apply((U) x) : x);
 	}
 
 	default <U> Iterator<U> map(Function<? super T, ? extends U> mapper) {

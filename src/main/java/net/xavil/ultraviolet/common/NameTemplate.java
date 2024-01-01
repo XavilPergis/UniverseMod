@@ -13,7 +13,7 @@ import net.xavil.hawklib.Rng;
 public class NameTemplate {
 
 	public static final NameTemplate GALAXY_NAME = NameTemplate.compile("[(<M>d?d?d)(<NGC >dddddd?d?d)]");
-	public static final NameTemplate SECTOR_NAME = NameTemplate.compile("[(BV)(VCV)]?(CV)?(CL)< >^*^*<->^*");
+	public static final NameTemplate SECTOR_NAME = NameTemplate.compile("[(BV)(?VCV)]?(CV?(CL))");
 
 	public static class PatternTable {
 		private final Map<Integer, List<String>> templateMap = new HashMap<>();
@@ -44,9 +44,6 @@ public class NameTemplate {
 
 			DEFAULT.addMappings('S', "cent", "elys", "had", "olymp", "amic", "aquil", "virg", "cet", "ke", "andr");
 			DEFAULT.addMappings('L', "a", "ae", "am", "i", "o", "um", "us", "is");
-
-			// aquilae sector
-			// iman caber
 		}
 
 		private void addMappings(char ch, String... expansions) {

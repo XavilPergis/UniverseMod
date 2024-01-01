@@ -8,8 +8,8 @@ import net.xavil.ultraviolet.common.universe.system.StarSystem;
 // TODO
 public final class CentralBlackHoleGenerationLayer extends GalaxyGenerationLayer {
 
-	public CentralBlackHoleGenerationLayer(Galaxy parentGalaxy, int layerId) {
-		super(parentGalaxy, layerId);
+	public CentralBlackHoleGenerationLayer(Galaxy parentGalaxy) {
+		super(parentGalaxy);
 	}
 
 	@Override

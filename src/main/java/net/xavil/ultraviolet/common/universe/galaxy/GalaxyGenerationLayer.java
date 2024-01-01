@@ -7,11 +7,15 @@ import net.xavil.hawklib.math.matrices.Vec3;
 public abstract class GalaxyGenerationLayer {
 
 	public final Galaxy parentGalaxy;
-	public final int layerId;
+	public int layerId;
 
-	public GalaxyGenerationLayer(Galaxy parentGalaxy, int layerId) {
+	public static final int BASE_LAYER_ID = 0;
+	public static final int STARTING_SYSTEM_LAYER_ID = 1;
+	public static final int STAR_CATALOG_LAYER_ID = 2;
+	public static final int CENTRAL_BLACK_HOLE_LAYER_ID = 3;
+
+	public GalaxyGenerationLayer(Galaxy parentGalaxy) {
 		this.parentGalaxy = parentGalaxy;
-		this.layerId = layerId;
 	}
 
 	public static final class Context {

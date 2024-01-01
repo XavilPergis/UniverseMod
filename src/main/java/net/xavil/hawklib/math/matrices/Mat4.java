@@ -177,6 +177,17 @@ public final class Mat4 implements Hashable, Mat4Access {
 		return new Vec3(x / w, y / w, z / w);
 	}
 
+	public static double mul(Vec3.Mutable out, Mat4Access a, Vec3Access b, double ww) {
+		final var x = (a.r0c0() * b.x()) + (a.r0c1() * b.y()) + (a.r0c2() * b.z()) + (a.r0c3() * ww);
+		final var y = (a.r1c0() * b.x()) + (a.r1c1() * b.y()) + (a.r1c2() * b.z()) + (a.r1c3() * ww);
+		final var z = (a.r2c0() * b.x()) + (a.r2c1() * b.y()) + (a.r2c2() * b.z()) + (a.r2c3() * ww);
+		final var w = (a.r3c0() * b.x()) + (a.r3c1() * b.y()) + (a.r3c2() * b.z()) + (a.r3c3() * ww);
+		out.x = x;
+		out.y = y;
+		out.z = z;
+		return w;
+	}
+
 	public static Mat4 mul(double a, Mat4Access b) {
 		return new Mat4(
 				a * b.r0c0(), a * b.r0c1(), a * b.r0c2(), a * b.r0c3(),

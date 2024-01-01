@@ -1,5 +1,10 @@
 package net.xavil.hawklib;
 
+import java.util.Objects;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 public final class Assert {
 
 	public static RuntimeException failed() {
@@ -48,7 +53,7 @@ public final class Assert {
 	}
 
 	public static void isEqual(Object a, Object b) {
-		if (!a.equals(b))
+		if (!Objects.equals(a, b))
 			failedEquality("eq", a == null ? "<null>" : a.toString(), b == null ? "<null>" : b.toString());
 	}
 
@@ -58,8 +63,15 @@ public final class Assert {
 	}
 
 	public static void isNotEqual(Object a, Object b) {
-		if (a.equals(b))
+		if (Objects.equals(a, b))
 			failedEquality("!eq", a == null ? "<null>" : a.toString(), b == null ? "<null>" : b.toString());
+	}
+
+	@Nonnull
+	public static Object isNotNull(Object a) {
+		if (a == null)
+			throw failed("object was null");
+		return a;
 	}
 
 	// @formatter:off

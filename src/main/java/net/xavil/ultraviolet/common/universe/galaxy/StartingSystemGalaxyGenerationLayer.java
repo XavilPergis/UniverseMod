@@ -33,7 +33,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public StartingSystemGalaxyGenerationLayer(Galaxy parentGalaxy,
 			double systemAge, String systemName,
 			CelestialNode startingNode, int startingNodeId) {
-		super(parentGalaxy, 1);
+		super(parentGalaxy);
 		this.startingNodeId = startingNodeId;
 		this.startingNode = startingNode;
 		this.systemAge = systemAge;
@@ -114,13 +114,13 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		if (!this.startingSystemSectorPos.equals(ctx.pos))
 			return;
 
-		elements.beginWriting(1);
+		elements.reserve(1);
 		final var info = new GalaxySector.ElementHolder();
 		info.loadCopyOf(this.startingSystemInfo);
 		info.generationLayer = this.layerId;
 		elements.store(info, elements.size());
 		this.elementIndex = elements.size();
-		elements.endWriting(1);
+		elements.markWritten(1);
 	}
 
 	public SystemNodeId getStartingSystemId() {
@@ -128,6 +128,11 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		final var systemSectorId = GalaxySectorId.from(this.startingSystemSectorPos, this.elementIndex);
 		final var system = new SystemId(this.parentGalaxy.galaxyId, systemSectorId);
 		return new SystemNodeId(system, this.startingNodeId);
+	}
+
+	public void copyStartingSystemInfo(GalaxySector.ElementHolder out) {
+		chooseStartingLocation();
+		out.loadCopyOf(this.startingSystemInfo);
 	}
 
 	@Override

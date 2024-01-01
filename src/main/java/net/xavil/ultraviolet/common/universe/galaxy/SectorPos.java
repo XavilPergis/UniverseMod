@@ -5,10 +5,11 @@ import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public record SectorPos(int level, Vec3i levelCoords) implements Hashable {
 
-	public static SectorPos fromPos(int level, Vec3 pos) {
+	public static SectorPos fromPos(int level, Vec3Access pos) {
 		return new SectorPos(level, GalaxySector.levelCoordsForPos(level, pos));
 	}
 

@@ -46,17 +46,18 @@ public class Galaxy {
 		this.info = info;
 		this.densityFields = densityFields;
 
-		addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
+		// addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
 	}
 
 	public void addGenerationLayer(GalaxyGenerationLayer layer) {
-		for (final var other : this.generationLayers.iterable()) {
-			if (other.layerId == layer.layerId) {
-				Mod.LOGGER.warn("tried to insert a galaxy generation layer with id {}, but it was already inserted!",
-						layer.layerId);
-				return;
-			}
-		}
+		// for (final var other : this.generationLayers.iterable()) {
+		// 	if (other.layerId == layer.layerId) {
+		// 		Mod.LOGGER.warn("tried to insert a galaxy generation layer with id {}, but it was already inserted!",
+		// 				layer.layerId);
+		// 		return;
+		// 	}
+		// }
+		layer.layerId = this.generationLayers.size();
 		this.generationLayers.reserveExact(1);
 		this.generationLayers.push(layer);
 	}
@@ -77,7 +78,7 @@ public class Galaxy {
 	}
 
 	public GalaxySector.PackedElements generateSectorElements(SectorPos pos) {
-		final var elements = new GalaxySector.PackedElements(pos.minBound());
+		final var elements = new GalaxySector.PackedElements(pos.minBound(), false);
 		generateSectorElements(elements, pos);
 		return elements;
 	}

@@ -20,6 +20,7 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
 import net.xavil.ultraviolet.common.universe.WorldType;
+import net.xavil.ultraviolet.common.universe.galaxy.StarCatalogGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
@@ -389,6 +390,7 @@ public final class ServerUniverse extends Universe {
 
 			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, startingSystem.systemAgeMya,
 					startingSystem.name, startingSystem.rootNode, startingNodeId);
+			galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
 			galaxy.addGenerationLayer(this.startingGenerator);
 			final var startingId = this.startingGenerator.getStartingSystemId();
 

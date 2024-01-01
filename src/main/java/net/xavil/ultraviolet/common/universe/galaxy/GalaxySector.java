@@ -2,9 +2,14 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 
 import java.util.Arrays;
 
+import javax.annotation.Nullable;
+
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.common.NameTemplate;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
@@ -20,12 +25,35 @@ public final class GalaxySector {
 	public static final double BASE_SIZE_Tm = 10.0 / Units.ly_PER_Tm;
 	public static final double ROOT_SIZE_Tm = sizeForLevel(ROOT_LEVEL);
 
+	// public static final long SECTOR_NAME_SEED = 621;
+	// public static final int SECTOR_NAME_CHOICE_COUNT = 256;
+	// public static final String[][] SECTOR_NAME_CHOICES;
+	// public static final NameTemplate SECTOR_NAME_TEMPLATE =
+	// NameTemplate.compile("[(BV)(?VCV)]?(CV?(CL))");
+
 	static {
 		int subsectorTotal = 0;
 		for (int i = 0; i <= ROOT_LEVEL; ++i)
 			subsectorTotal += sectorsPerRootSector(i);
 		SUBSECTORS_PER_ROOT_SECTOR = subsectorTotal;
+
+		// SECTOR_NAME_CHOICES = new String[ROOT_LEVEL + 1][SECTOR_NAME_CHOICE_COUNT];
+		// final var rng = new SplittableRng(SECTOR_NAME_SEED);
+		// for (int i = 0; i <= SECTOR_NAME_CHOICES.length; ++i) {
+		// final var levelTable = SECTOR_NAME_CHOICES[i];
+		// rng.push(i);
+		// for (int j = 0; j <= levelTable.length; ++j) {
+		// levelTable[j] = SECTOR_NAME_TEMPLATE.generate(rng.rng("name"));
+		// rng.advance();
+		// }
+		// rng.pop();
+		// rng.advance();
+		// }
 	}
+
+	// public static String nameForSector(SectorPos pos) {
+	// return Rng.fromSeed(pos.hash()).pick(SECTOR_NAME_CHOICES[pos.level()]);
+	// }
 
 	public static int sectorsPerRootSector(int level) {
 		return 1 << (3 * (ROOT_LEVEL - level));
@@ -153,7 +181,8 @@ public final class GalaxySector {
 			return this.weakReferenceCount <= 0;
 
 		if (this.weakReferenceCount <= 0) {
-			Mod.LOGGER.error("tried to transitively unload sector with weak count of {}.", this.weakReferenceCount);
+			Mod.LOGGER.error("tried to transitively unload sector with weak count of {}. level {}, pos ({}, {}, {})",
+					this.weakReferenceCount, this.level, this.x, this.y, this.z);
 			return true;
 		}
 
@@ -233,6 +262,9 @@ public final class GalaxySector {
 		public double luminosityLsol;
 		public double temperatureK;
 
+		@Nullable
+		public String name;
+
 		public void loadCopyOf(ElementHolder other) {
 			this.systemPosTm = new Vec3.Mutable(other.systemPosTm);
 			this.systemSeed = other.systemSeed;
@@ -241,6 +273,7 @@ public final class GalaxySector {
 			this.massYg = other.massYg;
 			this.luminosityLsol = other.luminosityLsol;
 			this.temperatureK = other.temperatureK;
+			this.name = other.name;
 		}
 	}
 
@@ -256,10 +289,15 @@ public final class GalaxySector {
 		// generationlayer systemseed:systemseed
 		private int[] intBuffer = null;
 
+		// let's hope the overhead here isnt too bad...
+		private final boolean hasNames;
+		private String[] names = null;
+
 		private int size = 0, capacity = 0;
 
-		public PackedElements(Vec3 sectorOrigin) {
+		public PackedElements(Vec3 sectorOrigin, boolean hasNames) {
 			this.sectorOrigin = sectorOrigin;
+			this.hasNames = hasNames;
 		}
 
 		public int size() {
@@ -283,6 +321,9 @@ public final class GalaxySector {
 			out.generationLayer = this.intBuffer[li++];
 			out.systemSeed = (long) this.intBuffer[li++];
 			out.systemSeed |= ((long) this.intBuffer[li++]) << 32;
+			if (this.hasNames) {
+				out.name = this.names[i];
+			}
 			return out;
 		}
 
@@ -299,24 +340,46 @@ public final class GalaxySector {
 			this.intBuffer[li++] = in.generationLayer;
 			this.intBuffer[li++] = (int) (in.systemSeed);
 			this.intBuffer[li++] = (int) (in.systemSeed >>> 32);
+			if (this.hasNames) {
+				this.names[i] = in.name;
+			}
 		}
 
-		public void beginWriting(int requestedSlots) {
+		public void push(ElementHolder in) {
+			reserve(1);
+			store(in, this.size);
+			markWritten(1);
+		}
+
+		public void storeSequence(PackedElements other, int i) {
+			Assert.isLesserOrEqual(other.size + i, this.capacity);
+
+			System.arraycopy(other.floatBuffer, 0, this.floatBuffer, i, FLOAT_ELEMENT_COUNT * other.size);
+			System.arraycopy(other.intBuffer, 0, this.intBuffer, i, INT_ELEMENT_COUNT * other.size);
+			if (this.hasNames && other.hasNames) {
+				System.arraycopy(other.names, 0, this.names, i, other.size);
+			}
+		}
+
+		public void reserve(int requestedSlots) {
 			final var desiredCapacity = this.size + requestedSlots;
 			if (desiredCapacity <= this.capacity)
 				return;
 			if (this.capacity == 0) {
 				this.floatBuffer = new float[FLOAT_ELEMENT_COUNT * requestedSlots];
 				this.intBuffer = new int[INT_ELEMENT_COUNT * requestedSlots];
+				this.names = new String[requestedSlots];
 				this.capacity = requestedSlots;
 			} else {
 				final var newCapacity = Math.max(2 * this.capacity, desiredCapacity);
 				this.floatBuffer = Arrays.copyOf(this.floatBuffer, FLOAT_ELEMENT_COUNT * newCapacity);
 				this.intBuffer = Arrays.copyOf(this.intBuffer, INT_ELEMENT_COUNT * newCapacity);
+				this.names = Arrays.copyOf(this.names, newCapacity);
+				this.capacity = newCapacity;
 			}
 		}
 
-		public void endWriting(int usedSlots) {
+		public void markWritten(int usedSlots) {
 			this.size += usedSlots;
 		}
 
@@ -325,7 +388,11 @@ public final class GalaxySector {
 				this.floatBuffer = Arrays.copyOf(this.floatBuffer, FLOAT_ELEMENT_COUNT * this.size);
 			if (this.intBuffer != null)
 				this.intBuffer = Arrays.copyOf(this.intBuffer, INT_ELEMENT_COUNT * this.size);
+			if (this.names != null)
+				this.names = Arrays.copyOf(this.names, this.size);
+			this.capacity = this.size;
 		}
+
 	}
 
 }

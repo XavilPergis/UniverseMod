@@ -2,6 +2,9 @@ package net.xavil.ultraviolet.common.universe.universe;
 
 import java.util.Random;
 
+import javax.annotation.Nullable;
+
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;

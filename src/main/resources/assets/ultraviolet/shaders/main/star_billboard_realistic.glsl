@@ -81,19 +81,14 @@ vec2 scaleUv(vec2 uv, float scale) {
 }
 
 void main() {
-	// fColor = vertexColor;
-    vec4 s1 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0)));
-	s1 *= vertexColor;
-	// s1 *= 5.0;
-	s1 *= brightnessFactor;
-    // vec4 s2 = texture(uBillboardTexture, saturate(scaleUv(texCoord0, 2.0 / 0.7)));
+    vec4 s1 = texture(uBillboardTexture, saturate(texCoord0));
+	s1.rgb *= mix(vec3(1.0), vertexColor.rgb, 0.7);
+	s1.a *= brightnessFactor;
 
-	vec4 color = vec4(0.0);
-	// color = (1.0 * color) + (1.0 * s1.a * s1);
-	color += s1.a * s1;
-	// color = (1.0 * color) + (1.0 * s2.a * s2);
+	// very slight twinkle, like how atmospheric distortion causes stars to flicker a little bit
+	s1.a *= mix(0.95, 1.05, noiseSimplex(3.0 * uTime, float(billboardID)) * 0.5 + 0.5);
 
-    fColor = color * vertexColor.a;
+    fColor = s1 * vertexColor.a;
 }
 
 #endif

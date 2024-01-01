@@ -333,8 +333,6 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 	}
 
 	public static void blackBodyColorFromTable(Vec3.Mutable out, double temperatureK) {
-		// clamp to 39999 so `fi` is never exactly 1, which would cause an out of bounds
-		// access to BLACK_BODY_COLOR_TABLE
 		final var fi = BLACK_BODY_COLOR_TABLE_SIZE * Math.min(temperatureK, 40000) / 40000;
 		final int i = Mth.floor(fi);
 		final var frac = fi - i;
@@ -342,6 +340,12 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			out.x = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 3];
 			out.y = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 2];
 			out.z = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 1];
+			return;
+		} else if (i < 0) {
+			// what?
+			out.x = BLACK_BODY_COLOR_TABLE[0];
+			out.y = BLACK_BODY_COLOR_TABLE[1];
+			out.z = BLACK_BODY_COLOR_TABLE[2];
 			return;
 		}
 		out.x = Mth.lerp(frac, BLACK_BODY_COLOR_TABLE[3 * i + 0], BLACK_BODY_COLOR_TABLE[3 * i + 3]);

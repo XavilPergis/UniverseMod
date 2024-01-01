@@ -2,7 +2,10 @@ package net.xavil.hawklib;
 
 import java.util.Random;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.math.Interval;
 
 public interface Rng {
@@ -14,6 +17,20 @@ public interface Rng {
 	double uniformDouble(double minBound, double maxBound);
 
 	double normalDouble(double mean, double standardDeviation);
+
+	@Nullable
+	default <T> T pick(ImmutableList<T> elements) {
+		if (elements.isEmpty())
+			return null;
+		return elements.get(this.uniformInt(0, elements.size()));
+	}
+
+	@Nullable
+	default <T> T pick(T[] elements) {
+		if (elements.length == 0)
+			return null;
+		return elements[this.uniformInt(0, elements.length)];
+	}
 
 	default double weightedDouble(double exponent, double minValue, double maxValue) {
 		return Mth.lerp(Math.pow(uniformDouble(), exponent), minValue, maxValue);

@@ -35,7 +35,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public final DensityFields densityFields;
 
 	public BaseGalaxyGenerationLayer(Galaxy parentGalaxy, DensityFields densityFields) {
-		super(parentGalaxy, 0);
+		super(parentGalaxy);
 		this.densityFields = densityFields;
 	}
 
@@ -230,7 +230,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		elem.generationLayer = this.layerId;
 
 		final int startIndex = elements.size();
-		elements.beginWriting(info.starAttemptCount);
+		elements.reserve(info.starAttemptCount);
 
 		int offset = 0;
 		for (int i = 0; i < info.starAttemptCount; ++i) {
@@ -269,7 +269,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			offset += 1;
 		}
 
-		elements.endWriting(offset);
+		elements.markWritten(offset);
 
 		LOGGER.trace("average stellar density: {}", info.averageSectorDensity);
 		LOGGER.trace("star placement attempt count: {}", info.starAttemptCount);

@@ -10,6 +10,13 @@ float pdot(vec3 a, vec3 b) {
 	return max(dot(a, b), 0.0);
 }
 
+// Schlick
+vec3 fresnelFactor(in vec3 dir, in vec3 normal) {
+	float cosTheta = pdot(normal, normalize(-dir));
+	vec3 F0 = vec3(0.04);
+    return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
+}
+
 float fresnelFactor(vec3 viewDir, vec3 normal, float exponent) {
     //get the dot product between the normal and the view direction
     float fresnel = dot(normal, viewDir);

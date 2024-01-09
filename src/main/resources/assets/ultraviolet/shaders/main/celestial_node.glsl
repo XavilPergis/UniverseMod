@@ -76,7 +76,7 @@ vec3 applyLighting(in Material material, in FragmentInfo frag) {
 #include [ultraviolet:main/celestial/gas_giant.glsl]
 #include [ultraviolet:main/celestial/rocky.glsl]
 #include [ultraviolet:main/celestial/elw.glsl]
-// #include [ultraviolet:main/celestial/brown_dwarf.glsl]
+#include [ultraviolet:main/celestial/brown_dwarf.glsl]
 
 #undef ULTRAVIOLET_CELESTIAL_SHADING_IMPLS_
 
@@ -100,6 +100,7 @@ void main() {
 		case NODE_TYPE_STAR_BLACK_HOLE:
 			break;
 		case NODE_TYPE_BROWN_DWARF:
+			color = shadeCelestialObject(fragInfo, BrownDwarf(uRenderingSeed));
 			break;
 		case NODE_TYPE_GAS_GIANT:
 			color = shadeCelestialObject(fragInfo, GasGiant(uRenderingSeed, uGasGiantColorGradient));

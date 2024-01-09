@@ -31,18 +31,33 @@ void emitPoint(vec4 viewPos, float pointSize) {
 	vertexPos = viewPos.xyz;
 }
 
+#define MIN_DISTANCE (0.0)
+#define MAX_DISTANCE (100000.0)
+#define FADEOUT_DISTANCE (5000000.0)
+#define MIN_SIZE (3.0)
+#define MAX_SIZE (15.0)
+
 void main() {
 	vec4 viewPos = uViewMatrix * vec4(aPos, 1.0);
 	float distanceFromCameraTm = length(viewPos.xyz) * (uMetersPerUnit / 1e12);
 
-	float size = 300000.0 / length(viewPos.xyz);
-	size = clamp(size, 3.0, 15.0);
-	// size = 5.0;
-
 	float alpha = 1.0;
 
+	float t = invLerp(distanceFromCameraTm, MIN_DISTANCE, MAX_DISTANCE);
+	if (t > 1) {
+		float t2 = invLerp(distanceFromCameraTm, MAX_DISTANCE, FADEOUT_DISTANCE);
+		t2 = clamp(t2, 0.0, 1.0);
+		t2 = pow(t2, 0.2);
+		alpha *= 1.0 - t2;
+	}
+
+	t = clamp(t, 0.0, 1.0);
+	t = pow(t, 2.0);
+
+	float size = lerp(t, MAX_SIZE, MIN_SIZE);
+
 	emitPoint(viewPos, size);
-	vertexColor = vec4(aColor.rgb, alpha);
+	vertexColor = vec4(alpha * aColor.rgb, 1);
 }
 
 #endif
@@ -56,13 +71,7 @@ void main() {
 		discard;
 
 	vec3 color = vertexColor.rgb;
-
-	// desaturate a bit
-	color += 0.1;
-	color *= 0.9;
-
     fColor = vec4(color, 1.0);
-	// fColor = vec4(1.0, 0.0, 1.0, 1.0);
 }
 
 #endif

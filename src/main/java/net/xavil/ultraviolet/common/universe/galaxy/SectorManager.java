@@ -133,20 +133,12 @@ public final class SectorManager {
 			}
 		}
 
-		// public final MutableMap<SectorPos, CompletableFuture<GalaxySector>>
-		// waitingFutures = MutableMap.hashMap();
 		public final MutableMap<SectorPos, SectorFutures> sectorFutures = MutableMap
 				.hashMap();
 
 		public SectorSlot(Vec3i coords) {
 			this.sector = new GalaxySector(coords);
 		}
-
-		// public CompletableFuture<GalaxySector> getSectorFuture(SectorPos pos) {
-		// return this.waitingFutures.get(pos)
-		// .unwrapOrElse(() ->
-		// CompletableFuture.completedFuture(this.sector.lookupSubtree(pos)));
-		// }
 
 		private boolean isSectorLoaded(SectorPos pos) {
 			final var sector = this.sector.lookupNode(pos);
@@ -160,7 +152,7 @@ public final class SectorManager {
 				return;
 			final var sector = this.sector.lookupNode(pos);
 			if (sector == null) {
-				Mod.LOGGER.error("tried to generate null sector {}", pos);
+				Mod.LOGGER.error("tried to generate sector that was not marked as loaded. ({})", pos);
 				return;
 			}
 
@@ -169,16 +161,22 @@ public final class SectorManager {
 		}
 
 		public boolean unload(SectorPos pos) {
-			final var sector = this.sector.lookupNode(pos);
-			if (sector == null) {
-				Mod.LOGGER.error("tried to remove null sector {}", pos);
-			}
-
 			final var futures = this.sectorFutures.remove(pos).unwrapOrNull();
 			if (futures != null)
 				futures.elementFuture.cancel(false);
 
-			return this.sector.unload(pos);
+			final var sector = this.sector.lookupNode(pos);
+			if (sector != null) {
+				try {
+					return this.sector.unload(pos);
+				} catch (GalaxySector.InvalidUnloadException ex) {
+				}
+			}
+
+			// prevent unloads of non-existent sectors from completely fucking up the
+			// reference counts of its would-be parent sectors.
+			Mod.LOGGER.error("tried to unload sector that was not marked as loaded. ({})", pos);
+			return !this.sector.isLoadedTransitively();
 		}
 	}
 
@@ -370,7 +368,7 @@ public final class SectorManager {
 				if (slot.unload())
 					this.systemMap.remove(id);
 			} else {
-				Mod.LOGGER.error("tried to unload system {} that did not have a system slot", id);
+				Mod.LOGGER.error("tried to unload system that did not have a system slot. ({})", id);
 			}
 		});
 		sectorsToUnload.forEach(pos -> {
@@ -379,8 +377,8 @@ public final class SectorManager {
 				if (slot.unload(pos))
 					this.sectorMap.remove(pos.rootCoords());
 			} else {
-				Mod.LOGGER.error("tried to unload sector {} (root {}) that did not have a sector slot", pos,
-						pos.rootCoords());
+				Mod.LOGGER.error("tried to unload sector that did not have a sector slot. ({}, root {})",
+						pos, pos.rootCoords());
 			}
 		});
 

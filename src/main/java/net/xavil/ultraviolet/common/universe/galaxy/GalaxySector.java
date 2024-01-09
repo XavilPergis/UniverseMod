@@ -65,6 +65,10 @@ public final class GalaxySector {
 		return pos.div(sizeForLevel(level)).floor();
 	}
 
+	public SectorPos sectorPos() {
+		return new SectorPos(this.level, new Vec3i(this.x, this.y, this.z));
+	}
+
 	public final int level;
 	// the sum of all the reference counts for all the descendant of this sector,
 	// including itself. Used for figuring out whether this sector can be unloaded
@@ -101,6 +105,10 @@ public final class GalaxySector {
 
 	public boolean isLoaded() {
 		return this.strongReferenceCount > 0;
+	}
+
+	public boolean isLoadedTransitively() {
+		return this.weakReferenceCount > 0;
 	}
 
 	/**
@@ -165,6 +173,14 @@ public final class GalaxySector {
 		}
 	}
 
+	public static final class InvalidUnloadException extends RuntimeException {
+		public final GalaxySector sector;
+
+		public InvalidUnloadException(GalaxySector sector) {
+			this.sector = sector;
+		}
+	}
+
 	/**
 	 * Unloads the sector at the given sector pos.
 	 * 
@@ -183,12 +199,12 @@ public final class GalaxySector {
 
 		if (this.weakReferenceCount <= 0) {
 			// sectors with a weak count of zero should not have any loaded subsectors, so
-			// trying to unload one of them recursively doesn't make any sense and likely
-			// indicates a double free.
+			// trying to unload one of them recursively doesn't make any sense. This may
+			// indicate a double free, or a free of a subnode that was not ever loaded.
 			Mod.LOGGER.error(
 					"tried to transitively unload sector with weak count of {}. level {}, pos ({}, {}, {})",
 					this.weakReferenceCount, this.level, this.x, this.y, this.z);
-			return true;
+			throw new InvalidUnloadException(this);
 		}
 
 		if (this.level != pos.level() && this.branch != null) {
@@ -205,21 +221,21 @@ public final class GalaxySector {
 				this.branch = null;
 		}
 
-		this.weakReferenceCount -= 1;
-
 		if (pos.level() == this.level) {
-			if (this.strongReferenceCount <= 0)
-				this.elements = null;
 			// we're the target node that's being unloaded... and we're already unloaded!
 			// This is likely caused by a double free.
 			if (this.strongReferenceCount <= 0) {
 				Mod.LOGGER.error(
 						"tried to transitively unload sector with strong count of {}. level {}, pos ({}, {}, {})",
 						this.strongReferenceCount, this.level, this.x, this.y, this.z);
-				return true;
+				throw new InvalidUnloadException(this);
 			}
+			if (this.strongReferenceCount <= 0)
+				this.elements = null;
 			this.strongReferenceCount -= 1;
 		}
+
+		this.weakReferenceCount -= 1;
 
 		return this.weakReferenceCount <= 0;
 	}
@@ -235,10 +251,17 @@ public final class GalaxySector {
 		/** The total number of nodes that are weakly loaded. */
 		public int weaklyLoadedCount;
 		/**
+		 * The total number of nodes that have a non-null {@link GalaxySector#elements}
+		 * array.
+		 */
+		public int populatedCount;
+		/**
 		 * The weak count of the root node. It should equal
-		 * {@link #stronglyLoadedCount}, otherwise there is a bug in the program.
+		 * {@link #trueWeakCount}, otherwise there is a bug in the program.
 		 */
 		public int rootWeakCount;
+		/** The ground truth weak count for the root node. */
+		public int trueWeakCount;
 
 		public int total() {
 			return this.branchCount + this.leafCount;
@@ -254,8 +277,11 @@ public final class GalaxySector {
 	}
 
 	private void gatherDebugInfoInternal(SectorDebugInfo output) {
+		output.trueWeakCount += this.strongReferenceCount;
 		output.stronglyLoadedCount += this.strongReferenceCount > 0 ? 1 : 0;
 		output.weaklyLoadedCount += this.weakReferenceCount > 0 ? 1 : 0;
+		if (this.elements != null)
+			output.populatedCount += 1;
 		if (this.branch != null) {
 			output.branchCount += 1;
 			this.branch.nnn.gatherDebugInfoInternal(output);

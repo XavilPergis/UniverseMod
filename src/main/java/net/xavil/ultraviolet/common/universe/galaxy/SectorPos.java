@@ -39,4 +39,11 @@ public record SectorPos(int level, Vec3i levelCoords) implements Hashable {
 		hasher.appendInt(level).append(levelCoords);
 	}
 
+	@Override
+	public String toString() {
+		return String.format(
+				"#L%d:(%d, %d, %d)",
+				this.level, this.levelCoords.x, this.levelCoords.y, this.levelCoords.z);
+	}
+
 }

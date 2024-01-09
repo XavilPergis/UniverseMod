@@ -336,7 +336,11 @@ public class NewSystemMapScreen extends HawkScreen {
 
 		final var up = new Vec3(1.0, 2.0, 0.0).normalize();
 
-		Mat4.setLookAt(this.backgroundCamera.viewMatrix, Vec3.ZERO, system.pos, up);
+		if (Vec3.ZERO.equals(system.pos)) {
+			Mat4.setLookAt(this.backgroundCamera.viewMatrix, Vec3.ZERO, Vec3.ZP, up);
+		} else {
+			Mat4.setLookAt(this.backgroundCamera.viewMatrix, Vec3.ZERO, system.pos, up);
+		}
 
 		this.backgroundCamera.metersPerUnit = 1e12;
 

@@ -1,5 +1,7 @@
 package net.xavil.hawklib.collections.impl;
 
+import net.xavil.hawklib.collections.interfaces.ImmutableListFloat;
+import net.xavil.hawklib.collections.interfaces.ImmutableListInt;
 import net.xavil.hawklib.collections.interfaces.ImmutableList;
 
 public final class ListUtil {
@@ -23,7 +25,55 @@ public final class ListUtil {
 		return asString(list, BIG_ARRAY_CUTOFF);
 	}
 
+	public static <T> String asString(ImmutableListFloat list) {
+		return asString(list, BIG_ARRAY_CUTOFF);
+	}
+
+	public static <T> String asString(ImmutableListInt list) {
+		return asString(list, BIG_ARRAY_CUTOFF);
+	}
+
 	public static <T> String asString(ImmutableList<T> list, int cutoff) {
+		final var builder = new StringBuilder();
+		builder.append("[");
+		if (list.size() > 0) {
+			builder.append(list.get(0));
+			final var limit = Math.min(list.size(), cutoff);
+			for (int i = 1; i < limit; ++i) {
+				builder.append(", ");
+				builder.append(list.get(i));
+			}
+			if (list.size() > cutoff) {
+				builder.append(", ... <");
+				builder.append(list.size() - cutoff);
+				builder.append(" more>");
+			}
+		}
+		builder.append("]");
+		return builder.toString();
+	}
+
+	public static <T> String asString(ImmutableListFloat list, int cutoff) {
+		final var builder = new StringBuilder();
+		builder.append("[");
+		if (list.size() > 0) {
+			builder.append(list.get(0));
+			final var limit = Math.min(list.size(), cutoff);
+			for (int i = 1; i < limit; ++i) {
+				builder.append(", ");
+				builder.append(list.get(i));
+			}
+			if (list.size() > cutoff) {
+				builder.append(", ... <");
+				builder.append(list.size() - cutoff);
+				builder.append(" more>");
+			}
+		}
+		builder.append("]");
+		return builder.toString();
+	}
+
+	public static <T> String asString(ImmutableListInt list, int cutoff) {
 		final var builder = new StringBuilder();
 		builder.append("[");
 		if (list.size() > 0) {

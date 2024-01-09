@@ -3,15 +3,20 @@ package net.xavil.hawklib;
 import java.util.Objects;
 
 import javax.annotation.Nonnull;
-import javax.annotation.Nullable;
 
 public final class Assert {
 
+	public static void breakpoint() {
+		// [set a breakpoint on this line]
+	}
+
 	public static RuntimeException failed() {
+		breakpoint();
 		throw new AssertionError("assertion failed");
 	}
 
 	public static RuntimeException failed(String message) {
+		breakpoint();
 		throw new AssertionError(String.format(
 				"assertion failed: %s",
 				message));
@@ -24,6 +29,16 @@ public final class Assert {
 
 	public static void isTrue(boolean cond, String message) {
 		if (!cond)
+			throw failed(message);
+	}
+
+	public static void isFalse(boolean cond) {
+		if (cond)
+			throw failed();
+	}
+
+	public static void isFalse(boolean cond, String message) {
+		if (cond)
 			throw failed(message);
 	}
 

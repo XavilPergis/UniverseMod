@@ -304,8 +304,8 @@ public class SkyRenderer implements Disposable {
 				// final var offset = camera.posTm.mul(1e12 / camera.metersPerUnit);
 	
 				modelTfm.push();
-				// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * this.celestialTime));
-				// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+				// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -unaryNode.rotationalRate * time));
+				// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, unaryNode.obliquityAngle));
 				// modelTfm.appendScale(radiusUnits);
 				modelTfm.appendTransform(Mat4.scale(radiusUnits));
 				// modelTfm.appendTranslation(nodePosUnits.mul(camera.metersPerUnit / 1e12));

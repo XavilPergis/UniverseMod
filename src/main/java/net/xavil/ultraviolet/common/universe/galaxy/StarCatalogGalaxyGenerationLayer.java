@@ -134,12 +134,11 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, ElementHolder elem) {
 		final var node = new StellarCelestialNode();
 
-		// node.explicitName = elem.name;
 		node.luminosityLsol = elem.luminosityLsol;
 		node.massYg = elem.massYg;
 		node.temperature = elem.temperatureK;
-		// TODO: guess these values too
-		node.radius = StellarCelestialNode.mainSequenceRadiusFromMass(elem.massYg);
+		node.radius = StellarCelestialNode.radiusFromLuminosityAndTemperature(elem.luminosityLsol, elem.temperatureK);
+		// TODO: guess this value too
 		node.type = StellarCelestialNode.Type.MAIN_SEQUENCE;
 
 		node.build();

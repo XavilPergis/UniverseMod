@@ -2,30 +2,31 @@
 #define ULTRAVIOLET_SAMPLING_H_
 
 vec4 upsampleFilter9Tap(sampler2D tex, vec2 uv, ivec2 srcSize, ivec2 dstSize) {
-	// vec2 texelSizeDst = 1.0 / vec2(dstSize);
-	// vec2 texelSizeSrc = 1.0 / vec2(srcSize);
+	vec2 texelSizeDst = 1.0 / vec2(dstSize);
+	vec2 texelSizeSrc = 1.0 / vec2(srcSize);
 
-	// // vec2 centerSrcTexel = 0.5 * vec2(dstSize) * uv;
-	// // vec2 centerSrc = texelSizeSrc * centerSrcTexel;
+	vec2 centerSrcTexel = 0.5 * vec2(dstSize) * uv;
+	vec2 centerSrc = texelSizeSrc * centerSrcTexel;
 
 	// vec2 centerSrc = 2.0 * uv * vec2(dstSize) / vec2(srcSize);
 
 	// vec2 d = 2.0 * texelSizeSrc;
+	vec2 d = texelSizeSrc;
 
-	// vec4 N = vec4(0.0);
-	// N += texture2D(tex, centerSrc + vec2(-d.x, -d.y)) * 1.0;
-	// N += texture2D(tex, centerSrc + vec2(-d.x,  0.0)) * 2.0;
-	// N += texture2D(tex, centerSrc + vec2(-d.x,  d.y)) * 1.0;
-	// N += texture2D(tex, centerSrc + vec2( 0.0, -d.y)) * 2.0;
-	// N += texture2D(tex, centerSrc + vec2( 0.0,  0.0)) * 4.0;
-	// N += texture2D(tex, centerSrc + vec2( 0.0,  d.y)) * 2.0;
-	// N += texture2D(tex, centerSrc + vec2( d.x, -d.y)) * 1.0;
-	// N += texture2D(tex, centerSrc + vec2( d.x,  0.0)) * 2.0;
-	// N += texture2D(tex, centerSrc + vec2( d.x,  d.y)) * 1.0;
-	// N /= 16.0;
+	vec4 N = vec4(0.0);
+	N += texture2D(tex, centerSrc + vec2(-d.x, -d.y)) * 1.0;
+	N += texture2D(tex, centerSrc + vec2(-d.x,  0.0)) * 2.0;
+	N += texture2D(tex, centerSrc + vec2(-d.x,  d.y)) * 1.0;
+	N += texture2D(tex, centerSrc + vec2( 0.0, -d.y)) * 2.0;
+	N += texture2D(tex, centerSrc + vec2( 0.0,  0.0)) * 4.0;
+	N += texture2D(tex, centerSrc + vec2( 0.0,  d.y)) * 2.0;
+	N += texture2D(tex, centerSrc + vec2( d.x, -d.y)) * 1.0;
+	N += texture2D(tex, centerSrc + vec2( d.x,  0.0)) * 2.0;
+	N += texture2D(tex, centerSrc + vec2( d.x,  d.y)) * 1.0;
+	N /= 16.0;
 
-	// return N;
-	return texture2D(tex, uv);
+	return N;
+	// return texture2D(tex, uv);
 }
 
 // Samples occur as follows. Group A falls in the middle of each destination texel in the

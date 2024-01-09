@@ -45,6 +45,13 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 		return Units.SOL_LIFETIME_MYA * (massMsol / mainSequenceLuminosityFromMass(massYg));
 	}
 
+	public static double radiusFromLuminosityAndTemperature(double luminosityLsol, double temperatureK) {
+		final var L = Units.W_PER_Lsol * luminosityLsol;
+		final var T4 = Math.pow(temperatureK, 4);
+		final var r = Math.sqrt(L / (4 * Math.PI * Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4 * T4));
+		return Units.ku_PER_u * r;
+	}
+
 	public static double mainSequenceLuminosityFromMass(double massYg) {
 		final var massMsol = massYg / Units.Yg_PER_Msol;
 		double luminosityLsol = 0;
@@ -99,9 +106,13 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 				return;
 			}
 
+			// final var massMsol = massYg / Units.Yg_PER_Msol;
+			// return Units.SOL_LIFETIME_MYA * (massMsol / mainSequenceLuminosityFromMass(massYg));	
+			
+			this.luminosityLsol = mainSequenceLuminosityFromMass(massYg);
+
 			this.mainSequenceLifetimeMyr = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
 
-			this.luminosityLsol = mainSequenceLuminosityFromMass(massYg);
 			this.radiusRsol = mainSequenceRadiusFromMass(massYg);
 			this.temperatureK = temperature(this.radiusRsol, this.luminosityLsol);
 

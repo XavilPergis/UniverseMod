@@ -82,7 +82,7 @@ vec2 scaleUv(vec2 uv, float scale) {
 
 void main() {
     vec4 s1 = texture(uBillboardTexture, saturate(texCoord0));
-	s1.rgb *= mix(vec3(1.0), vertexColor.rgb, 0.7);
+	s1.rgb *= mix(vertexColor.rgb, vec3(1.0), 0.2);
 	s1.a *= brightnessFactor;
 
 	// very slight twinkle, like how atmospheric distortion causes stars to flicker a little bit

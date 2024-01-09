@@ -64,7 +64,7 @@ public final class ClientUniverse extends Universe {
 					packet.startingSystemAge,
 					packet.startingSystemName,
 					node, packet.startingId.nodeId());
-			galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
+			// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
 			galaxy.addGenerationLayer(this.startingGenerator);
 			final var startingId = this.startingGenerator.getStartingSystemId();
 

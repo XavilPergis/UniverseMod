@@ -3,7 +3,8 @@
 #include [hawk:vertex/fullscreen.glsl]
 
 #ifdef IS_FRAGMENT_STAGE
-#include [ultraviolet:lib/filtering.glsl]
+#include [ultraviolet:post/bloom/filtering.glsl]
+#include [ultraviolet:lib/util.glsl]
 
 uniform sampler2D uPreviousSampler;
 uniform int uLevel;
@@ -14,14 +15,16 @@ uniform int uQuality;
 // prefiltering
 uniform float uThreshold;
 uniform float uSoftThreshold;
-uniform float uIntensity;
+uniform float uPrefilterIntensity;
+uniform float uPrefilterMaxBrightness;
 
 out vec4 fColor;
 
 #define PREFILTER_BIAS 0.00001
 
 vec3 prefilter(vec3 color) {
-	float brightness = max(color.r, max(color.g, color.b));
+	// float brightness = max(color.r, max(color.g, color.b));
+	float brightness = luma(color);
 	float knee = uThreshold * uSoftThreshold;
 
 	float soft = brightness - uThreshold + knee;
@@ -31,7 +34,7 @@ vec3 prefilter(vec3 color) {
 	float contribution = max(soft, brightness - uThreshold);
 	contribution /= max(brightness, PREFILTER_BIAS);
 
-	return color * contribution;
+	return min(color * contribution, vec3(uPrefilterMaxBrightness));
 }
 
 vec4 downsample() {
@@ -52,7 +55,7 @@ void main() {
 		fColor = vec4(vec3(0.0, 1.0, 0.0), 1.0);
 		return;
 	}
-	if (uLevel == 0) color = uIntensity * prefilter(color);
+	if (uLevel == 0) color = uPrefilterIntensity * prefilter(color);
 	fColor = vec4(color, 1.0);
 }
 

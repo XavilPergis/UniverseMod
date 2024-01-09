@@ -4,12 +4,10 @@ import java.util.Arrays;
 
 import javax.annotation.Nullable;
 
+import net.minecraft.util.VisibleForDebug;
 import net.xavil.hawklib.Assert;
-import net.xavil.hawklib.Rng;
-import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.common.NameTemplate;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
@@ -105,6 +103,9 @@ public final class GalaxySector {
 		return this.strongReferenceCount > 0;
 	}
 
+	/**
+	 * Creates a branch for this node if it did not already have one.
+	 */
 	private void createChildren() {
 		if (this.branch != null || this.level == 0)
 			return;
@@ -181,18 +182,13 @@ public final class GalaxySector {
 			return this.weakReferenceCount <= 0;
 
 		if (this.weakReferenceCount <= 0) {
-			Mod.LOGGER.error("tried to transitively unload sector with weak count of {}. level {}, pos ({}, {}, {})",
+			// sectors with a weak count of zero should not have any loaded subsectors, so
+			// trying to unload one of them recursively doesn't make any sense and likely
+			// indicates a double free.
+			Mod.LOGGER.error(
+					"tried to transitively unload sector with weak count of {}. level {}, pos ({}, {}, {})",
 					this.weakReferenceCount, this.level, this.x, this.y, this.z);
 			return true;
-		}
-
-		this.weakReferenceCount -= 1;
-
-		if (pos.level() == this.level) {
-			Assert.isGreater(this.strongReferenceCount, 0);
-			this.strongReferenceCount -= 1;
-			if (this.strongReferenceCount <= 0)
-				this.elements = null;
 		}
 
 		if (this.level != pos.level() && this.branch != null) {
@@ -209,7 +205,70 @@ public final class GalaxySector {
 				this.branch = null;
 		}
 
+		this.weakReferenceCount -= 1;
+
+		if (pos.level() == this.level) {
+			if (this.strongReferenceCount <= 0)
+				this.elements = null;
+			// we're the target node that's being unloaded... and we're already unloaded!
+			// This is likely caused by a double free.
+			if (this.strongReferenceCount <= 0) {
+				Mod.LOGGER.error(
+						"tried to transitively unload sector with strong count of {}. level {}, pos ({}, {}, {})",
+						this.strongReferenceCount, this.level, this.x, this.y, this.z);
+				return true;
+			}
+			this.strongReferenceCount -= 1;
+		}
+
 		return this.weakReferenceCount <= 0;
+	}
+
+	public static final class SectorDebugInfo {
+		// TODO: add "populated" counter
+		/** The total number of branch nodes. */
+		public int branchCount;
+		/** The total number of leaf nodes. */
+		public int leafCount;
+		/** The total number of nodes that are strongly loaded. */
+		public int stronglyLoadedCount;
+		/** The total number of nodes that are weakly loaded. */
+		public int weaklyLoadedCount;
+		/**
+		 * The weak count of the root node. It should equal
+		 * {@link #stronglyLoadedCount}, otherwise there is a bug in the program.
+		 */
+		public int rootWeakCount;
+
+		public int total() {
+			return this.branchCount + this.leafCount;
+		}
+	}
+
+	@VisibleForDebug
+	public SectorDebugInfo gatherDebugInfo() {
+		final var res = new SectorDebugInfo();
+		res.rootWeakCount = this.weakReferenceCount;
+		gatherDebugInfoInternal(res);
+		return res;
+	}
+
+	private void gatherDebugInfoInternal(SectorDebugInfo output) {
+		output.stronglyLoadedCount += this.strongReferenceCount > 0 ? 1 : 0;
+		output.weaklyLoadedCount += this.weakReferenceCount > 0 ? 1 : 0;
+		if (this.branch != null) {
+			output.branchCount += 1;
+			this.branch.nnn.gatherDebugInfoInternal(output);
+			this.branch.nnp.gatherDebugInfoInternal(output);
+			this.branch.npn.gatherDebugInfoInternal(output);
+			this.branch.npp.gatherDebugInfoInternal(output);
+			this.branch.pnn.gatherDebugInfoInternal(output);
+			this.branch.pnp.gatherDebugInfoInternal(output);
+			this.branch.ppn.gatherDebugInfoInternal(output);
+			this.branch.ppp.gatherDebugInfoInternal(output);
+		} else {
+			output.leafCount += 1;
+		}
 	}
 
 	public GalaxySector lookupNode(SectorPos pos) {

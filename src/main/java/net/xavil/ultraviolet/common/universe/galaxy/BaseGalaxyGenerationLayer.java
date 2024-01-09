@@ -281,7 +281,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	private void generateStarSystemInfo(GalaxySector.ElementHolder elem, StellarCelestialNode.Properties props,
 			GenerationInfo info, SplittableRng rng) {
 		final var minSystemAgeFactor = Math.min(1, info.stellarAge.sample(elem.systemPosTm));
-		final var systemAgeFactor = Math.pow(rng.uniformDouble("age"), 2);
+		final var systemAgeFactor = rng.weightedDouble("age", 0.8);
 		final var systemAgeMyr = this.parentGalaxy.info.ageMya
 				* Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
 

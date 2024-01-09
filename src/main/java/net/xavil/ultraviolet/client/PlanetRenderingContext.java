@@ -38,6 +38,7 @@ import net.xavil.hawklib.math.ColorAccess;
 import net.xavil.hawklib.math.ColorHsva;
 import net.xavil.hawklib.math.ColorOklch;
 import net.xavil.hawklib.math.TransformStack;
+import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
@@ -468,34 +469,99 @@ public final class PlanetRenderingContext implements Disposable {
 		final var clientInfo = makeClientInfoIfNeeded(node);
 		clientInfo.wasUsedThisFrame = true;
 
-		final var shader = UltravioletShaders.SHADER_CELESTIAL_NODE.get();
+		final var nodeShader = UltravioletShaders.SHADER_CELESTIAL_NODE.get();
+		final var pointShader = UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC.get();
 
-		shader.setUniformi("uRenderingSeed", new SplittableRng(node.getId()).uniformInt("seed"));
-		shader.setUniformi("uNodeType", getNodeTypeInt(node));
+		nodeShader.setUniformi("uRenderingSeed", new SplittableRng(node.getId()).uniformInt("seed"));
+		nodeShader.setUniformi("uNodeType", getNodeTypeInt(node));
 
 		if (clientInfo.gasGiantGradient != null) {
-			shader.setUniformSampler("uGasGiantColorGradient", clientInfo.gasGiantGradient);
+			nodeShader.setUniformSampler("uGasGiantColorGradient", clientInfo.gasGiantGradient);
 		}
 
 		if (node instanceof PlanetaryCelestialNode planetNode) {
 		} else if (node instanceof StellarCelestialNode starNode) {
-			shader.setUniformf("uStarColor", starNode.getColor().withA((float) starNode.luminosityLsol));
+			nodeShader.setUniformf("uStarColor", starNode.getColor().withA((float) starNode.luminosityLsol));
 		}
 
-		shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
-		shader.setUniformf("uTime", this.celestialTime);
+		nodeShader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
+		nodeShader.setUniformf("uTime", this.celestialTime);
 
 		transform.push();
 		transform.appendTranslation(this.origin);
-		shader.setUniformf("uModelMatrix", transform.current());
+		nodeShader.setUniformf("uModelMatrix", transform.current());
 		transform.pop();
 
-		BufferRenderer.setupCameraUniforms(shader, camera);
-		BufferRenderer.setupDefaultShaderUniforms(shader);
+		BufferRenderer.setupCameraUniforms(nodeShader, camera);
+		BufferRenderer.setupCameraUniforms(pointShader, camera);
+		BufferRenderer.setupDefaultShaderUniforms(nodeShader);
+		BufferRenderer.setupDefaultShaderUniforms(pointShader);
+		StarRenderManager.setupStarShader(pointShader, camera);
 
 		if (!skip && !(node instanceof StellarCelestialNode starNode
 				&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE)) {
-			this.sphereMesh.draw(shader, DRAW_STATE_OPAQUE);
+
+			final var builder2 = builder.beginGeneric(PrimitiveType.POINT_QUADS,
+					UltravioletVertexFormats.BILLBOARD_FORMAT);
+
+			// final var actualOrigin = this.floatingOrigin;
+
+			// don't render the stars that are behind the camera in immediate mode
+			// if (ctx.isImmediateMode) {
+			// 	Vec3.set(toStar, elem.systemPosTm);
+			// 	Vec3.sub(toStar, toStar, ctx.centerPos);
+			// 	if (toStar.dot(ctx.camera.forward) == 0)
+			// 		return;
+			// }
+
+			// Vec3.sub(elem.systemPosTm, elem.systemPosTm, actualOrigin);
+			// Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
+			// Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 / ctx.camera.metersPerUnit);
+
+
+			// if (this.mode == Mode.REALISTIC) {
+			// 	ctx.builder.vertex(elem.systemPosTm)
+			// 			.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
+			// 			.uv0((float) elem.luminosityLsol, 0)
+			// 			.endVertex();
+			// } else if (this.mode == Mode.MAP) {
+			// 	ctx.builder.vertex(elem.systemPosTm)
+			// 			.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
+			// 			.endVertex();	
+			// }
+
+			// final var nodePos = node.position.sub(camera.posTm).sub(this.origin).div(1e12).div(1e12 / camera.metersPerUnit);
+			// final var nodePos = node.position.sub(camera.posTm).sub(this.origin).div(1e12 / camera.metersPerUnit);
+
+			transform.push();
+			transform.appendTranslation(this.origin);
+			// final var nodePos = Mat4.mul(transform.current(), node.position, 1);
+			final var nodePos = Mat4.mul(transform.current(), Vec3.ZERO, 1);
+			// final var nodePos = node.position.sub(camera.posTm);
+			transform.pop();
+
+			// final var nodePos = node.position.div(1e12 / camera.metersPerUnit);
+
+			if (node instanceof StellarCelestialNode starNode) {
+				builder2.vertex(nodePos)
+						.color(starNode.getColor())
+						.uv0((float) starNode.luminosityLsol, 0)
+						.endVertex();
+			} else {
+				builder2.vertex(nodePos)
+						// TODO: determine color and luminosity from reflected light
+						.color(ColorRgba.WHITE)
+						.uv0(0.0000000018554f, 0)
+						.endVertex();
+			}
+			// builder2.vertex(Vec3.ZN)
+			// 		// TODO: determine color and luminosity from reflected light
+			// 		.color(ColorRgba.RED)
+			// 		.uv0(100000f, 0)
+			// 		.endVertex();
+			builder2.end().draw(pointShader, DRAW_STATE_ADDITIVE_BLENDING);
+
+			this.sphereMesh.draw(nodeShader, DRAW_STATE_OPAQUE);
 		}
 	}
 

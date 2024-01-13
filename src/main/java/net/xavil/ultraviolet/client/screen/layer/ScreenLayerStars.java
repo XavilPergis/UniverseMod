@@ -21,6 +21,7 @@ import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
 import net.xavil.ultraviolet.client.screen.SystemMapScreen;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
+import net.xavil.ultraviolet.client.screen.StarStatisticsScreen;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorPos;
@@ -46,10 +47,10 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		this.originOffset = originOffset;
 		// this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
 		// 		new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP)));
-		// this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
-		// 		new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED)));
 		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
-				new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, new double[] { 1, 4, 8, 16, 32, 64, 128, 256 })));
+				new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED)));
+		// this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
+		// 		new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, new double[] { 1, 4, 8, 16, 32, 64, 128, 256 })));
 		this.starRenderer.setOriginOffset(this.originOffset);
 	}
 
@@ -104,17 +105,19 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				return true;
 			}
 		} else if (keypress.keyCode == GLFW.GLFW_KEY_H) {
-			try (final var disposer = Disposable.scope()) {
-				final var center = this.starRenderer.getSectorTicket().info.centerPos;
-				// final var ticket = this.galaxy.sectorManager.createSectorTicket(disposer, new SectorTicketInfo.Multi(
-				// 		center, 3.0 * GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_UNIFORM));
-				final var ticket = this.starRenderer.getSectorTicket();
-				ticket.attachedManager.forceLoad(ticket);
+			this.client.setScreen(new StarStatisticsScreen(this.screen, this.starRenderer.getSectorTicket()));
 
-				final var survey = new StarSurvey();
-				survey.init(ticket);
-				StarSurvey.printSurvey(survey, msg -> Mod.LOGGER.info("{}", msg));
-			}
+			// try (final var disposer = Disposable.scope()) {
+			// 	final var center = this.starRenderer.getSectorTicket().info.centerPos;
+			// 	// final var ticket = this.galaxy.sectorManager.createSectorTicket(disposer, new SectorTicketInfo.Multi(
+			// 	// 		center, 3.0 * GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_UNIFORM));
+			// 	final var ticket = this.starRenderer.getSectorTicket();
+			// 	ticket.attachedManager.forceLoad(ticket);
+
+			// 	final var survey = new StarSurvey();
+			// 	survey.init(ticket);
+			// 	StarSurvey.printSurvey(survey, msg -> Mod.LOGGER.info("{}", msg));
+			// }
 
 			return true;
 		}

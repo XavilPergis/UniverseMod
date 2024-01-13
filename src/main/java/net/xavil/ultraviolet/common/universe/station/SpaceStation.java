@@ -72,9 +72,9 @@ public final class SpaceStation {
 		this.pos = this.location.getPos();
 
 		if (this.location instanceof StationLocation.JumpingSystem jump) {
-			final double speed_c = 10000;
-			final double speed_ly_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s * Units.Tu_PER_u * Units.ly_PER_Tm);
-			jump.travel(speed_ly_PER_s / Constants.Tick_PER_s);
+			final double speed_c = 1000000000;
+			final double speed_Tm_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s * Units.Tu_PER_u);
+			jump.travel(speed_Tm_PER_s);
 		}
 	}
 

@@ -47,22 +47,7 @@ public class ClientMod implements ClientModInitializer {
 		ModNetworking.addClientboundHandler(ClientboundDebugValueSetPacket.class, CLIENT, ClientConfig::applyPacket);
 
 		HawkRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
-			// @formatter:off
-			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC_LOCATION, AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_STAR_BILLBOARD_UI_LOCATION,        AttributeSet.POSITION_COLOR, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_CELESTIAL_NODE_LOCATION,           AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_RING_LOCATION,                     AttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_GALAXY_PARTICLE_LOCATION,          AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_SKYBOX_LOCATION,                   AttributeSet.POSITION, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_BLIT_LOCATION,                     AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
-			
-			acceptor.accept(UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_BLOOM_UPSAMPLE_LOCATION,   AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_MAIN_POSTPROCESS_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
-
-			acceptor.accept(UltravioletShaders.SHADER_ATMOSPHERE_LOCATION,            AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
-			acceptor.accept(UltravioletShaders.SHADER_GRAVITATIONAL_LENSING_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
-			// @formatter:on
+			UltravioletShaders.registerShaders(acceptor);
 		});
 
 		HawkTextureManager.REGISTER_ATLASES.register(ctx -> {

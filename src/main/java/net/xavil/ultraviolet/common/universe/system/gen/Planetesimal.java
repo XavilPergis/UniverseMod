@@ -6,6 +6,7 @@ import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -135,7 +136,8 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 		final var massYg = this.mass * Units.Yg_PER_Msol;
 		if (this.mass >= 0.08) {
 			// final var stellarProperties = new StellarCelestialNode.Properties();
-			this.stellarProperties.load(massYg, this.ctx.systemAgeMya - this.ctx.currentSystemAgeMya);
+			this.stellarProperties.load(new SplittableRng(this.rng.seed), massYg,
+					this.ctx.systemAgeMya - this.ctx.currentSystemAgeMya);
 			return Units.km_PER_Rsol * this.stellarProperties.radiusRsol;
 		}
 		final var mass_Mearth = Units.Mearth_PER_Yg * massYg;
@@ -186,7 +188,8 @@ public class Planetesimal implements IntoIterator<Planetesimal> {
 		}
 		if (this.sweptGas) {
 			if (massYg >= 0.08 * Units.Yg_PER_Msol) {
-				return StellarCelestialNode.fromMassAndAge(massYg, this.ctx.systemAgeMya);
+				return StellarCelestialNode.fromMassAndAge(new SplittableRng(this.rng.seed), massYg,
+						this.ctx.systemAgeMya);
 			} else if (massYg >= 13 * Units.Yg_PER_Mjupiter) {
 				return new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.BROWN_DWARF, massYg);
 			} else {

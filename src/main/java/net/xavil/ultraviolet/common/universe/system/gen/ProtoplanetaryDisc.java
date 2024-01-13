@@ -10,6 +10,7 @@ import javax.annotation.Nullable;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.SortingStrategy;
@@ -53,7 +54,8 @@ public class ProtoplanetaryDisc {
 		this.root = new Planetesimal(ctx);
 		this.root.sweptGas = true;
 		this.root.mass = ctx.stellarMassMsol;
-		this.root.stellarProperties.load(this.root.mass * Units.Msol_PER_Yg, this.root.age);
+		this.root.stellarProperties.load(new SplittableRng(this.rng.uniformLong("star_props")),
+				this.root.mass * Units.Msol_PER_Yg, this.root.age);
 
 		nextRoguePlanetTime = this.rng.uniformDouble("rogue_planet_time", 0, this.ctx.systemAgeMya);
 		nextPlanetTime = 0;
@@ -70,9 +72,10 @@ public class ProtoplanetaryDisc {
 		final var inclination = rng.weightedDouble("inclination", 8, 0, maxInclination);
 
 		final var planetesimal = Planetesimal.random(this.ctx, semiMajor, inclination);
-		planetesimal.stellarProperties.load(planetesimal.mass * Units.Msol_PER_Yg, planetesimal.age);
+		planetesimal.stellarProperties.load(new SplittableRng(rng.uniformLong("star_props")),
+				planetesimal.mass * Units.Msol_PER_Yg, planetesimal.age);
 		// if (this.dustBands.hasDust(this.planetesimalBounds)) {
-			this.root.addSattelite(planetesimal);
+		this.root.addSattelite(planetesimal);
 		// }
 	}
 
@@ -89,7 +92,8 @@ public class ProtoplanetaryDisc {
 		planetesimal.sweptGas |= planetesimal.mass > Units.Mjupiter_PER_Yg * Units.Yg_PER_Msol
 				|| (planetesimal.canSweepGas() && rng.chance("is_gas_giant", 0.75));
 
-		planetesimal.stellarProperties.load(planetesimal.mass * Units.Msol_PER_Yg, planetesimal.age);
+		planetesimal.stellarProperties.load(new SplittableRng(rng.uniformLong("star_props")),
+				planetesimal.mass * Units.Msol_PER_Yg, planetesimal.age);
 
 		planetesimal.orbitalShape = planetesimal.orbitalShape
 				.withEccentricity(rng.uniformDouble("eccentricity", 0, 0.7));
@@ -151,18 +155,20 @@ public class ProtoplanetaryDisc {
 		return this.root.convertToCelestialNode();
 	}
 
-	// public void transformPlanetesimals(BiConsumer<MutableList<Planetesimal>, MutableList<Planetesimal>> consumer) {
-	// 	this.root.sattelites.sort(SortingStrategy.UNSTABLE,
-	// 			Comparator.comparingDouble(planetesimal -> planetesimal.orbitalShape.semiMajor()));
-	// 	final var prev = new Vector<>(this.root.sattelites);
-	// 	this.root.sattelites.clear();
-	// 	for (final var sattelite : prev.iterable()) {
-	// 		sattelite.satteliteOf = null;
-	// 	}
-	// 	consumer.accept(prev, this.root.sattelites);
-	// 	for (final var sattelite : this.root.sattelites.iterable()) {
-	// 		sattelite.satteliteOf = null;
-	// 	}
+	// public void transformPlanetesimals(BiConsumer<MutableList<Planetesimal>,
+	// MutableList<Planetesimal>> consumer) {
+	// this.root.sattelites.sort(SortingStrategy.UNSTABLE,
+	// Comparator.comparingDouble(planetesimal ->
+	// planetesimal.orbitalShape.semiMajor()));
+	// final var prev = new Vector<>(this.root.sattelites);
+	// this.root.sattelites.clear();
+	// for (final var sattelite : prev.iterable()) {
+	// sattelite.satteliteOf = null;
+	// }
+	// consumer.accept(prev, this.root.sattelites);
+	// for (final var sattelite : this.root.sattelites.iterable()) {
+	// sattelite.satteliteOf = null;
+	// }
 	// }
 
 	private Planetesimal makeBinary(Planetesimal a, Planetesimal b) {
@@ -308,9 +314,9 @@ public class ProtoplanetaryDisc {
 				if (parent != null) {
 					// // always keep the parent mass larger than the current mass
 					// if (swapIfChildLarger(parent, current)) {
-					// 	final var tmp = parent;
-					// 	parent = current;
-					// 	current = tmp;
+					// final var tmp = parent;
+					// parent = current;
+					// current = tmp;
 					// }
 
 					// collision
@@ -432,7 +438,7 @@ public class ProtoplanetaryDisc {
 	public Planetesimal handleCollision(AccreteContext ctx, StableRandom rng, Planetesimal a, Planetesimal b) {
 
 		a.mass += b.mass;
-		a.stellarProperties.load(a.mass * Units.Msol_PER_Yg, a.age);
+		a.stellarProperties.load(new SplittableRng(a.rng.uniformLong("star_props")), a.mass * Units.Msol_PER_Yg, a.age);
 
 		if (a.satteliteOf == b.satteliteOf) {
 			final var newShape = Planetesimal.calculateCombinedOrbitalShape(a, b);

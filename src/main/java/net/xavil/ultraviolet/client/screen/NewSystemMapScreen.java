@@ -11,11 +11,14 @@ import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableMap;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.camera.MotionSmoother;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
@@ -28,6 +31,7 @@ import net.xavil.ultraviolet.client.PlanetRenderingContext;
 import net.xavil.ultraviolet.client.StarRenderManager;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
+import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
@@ -37,11 +41,15 @@ import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.RealisticStarSystemGenerator;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.system.gen.ProtoplanetaryDisc;
+import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
+import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
+import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.math.NumericOps;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Mat4;
@@ -57,12 +65,14 @@ public class NewSystemMapScreen extends HawkScreen {
 	public final Galaxy galaxy;
 	private final SystemTicket ticket;
 
-	public double scale = 3;
+	public MotionSmoother<Double> scale = new MotionSmoother<>(0.6, NumericOps.DOUBLE, 3.0);
+	public MotionSmoother<Vec2> offset = new MotionSmoother<>(0.6, NumericOps.VEC2, Vec2.ZERO);
+	// public double scaleTarget = 3, scale = scaleTarget;
 	public double scaleMin = 0.3, scaleMax = 30;
 	public double scrollMultiplier = 1.2;
-	public Vec2 offset = Vec2.ZERO;
 
 	private double animationTimer = 0.0;
+	private int selectedNode = -1;
 
 	private PlanetRenderingContext renderContext = this.disposer.attach(new PlanetRenderingContext());
 
@@ -99,10 +109,17 @@ public class NewSystemMapScreen extends HawkScreen {
 		public final Vector<LayoutNodeElement> elements = new Vector<>();
 		public double rectOffsetUN, rectOffsetUP;
 		public double rectOffsetVN, rectOffsetVP;
+
+		public abstract CelestialNode getCelestialNode();
 	}
 
 	private static final class LayoutNodeUnary extends LayoutNode {
 		public UnaryCelestialNode celestialNode;
+
+		@Override
+		public CelestialNode getCelestialNode() {
+			return this.celestialNode;
+		}
 	}
 
 	private static final class LayoutNodeBinary extends LayoutNode {
@@ -110,6 +127,12 @@ public class NewSystemMapScreen extends HawkScreen {
 		public LayoutNode nodeA;
 		public double baselineVB;
 		public LayoutNode nodeB;
+		public BinaryCelestialNode celestialNode;
+
+		@Override
+		public CelestialNode getCelestialNode() {
+			return this.celestialNode;
+		}
 	}
 
 	public static final double REFERENCE_RADIUS = Units.km_PER_Rjupiter;
@@ -151,6 +174,7 @@ public class NewSystemMapScreen extends HawkScreen {
 
 	private LayoutNodeBinary layoutBinary(BinaryCelestialNode node) {
 		final var res = new LayoutNodeBinary();
+		res.celestialNode = node;
 
 		if (!node.childNodes.isEmpty()) {
 			res.rectOffsetUN = res.rectOffsetUP = BARYCENTER_MARKER_RADIUS;
@@ -245,6 +269,9 @@ public class NewSystemMapScreen extends HawkScreen {
 			// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, -Math.PI / 16));
 			modelTfm.appendRotation(Quat.axisAngle(Vec3.ZP, Math.PI / 8));
 			modelTfm.appendTransform(Mat4.scale(0.9 * layout.nodeSize));
+			if (this.selectedNode != -1 && layout.getCelestialNode().id == this.selectedNode) {
+				modelTfm.appendTransform(Mat4.scale(1.1));
+			}
 			modelTfm.appendTranslation(pos.xy0());
 
 			this.renderContext.render(BufferRenderer.IMMEDIATE_BUILDER, this.uiCamera, unaryNode.celestialNode,
@@ -344,7 +371,8 @@ public class NewSystemMapScreen extends HawkScreen {
 
 		this.backgroundCamera.metersPerUnit = 1e12;
 
-		final var offset = new Vec3(100 * this.offset.x, -100 * this.offset.y, 0);
+		final var interpolatedOffset = this.offset.get(ctx.partialTick);
+		final var offset = new Vec3(100 * interpolatedOffset.x, -100 * interpolatedOffset.y, 0);
 		Mat4.mulTranslation(this.backgroundCamera.viewMatrix, this.backgroundCamera.viewMatrix, offset);
 
 		final var window = Minecraft.getInstance().getWindow();
@@ -361,6 +389,32 @@ public class NewSystemMapScreen extends HawkScreen {
 
 		// it might be cool to blur the background or something
 		// or like, do some sort of post processing effect
+	}
+
+	private void setupUiCamera(CachedCamera camera, LayoutNode rootLayout, float partialTick) {
+
+		// TODO: only apply offset when first loading this screen, instead of
+		// calculating it every time (might look weird if layout changes)
+		final var rootWidth = rootLayout.rectOffsetUN + rootLayout.rectOffsetUP;
+		final var offset = rootWidth / 2 - rootLayout.rectOffsetUN;
+
+		// setup camera for ortho UI
+		final var window = Minecraft.getInstance().getWindow();
+		final var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
+
+		final double frustumDepth = 400;
+
+		final var projMat = new Mat4.Mutable();
+		final var projLR = aspectRatio * this.scale.get(partialTick);
+		final var projTB = this.scale.get(partialTick);
+		Mat4.setOrthographicProjection(projMat, -projLR, projLR, -projTB, projTB, -frustumDepth, 0);
+
+		final var viewMat = new Mat4.Mutable();
+		viewMat.loadIdentity();
+		viewMat.appendTranslation(this.offset.get(partialTick).add(offset, 0).withZ(-0.5 * frustumDepth));
+		Mat4.invert(viewMat, viewMat);
+
+		camera.load(viewMat, projMat, 1);
 	}
 
 	@Override
@@ -381,28 +435,7 @@ public class NewSystemMapScreen extends HawkScreen {
 		rootNode = rootNode == null ? system.rootNode : rootNode;
 		final var rootLayout = layout(rootNode);
 
-		// TODO: only apply offset when first loading this screen, instead of
-		// calculating it every time (might look weird if layout changes)
-		final var rootWidth = rootLayout.rectOffsetUN + rootLayout.rectOffsetUP;
-		final var offset = rootWidth / 2 - rootLayout.rectOffsetUN;
-
-		// setup camera for ortho UI
-		final var window = Minecraft.getInstance().getWindow();
-		final var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
-
-		final double frustumDepth = 400;
-
-		final var projMat = new Mat4.Mutable();
-		final var projLR = aspectRatio * this.scale;
-		final var projTB = this.scale;
-		Mat4.setOrthographicProjection(projMat, -projLR, projLR, -projTB, projTB, -frustumDepth, 0);
-
-		final var viewMat = new Mat4.Mutable();
-		viewMat.loadIdentity();
-		viewMat.appendTranslation(this.offset.add(offset, 0).withZ(-0.5 * frustumDepth));
-		Mat4.invert(viewMat, viewMat);
-
-		this.uiCamera.load(viewMat, projMat, 1);
+		setupUiCamera(this.uiCamera, rootLayout, ctx.partialTick);
 
 		// draw
 		ctx.currentTexture.framebuffer.bind();
@@ -418,12 +451,101 @@ public class NewSystemMapScreen extends HawkScreen {
 	}
 
 	@Override
+	public void tick() {
+		super.tick();
+		this.scale.tick();
+		this.offset.tick();
+	}
+
+	private record Rect(Vec2 pos, Vec2 size) {
+		public static Rect fromCorners(Vec2 min, Vec2 max) {
+			return new Rect(min, max.sub(min));
+		}
+
+		public boolean contains(Vec2 point) {
+			return point.x >= this.pos.x && point.x < this.pos.x + this.size.x
+					&& point.y >= this.pos.y && point.y < this.pos.y + this.size.y;
+		}
+	}
+
+	private static final class LayoutPositions {
+		// node ID to rect
+		public final MutableMap<Integer, Rect> nodeRects = MutableMap.hashMap();
+	}
+
+	private void computeLayoutPositions(LayoutPositions output, LayoutNode layout, Vec2 pos, boolean isVertical) {
+		final var min = pos.sub(Vec2.broadcast(layout.nodeSize));
+		final var max = pos.add(Vec2.broadcast(layout.nodeSize));
+		final var rect = Rect.fromCorners(min, max);
+
+		output.nodeRects.insert(layout.getCelestialNode().id, rect);
+
+		for (final var elem : layout.elements.iterable()) {
+			final var offsetUV = new Vec2(elem.nodeOffset, 0);
+			final var elemPos = pos.add(transpose(offsetUV, !isVertical));
+			computeLayoutPositions(output, elem.node, elemPos, !isVertical);
+		}
+
+		if (layout instanceof LayoutNodeBinary bnode) {
+			final var offsetAUV = new Vec2(0, -bnode.baselineVA);
+			final var elemPosA = pos.add(transpose(offsetAUV, !isVertical));
+			computeLayoutPositions(output, bnode.nodeA, elemPosA, isVertical);
+
+			final var offsetBUV = new Vec2(0, bnode.baselineVB);
+			final var elemPosB = pos.add(transpose(offsetBUV, !isVertical));
+			computeLayoutPositions(output, bnode.nodeB, elemPosB, isVertical);
+		}
+
+	}
+
+	@Override
+	public boolean mouseReleased(Vec2 mousePos, int button, boolean wasDragging) {
+		if (wasDragging)
+			return false;
+
+		CelestialNode rootNode = null;
+		if (this.debugInfo != null) {
+			rootNode = this.debugInfo.currentNode;
+		}
+
+		final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
+		if (system == null)
+			return false;
+
+		final var positions = new LayoutPositions();
+		rootNode = rootNode == null ? system.rootNode : rootNode;
+		final var rootLayout = layout(rootNode);
+		computeLayoutPositions(positions, rootLayout, Vec2.ZERO, true);
+
+		final var window = Minecraft.getInstance().getWindow();
+		final var mouseNormX = (2.0 * mousePos.x / window.getGuiScaledWidth()) - 1;
+		final var mouseNormY = 4.0 * (window.getGuiScaledHeight() - mousePos.y) / window.getHeight() - 1;
+		final var mouseNormalized = new Vec2(mouseNormX, mouseNormY);
+		final var mouseWorld = Mat4.mul(this.uiCamera.inverseViewProjectionMatrix, mouseNormalized.xy1(), 1).xy();
+
+		this.selectedNode = -1;
+		for (final var entry : positions.nodeRects.entries().iterable()) {
+			if (entry.get().unwrap().contains(mouseWorld)) {
+				this.selectedNode = entry.key;
+			}
+		}
+
+		return true;
+
+	}
+
+	@Override
+	public boolean mouseClicked(Vec2 mousePos, int button) {
+		return false;
+	}
+
+	@Override
 	public boolean mouseScrolled(Vec2 mousePos, double scrollDelta) {
 		if (scrollDelta > 0) {
-			this.scale = Math.max(this.scale / scrollMultiplier, this.scaleMin);
+			this.scale.target = Math.max(this.scale.target / scrollMultiplier, this.scaleMin);
 			return true;
 		} else if (scrollDelta < 0) {
-			this.scale = Math.min(this.scale * scrollMultiplier, this.scaleMax);
+			this.scale.target = Math.min(this.scale.target * scrollMultiplier, this.scaleMax);
 			return true;
 		}
 		return false;
@@ -436,14 +558,14 @@ public class NewSystemMapScreen extends HawkScreen {
 
 		final var sizeXp = (double) window.getWidth();
 		final var sizeYp = (double) window.getHeight();
-		final var sizeXu = 4.0 * aspectRatio * this.scale;
-		final var sizeYu = 4.0 * this.scale;
+		final var sizeXu = 4.0 * aspectRatio * this.scale.current;
+		final var sizeYu = 4.0 * this.scale.current;
 
 		final var dx = delta.x * (sizeXu / sizeXp);
 		final var dy = delta.y * (sizeYu / sizeYp);
 
-		// this.setDragging(true);
-		this.offset = this.offset.add(new Vec2(-dx, -dy));
+		this.setDragging(true);
+		this.offset.target = this.offset.target.add(new Vec2(-dx, -dy));
 		return true;
 	}
 
@@ -460,6 +582,28 @@ public class NewSystemMapScreen extends HawkScreen {
 					this.debugInfo = new DebugInfo(system);
 				}
 			}
+		}
+
+		if (keypress.keyCode == GLFW.GLFW_KEY_R) {
+			if (this.selectedNode != -1) {
+				final var packet = new ServerboundTeleportToLocationPacket();
+				final var systemId = new SystemId(this.galaxy.galaxyId, this.ticket.id);
+				final var id = new SystemNodeId(systemId, this.selectedNode);
+				packet.location = new WorldType.SystemNode(id);
+				this.client.player.connection.send(packet);
+			}
+			return true;
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_J) {
+			if (this.selectedNode != -1) {
+				final var stationId = EntityAccessor.getStation(this.client.player);
+				if (stationId == -1)
+					return true;
+				final var systemId = new SystemId(this.galaxy.galaxyId, this.ticket.id);
+				final var id = new SystemNodeId(systemId, this.selectedNode);
+				final var packet = new ServerboundStationJumpPacket(stationId, id, false);
+				this.client.player.connection.send(packet);
+			}
+			return true;
 		}
 
 		if (this.debugInfo != null) {

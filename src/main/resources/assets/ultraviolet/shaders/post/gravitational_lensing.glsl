@@ -112,6 +112,9 @@ void main() {
 			// these should maybe be raymarched separately
 
 			// accretion disc
+			if (uAccretionDiscBrightness <= 0.0)
+				continue;
+
 			// TODO: large step sizes quickly cause noticeable banding in the accretion disc
 			// TODO: noise texture to give the accretion disc a more broken up look
 			float innerAccertionDistance = lerp(uAccretionDiscInnerPercent, swarzchildRadius, effectLimit);
@@ -130,7 +133,7 @@ void main() {
 			float densityFactor = exp(-vert * planeDistance);
 
 			vec3 col = uAccretionDiscColor;
-			col =  t * uAccretionDiscBrightness * col;
+			col = t * uAccretionDiscBrightness * col;
 			discContrib += col * densityFactor * stepSize / effectLimit;
 		}
 

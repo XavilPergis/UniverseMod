@@ -17,7 +17,9 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector.ElementHolder;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector.PackedElements;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
+import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
+import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
 import net.xavil.universegen.system.StellarCelestialNode;
 
 public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
@@ -141,11 +143,18 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		// TODO: guess this value too
 		node.type = StellarCelestialNode.Type.MAIN_SEQUENCE;
 
-		node.build();
-		node.assignSeeds(elem.systemSeed);
+		final var rng = new SplittableRng(elem.systemSeed);
+
+		final var ctx = new StarSystemGenerator.Context(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
+		// final var systemGenerator = new RealisticStarSystemGenerator();
+		final var systemGenerator = new BasicStarSystemGenerator(node);
+		final var rootNode = systemGenerator.generate(ctx);
+
+		rootNode.build();
+		rootNode.assignSeeds(elem.systemSeed);
 
 		// TODO: assign system name
-		return new StarSystem("idk", this.parentGalaxy, elem, node);
+		return new StarSystem("idk", this.parentGalaxy, elem, rootNode);
 	}
 
 }

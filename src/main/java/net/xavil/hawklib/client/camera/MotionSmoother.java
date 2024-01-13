@@ -12,9 +12,13 @@ public class MotionSmoother<T> {
 	public T previous;
 
 	public MotionSmoother(double smoothingFactor, NumericOps<T> ops) {
+		this(smoothingFactor, ops, ops.zero());
+	}
+
+	public MotionSmoother(double smoothingFactor, NumericOps<T> ops, T defaultValue) {
 		this.smoothingFactor = smoothingFactor;
 		this.ops = ops;
-		this.target = this.current = this.previous = ops.zero();
+		this.target = this.current = this.previous = defaultValue;
 	}
 
 	public void set(T value) {

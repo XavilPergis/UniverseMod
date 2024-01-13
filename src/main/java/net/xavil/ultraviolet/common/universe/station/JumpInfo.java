@@ -15,9 +15,10 @@ public final class JumpInfo implements Disposable {
 	}
 
 	public void tick() {
-		final double speed_c = 10000;
-		final double speed_ly_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s * Units.Tu_PER_u * Units.ly_PER_Tm);
-		this.jump.travel(speed_ly_PER_s / Constants.Tick_PER_s);
+		final double speed_c = 10000000000d;
+		// final double speed_Tm_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s * Units.Tu_PER_u);
+		final double speed_Tm_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s);
+		this.jump.travel(speed_Tm_PER_s / Constants.Tick_PER_s);
 	}
 
 	public boolean complete() {

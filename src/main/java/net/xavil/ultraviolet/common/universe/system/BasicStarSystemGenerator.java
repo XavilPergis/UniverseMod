@@ -35,14 +35,17 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
 	private final SplittableRng rng = new SplittableRng(0);
 	private Logger logger;
+	private CelestialNode root;
+
+	public BasicStarSystemGenerator(CelestialNode root) {
+		this.root = root;
+	}
 
 	@Override
 	public CelestialNode generate(Context ctx) {
 		this.logger = LoggerFactory.getLogger(String.format("SystemGenerator '%s'", ctx.systemId().toString()));
 
 		this.rng.setSeed(ctx.seed);
-
-		CelestialNode root = StellarCelestialNode.fromMassAndAge(ctx.info.massYg, ctx.info.systemAgeMyr);
 
 		double remainingMass = ctx.info.massYg * this.rng.weightedDouble("remaining_mass", 8.0, 0.0, 2.0);
 
@@ -57,13 +60,15 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			if (idealStarMass > remainingMass)
 				continue;
 
-			final var starNode = StellarCelestialNode.fromMassAndAge(idealStarMass, ctx.info.systemAgeMyr);
+			this.rng.push("star");
+			final var starNode = StellarCelestialNode.fromMassAndAge(this.rng, idealStarMass, ctx.info.systemAgeMyr);
+			this.rng.pop();
 
 			// this.rng.push("generate_secondary_planets");
 			// generatePlanetsAroundStar(ctx, starNode, 1.0);
 			// this.rng.pop();
 
-			final var newRoot = mergeStarNodes(ctx, root, starNode, this.rng.chance("close_orbit", 0.8));
+			final var newRoot = mergeStarNodes(ctx, this.root, starNode, this.rng.chance("close_orbit", 0.8));
 
 			// bail if we ran out of places to put new stars
 			if (newRoot == null) {
@@ -72,15 +77,15 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			}
 
 			remainingMass -= idealStarMass;
-			root = newRoot;
+			this.root = newRoot;
 		}
 		this.rng.pop();
 
 		this.rng.push("generate_planets");
-		generatePlanetsRecursively(ctx, root, Double.POSITIVE_INFINITY);
+		generatePlanetsRecursively(ctx, this.root, Double.POSITIVE_INFINITY);
 		this.rng.pop();
 
-		return postprocess(root);
+		return postprocess(this.root);
 	}
 
 	private void generatePlanetsRecursively(Context ctx, CelestialNode node, double maxRadius) {

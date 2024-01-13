@@ -15,6 +15,8 @@ import net.minecraft.world.level.dimension.LevelStem;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.SplittableRng;
+
 import static net.xavil.hawklib.Units.*;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
@@ -146,7 +148,7 @@ public final class ServerUniverse extends Universe {
 
 	private StellarCelestialNode makeStar(Rng rng, double massMsol, double ageMyr) {
 		final var properties = new StellarCelestialNode.Properties();
-		properties.load(Yg_PER_Msol * massMsol, ageMyr);
+		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * massMsol, ageMyr);
 		return StellarCelestialNode.fromProperties(properties);
 	}
 
@@ -232,15 +234,17 @@ public final class ServerUniverse extends Universe {
 	}
 
 	private StartingSystem startingSystemSaggitariusA() {
+		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 5);
+
 		final var properties = new StellarCelestialNode.Properties();
-		properties.load(Yg_PER_Msol * 4.3e6, 13610);
+		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * 4.3e6, 13610);
 		final var sagA = StellarCelestialNode.fromProperties(properties);
 
-		properties.load(Yg_PER_Msol * 20, 1);
+		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * 20, 1);
 		final var starA = StellarCelestialNode.fromProperties(properties);
-		properties.load(Yg_PER_Msol * 7, 3);
+		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * 7, 3);
 		final var starB = StellarCelestialNode.fromProperties(properties);
-		properties.load(Yg_PER_Msol * 0.15, 3);
+		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * 0.15, 3);
 		final var starC = StellarCelestialNode.fromProperties(properties);
 
 		final var earth = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD, Yg_PER_Mearth * (1),

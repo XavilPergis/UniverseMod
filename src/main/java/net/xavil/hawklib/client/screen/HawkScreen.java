@@ -130,7 +130,7 @@ public abstract class HawkScreen extends Screen {
 		if (super.mouseReleased(mouseX, mouseY, button))
 			return true;
 		final var mousePos = Vec2.from(mouseX, mouseY);
-		if (mouseReleased(mousePos, button))
+		if (mouseReleased(mousePos, button, wasDragging))
 			return true;
 		if (!wasDragging) {
 			return dispatchEvent(layer -> layer.handleClick(mousePos, button));
@@ -138,7 +138,7 @@ public abstract class HawkScreen extends Screen {
 		return false;
 	}
 
-	public boolean mouseReleased(Vec2 mousePos, int button) {
+	public boolean mouseReleased(Vec2 mousePos, int button, boolean wasDragging) {
 		return false;
 	}
 

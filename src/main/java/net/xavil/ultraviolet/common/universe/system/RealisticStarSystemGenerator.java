@@ -1,5 +1,6 @@
 package net.xavil.ultraviolet.common.universe.system;
 
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
@@ -19,8 +20,9 @@ public final class RealisticStarSystemGenerator implements StarSystemGenerator {
 		final var rootRng = new StableRandom(info.systemSeed);
 
 		final var stellarProperties = new StellarCelestialNode.Properties();
-		stellarProperties.load(info.massYg, 0.0);
-		final var node = StellarCelestialNode.fromMassAndAge(info.massYg, info.systemAgeMyr);
+		stellarProperties.load(new SplittableRng(rootRng.uniformLong("star_props")), info.massYg, 0.0);
+		final var node = StellarCelestialNode.fromMassAndAge(new SplittableRng(rootRng.uniformLong("star_props")),
+				info.massYg, info.systemAgeMyr);
 
 		final var remainingMass = rootRng.uniformDouble("remaining_mass", 0.05, 0.9 * info.massYg);
 

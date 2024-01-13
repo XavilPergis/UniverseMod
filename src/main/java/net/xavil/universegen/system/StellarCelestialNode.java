@@ -5,6 +5,7 @@ import javax.annotation.Nullable;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Constants;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -96,7 +97,7 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 		public double temperatureK;
 
 		// TODO: redo this to be less bad lol
-		public void load(double massYg, double ageMyr) {
+		public void load(SplittableRng rng, double massYg, double ageMyr) {
 			this.massYg = massYg;
 			this.ageMyr = ageMyr;
 
@@ -107,45 +108,72 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			}
 
 			// final var massMsol = massYg / Units.Yg_PER_Msol;
-			// return Units.SOL_LIFETIME_MYA * (massMsol / mainSequenceLuminosityFromMass(massYg));	
-			
+			// return Units.SOL_LIFETIME_MYA * (massMsol /
+			// mainSequenceLuminosityFromMass(massYg));
+
 			this.luminosityLsol = mainSequenceLuminosityFromMass(massYg);
+			double lumT = rng.weightedDouble("luminosity_offset", 2);
+			if (rng.chance("luminosity_negate", 0.5))
+				lumT *= -1;
+			this.luminosityLsol *= 1.0 + 0.1 * lumT;
 
 			this.mainSequenceLifetimeMyr = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
+			double lifetimeT = rng.weightedDouble("lifetime_offset", 2);
+			if (rng.chance("lifetime_negate", 0.5))
+				lifetimeT *= -1;
+			this.mainSequenceLifetimeMyr *= 1.0 + 0.1 * lifetimeT;
 
 			this.radiusRsol = mainSequenceRadiusFromMass(massYg);
-			this.temperatureK = temperature(this.radiusRsol, this.luminosityLsol);
+			double radiusT = rng.weightedDouble("radius_offset", 2);
+			if (rng.chance("radius_negate", 0.5))
+				radiusT *= -1;
+			this.radiusRsol *= 1.0 + 0.1 * radiusT;
 
+			this.temperatureK = temperature(this.radiusRsol, this.luminosityLsol);
+			double tempT = rng.weightedDouble("temperature_offset", 2);
+			if (rng.chance("temperature_negate", 0.5))
+				tempT *= -1;
+			this.temperatureK *= 1.0 + 0.1 * tempT;
+
+			this.temperatureK = Mth.map(this.temperatureK, 2000, 10000, 2600, 7000);
+
+			rng.push("tracks");
 			if (ageMyr <= this.mainSequenceLifetimeMyr) {
-				doMainSequenceTrack();
-			} else if (ageMyr <= this.mainSequenceLifetimeMyr * 2) {
-				doGiantTrack();
+				doMainSequenceTrack(rng);
+			} else if (ageMyr <= this.mainSequenceLifetimeMyr * 1.4) {
+				doGiantTrack(rng);
 			} else {
 				if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
-					doWhiteDwarfTrack();
+					doWhiteDwarfTrack(rng);
 				} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
-					doNeutronStarTrack();
+					doNeutronStarTrack(rng);
 				} else {
-					doBlackHoleTrack();
+					doBlackHoleTrack(rng);
 				}
 			}
+			rng.pop();
 
 		}
 
-		private void doMainSequenceTrack() {
+		private void doMainSequenceTrack(SplittableRng rng) {
 			this.type = Type.MAIN_SEQUENCE;
 		}
 
-		private void doGiantTrack() {
+		private void doGiantTrack(SplittableRng rng) {
 			this.type = Type.GIANT;
+
+			final var t = Mth.inverseLerp(this.ageMyr, this.mainSequenceLifetimeMyr,
+					this.mainSequenceLifetimeMyr * 1.4);
+
 			// TODO: figure out actual quantities here. tbh this whole thing should be
 			// rewritten.
-			this.radiusRsol *= 100;
-			this.temperatureK *= 0.3;
-			this.luminosityLsol *= 3.0;
+			this.radiusRsol *= Mth.lerp(t, 3.0,
+					rng.weightedDouble("radius1", 5, 30, 100) * rng.uniformDouble("radius2", 0.3, 1.0));
+			this.temperatureK *= Mth.lerp(t, 3.0, 0.4 + 0.1 * rng.weightedDouble("temperature", 5));
+			this.luminosityLsol *= Mth.lerp(t, 3.0, rng.weightedDouble("temperature", 3, 1.5, 3));
 		}
 
-		private void doWhiteDwarfTrack() {
+		private void doWhiteDwarfTrack(SplittableRng rng) {
 			this.type = Type.WHITE_DWARF;
 			// TODO: conservation of angular momentum (fast spinny :3)
 			// white dwarf and neutron star cooling is apparently very complicated, and i
@@ -160,9 +188,10 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			final double slowCurve = Math.exp(-0.0002 * coolingTime);
 			final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
 
-			this.temperatureK *= 10;
+			this.temperatureK *= rng.uniformDouble("temperature", 5, 10);
 			this.temperatureK *= coolingCurve;
-			this.radiusRsol *= 1e-2;
+			this.temperatureK *= 0.2;
+			this.radiusRsol *= 4e-3;
 
 			// treat the white dwarf as an ideal black body and apply the Stefan–Boltzmann
 			// law
@@ -172,7 +201,7 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			this.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
 		}
 
-		private void doNeutronStarTrack() {
+		private void doNeutronStarTrack(SplittableRng rng) {
 			this.type = Type.NEUTRON_STAR;
 			Assert.isTrue(ageMyr > this.mainSequenceLifetimeMyr);
 
@@ -191,7 +220,7 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			this.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
 		}
 
-		private void doBlackHoleTrack() {
+		private void doBlackHoleTrack(SplittableRng rng) {
 			this.type = Type.BLACK_HOLE;
 			this.luminosityLsol = 0;
 			this.radiusRsol = this.massYg * SCHWARZSCHILD_FACTOR_Rsol_PER_Yg;
@@ -207,9 +236,9 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 		return node;
 	}
 
-	public static StellarCelestialNode fromMassAndAge(double massYg, double ageMyr) {
+	public static StellarCelestialNode fromMassAndAge(SplittableRng rng, double massYg, double ageMyr) {
 		final var properties = new Properties();
-		properties.load(massYg, ageMyr);
+		properties.load(rng, massYg, ageMyr);
 		return fromProperties(properties);
 	}
 

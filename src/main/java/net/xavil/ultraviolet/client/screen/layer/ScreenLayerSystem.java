@@ -260,7 +260,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				shader.setUniformf("uAccretionDiscDensityFalloffRadial", 4.0);
 				shader.setUniformf("uAccretionDiscDensityFalloffVerticalInner", 100.0);
 				shader.setUniformf("uAccretionDiscDensityFalloffVerticalOuter", 100.0);
-				shader.setUniformf("uAccretionDiscBrightness", 250.0);
+				// shader.setUniformf("uAccretionDiscBrightness", 250.0);
+				shader.setUniformf("uAccretionDiscBrightness", 0.0);
 				shader.setUniformf("uEffectLimitFactor", 30.0);
 				shader.setUniformf("uGravitationalConstant", 100.0);
 				shader.setUniformf("uPosition", this.camera.toCameraSpace(node.position.xyz()));

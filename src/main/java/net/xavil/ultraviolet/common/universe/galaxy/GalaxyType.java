@@ -74,14 +74,14 @@ public enum GalaxyType {
 			// quite far, in a sphere around the central black hole
 			var galacticHalo = ScalarField.sphereCloud(2.5 * params.radius);
 			galacticHalo = galacticHalo.mulPos(params.galaxySquish);
-			galacticHalo = galacticHalo.mul(0.0000004);
+			galacticHalo = galacticHalo.mul(0.004);
 			// var galacticHaloAge = ScalarField.random().withExponent(1e-5).lerp(1,
 			// galaxyAge);
 
 			// relatively thin disc of uniform star density and stellar ages
 			var uniformDisc = ScalarField.verticalDisc(params.radius,
 					params.radius * params.discHeightFactor, 2);
-			uniformDisc = uniformDisc.mul(0.004);
+			uniformDisc = uniformDisc.mul(0.6);
 			// var uniformDiscAge = ScalarField.random().lerp(0.3 * galaxyAge, galaxyAge);
 
 			// "spokes" of higher star densities that are often (i think) home to active

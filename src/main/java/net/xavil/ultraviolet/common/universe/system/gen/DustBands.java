@@ -4,6 +4,7 @@ import java.util.Comparator;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.SortingStrategy;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -235,7 +236,7 @@ public class DustBands {
 			}
 
 			node.mass += accumulatedMass;
-			node.stellarProperties.load(node.mass * Units.Msol_PER_Yg, node.age);
+			node.stellarProperties.load(new SplittableRng(node.rng.seed), node.mass * Units.Msol_PER_Yg, node.age);
 		}
 
 		for (final var child : node.sattelites.iterable()) {

@@ -225,7 +225,7 @@ public final class SectorManager {
 		}
 	}
 
-	private final Galaxy galaxy;
+	public final Galaxy galaxy;
 
 	private final MutableMap<Vec3i, SectorSlot> sectorMap = MutableMap.hashMap();
 	private final MutableList<SectorTicketTracker> trackedTickets = new Vector<>();

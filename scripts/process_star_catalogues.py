@@ -8,7 +8,7 @@ from pathlib import Path
 # https://github.com/astronexus/ATHYG-Database/tree/fd8fa128df2ba41282a7af1ef0e5c9c22c82f51f/data
 # into a more useful form for this mod
 
-STITCHED_PATH = Path('scripts/athyg_stitched.csv')
+STITCHED_PATH = Path('scripts/intermediate/athyg_stitched.csv')
 # OUTPUT_PATH = Path('star_catalog.bin')
 OUTPUT_PATH = Path('src/main/resources/star_catalog.bin')
 

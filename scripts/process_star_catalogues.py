@@ -2,6 +2,7 @@ import gzip
 import csv
 import math
 import struct
+import random
 from pathlib import Path
 
 # this file is meant to process athyg_v30-1.csv.gz and athyg_v30-2.csv.gz from
@@ -42,7 +43,7 @@ class CatalogEntry(object):
 		# Lsol = 10 ** (0.4 * (4.74 - self.absmag))
 		print(f"\x1b[35m\x1b[1m{self.name}\x1b[0m \x1b[34m{self.spect}\x1b[0m \x1b[37m{self.x} {self.y} {self.z}\x1b[0m \x1b[37mci:{self.ci}\x1b[0m \x1b[33m{self.Lsol:.02f}Lsol\x1b[0m \x1b[33m{self.TK:.02f}K\x1b[0m")
 
-def process_row(row):
+def process_row(row_index, row):
 	if row['dist'] is None:
 		return None
 	if row['absmag'] is None:
@@ -55,8 +56,11 @@ def process_row(row):
 	keep |= float(row['dist']) < 50
 	# visibly bright stars
 	keep |= float(row['mag']) < 6
-	# bright stars
-	keep |= float(row['absmag']) < 1
+	# # bright stars
+	# keep |= float(row['absmag']) < 1
+	# random selection of other stars
+	random.seed(row_index)
+	keep |= random.random() < 0.45
 	# Prevent duplicate Sol (it's already added by the starting system layer)
 	keep &= row['proper'] != 'Sol'
 
@@ -192,7 +196,7 @@ with STITCHED_PATH.open('rt') as cat:
 				cell = row_raw[i]
 				row[columns[i]] = cell if cell != '' else None
 
-			res = process_row(row)
+			res = process_row(row_index, row)
 			if res is not None:
 				outfile.write(struct.pack('>fffff', res.x, res.y, res.z, res.Lsol, res.TK))
 				outfile.write(res.name.encode())
@@ -232,19 +236,20 @@ with STITCHED_PATH.open('rt') as cat:
 		bins_y.display()
 		bins_z.display()
 
+print(f"Catalog size: {OUTPUT_PATH.stat().st_size} B")
 
 # ================ OUTPUT FORMAT ================
 # all fields are big endian
 
 # strings are UTF-8 encoded and null-terminated
 #
-# str: [data: *u8]
+# str: [data: u8[:0]]
 
 # xyz are in parsecs
 # luminosity is in solar luminosities (3.827e26 W)
 # temperature is in kelvin
 #
-# entry: [x: f32] [y: f32] [z: f32] [luminosity: f32] [temperature: f32] [name: str] [classification: str]
+# entry: [x: f32, y: f32, z: f32, luminosity: f32, temperature: f32, name: str, classification: str]
 
 # 
 #

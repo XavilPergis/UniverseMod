@@ -507,8 +507,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 				ringNbt.put("orbital_plane", writeNbt(OrbitalPlane.CODEC, ring.orbitalPlane));
 				ringNbt.putDouble("eccentricity", ring.eccentricity);
 				ringNbt.putDouble("mass", ring.mass);
-				ringNbt.putDouble("interval_lower", ring.interval.lower);
-				ringNbt.putDouble("interval_higher", ring.interval.higher);
+				ringNbt.putDouble("interval_lower", ring.interval.min);
+				ringNbt.putDouble("interval_higher", ring.interval.max);
 				rings.add(ringNbt);
 			}
 			nbt.put("rings", rings);

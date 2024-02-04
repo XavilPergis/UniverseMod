@@ -24,6 +24,7 @@ public enum PrimitiveType {
 	TRIANGLES       (GL45C.GL_TRIANGLES,      3, 3, 0, VertexFormat.Mode.TRIANGLES,        VertexFormat.Mode.TRIANGLES),
 	TRIANGLE_STRIP  (GL45C.GL_TRIANGLE_STRIP, 3, 1, 0, VertexFormat.Mode.TRIANGLE_STRIP,   VertexFormat.Mode.TRIANGLE_STRIP),
 	TRIANGLE_FAN    (GL45C.GL_TRIANGLE_FAN,   3, 1, 0, VertexFormat.Mode.TRIANGLE_FAN,     VertexFormat.Mode.TRIANGLE_FAN),
+	// start at bottom right, emit vertices clockwise
 	QUADS           (GL45C.GL_TRIANGLES,      4, 4, 0, VertexFormat.Mode.QUADS,            VertexFormat.Mode.QUADS);
 	// @formatter:on
 

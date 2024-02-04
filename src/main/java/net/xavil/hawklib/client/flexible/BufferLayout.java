@@ -316,5 +316,11 @@ public final class BufferLayout {
 			.element("aColor", ELEMENT_FLOAT_UBYTE_NORM4, Usage.COLOR, 0)
 			.element("aTexCoord0", ELEMENT_FLOAT_SHORT_NORM2, Usage.UV, 0)
 			.build();
+	public static final BufferLayout POSITION_COLOR_TEX_LIGHTMAP = builder()
+			.element("aPos", ELEMENT_FLOAT3, Usage.POSITION, 0)
+			.element("aColor", ELEMENT_FLOAT_UBYTE_NORM4, Usage.COLOR, 0)
+			.element("aTexCoord0", ELEMENT_FLOAT_SHORT_NORM2, Usage.UV, 0)
+			.element("aTexCoord2", ELEMENT_SHORT2, Usage.UV, 2)
+			.build();
 
 }

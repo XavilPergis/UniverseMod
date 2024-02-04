@@ -7,25 +7,28 @@
 #ifdef IS_FRAGMENT_STAGE
 #include [ultraviolet:lib/tonemap.glsl]
 
-const float gamma = 2.2;
-
 uniform float uExposure;
 
 uniform sampler2D uSampler;
 
 out vec4 fColor;
 
+const float GAMMA = 2.2;
+
 void main() {
-    vec3 light = texture(uSampler, texCoord0).rgb;
+	// raw HDR
+    vec4 res = texture(uSampler, texCoord0);
 
-	// light += 5.0 * vec3(0.2471, 0.3804, 0.9725);
+	// exposure compensation
+	res.rgb *= uExposure;
 
-	light *= uExposure;
+	// tonemapping
+	res.rgb = tonemapACESFull(res.rgb);
 
-	light = tonemapACESFull(light);
+	// gamma correction
+	res.rgb = pow(res.rgb, vec3(1.0 / GAMMA));
 
-	vec3 gammaEncoded = pow(light, vec3(1.0 / gamma));
-    fColor = vec4(gammaEncoded, 1.0);
+    fColor = res;
 }
 
 #endif

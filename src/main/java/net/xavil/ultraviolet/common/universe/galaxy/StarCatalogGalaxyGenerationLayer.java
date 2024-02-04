@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 
 import com.google.common.base.Charsets;
 
+import net.xavil.hawklib.Constants;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
@@ -17,9 +18,7 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector.ElementHolder;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector.PackedElements;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
-import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
 import net.xavil.universegen.system.StellarCelestialNode;
 
 public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
@@ -97,7 +96,6 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			temp.systemPosTm.z = -tmpY;
 			// offset position to be relative to the starting system
 			Vec3.add(temp.systemPosTm, temp.systemPosTm, startingSystem.systemPosTm);
-			final var sectorPos = SectorPos.fromPos(GalaxySector.ROOT_LEVEL, temp.systemPosTm);
 
 			temp.luminosityLsol = buf.getFloat();
 			temp.temperatureK = buf.getFloat();
@@ -109,6 +107,14 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			temp.name = readString(buf);
 			// spectral classification - unused for now
 			readString(buf);
+
+			final var luminosity = (Units.W_PER_Lsol / Constants.ZERO_POINT_LUMINSOITY_W) * temp.luminosityLsol;
+			final var magLimit = 7;
+			final var maxVisibleDistance = Math.sqrt(luminosity * Math.pow(10, magLimit / 2.5 + 2)) * Units.Tm_PER_pc;
+
+			// final var level = GalaxySector.lengthToLevel(maxVisibleDistance * 0.5);
+			final var level = GalaxySector.lengthToLevel(maxVisibleDistance);
+			final var sectorPos = SectorPos.fromPos(level, temp.systemPosTm);
 
 			this.sectorMap.entry(sectorPos)
 					.orInsertWith(() -> new GalaxySector.PackedElements(sectorPos.minBound(), true))
@@ -135,23 +141,16 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	@Override
 	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, ElementHolder elem) {
 		final var node = new StellarCelestialNode();
-
+		elem.massYg = Units.Yg_PER_Msol * Math.pow(elem.luminosityLsol, 1.0 / 3.5);
 		node.luminosityLsol = elem.luminosityLsol;
 		node.massYg = elem.massYg;
 		node.temperature = elem.temperatureK;
 		node.radius = StellarCelestialNode.radiusFromLuminosityAndTemperature(elem.luminosityLsol, elem.temperatureK);
 		// TODO: guess this value too
-		node.type = StellarCelestialNode.Type.MAIN_SEQUENCE;
+		node.type = StellarCelestialNode.Type.STAR;
 
 		final var rng = new SplittableRng(elem.systemSeed);
-
-		final var ctx = new StarSystemGenerator.Context(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
-		// final var systemGenerator = new RealisticStarSystemGenerator();
-		final var systemGenerator = new BasicStarSystemGenerator(node);
-		final var rootNode = systemGenerator.generate(ctx);
-
-		rootNode.build();
-		rootNode.assignSeeds(elem.systemSeed);
+		final var rootNode = node.generateSystem(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
 
 		// TODO: assign system name
 		return new StarSystem("idk", this.parentGalaxy, elem, rootNode);

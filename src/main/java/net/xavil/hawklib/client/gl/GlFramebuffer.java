@@ -14,6 +14,7 @@ import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec2i;
 
@@ -35,10 +36,18 @@ public final class GlFramebuffer extends GlObject {
 
 	private final RenderTarget importedTarget;
 
-	public static final GlFramebuffer MAIN = new GlFramebuffer(Minecraft.getInstance().getMainRenderTarget());
+	private static GlFramebuffer MAIN_FRAMEBUFFER = null;
 
-	static {
-		MAIN.enableAllColorAttachments();
+	public static final GlFramebuffer getMainFramebuffer() {
+		final var target = Minecraft.getInstance().getMainRenderTarget();
+		if (MAIN_FRAMEBUFFER != null && MAIN_FRAMEBUFFER.id == target.frameBufferId) {
+			return MAIN_FRAMEBUFFER;
+		}
+
+		MAIN_FRAMEBUFFER = new GlFramebuffer(target);
+		MAIN_FRAMEBUFFER.enableAllColorAttachments();
+		
+		return MAIN_FRAMEBUFFER;
 	}
 
 	public GlFramebuffer(RenderTarget imported) {
@@ -105,10 +114,17 @@ public final class GlFramebuffer extends GlObject {
 	}
 
 	private void updateSizeIfNeeded() {
-		if (this.importedTarget != null) {
-			this.size = new Vec2i(this.importedTarget.width, this.importedTarget.height);
-			this.viewport = new Viewport(Vec2i.ZERO, this.size);
-		}
+		if (this.importedTarget == null)
+			return;
+		if (this.size.x == this.importedTarget.width && this.size.y == this.importedTarget.height)
+			return;
+		this.colorAttachments.values()
+				.chain(Iterator.once(this.depthAttachment))
+				.map(att -> att.asTexture2d())
+				.filterNull()
+				.forEach(tex -> tex.updateCachedSize(this.importedTarget.width, this.importedTarget.height));
+		this.size = new Vec2i(this.importedTarget.width, this.importedTarget.height);
+		this.viewport = new Viewport(Vec2i.ZERO, this.size);
 	}
 
 	public Vec2i size() {
@@ -231,8 +247,7 @@ public final class GlFramebuffer extends GlObject {
 				this.id, target.id,
 				this.viewport.pos.x, this.viewport.pos.y, this.viewport.size.x, this.viewport.size.y,
 				target.viewport.pos.x, target.viewport.pos.y, target.viewport.size.x, target.viewport.size.y,
-				GL45C.GL_COLOR_BUFFER_BIT, GL45C.GL_NEAREST
-		);
+				GL45C.GL_COLOR_BUFFER_BIT, GL45C.GL_NEAREST);
 	}
 
 	public void checkStatus() {

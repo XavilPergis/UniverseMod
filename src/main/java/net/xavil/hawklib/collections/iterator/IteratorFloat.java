@@ -1,7 +1,6 @@
 package net.xavil.hawklib.collections.iterator;
 
 import java.util.Arrays;
-import java.util.OptionalInt;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -854,8 +853,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 		public SizeHint sizeHint() {
 			final var hint = this.source.sizeHint();
 			final var min = Math.max(0, hint.lowerBound() - this.remaining);
-			final var max = hint.upperBound().isEmpty() ? OptionalInt.empty()
-					: OptionalInt.of(Math.max(0, hint.upperBound().getAsInt() - this.remaining));
+			final var max = hint.upperBound().mapInt(bound -> Math.max(0, bound - this.remaining));
 			return new SizeHint(min, max);
 		}
 

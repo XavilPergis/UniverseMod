@@ -1,7 +1,6 @@
 package net.xavil.hawklib.collections.iterator;
 
 import java.util.Arrays;
-import java.util.OptionalInt;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -100,7 +99,7 @@ public interface IteratorInt extends IntoIteratorInt {
 	}
 
 	static final int PROPERTY_FUSED = 1 << 0;
-	static final int PROPERTY_NONNULL = 1 << 1;
+	static final int PROPERTY_INFINITE = 1 << 2;
 
 	default boolean hasProperties(int propertyMask) {
 		return (properties() & propertyMask) == propertyMask;
@@ -185,7 +184,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 	default MaybeInt min(IntComparator comparator) {
 		boolean foundAny = hasNext();
-		if (!foundAny) 
+		if (!foundAny)
 			return MaybeInt.none();
 		int minValue = next();
 		while (hasNext()) {
@@ -199,7 +198,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 	default MaybeInt max(IntComparator comparator) {
 		boolean foundAny = hasNext();
-		if (!foundAny) 
+		if (!foundAny)
 			return MaybeInt.none();
 		int maxValue = next();
 		while (hasNext()) {
@@ -246,7 +245,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			return PROPERTY_FUSED | PROPERTY_NONNULL;
+			return PROPERTY_FUSED;
 		}
 
 		@Override
@@ -290,6 +289,37 @@ public interface IteratorInt extends IntoIteratorInt {
 		@Override
 		public int next() {
 			this.emitted = true;
+			return this.value;
+		}
+	}
+
+	static IteratorInt repeat(int value) {
+		return new Repeat(value);
+	}
+
+	static IteratorInt repeat(int value, int limit) {
+		return repeat(value).limit(limit);
+	}
+
+	final class Repeat implements IteratorInt {
+		private final int value;
+
+		private Repeat(int value) {
+			this.value = value;
+		}
+
+		@Override
+		public int properties() {
+			return PROPERTY_FUSED | PROPERTY_INFINITE;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return true;
+		}
+
+		@Override
+		public int next() {
 			return this.value;
 		}
 	}
@@ -548,7 +578,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			return this.source.properties() & ~PROPERTY_NONNULL;
+			return this.source.properties();
 		}
 
 		@Override
@@ -720,13 +750,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			int props = PROPERTY_FUSED | PROPERTY_NONNULL;
-			for (final var source : this.sources) {
-				final var childProps = source.properties();
-				if ((childProps & PROPERTY_NONNULL) == 0)
-					props = props & ~PROPERTY_NONNULL;
-			}
-			return props;
+			return PROPERTY_FUSED;
 		}
 
 		@Override
@@ -803,8 +827,7 @@ public interface IteratorInt extends IntoIteratorInt {
 		public SizeHint sizeHint() {
 			final var hint = this.source.sizeHint();
 			final var min = Math.max(0, hint.lowerBound() - this.remaining);
-			final var max = hint.upperBound().isEmpty() ? OptionalInt.empty()
-					: OptionalInt.of(Math.max(0, hint.upperBound().getAsInt() - this.remaining));
+			final var max = hint.upperBound().mapInt(bound -> Math.max(0, bound - this.remaining));
 			return new SizeHint(min, max);
 		}
 

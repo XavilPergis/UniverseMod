@@ -21,6 +21,7 @@ import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
 import net.xavil.universegen.LinearSpline;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.universegen.system.StellarProperties;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
@@ -117,7 +118,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	public static double generateStarMassForLevel(SplittableRng rng, int level) {
 		final var i = LEVEL_COVERAGE_INTERVALS[level];
-		final var massT = rng.uniformDouble("star_mass", i.lower, i.higher);
+		final var massT = rng.uniformDouble("star_mass", i.min, i.max);
 		double mass = STAR_MASS_SPLINE.sample(massT);
 		double h = Mth.inverseLerp(mass, 0.08, 300);
 		h *= rng.weightedDouble("mass_variation", 1.5, 0.95, 1.2);
@@ -287,16 +288,18 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	private void generateStarSystemInfo(GalaxySector.ElementHolder elem, StellarCelestialNode.Properties props,
 			GenerationInfo info, SplittableRng rng) {
 		final var minSystemAgeFactor = Math.min(1, info.stellarAge.sample(elem.systemPosTm));
-		final var systemAgeFactor = rng.weightedDouble("age", 0.8);
-		final var systemAgeMyr = this.parentGalaxy.info.ageMya
-				* Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
+		// final var systemAgeFactor = rng.weightedDouble("age", 0.8);
+		// final var systemAgeMyr = this.parentGalaxy.info.ageMya
+		// * Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
+		final var systemAgeMyr = rng.weightedDouble("age", 1.0, 10, this.parentGalaxy.info.ageMya);
 
 		final var starMass = generateStarMassForLevel(rng, info.ctx.level);
 		// final var starMass = generateStarMass(rng);
 
 		props.load(rng, starMass, systemAgeMyr);
-		elem.massYg = starMass;
-		elem.systemAgeMyr = systemAgeMyr + rng.uniformDouble("age_offset");
+
+		elem.massYg = props.massYg;
+		elem.systemAgeMyr = props.ageMyr;
 
 		elem.luminosityLsol = props.luminosityLsol;
 		elem.temperatureK = props.temperatureK;
@@ -306,20 +309,14 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public StarSystem generateFullSystem(GalaxySector sector, GalaxySectorId id, GalaxySector.ElementHolder elem) {
 		final var rng = new SplittableRng(elem.systemSeed);
 
-		final var ctx = new StarSystemGenerator.Context(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
-		// final var systemGenerator = new RealisticStarSystemGenerator();
 		rng.push("star_properties");
-		CelestialNode rootNode = StellarCelestialNode.fromMassAndAge(rng, elem.massYg, elem.systemAgeMyr);
+		final var rootNode = StellarCelestialNode.fromMassAndAge(rng, elem.massYg, elem.systemAgeMyr);
 		rng.pop();
-		final var systemGenerator = new BasicStarSystemGenerator(rootNode);
 
-		rootNode = systemGenerator.generate(ctx);
-		rootNode.build();
-		rootNode.assignSeeds(rng.uniformLong("root_node_seed"));
-
+		final var node = rootNode.generateSystem(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
 		final var name = NameTemplate.SECTOR_NAME.generate(rng.rng("name"));
 
-		return new StarSystem(name, this.parentGalaxy, elem, rootNode);
+		return new StarSystem(name, this.parentGalaxy, elem, node);
 	}
 
 }

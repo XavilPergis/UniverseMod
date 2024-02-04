@@ -12,6 +12,8 @@ import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.shader.AttributeSet;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.ultraviolet.client.BloomEffect;
+import net.xavil.ultraviolet.client.PostProcessing;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.GalaxyMapScreen;
 import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
@@ -54,6 +56,10 @@ public class ClientMod implements ClientModInitializer {
 			// final var planetsAtlas =
 			// ctx.registerAtlas(PlanetRenderingContext.PLANET_ATLAS_LOCATION);
 			// planetsAtlas.registerSprite("path/to/sprite");
+		});
+
+		PostProcessing.POST_PROCESS_WORLD_HDR.register((output, input) -> {
+			BloomEffect.render(output.framebuffer, input);
 		});
 	}
 

@@ -266,7 +266,7 @@ public final class ServerUniverse extends Universe {
 
 	private StartingSystem startingSystemSol() {
 		// NOTE: reference plane is the ecliptic plane
-		final var sol = StellarCelestialNode.fromMass(StellarCelestialNode.Type.MAIN_SEQUENCE, Yg_PER_Msol * 1);
+		final var sol = StellarCelestialNode.fromMass(StellarCelestialNode.Type.STAR, Yg_PER_Msol * 1);
 		sol.obliquityAngle = Math.toRadians(7.25);
 		sol.rotationalRate = 2.90307e-6;
 
@@ -394,7 +394,7 @@ public final class ServerUniverse extends Universe {
 
 			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, startingSystem.systemAgeMya,
 					startingSystem.name, startingSystem.rootNode, startingNodeId);
-			// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
+			galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
 			galaxy.addGenerationLayer(this.startingGenerator);
 			final var startingId = this.startingGenerator.getStartingSystemId();
 

@@ -137,6 +137,8 @@ public final class ConfigKey<T> {
 	public static final ConfigKey<Float> STAR_SHADER_MAGNITUDE_BASE      = floatKey("shader.star.magnitudeBase",      10f,   Side.CLIENT);
 	public static final ConfigKey<Float> STAR_SHADER_MAGNITUDE_POWER     = floatKey("shader.star.magnitudePower",     10f,   Side.CLIENT);
 
+	public static final ConfigKey<Float> POST_SHADER_EXPOSURE            = floatKey("shader.post.exposure",           1f,    Side.CLIENT);
+
 	public static final ConfigKey<Double>  MIN_GRAVITY       = doubleKey ("gravity.min",      0.2,   Side.SERVER);
 	public static final ConfigKey<Double>  MAX_GRAVITY       = doubleKey ("gravity.max",      1.2,   Side.SERVER);
 	public static final ConfigKey<Boolean> USE_FIXED_GRAVITY = booleanKey("gravity.useFixed", false, Side.SERVER);

@@ -1,5 +1,6 @@
 package net.xavil.hawklib.collections.interfaces;
 
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.xavil.hawklib.Maybe;
@@ -12,6 +13,16 @@ public interface ImmutableMap<K, V> extends ImmutableCollection {
 	@Nullable
 	default V getOrNull(K key) {
 		return get(key).unwrapOrNull();
+	}
+
+	@Nonnull
+	default V getOrThrow(K key) {
+		final V res = getOrNull(key);
+		if (res == null)
+			throw new IllegalArgumentException(String.format(
+					"Key '{}' does not exist in map",
+					key));
+		return res;
 	}
 
 	Iterator<K> keys();
@@ -41,6 +52,12 @@ public interface ImmutableMap<K, V> extends ImmutableCollection {
 
 		public abstract Maybe<V> get();
 
+		@Nullable
+		public abstract V getOrNull();
+
+		@Nonnull
+		public abstract V getOrThrow();
+
 		public boolean exists() {
 			return this.get().isSome();
 		}
@@ -56,6 +73,18 @@ public interface ImmutableMap<K, V> extends ImmutableCollection {
 			@Override
 			public Maybe<V> get() {
 				return this.map.get(this.key);
+			}
+
+			@Override
+			@Nullable
+			public V getOrNull() {
+				return this.map.getOrNull(this.key);
+			}
+
+			@Override
+			@Nonnull
+			public V getOrThrow() {
+				return this.map.getOrThrow(this.key);
 			}
 
 			@Override

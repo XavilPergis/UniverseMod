@@ -11,8 +11,6 @@ in vec3 aPos;
 in vec4 aColor;
 in vec2 aTexCoord0;
 
-uniform float uPointSize;
-
 vec2 uvFromVertex(int id) {
 	id = id % 4;
 	if (id == 0) return vec2(0.0, 0.0);
@@ -35,7 +33,8 @@ void emitPoint(vec4 viewPos, float pointSize) {
 
 void main() {
 	vec4 viewPos = uViewMatrix * vec4(aPos, 1.0);
-	emitPoint(viewPos, uPointSize);
+	// point size is encoded in texture coordinates
+	emitPoint(viewPos, 2f * aTexCoord0.x);
 	vertexColor = aColor;
 }
 

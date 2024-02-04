@@ -29,10 +29,14 @@ public final class StarSurvey {
 	public int starsPerLevel[] = new int[GalaxySector.ROOT_LEVEL + 1];
 	public int sectorsPerLevel[] = new int[GalaxySector.ROOT_LEVEL + 1];
 
-	public final Histogram massDistribution = new Histogram("Mass (M☉)", new Interval(0, 16), 32);
-	public final Histogram temperatureDistribution = new Histogram("Temperature (K)", new Interval(0, 50000), 32);
-	public final Histogram luminosityDistribution = new Histogram("Luminosity (L☉)", new Interval(0, 21), 32);
-	public final Histogram ageDistribution = new Histogram("Age (Mya)", new Interval(0, 10000), 32);
+	public final Histogram massDistribution = new Histogram("Mass (M☉)", 32,
+			new AxisMapping.Log(10, 1e-3, 1e3));
+	public final Histogram temperatureDistribution = new Histogram("Temperature (K)", 32,
+			new AxisMapping.Linear(0, 60000));
+	public final Histogram luminosityDistribution = new Histogram("Luminosity (L☉)", 32,
+			new AxisMapping.Log(10, 1e-3, 1e5));
+	public final Histogram ageDistribution = new Histogram("Age (Mya)", 32,
+			new AxisMapping.Linear(0, 10000));
 
 	public StarSurvey() {
 	}
@@ -41,7 +45,7 @@ public final class StarSurvey {
 		final var elem = new GalaxySector.ElementHolder();
 		ticket.attachedManager.enumerate(ticket, sector -> {
 			// if (sector.level != 3)
-			// 	return;
+			// return;
 			final var radius = ticket.info.radiusForLevel(sector.level);
 			this.starsPerLevel[sector.level] += sector.elements.size();
 			this.sectorsPerLevel[sector.level] += 1;

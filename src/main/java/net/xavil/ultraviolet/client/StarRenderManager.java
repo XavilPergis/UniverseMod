@@ -292,12 +292,14 @@ public final class StarRenderManager implements Disposable {
 			Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
 			Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 / ctx.camera.metersPerUnit);
 
-			StellarCelestialNode.blackBodyColorFromTable(colorHolder, elem.temperatureK);
+			StellarCelestialNode.BLACK_BODY_COLOR_TABLE.lookupColor(colorHolder, elem.temperatureK);
+			final var brightnessMultiplier = StellarCelestialNode.BLACK_BODY_COLOR_TABLE
+					.lookupBrightnessMultiplier(elem.temperatureK);
 
 			if (this.mode == Mode.REALISTIC) {
 				ctx.builder.vertex(elem.systemPosTm)
 						.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
-						.uv0((float) elem.luminosityLsol, 0)
+						.uv0((float) elem.luminosityLsol, brightnessMultiplier)
 						.endVertex();
 			} else if (this.mode == Mode.MAP) {
 				ctx.builder.vertex(elem.systemPosTm)
@@ -357,12 +359,12 @@ public final class StarRenderManager implements Disposable {
 
 		if (this.mode == Mode.REALISTIC) {
 			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC.get();
-			BufferRenderer.setupDefaultShaderUniforms(shader);
+			shader.setupDefaultShaderUniforms();
 			setupStarShader(shader, camera);
 			this.starsMesh.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 		} else if (this.mode == Mode.MAP) {
 			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_UI.get();
-			BufferRenderer.setupDefaultShaderUniforms(shader);
+			shader.setupDefaultShaderUniforms();
 			setupStarShader(shader, camera);
 			this.starsMesh.draw(shader, DRAW_STATE_OPAQUE);
 		}

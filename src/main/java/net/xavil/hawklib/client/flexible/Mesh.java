@@ -42,8 +42,8 @@ public class Mesh implements Disposable {
 			this.baseAttribIndex = baseAttribIndex;
 			// this.bindingIndex = bindingIndex;
 			this.layout = layout;
-			GL45C.glVertexArrayVertexBuffer(vertexArray.id, bindingIndex, this.buffer.id, 0, this.layout.byteStride);
 			this.layout.setupVertexState(vertexArray, baseAttribIndex, bindingIndex, this.instanceRate);
+			GL45C.glVertexArrayVertexBuffer(vertexArray.id, bindingIndex, this.buffer.id, 0, this.layout.byteStride);
 		}
 
 		@Override

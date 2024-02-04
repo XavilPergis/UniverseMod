@@ -69,8 +69,7 @@ public class AuthoredSystemResource extends SimpleJsonResourceReloadListener {
 
 	private static StellarCelestialNode.Type parseStarType(String type) {
 		return switch (type) {
-			case "main_sequence" -> StellarCelestialNode.Type.MAIN_SEQUENCE;
-			case "giant" -> StellarCelestialNode.Type.GIANT;
+			case "star" -> StellarCelestialNode.Type.STAR;
 			case "white_dwarf" -> StellarCelestialNode.Type.WHITE_DWARF;
 			case "neutron_star" -> StellarCelestialNode.Type.NEUTRON_STAR;
 			case "black_hole" -> StellarCelestialNode.Type.BLACK_HOLE;

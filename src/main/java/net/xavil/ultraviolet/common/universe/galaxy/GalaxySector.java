@@ -61,6 +61,14 @@ public final class GalaxySector {
 		return (1 << level) * BASE_SIZE_Tm;
 	}
 
+	public static int lengthToLevel(double length) {
+		for (int i = 0; i < ROOT_LEVEL; ++i) {
+			if (length <= sizeForLevel(i))
+				return i;
+		}
+		return ROOT_LEVEL;
+	}
+
 	public static Vec3i levelCoordsForPos(int level, Vec3Access pos) {
 		return pos.div(sizeForLevel(level)).floor();
 	}

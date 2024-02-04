@@ -8,6 +8,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.ResourceLocation;
 import net.xavil.hawklib.client.flexible.FlexibleRenderTarget;
 import net.xavil.hawklib.client.gl.GlLimits;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
 
 public final class GlTexture2d extends GlTexture {
 
@@ -30,6 +31,10 @@ public final class GlTexture2d extends GlTexture {
 	@Override
 	public GlTexture2d asTexture2d() {
 		return this;
+	}
+
+	public void updateCachedSize(int width, int height) {
+		updateCachedSize(new Size(width, height, 1, 1));
 	}
 
 	public void createStorage(GlTexture.Format textureFormat, int width, int height) {
@@ -66,13 +71,19 @@ public final class GlTexture2d extends GlTexture {
 		return res;
 	}
 
+	public static final MutableMap<ResourceLocation, GlTexture2d> IMPORT_CACHE = MutableMap.hashMap();
+
 	public static GlTexture2d importTexture(ResourceLocation location) {
-		final var client = Minecraft.getInstance();
-		final var texture = client.getTextureManager().getTexture(location);
-		texture.setFilter(true, false);
-		final var res = new GlTexture2d(false, texture.getId(), false);
-		res.storageAllocated = true;
-		return res;
+		final var manager = Minecraft.getInstance().getTextureManager();
+		final var currentTexture = manager.getTexture(location);
+
+		if (!IMPORT_CACHE.containsKey(location) || IMPORT_CACHE.getOrThrow(location).id != currentTexture.getId()) {
+			final var res = new GlTexture2d(false, currentTexture.getId(), false);
+			res.storageAllocated = true;
+			IMPORT_CACHE.insert(location, res);
+		}
+
+		return IMPORT_CACHE.getOrThrow(location);
 	}
 
 }

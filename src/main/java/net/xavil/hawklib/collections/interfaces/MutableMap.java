@@ -6,6 +6,9 @@ import java.util.function.BiPredicate;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import it.unimi.dsi.fastutil.objects.Object2ObjectOpenHashMap;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.CollectionHint;
@@ -82,6 +85,18 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 			@Override
 			public Maybe<V> get() {
 				return this.map.get(this.key);
+			}
+
+			@Override
+			@Nullable
+			public V getOrNull() {
+				return this.map.getOrNull(this.key);
+			}
+
+			@Override
+			@Nonnull
+			public V getOrThrow() {
+				return this.map.getOrThrow(this.key);
 			}
 
 			@Override

@@ -412,7 +412,7 @@ public abstract class GlTexture extends GlObject {
 	public static enum WrapAxis {
 		S(GL45C.GL_TEXTURE_WRAP_S, "S"),
 		T(GL45C.GL_TEXTURE_WRAP_T, "T"),
-		R(GL45C.GL_TEXTURE_WRAP_T, "R");
+		R(GL45C.GL_TEXTURE_WRAP_R, "R");
 
 		public final int id;
 		public final String description;
@@ -533,6 +533,10 @@ public abstract class GlTexture extends GlObject {
 
 	public Size size() {
 		return this.size;
+	}
+
+	public void updateCachedSize(Size size) {
+		this.size = size;
 	}
 
 	public boolean isValid() {

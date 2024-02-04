@@ -54,14 +54,21 @@ void main() {
 	float appMag = 2.5 * (log(pow(distanceFromCamera_pc, 2.0) / (starLuminosityLsol * L_L0)) / log(uMagnitudeBase)) - 5.0;
 
 	float d = pow(uMagnitudePower, -0.4 * appMag + 0.4 * uReferenceMagnitude);
+	d *= aTexCoord0.y;
 
 	brightnessFactor = min(uStarBrightnessScale * d, uStarBrightnessMax);
-	if (starLuminosityLsol == 0.0) {
-		// brightnessFactor = 1.0;
-	}
 
 	emitPoint(viewPos, 2.0 * uStarSize);
 	vertexColor = vec4(aColor.rgb, 1.0);
+
+	// if (brightnessFactor <= 0.01) {
+	// 	brightnessFactor = 0.0;
+	// 	// vertexColor = vec4(0.0, 0.0, 1.0, 1.0);
+	// } else {
+	// 	brightnessFactor = 10.0;
+	// 	vertexColor = vec4(vec3(max(0.0, 300.0 - distanceFromCamera_pc) / 300.0), 1.0);
+	// }
+
 }
 
 #endif
@@ -82,11 +89,12 @@ vec2 scaleUv(vec2 uv, float scale) {
 
 void main() {
     vec4 s1 = texture(uBillboardTexture, saturate(texCoord0));
-	s1.rgb *= mix(vertexColor.rgb, vec3(1.0), 0.2);
+	// s1.rgb *= mix(vertexColor.rgb, vec3(1.0), 0.2);
+	s1.rgb *= vertexColor.rgb;
 	s1.a *= brightnessFactor;
 
 	// very slight twinkle, like how atmospheric distortion causes stars to flicker a little bit
-	s1.a *= mix(0.95, 1.05, noiseSimplex(3.0 * uTime, float(billboardID)) * 0.5 + 0.5);
+	// s1.a *= mix(0.95, 1.05, noiseSimplex(3.0 * uTime, float(billboardID)) * 0.5 + 0.5);
 
     fColor = s1 * vertexColor.a;
 }

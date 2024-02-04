@@ -11,7 +11,6 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector3f;
 
@@ -29,13 +28,10 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.SkyRenderer;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.hawklib.client.HawkRendering;
-import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.shader.AttributeSet;
 import net.xavil.hawklib.client.gl.shader.ShaderLoader;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
-import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.matrices.Mat4;
 

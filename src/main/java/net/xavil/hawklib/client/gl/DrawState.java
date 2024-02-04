@@ -24,7 +24,7 @@ public abstract class DrawState {
 		private GlState.CullFace cullFace = GlState.CullFace.BACK;
 		private GlState.FrontFace frontFace = GlState.FrontFace.CCW;
 
-		private Boolean depthMask = Boolean.TRUE;
+		private Boolean depthWriteEnabled = Boolean.TRUE;
 		private Boolean depthTestingEnabled = Boolean.FALSE;
 		private GlState.DepthFunc depthFunc = GlState.DepthFunc.LESS;
 
@@ -63,8 +63,8 @@ public abstract class DrawState {
 			return this;
 		}
 
-		public Builder depthMask(@Nullable Boolean depthMask) {
-			this.depthMask = depthMask;
+		public Builder enableDepthWrite(@Nullable Boolean enable) {
+			this.depthWriteEnabled = enable;
 			return this;
 		}
 
@@ -162,11 +162,11 @@ public abstract class DrawState {
 			final var states = new Vector<DrawState>();
 
 			// @formatter:off
-			if (this.polygonMode         != null) states.push(new PolygonMode  (this.polygonMode));
-			if (this.enableCulling       != null) states.push(new Culling      (this.enableCulling));
-			if (this.cullFace            != null) states.push(new CullFace     (this.cullFace));
-			if (this.frontFace           != null) states.push(new FrontFace    (this.frontFace));
-			if (this.depthMask           != null) states.push(new DepthMask    (this.depthMask));
+			if (this.polygonMode       != null) states.push(new PolygonMode(this.polygonMode));
+			if (this.enableCulling     != null) states.push(new Culling    (this.enableCulling));
+			if (this.cullFace          != null) states.push(new CullFace   (this.cullFace));
+			if (this.frontFace         != null) states.push(new FrontFace  (this.frontFace));
+			if (this.depthWriteEnabled != null) states.push(new DepthWrite (this.depthWriteEnabled));
 			// @formatter:on
 
 			if (this.depthTestingEnabled != null) {
@@ -256,16 +256,16 @@ public abstract class DrawState {
 		}
 	}
 
-	public static final class DepthMask extends DrawState {
-		public final boolean depthMask;
+	public static final class DepthWrite extends DrawState {
+		public final boolean depthWriteEnabled;
 
-		public DepthMask(boolean depthMask) {
-			this.depthMask = depthMask;
+		public DepthWrite(boolean depthMask) {
+			this.depthWriteEnabled = depthMask;
 		}
 
 		@Override
 		public void apply(GlState state) {
-			state.depthMask(this.depthMask);
+			state.depthMask(this.depthWriteEnabled);
 		}
 	}
 

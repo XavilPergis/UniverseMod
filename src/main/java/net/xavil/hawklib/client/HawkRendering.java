@@ -56,6 +56,9 @@ public final class HawkRendering {
 			final var hdrPost = disposer.attach(RenderTexture.HDR_COLOR.acquireTemporary(input.size().d2()));
 			BloomEffect.render(hdrPost.framebuffer, input);
 
+			// hdrPost.framebuffer.bind();
+			// BufferRenderer.drawFullscreen(input);
+
 			// tonemapping
 			output.bind();
 			final var postShader = UltravioletShaders.getShader(UltravioletShaders.SHADER_MAIN_POSTPROCESS_LOCATION);

@@ -15,8 +15,8 @@ import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
+import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
@@ -36,14 +36,11 @@ import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.universegen.system.UnaryCelestialNode;
-import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
-import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class SkyRenderer implements Disposable {
@@ -51,8 +48,7 @@ public class SkyRenderer implements Disposable {
 	public static final SkyRenderer INSTANCE = new SkyRenderer();
 	private final Minecraft client = Minecraft.getInstance();
 
-	public GlFramebuffer hdrSpaceTarget = null;
-	public GlFramebuffer postProcessTarget = null;
+	public GlFramebuffer mainSkyTarget = null;
 
 	private WorldType previousLocation = null;
 
@@ -70,12 +66,9 @@ public class SkyRenderer implements Disposable {
 	}
 
 	public void resize(int width, int height) {
-		if (this.hdrSpaceTarget != null) {
-			this.hdrSpaceTarget.close();
-			this.hdrSpaceTarget = null;
-		}
-		if (this.postProcessTarget != null) {
-			this.postProcessTarget.resize(new Vec2i(width, height));
+		if (this.mainSkyTarget != null) {
+			this.mainSkyTarget.close();
+			this.mainSkyTarget = null;
 		}
 	}
 
@@ -164,7 +157,8 @@ public class SkyRenderer implements Disposable {
 		if (galaxy == null)
 			return;
 		if (this.starRenderer == null)
-			this.starRenderer = new StarRenderManager(galaxy, new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED));
+			this.starRenderer = new StarRenderManager(galaxy, new SectorTicketInfo.Multi(Vec3.ZERO,
+					GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED));
 		this.starRenderer.setBatchingHint(StarRenderManager.BatchingHint.STATIC);
 		this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
 		if (this.systemTicket == null)
@@ -294,24 +288,26 @@ public class SkyRenderer implements Disposable {
 			modelTfm.push();
 
 			if (node instanceof UnaryCelestialNode unaryNode) {
-				final var radiusTm = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) * Units.Tu_PER_ku * unaryNode.radius;
+				final var radiusTm = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) * Units.Tu_PER_ku
+						* unaryNode.radius;
 				final var radiusUnits = radiusTm * (1e12 / camera.metersPerUnit);
 				final var nodePosUnits = node.position.mul(1e12 / camera.metersPerUnit);
-	
+
 				// final var distanceRatio = radiusTm / camera.posTm.distanceTo(pos);
 				// if (distanceRatio < 0.0001)
 				// return;
 				// final var offset = camera.posTm.mul(1e12 / camera.metersPerUnit);
-	
+
 				modelTfm.push();
-				// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -unaryNode.rotationalRate * time));
+				// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -unaryNode.rotationalRate *
+				// time));
 				// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, unaryNode.obliquityAngle));
 				// modelTfm.appendScale(radiusUnits);
 				modelTfm.appendTransform(Mat4.scale(radiusUnits));
 				// modelTfm.appendTranslation(nodePosUnits.mul(camera.metersPerUnit / 1e12));
 				// modelTfm.appendRotation(camera.orientation.inverse());
 				modelTfm.appendTranslation(camera.toCameraSpace(nodePosUnits));
-	
+
 				if (EntityAccessor.getWorldType(this.client.player) instanceof WorldType.SystemNode loc) {
 					final var skip = loc.id.nodeId() == node.getId();
 					this.planetContext.render(builder, camera, unaryNode, modelTfm, skip);
@@ -341,26 +337,29 @@ public class SkyRenderer implements Disposable {
 		profiler.pop();
 
 		profiler.push("fboSetup");
-		if (this.hdrSpaceTarget == null) {
+		if (this.mainSkyTarget == null) {
 			Mod.LOGGER.info("creating SkyRenderer framebuffer");
-			this.hdrSpaceTarget = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY);
-			this.hdrSpaceTarget.createColorTarget(GlFragmentWrites.COLOR, GlTexture.Format.RGBA16_FLOAT);
-			this.hdrSpaceTarget.createDepthTarget(false, GlTexture.Format.DEPTH_UNSPECIFIED);
-			this.hdrSpaceTarget.enableAllColorAttachments();
-			this.hdrSpaceTarget.checkStatus();
+			this.mainSkyTarget = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY);
+			this.mainSkyTarget.createColorTarget(GlFragmentWrites.COLOR, GlTexture.Format.RGBA16_FLOAT);
+			this.mainSkyTarget.createDepthTarget(false, GlTexture.Format.DEPTH_UNSPECIFIED);
+			this.mainSkyTarget.enableAllColorAttachments();
+			this.mainSkyTarget.checkStatus();
 		}
 		profiler.pop();
 
+		// final var mainTarget = GlFramebuffer.getMainFramebuffer();
+
 		profiler.push("draw");
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
-		drawCelestialObjects(camera, this.hdrSpaceTarget, partialTick);
-		// drawCelestialObjects(camera, GlFramebuffer.MAIN, partialTick);
+		drawCelestialObjects(camera, this.mainSkyTarget, partialTick);
+		// drawCelestialObjects(camera, mainTarget, partialTick);
 		profiler.pop();
-		
-		profiler.push("postprocess");
-		final var sceneTexture = this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
-		HawkRendering.applyPostProcessing(GlFramebuffer.MAIN, sceneTexture);
-		profiler.pop();
+
+		// profiler.push("postprocess");
+		// final var sceneTexture =
+		// this.hdrSpaceTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
+		// HawkRendering.applyPostProcessing(GlFramebuffer.MAIN, sceneTexture);
+		// profiler.pop();
 
 		// TODO: draw atmosphere or something
 		// TODO: figure out how the fuck we're gonna make vanilla fog not look like
@@ -368,10 +367,13 @@ public class SkyRenderer implements Disposable {
 		// could maybe replace the vanilla fog shader with one that takes in a
 		// background image buffer and uses that as the fog color. idk.
 
-		profiler.push("clear");
-		GlFramebuffer.MAIN.bind();
-		GlFramebuffer.MAIN.clearDepthAttachment(1.0f);
-		profiler.pop();
+		// profiler.push("clear");
+		// mainTarget.bind();
+		// // clear depth because celestial objects use a totally different coordinate
+		// // system than the actual minecraft world, so we would potentially get planets
+		// // drawn in front of terrain...
+		// mainTarget.clearDepthAttachment(1.0f);
+		// profiler.pop();
 
 		profiler.push("popGlState");
 		GlManager.popState();
@@ -380,13 +382,22 @@ public class SkyRenderer implements Disposable {
 		return true;
 	}
 
+	public GlTexture2d compositeMainWorld(GlFramebuffer mainTarget) {
+		final var mainImage = mainTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
+
+		this.mainSkyTarget.bind();
+		final var shader = UltravioletShaders.SHADER_UN_VANILLA.get();
+		shader.setUniformSampler("uSampler", mainImage);
+		BufferRenderer.drawFullscreen(shader);
+
+		return this.mainSkyTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
+	}
+
 	@Override
 	public void close() {
 		this.planetContext.close();
-		if (this.hdrSpaceTarget != null)
-			this.hdrSpaceTarget.close();
-		if (this.postProcessTarget != null)
-			this.postProcessTarget.close();
+		if (this.mainSkyTarget != null)
+			this.mainSkyTarget.close();
 		if (this.starRenderer != null)
 			this.starRenderer.close();
 		if (this.galaxyRenderingContext != null)

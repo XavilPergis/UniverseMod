@@ -24,6 +24,8 @@ import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.RenderTexture;
+import net.xavil.hawklib.client.gl.DrawState;
+import net.xavil.hawklib.client.gl.GlState;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.GalaxyRenderingContext;
@@ -51,6 +53,7 @@ import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.NumericOps;
 import net.xavil.hawklib.math.Quat;
+import net.xavil.hawklib.math.Rect;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
@@ -226,6 +229,10 @@ public class NewSystemMapScreen extends HawkScreen {
 		return transpose ? new Vec2(pos.y, pos.x) : pos;
 	}
 
+	private boolean isSelected(CelestialNode node) {
+		return this.selectedNode != -1 && node.id == this.selectedNode;
+	}
+
 	private void renderNode(RenderContext ctx, LayoutNode layout, Vec2 pos, boolean isVertical) {
 		double currentLineStart = 0;
 		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
@@ -269,10 +276,37 @@ public class NewSystemMapScreen extends HawkScreen {
 			// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, -Math.PI / 16));
 			modelTfm.appendRotation(Quat.axisAngle(Vec3.ZP, Math.PI / 8));
 			modelTfm.appendTransform(Mat4.scale(0.9 * layout.nodeSize));
-			if (this.selectedNode != -1 && layout.getCelestialNode().id == this.selectedNode) {
+			if (isSelected(layout.getCelestialNode())) {
 				modelTfm.appendTransform(Mat4.scale(1.1));
 			}
 			modelTfm.appendTranslation(pos.xy0());
+
+			final var quadBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
+					PrimitiveType.QUADS,
+					BufferLayout.POSITION_COLOR_TEX);
+
+			final var s = 1.0 * layout.nodeSize;
+			final var sNN = pos.add(transpose(new Vec2(-s, -s), !isVertical)).withZ(-0.2);
+			final var sNP = pos.add(transpose(new Vec2(-s, s), !isVertical)).withZ(-0.2);
+			final var sPN = pos.add(transpose(new Vec2(s, -s), !isVertical)).withZ(-0.2);
+			final var sPP = pos.add(transpose(new Vec2(s, s), !isVertical)).withZ(-0.2);
+
+			ColorRgba color = new ColorRgba(0.0f, 0.0f, 0.0f, 0.2f);
+			if (isSelected(layout.getCelestialNode())) {
+				color = new ColorRgba(0.0f, 0.0f, 0.0f, 0.5f);
+			}
+
+			quadBuilder.vertex(sPN).color(color).uv0(1, 0).endVertex();
+			quadBuilder.vertex(sNN).color(color.withA(0)).uv0(0, 0).endVertex();
+			quadBuilder.vertex(sNP).color(color.withA(0)).uv0(0, 1).endVertex();
+			quadBuilder.vertex(sPP).color(color).uv0(1, 1).endVertex();
+
+			quadBuilder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(), DrawState.builder()
+					// .enableDepthTest(GlState.DepthFunc.LESS)
+					// .enableDepthWrite(true)
+					.enableCulling(false)
+					.enableAlphaBlending()
+					.build());
 
 			this.renderContext.render(BufferRenderer.IMMEDIATE_BUILDER, this.uiCamera, unaryNode.celestialNode,
 					modelTfm, false);
@@ -455,17 +489,6 @@ public class NewSystemMapScreen extends HawkScreen {
 		super.tick();
 		this.scale.tick();
 		this.offset.tick();
-	}
-
-	private record Rect(Vec2 pos, Vec2 size) {
-		public static Rect fromCorners(Vec2 min, Vec2 max) {
-			return new Rect(min, max.sub(min));
-		}
-
-		public boolean contains(Vec2 point) {
-			return point.x >= this.pos.x && point.x < this.pos.x + this.size.x
-					&& point.y >= this.pos.y && point.y < this.pos.y + this.size.y;
-		}
 	}
 
 	private static final class LayoutPositions {

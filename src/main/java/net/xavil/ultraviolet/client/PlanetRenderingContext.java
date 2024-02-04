@@ -120,8 +120,7 @@ public final class PlanetRenderingContext implements Disposable {
 	public static int getNodeTypeInt(UnaryCelestialNode node) {
 		if (node instanceof StellarCelestialNode pNode) {
 			return switch (pNode.type) {
-				case MAIN_SEQUENCE -> 0;
-				case GIANT -> 1;
+				case STAR -> 0;
 				case WHITE_DWARF -> 2;
 				case NEUTRON_STAR -> 3;
 				case BLACK_HOLE -> 4;
@@ -455,7 +454,7 @@ public final class PlanetRenderingContext implements Disposable {
 		for (var i = 0; i < starCount; ++i) {
 			final var star = stars.get(i);
 			final var pos = camera.toCameraSpace(this.origin.add(star.position));
-			setupLight(i, pos, star.getColor().withA((float) star.luminosityLsol));
+			setupLight(i, pos, star.getColor().withA(star.getBrightnessMultiplier()));
 		}
 	}
 
@@ -481,7 +480,7 @@ public final class PlanetRenderingContext implements Disposable {
 
 		if (node instanceof PlanetaryCelestialNode planetNode) {
 		} else if (node instanceof StellarCelestialNode starNode) {
-			nodeShader.setUniformf("uStarColor", starNode.getColor().withA((float) starNode.luminosityLsol));
+			nodeShader.setUniformf("uStarColor", starNode.getColor().withA(starNode.getBrightnessMultiplier()));
 		}
 
 		nodeShader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
@@ -494,8 +493,8 @@ public final class PlanetRenderingContext implements Disposable {
 
 		BufferRenderer.setupCameraUniforms(nodeShader, camera);
 		BufferRenderer.setupCameraUniforms(pointShader, camera);
-		BufferRenderer.setupDefaultShaderUniforms(nodeShader);
-		BufferRenderer.setupDefaultShaderUniforms(pointShader);
+		nodeShader.setupDefaultShaderUniforms();
+		pointShader.setupDefaultShaderUniforms();
 		StarRenderManager.setupStarShader(pointShader, camera);
 
 		if (!skip && !(node instanceof StellarCelestialNode starNode

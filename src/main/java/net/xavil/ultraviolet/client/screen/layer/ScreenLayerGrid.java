@@ -49,7 +49,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 	}
 
 	public static final DrawState GRID_STATE = DrawState.builder()
-			.depthMask(false)
+			.enableDepthWrite(false)
 			.enableCulling(false)
 			.enableAdditiveBlending()
 			.enableDepthTest(GlState.DepthFunc.LESS)

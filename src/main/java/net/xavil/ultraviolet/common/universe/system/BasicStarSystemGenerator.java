@@ -13,7 +13,6 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
-import net.xavil.ultraviolet.Mod;
 import net.xavil.universegen.system.BinaryCelestialNode;
 import net.xavil.universegen.system.CelestialNode;
 import net.xavil.universegen.system.CelestialNodeChild;
@@ -153,15 +152,16 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			final var semiMajorL = SPACING_FACTOR * getExclusionRadius(primary);
 			// higher bound increases by 0.02 au per earth mass
 			final var semiMajorH = 0.02 * primaryMass * Units.Mearth_PER_Yg * Units.Tm_PER_au;
-			
+
 			final var eccentricity = rng.uniformDouble("eccentricity", 0.0, 0.1);
 			final var distance = rng.uniformDouble("semi_major", semiMajorL, semiMajorH);
-			
+
 			if (distance > maxDistance)
 				return primary;
 
 			final var outerShape = new OrbitalShape(eccentricity, distance / (1 + eccentricity));
-			final var innerShape = new OrbitalShape(eccentricity, outerShape.semiMajor() * (secondaryMass / primaryMass));
+			final var innerShape = new OrbitalShape(eccentricity,
+					outerShape.semiMajor() * (secondaryMass / primaryMass));
 
 			Assert.isTrue(!Double.isNaN(outerShape.semiMajor()));
 			Assert.isTrue(!Double.isNaN(innerShape.semiMajor()));
@@ -223,7 +223,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		}
 
 		if (res.massYg > 0.01 * Units.Yg_PER_Mearth) {
-			this.rng.push("secondary");
+			this.rng.push("moons");
 			generateMoonsAroundPlanet(res, maxDistance);
 			this.rng.pop();
 		}
@@ -295,17 +295,18 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		// throw new IllegalArgumentException("node was not stellar or binary!");
 	}
 
-	private void generateMoonsAroundPlanet(CelestialNode parent, double maxDistance) {
+	private void generateMoonsAroundPlanet(CelestialNode planet, double maxDistance) {
 
 		// final var stellarMass = totalStellarMass(parent);
 
 		// TODO: pick better minimum and maximum
-		final var discMin = getExclusionRadius(parent);
-		final var discMax = Units.Tm_PER_au
-				* this.rng.weightedDouble("disc_max", 2, 0, 10)
-				* Math.sqrt(Units.Msol_PER_Yg * parent.massYg);
+		final var discMin = getExclusionRadius(planet);
+		// final var discMax = Units.Tm_PER_au
+		// * this.rng.weightedDouble("disc_max", 2, 0.4, 1)
+		// * Math.sqrt(Units.Msol_PER_Yg * planet.massYg);
+		final var discMax = this.rng.weightedDouble("disc_max", 2, 0.4, 1) * maxDistance;
 
-		double discMass = parent.massYg * this.rng.weightedDouble("disc_mass", 2.0, 0.0, 0.7);
+		double discMass = planet.massYg * this.rng.weightedDouble("disc_mass", 2.0, 0.0, 0.7);
 		final var discPlane = OrbitalPlane.random(this.rng.rng("disc_plane"));
 
 		double currentSemiMajor = rng.weightedDouble("initial_semi_major", 5, discMin, discMax);
@@ -316,7 +317,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			Assert.isTrue(!Double.isNaN(currentSemiMajor));
 
 			final var spacingFactor = this.rng.weightedDouble("spacing_factor", 3, 1, 1.5);
-			final var ecc = this.rng.weightedDouble("eccentricity", 3, 0.0, 0.4);
+			final var ecc = this.rng.weightedDouble("eccentricity", 10, 0.0, 0.3);
 
 			final var periapsis = currentSemiMajor * spacingFactor;
 			final var semiMajor = periapsis / (1 - ecc);
@@ -342,13 +343,29 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			final var phase = rng.uniformDouble("phase", 0, 2 * Math.PI);
 			this.rng.push("planet");
 			if (planetMass > Units.Yg_PER_Mearth * 0.001) {
-				final var node = generatePlanet(planetMass, (apoapsis - periapsis) / (4.0 * SPACING_FACTOR));
-				final var child = new CelestialNodeChild<>(parent, node, orbitalShape, orbitalPlane, phase);
-				parent.childNodes.push(child);
+				final var childMaxDistance = Math.min(
+						Formulas.hillSphereRadius(planet.massYg, planetMass, ecc, semiMajor),
+						(apoapsis - periapsis) / (4.0 * SPACING_FACTOR));
+				final var node = generatePlanet(planetMass, childMaxDistance);
+				final var child = new CelestialNodeChild<>(planet, node, orbitalShape, orbitalPlane, phase);
+				planet.childNodes.push(child);
 			}
 			this.rng.pop();
 		}
 		this.rng.pop();
+	}
+
+	private double resonantSemiMajor(double semiMajor, double ratio) {
+		// a1, R in [0, 1] -> a2
+		// T1 = sqrt(k*a1^3)
+		// T2 = T1 / R
+		// a2 = cbrt(T2^2 / k)
+
+		// a2 = cbrt((sqrt(k * a1^3) / R)^2 / k)
+		// a2 = cbrt(a1^3 / R^2)
+		// a2 = (a1^3 / R^2)^(1/3)
+		// a2 = a1 / R^(2/3)
+		return semiMajor * Math.pow(ratio, (2.0 / 3.0));
 	}
 
 	private void generatePlanetsAroundStar(Context ctx, CelestialNode parent, double initialDiscMass,
@@ -422,12 +439,15 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 			discMass -= planetMass;
 
 			// final var planetMass = this.rng.uniformDouble("mass", 0.5, 1.0)
-			// 		* sweptMass(cutoutDistance, discMass, periapsis, apoapsis);
+			// * sweptMass(cutoutDistance, discMass, periapsis, apoapsis);
 			final var phase = rng.uniformDouble("phase", 0, 2 * Math.PI);
 
 			this.rng.push("planet");
 			if (planetMass > Units.Yg_PER_Mearth * 0.01) {
-				final var node = generatePlanet(planetMass, (curBound - prevBound) / (4.0 * SPACING_FACTOR));
+				final var childMaxDistance = Math.min(
+						Formulas.hillSphereRadius(parent.massYg, planetMass, ecc, semiMajor),
+						(curBound - prevBound) / (4.0 * SPACING_FACTOR));
+				final var node = generatePlanet(planetMass, childMaxDistance);
 				final var child = new CelestialNodeChild<>(parent, node, orbitalShape, orbitalPlane, phase);
 				parent.childNodes.push(child);
 			}

@@ -13,4 +13,5 @@ public class Constants {
 	public static final double SCHWARZSCHILD_FACTOR_m_PER_kg = 2.0 * GRAVITATIONAL_CONSTANT_m3_PER_kg_s2
 			/ Math.pow(SPEED_OF_LIGHT_m_PER_s, 2);
 
+	public static final double ZERO_POINT_LUMINSOITY_W = 3.0128e28;
 }

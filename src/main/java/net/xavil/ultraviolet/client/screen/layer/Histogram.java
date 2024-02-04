@@ -3,48 +3,76 @@ package net.xavil.ultraviolet.client.screen.layer;
 import java.util.function.Consumer;
 
 import net.minecraft.util.Mth;
-import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.collections.impl.VectorFloat;
+import net.xavil.hawklib.collections.impl.VectorInt;
+import net.xavil.hawklib.collections.interfaces.ImmutableListFloat;
+import net.xavil.hawklib.collections.iterator.IteratorInt;
 
 public final class Histogram {
-	private final Interval domain;
 	private final String inputLabel;
-	private final int[] bins;
+	private final VectorInt bins;
 
-	private final Vector<Double> outliersLo = new Vector<>(), outliersHi = new Vector<>();
+	public final AxisMapping mapping;
+	
+	private final VectorFloat outliersLo = new VectorFloat(), outliersHi = new VectorFloat();
 	private int outliersLoCount, outliersHiCount;
 
 	private int total = 0;
 
-	public Histogram(String inputLabel, Interval domain, int binCount) {
+	public Histogram(String inputLabel, int binCount, AxisMapping mapping) {
 		this.inputLabel = inputLabel;
-		this.bins = new int[binCount];
-		this.domain = domain;
+		this.bins = new VectorInt(binCount);
+		this.mapping = mapping;
+		reset(binCount);
 	}
 
-	public void reset() {
+	public ImmutableListFloat outliersLo() {
+		return this.outliersLo;
+	}
+
+	public ImmutableListFloat outliersHi() {
+		return this.outliersHi;
+	}
+
+	public int size() {
+		return this.bins.size();
+	}
+
+	public int get(int bin) {
+		return this.bins.get(bin);
+	}
+
+	public void reset(int binCount) {
 		this.total = 0;
-		for (int i = 0; i < this.bins.length; ++i)
-			this.bins[i] = 0;
+		this.bins.clear();
+		this.bins.extend(IteratorInt.repeat(0, binCount));
 		this.outliersLo.clear();
 		this.outliersHi.clear();
 		this.outliersLoCount = this.outliersHiCount = 0;
 	}
 
+	public void reset() {
+		reset(this.bins.size());
+	}
+
+	public int total() {
+		return this.total;
+	}
+
 	public void insert(double value) {
 		this.total += 1;
-		final var t = Mth.inverseLerp(value, this.domain.lower, this.domain.higher);
+		final var t = this.mapping.remap(value);
 		if (t < 0) {
 			if (this.outliersLoCount < 20)
-				this.outliersLo.push(value);
+				this.outliersLo.push((float) value);
 			this.outliersLoCount += 1;
 		} else if (t >= 1) {
 			if (this.outliersHiCount < 20)
-				this.outliersHi.push(value);
+				this.outliersHi.push((float) value);
 			this.outliersHiCount += 1;
 		} else {
-			final var bin = Mth.floor(t * this.bins.length);
-			this.bins[bin] += 1;
+			final var bin = Mth.floor(t * this.bins.size());
+			this.bins.set(bin, this.bins.get(bin) + 1);
 		}
 	}
 
@@ -87,14 +115,14 @@ public final class Histogram {
 		makeBar(sb, this.inputLabel, '=', barLength);
 		sb.append("+");
 		printer.accept(sb.toString());
-		for (int i = 0; i < this.bins.length; ++i) {
-			final var binPercent = this.bins[i] / (double) this.total;
-			final var binLo = Mth.lerp(i / (double) this.bins.length, this.domain.lower, this.domain.higher);
-			final var binHi = Mth.lerp((i + 1) / (double) this.bins.length, this.domain.lower, this.domain.higher);
+		for (int i = 0; i < this.bins.size(); ++i) {
+			final var binPercent = this.bins.get(i) / (double) this.total;
+			final var binLo = this.mapping.unmap(i / (double) this.bins.size());
+			final var binHi = this.mapping.unmap((i + 1) / (double) this.bins.size());
 			sb.setLength(0);
 			makeBar(sb, binPercent, barLength);
 			printer.accept(
-					String.format("|%s| %d : %f%% : %f-%f", sb, this.bins[i], 100 * binPercent, binLo, binHi));
+					String.format("|%s| %d : %f%% : %f-%f", sb, this.bins.get(i), 100 * binPercent, binLo, binHi));
 		}
 		sb.setLength(0);
 		sb.append("+");

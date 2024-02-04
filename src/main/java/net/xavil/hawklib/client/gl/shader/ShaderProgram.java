@@ -6,9 +6,12 @@ import org.lwjgl.opengl.GL45C;
 import org.lwjgl.system.MemoryStack;
 
 import com.mojang.blaze3d.platform.GlStateManager;
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormatElement;
+import com.mojang.math.Matrix4f;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
 import net.xavil.hawklib.HawkLib;
@@ -17,6 +20,7 @@ import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.GlObject;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.iterator.Iterator;
+import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 
 public final class ShaderProgram extends GlObject implements UniformHolder {
 
@@ -92,7 +96,6 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 	public Iterator<UniformSlot> uniforms() {
 		return this.uniforms.values();
 	}
-
 
 	public GlFragmentWrites fragmentWrites() {
 		return this.fragmentWrites;
@@ -224,6 +227,57 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 
 	public static void unbind() {
 		GlManager.useProgram(0);
+	}
+
+	public void setupDefaultShaderUniforms() {
+		setupDefaultShaderUniforms(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix());
+	}
+
+	private void setupDefaultShaderUniforms(Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
+
+		// final var near = projectionMatrix.m23 / (projectionMatrix.m22 - 1.0);
+		// final var far = projectionMatrix.m23 / (projectionMatrix.m22 + 1.0);
+		// shader.setUniform("uCameraNear", near);
+		// shader.setUniform("uCameraFar", far);
+
+		setUniformf("uViewMatrix", Mat4Access.from(modelViewMatrix));
+		setUniformf("uProjectionMatrix", Mat4Access.from(projectionMatrix));
+
+		final var window = Minecraft.getInstance().getWindow();
+		setUniformf("uScreenSize", (float) window.getWidth(), (float) window.getHeight());
+
+		setupDefaultVanillaUniforms(this.getWrappedVanillaShader());
+	}
+
+	private static void setupDefaultVanillaUniforms(ShaderInstance shader) {
+		if (shader == null)
+			return;
+		if (shader.MODEL_VIEW_MATRIX != null)
+			shader.MODEL_VIEW_MATRIX.set(RenderSystem.getModelViewMatrix());
+		if (shader.PROJECTION_MATRIX != null)
+			shader.PROJECTION_MATRIX.set(RenderSystem.getProjectionMatrix());
+		if (shader.INVERSE_VIEW_ROTATION_MATRIX != null)
+			shader.INVERSE_VIEW_ROTATION_MATRIX.set(RenderSystem.getInverseViewRotationMatrix());
+		if (shader.COLOR_MODULATOR != null)
+			shader.COLOR_MODULATOR.set(RenderSystem.getShaderColor());
+		if (shader.FOG_START != null)
+			shader.FOG_START.set(RenderSystem.getShaderFogStart());
+		if (shader.FOG_END != null)
+			shader.FOG_END.set(RenderSystem.getShaderFogEnd());
+		if (shader.FOG_COLOR != null)
+			shader.FOG_COLOR.set(RenderSystem.getShaderFogColor());
+		if (shader.FOG_SHAPE != null)
+			shader.FOG_SHAPE.set(RenderSystem.getShaderFogShape().getIndex());
+		if (shader.TEXTURE_MATRIX != null)
+			shader.TEXTURE_MATRIX.set(RenderSystem.getTextureMatrix());
+		if (shader.GAME_TIME != null)
+			shader.GAME_TIME.set(RenderSystem.getShaderGameTime());
+		final var window = Minecraft.getInstance().getWindow();
+		if (shader.SCREEN_SIZE != null)
+			shader.SCREEN_SIZE.set((float) window.getWidth(), (float) window.getHeight());
+		if (shader.LINE_WIDTH != null)
+			shader.LINE_WIDTH.set(RenderSystem.getShaderLineWidth());
+		RenderSystem.setupShaderLights(shader);
 	}
 
 }

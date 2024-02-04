@@ -9,6 +9,7 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.HawkLib;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
+import net.xavil.hawklib.client.gl.GlFramebufferAttachment;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.client.gl.texture.GlTexture.WrapMode;
@@ -120,6 +121,30 @@ public final class RenderTexture implements Disposable {
 				return new StaticDescriptor(this);
 			}
 		}
+	}
+
+	public RenderTexture(GlFramebuffer imported) {
+		this.pool = null;
+		this.framebuffer = imported;
+
+		this.colorTexture = this.framebuffer.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
+		if (this.colorTexture == null)
+			throw new IllegalArgumentException(String.format(
+					"Tried to import {} as RenderTexture, but it has no main color buffer!",
+					imported.debugDescription()));
+
+		final var desc = StaticDescriptor.builder().withColorFormat(this.colorTexture.format());
+
+		final var depth = imported.getDepthAttachment();
+		if (depth != null) {
+			this.depthTexture = depth.asTexture2d();
+			final var isDepthReadable = !(depth instanceof GlFramebufferAttachment.Renderbuffer);
+			desc.withDepthFormat(depth.format(), isDepthReadable);
+		} else {
+			this.depthTexture = null;
+		}
+
+		this.descriptor = desc.build();
 	}
 
 	private RenderTexture(TexturePool pool, Vec2i size, StaticDescriptor descriptor) {

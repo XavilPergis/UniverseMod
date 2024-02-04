@@ -1,5 +1,6 @@
 package net.xavil.hawklib.math;
 
+import net.minecraft.util.Mth;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
@@ -9,11 +10,11 @@ public final class Interval implements Hashable {
 
 	public static final Interval ZERO = new Interval(0, 0);
 
-	public final double lower, higher;
+	public final double min, max;
 
-	public Interval(double lower, double higher) {
-		this.lower = lower;
-		this.higher = higher;
+	public Interval(double min, double max) {
+		this.min = min;
+		this.max = max;
 	}
 
 	public static double size(double l, double h) {
@@ -21,15 +22,15 @@ public final class Interval implements Hashable {
 	}
 
 	public double size() {
-		return size(this.lower, this.higher);
+		return size(this.min, this.max);
 	}
 
 	public Interval intersection(Interval other) {
 		if (!this.intersects(other))
 			return ZERO;
 		return new Interval(
-				Math.max(this.lower, other.lower),
-				Math.min(this.higher, other.higher));
+				Math.max(this.min, other.min),
+				Math.min(this.max, other.max));
 	}
 
 	public static boolean intersects(double l1, double h1, double l2, double h2) {
@@ -37,11 +38,11 @@ public final class Interval implements Hashable {
 	}
 
 	public boolean intersects(Interval other) {
-		return intersects(this.lower, this.higher, other.lower, other.higher);
+		return intersects(this.min, this.max, other.min, other.max);
 	}
 
 	public boolean intersects(double otherL, double otherH) {
-		return intersects(this.lower, this.higher, otherL, otherH);
+		return intersects(this.min, this.max, otherL, otherH);
 	}
 
 	public static boolean contains(double l1, double h1, double l2, double h2) {
@@ -49,7 +50,7 @@ public final class Interval implements Hashable {
 	}
 
 	public boolean contains(Interval other) {
-		return contains(this.lower, this.higher, other.lower, other.higher);
+		return contains(this.min, this.max, other.min, other.max);
 	}
 
 	public static boolean contains(double l, double h, double n) {
@@ -57,17 +58,25 @@ public final class Interval implements Hashable {
 	}
 
 	public boolean contains(double value) {
-		return contains(this.lower, this.higher, value);
+		return contains(this.min, this.max, value);
 	}
 
 	public Interval mul(double scale) {
-		return new Interval(scale * this.lower, scale * this.higher);
+		return new Interval(scale * this.min, scale * this.max);
+	}
+
+	public double lerp(double t) {
+		return Mth.lerp(t, this.min, this.max);
+	}
+
+	public double inverseLerp(double v) {
+		return Mth.inverseLerp(v, this.min, this.max);
 	}
 
 	@Override
 	public void appendHash(Hasher hasher) {
-		hasher.appendDouble(this.lower);
-		hasher.appendDouble(this.higher);
+		hasher.appendDouble(this.min);
+		hasher.appendDouble(this.max);
 	}
 
 	@Override
@@ -77,12 +86,12 @@ public final class Interval implements Hashable {
 
 	@Override
 	public boolean equals(Object obj) {
-		return obj instanceof Interval other && this.lower == other.lower && this.higher == other.higher;
+		return obj instanceof Interval other && this.min == other.min && this.max == other.max;
 	}
 
 	@Override
 	public String toString() {
-		return String.format("[%f, %f)", this.lower, this.higher);
+		return String.format("[%f, %f)", this.min, this.max);
 	}
 
 }

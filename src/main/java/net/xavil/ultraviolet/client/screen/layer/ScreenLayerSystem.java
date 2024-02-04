@@ -247,7 +247,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				ctx.currentTexture.colorTexture.setWrapMode(GlTexture.WrapMode.MIRRORED_REPEAT);
 
 				final var color = new Vec3.Mutable();
-				StellarCelestialNode.blackBodyColorFromTable(color, 1200);
+				StellarCelestialNode.BLACK_BODY_COLOR_TABLE.lookupColor(color, 1200);
 
 				shader.setUniformf("uAccretionDiscColor", color);
 				// shader.setUniform("uAccretionDiscColor", 1.0, 0.2, 0.0);

@@ -1,9 +1,20 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
+import net.minecraft.client.gui.font.glyphs.BakedGlyph;
+import net.minecraft.client.gui.font.glyphs.EmptyGlyph;
+import net.minecraft.client.renderer.RenderStateShard;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.network.chat.Style;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.Mth;
+import net.minecraft.util.StringDecomposer;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.camera.CachedCamera;
@@ -12,10 +23,19 @@ import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.flexible.VertexBuilder;
+import net.xavil.hawklib.client.flexible.VertexBuilder.GenericVertexDispatcher;
+import net.xavil.hawklib.client.gl.DrawState;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
+import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.NumericOps;
+import net.xavil.hawklib.math.Rect;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -24,68 +44,61 @@ import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
+import net.xavil.ultraviolet.mixin.accessor.FontAccessor;
+import net.xavil.ultraviolet.mixin.accessor.LightTextureAccessor;
 
 public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 
 	public final Galaxy galaxy;
 	public final SectorTicket<?> ticket;
 
-	private ScatterPlot plot = null;
-	private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.LUMINSOITY;
+	private ScatterPlot xyPlot = null;
+	private Histogram xHistogram = null, yHistogram = null;
+
+	// private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.LUMINSOITY;
+	private Variable xVariable = Variable.DISTANCE, yVariable = Variable.TEMPERATURE;
 	// private Variable xVariable = Variable.AGE, yVariable = Variable.LUMINSOITY;
 	// private Variable xVariable = Variable.MASS, yVariable = Variable.LUMINSOITY;
 	// private Variable xVariable = Variable.MASS, yVariable = Variable.TEMPERATURE;
-	// private AxisMapping xMapping = AxisMapping.LOGE, yMapping = AxisMapping.LOGE;
+
+	private AxisMapping xMapping = new AxisMapping.Log(10, 1, 1e5);
+	private AxisMapping yMapping = new AxisMapping.Log(10, this.yVariable.interval);
 
 	public MotionSmoother<Double> scale = new MotionSmoother<>(0.6, NumericOps.DOUBLE, 1.0);
 	public MotionSmoother<Vec2> offset = new MotionSmoother<>(0.6, NumericOps.VEC2, Vec2.ZERO);
 	public double scaleMin = 0.3, scaleMax = 30;
 	public double scrollMultiplier = 1.2;
 
-	private double animationTimer = 0.0;
-
 	private CachedCamera camera = new CachedCamera();
+	private Vec3 center;
 
-	public ScreenLayerStarStatistics(HawkScreen attachedScreen, SectorTicket<?> ticket) {
+	private static final ColorRgba AXIS_MARKER_COLOR = new ColorRgba(0.05f, 0.83f, 0.07f, 1f);
+	private static final ColorRgba MAJOR_MARKER_COLOR = new ColorRgba(1f, 1f, 1f, 0.8f);
+	private static final ColorRgba MINOR_MARKER_COLOR = new ColorRgba(0.5f, 0.5f, 0.5f, 0.1f);
+	private static final ColorRgba HISTOGRAM_COLOR = new ColorRgba(0.5f, 0.5f, 0.5f, 0.1f);
+
+	public ScreenLayerStarStatistics(HawkScreen attachedScreen, SectorTicket<?> ticket, Vec3 center) {
 		super(attachedScreen);
 		this.galaxy = ticket.attachedManager.galaxy;
 		this.ticket = ticket;
+		this.center = center;
 	}
-
-	// private void renderScatterPlotToTexture(RenderContext ctx, ScatterPlot plot,
-	// RenderTexture target) {
-	// target.framebuffer.bind();
-	// ctx.currentTexture.framebuffer.bind();
-	// }
 
 	private static enum Variable {
 		LUMINSOITY("Luminosity", "Lsol", 1e-4, 1e5),
 		TEMPERATURE("Temperature", "K", 1900, 60000),
 		MASS("Mass", "Msol", 0.08, 300),
-		AGE("Age", "Myr", 1e-6, 1e10);
+		AGE("Age", "Myr", 1e-6, 1e10),
+		DISTANCE("Distance", "pc", 1, 1e5);
 
 		public final String label;
 		public final String units;
-		public final double min, max;
+		public final Interval interval;
 
 		private Variable(String label, String units, double min, double max) {
 			this.label = label;
 			this.units = units;
-			this.min = min;
-			this.max = max;
-		}
-	}
-
-	private static enum DisplayMapping {
-		LINEAR(0),
-		LOG2(2),
-		LOGE(Math.E),
-		LOG10(10);
-
-		public double logBase;
-
-		private DisplayMapping(double logBase) {
-			this.logBase = logBase;
+			this.interval = new Interval(min, max);
 		}
 	}
 
@@ -95,95 +108,71 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 			case TEMPERATURE -> elem.temperatureK;
 			case MASS -> elem.massYg * Units.Msol_PER_Yg;
 			case AGE -> elem.systemAgeMyr;
+			case DISTANCE -> elem.systemPosTm.distanceTo(this.center) * Units.pc_PER_Tm;
 		};
 	}
 
 	private void createScatterPlot() {
-		this.plot = new ScatterPlot(
+		this.xyPlot = new ScatterPlot(
 				this.xVariable.label, this.xVariable.units,
 				this.yVariable.label, this.yVariable.units);
+		this.xHistogram = new Histogram(this.xVariable.label, 1024, this.xMapping);
+		this.yHistogram = new Histogram(this.yVariable.label, 1024, this.yMapping);
 		final var elem = new GalaxySector.ElementHolder();
 		ticket.attachedManager.enumerate(ticket, sector -> {
 			for (int i = 0; i < sector.elements.size(); ++i) {
 				sector.elements.load(elem, i);
 				final var x = selectVariable(elem, this.xVariable);
 				final var y = selectVariable(elem, this.yVariable);
-				this.plot.insert(x, y);
+				this.xyPlot.insert(x, y);
+				this.xHistogram.insert(x);
+				this.yHistogram.insert(y);
 			}
 		});
 	}
 
-	private static abstract sealed class AxisMapping {
-
-		public abstract double remap(double t);
-
-		public static final class Linear extends AxisMapping {
-			public double min = 0, max = 1000;
-
-			public Linear() {
-			}
-
-			public Linear(double min, double max) {
-				this.min = min;
-				this.max = max;
-			}
-
-			@Override
-			public double remap(double t) {
-				return Mth.inverseLerp(t, this.min, this.max);
-			}
-		}
-
-		public static final class Log extends AxisMapping {
-			public double base = 10;
-			public double min = 1e-3, max = 1e5;
-
-			public Log() {
-			}
-
-			public Log(double base, double min, double max) {
-				this.base = base;
-				this.min = min;
-				this.max = max;
-			}
-
-			@Override
-			public double remap(double t) {
-				t = Math.log(t) / Math.log(this.base);
-				final var min = Math.log(this.min) / Math.log(this.base);
-				final var max = Math.log(this.max) / Math.log(this.base);
-				return Mth.inverseLerp(t, min, max);
-			}
-		}
-
-	}
-
 	@FunctionalInterface
 	private interface GuideConsumer {
-		void accept(double pos, boolean isMajor);
+		void accept(double pos, ColorRgba color);
 	}
 
-	private void renderGuidesLogarithmic(AxisMapping.Log mapping, GuideConsumer consumer) {
-		// final var lmin = Math.pow(Math.floor(Math.log(mapping.min) / Math.log(mapping.base)), mapping.base);
-		// final var lmax = Math.pow(Math.ceil(Math.log(mapping.max) / Math.log(mapping.base)), mapping.base);
-		final var lmin = Mth.floor(Math.log(mapping.min) / Math.log(mapping.base));
-		final var lmax = Mth.ceil(Math.log(mapping.max) / Math.log(mapping.base));
-		if (Math.abs(lmax - lmin) > 100)
-			return;
-		for (int i = lmin; i < lmax; ++i) {
-			final var tl = Math.pow(mapping.base, i);
-			final var th = Math.pow(mapping.base, i + 1);
-			for (int j = 1; j < 10; ++j) {
-				final var tMinor = Mth.lerp(j / 10.0, tl, th);
-				consumer.accept(mapping.remap(tMinor), false);
+	private void renderGuides(AxisMapping mapping, GuideConsumer consumer) {
+		if (mapping instanceof AxisMapping.Log logMapping) {
+			final var lmin = Mth.floor(Math.log(logMapping.domain.min) / Math.log(logMapping.base));
+			final var lmax = Mth.ceil(Math.log(logMapping.domain.max) / Math.log(logMapping.base));
+			if (Math.abs(lmax - lmin) > 100)
+				return;
+			for (int i = lmin; i < lmax; ++i) {
+				final var tl = Math.pow(logMapping.base, i);
+				final var th = Math.pow(logMapping.base, i + 1);
+				for (int j = 1; j < 10; ++j) {
+					final var tMinor = Mth.lerp(j / 10.0, tl, th);
+					consumer.accept(logMapping.remap(tMinor), MINOR_MARKER_COLOR);
+				}
+				final var color = Math.abs(tl - 1.0) < 1e-24
+						? AXIS_MARKER_COLOR
+						: MAJOR_MARKER_COLOR;
+				consumer.accept(logMapping.remap(tl), color);
 			}
-			consumer.accept(mapping.remap(tl), true);
+		} else if (mapping instanceof AxisMapping.Linear linearMapping) {
+			final var inc = Math.pow(10,
+					Mth.floor(Math.log(linearMapping.domain.max - linearMapping.domain.min) / Math.log(10)));
+			final var lmin = inc * Math.floor(linearMapping.domain.min / inc);
+			final var lmax = inc * Math.ceil(linearMapping.domain.max / inc);
+			for (double t = lmin; t < lmax; t += inc) {
+				for (int j = 1; j < 8; ++j) {
+					final var tMinor = Mth.lerp(j / 8.0, t, t + inc);
+					consumer.accept(linearMapping.remap(tMinor), MINOR_MARKER_COLOR);
+				}
+				final var color = Math.abs(t) < 1e-24
+						? AXIS_MARKER_COLOR
+						: MAJOR_MARKER_COLOR;
+				consumer.accept(linearMapping.remap(t), color);
+			}
 		}
-
 	}
 
-	private void renderScatterPlot(RenderContext ctx, ScatterPlot plot) {
-
+	private void setupCamera(RenderContext ctx) {
 		final double frustumDepth = 400;
 		final var window = Minecraft.getInstance().getWindow();
 		final var aspectRatio = (float) window.getWidth() / (float) window.getHeight();
@@ -191,69 +180,226 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 		final var projMat = new Mat4.Mutable();
 		final var projLR = aspectRatio * this.scale.get(ctx.partialTick);
 		final var projTB = this.scale.get(ctx.partialTick);
-		Mat4.setOrthographicProjection(projMat, 0, projLR, projTB, 0, -frustumDepth, 0);
+		Mat4.setOrthographicProjection(projMat, -projLR, projLR, projTB, -projTB, -frustumDepth, 0);
 
 		final var viewMat = new Mat4.Mutable();
 		viewMat.loadIdentity();
+		viewMat.appendScale(1.5);
 		viewMat.appendTranslation(this.offset.get(ctx.partialTick).withZ(-0.5 * frustumDepth));
 		Mat4.invert(viewMat, viewMat);
 
 		this.camera.load(viewMat, projMat, 1);
+	}
 
-		final var snapshot = RenderMatricesSnapshot.capture();
-		this.camera.applyProjection();
-		this.camera.applyView();
+	private void renderHistogram(RenderContext ctx, AxisMapping mapping, Histogram plot, Rect bounds,
+			boolean transpose) {
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
+				PrimitiveType.QUADS,
+				BufferLayout.POSITION_COLOR_TEX);
 
-		final var xMapping = new AxisMapping.Log(10, this.xVariable.min, this.xVariable.max);
-		final var yMapping = new AxisMapping.Log(10, this.yVariable.min, this.yVariable.max);
+		int max = 0;
+		for (int i = 0; i < plot.size(); ++i) {
+			max = Math.max(max, plot.get(i));
+		}
 
+		for (int i = 0; i < plot.size(); ++i) {
+			final var percent = plot.get(i) / (double) max;
+
+			double l = mapping.unmap(i / (double) plot.size());
+			double h = mapping.unmap((i + 1) / (double) plot.size());
+
+			l = mapping.remap(l);
+			h = mapping.remap(h);
+
+			final double lx, hx, ly, hy;
+			if (transpose) {
+				ly = Mth.lerp(l, bounds.min().y, bounds.max().y);
+				hy = Mth.lerp(h, bounds.min().y, bounds.max().y);
+				lx = bounds.max().x;
+				hx = Mth.lerp(percent, bounds.max().x, bounds.min().x);
+			} else {
+				lx = Mth.lerp(l, bounds.min().x, bounds.max().x);
+				hx = Mth.lerp(h, bounds.min().x, bounds.max().x);
+				ly = bounds.max().y;
+				hy = Mth.lerp(percent, bounds.max().y, bounds.min().y);
+			}
+
+			builder.vertex(hx, ly, 0).color(new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f)).uv0(1, 0).endVertex();
+			builder.vertex(lx, ly, 0).color(new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f)).uv0(0, 0).endVertex();
+			builder.vertex(lx, hy, 0).color(new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f)).uv0(0, 1).endVertex();
+			builder.vertex(hx, hy, 0).color(new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f)).uv0(1, 1).endVertex();
+		}
+
+		builder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(),
+				HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
+	}
+
+	private void renderScatterPlot(RenderContext ctx, ScatterPlot plot, Rect bounds) {
 		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
 				PrimitiveType.LINES,
 				BufferLayout.POSITION_COLOR_NORMAL);
 
-		renderGuidesLogarithmic(xMapping, (pos, isMajor) -> {
-			final var color = isMajor ? MAJOR_MARKER_COLOR : MINOR_MARKER_COLOR.withA(0.1f);
-			RenderHelper.addLine(lineBuilder, new Vec3(pos, 0, 0), new Vec3(pos, 1, 0), color);
+		// guides
+		renderGuides(this.xMapping, (pos, color) -> {
+			if (pos <= 0 || pos >= 1)
+				return;
+			final var x = Mth.lerp(pos, bounds.min().x, bounds.max().x);
+			final var l = new Vec3(x, bounds.min().y, 0);
+			final var h = new Vec3(x, bounds.max().y, 0);
+			RenderHelper.addLine(lineBuilder, l, h, color);
+		});
+		renderGuides(this.yMapping, (pos, color) -> {
+			if (pos <= 0 || pos >= 1)
+				return;
+			final var y = Mth.lerp(pos, bounds.min().y, bounds.max().y);
+			final var l = new Vec3(bounds.min().x, y, 0);
+			final var h = new Vec3(bounds.max().x, y, 0);
+			RenderHelper.addLine(lineBuilder, l, h, color);
 		});
 
-		renderGuidesLogarithmic(yMapping, (pos, isMajor) -> {
-			final var color = isMajor ? MAJOR_MARKER_COLOR : MINOR_MARKER_COLOR.withA(0.1f);
-			RenderHelper.addLine(lineBuilder, new Vec3(0, pos, 0), new Vec3(1, pos, 0), color);
-		});
+		// bounds
+		RenderHelper.addLine(lineBuilder, new Vec3(bounds.min().x, bounds.min().y, 0),
+				new Vec3(bounds.min().x, bounds.max().y, 0), MAJOR_MARKER_COLOR);
+		RenderHelper.addLine(lineBuilder, new Vec3(bounds.max().x, bounds.min().y, 0),
+				new Vec3(bounds.max().x, bounds.max().y, 0), MAJOR_MARKER_COLOR);
+		RenderHelper.addLine(lineBuilder, new Vec3(bounds.min().x, bounds.min().y, 0),
+				new Vec3(bounds.max().x, bounds.min().y, 0), MAJOR_MARKER_COLOR);
+		RenderHelper.addLine(lineBuilder, new Vec3(bounds.min().x, bounds.max().y, 0),
+				new Vec3(bounds.max().x, bounds.max().y, 0), MAJOR_MARKER_COLOR);
 
 		RenderSystem.lineWidth(1f);
 		lineBuilder.end().draw(
 				UltravioletShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(),
 				HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
 
+		// data
 		final var pointBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-				PrimitiveType.POINT_QUADS, BufferLayout.POSITION_COLOR_NORMAL);
-
-		for (int i = 0; i < this.plot.size(); ++i) {
-			double x = this.plot.getX(i), y = this.plot.getY(i);
-			x = xMapping.remap(x);
-			y = yMapping.remap(y);
-			pointBuilder.vertex(x, y, 0)
-					.color(1, 1, 1, 0.1f)
-					.endVertex();
+				PrimitiveType.POINT_QUADS, BufferLayout.POSITION_COLOR_TEX);
+		for (int i = 0; i < this.xyPlot.size(); ++i) {
+			double x = this.xyPlot.getX(i), y = this.xyPlot.getY(i);
+			x = Mth.lerp(this.xMapping.remap(x), bounds.min().x, bounds.max().x);
+			y = Mth.lerp(this.yMapping.remap(y), bounds.min().y, bounds.max().y);
+			pointBuilder.vertex(x, y, 0).color(1, 1, 1, 0.1f).uv0(5f, 5f).endVertex();
 		}
+		pointBuilder.end().draw(UltravioletShaders.SHADER_UI_POINTS.get(),
+				HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
 
-		final var shader = UltravioletShaders.SHADER_UI_POINTS.get();
-		shader.setUniformf("uPointSize", 1f);
+		// StringRenderOutput stringRenderOutput = new StringRenderOutput(bufferSource,
+		// x, y, color, dropShadow, pose, seeThrough, packedLightCoords);
+		// final var sink = new TestCharSink();
+		// StringDecomposer.iterateFormatted("among\nus", Style.EMPTY, sink);
+		// sink.draw(BufferRenderer.IMMEDIATE_BUILDER,
+		// HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
+		// return stringRenderOutput.finish(backgroundColor, x);
 
-		pointBuilder.end().draw(shader, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
-
-		snapshot.restore();
+		// client.font.draw(poseStack, text, 10, this.height, 0xffffffff);
 	}
 
-	private static final ColorRgba MAJOR_MARKER_COLOR = new ColorRgba(1f, 1f, 1f, 0.8f);
-	private static final ColorRgba MINOR_MARKER_COLOR = new ColorRgba(0.5f, 0.5f, 0.5f, 0.8f);
+	private static final class TestCharSink implements FormattedCharSink {
+
+		private final Font font = Minecraft.getInstance().font;
+		private double x = 0, y = 0;
+		private MutableMap<ResourceLocation, Vector<PositionedGlyph>> builtGlyphs = MutableMap.hashMap();
+
+		record PositionedGlyph(BakedGlyph glyph, float x, float y, Style style, float r, float g, float b, float a) {
+			public void draw(VertexConsumer builder) {
+				// final var mat = new Matrix4f();
+				// mat.setIdentity();
+				final var scale = 0.0075f;
+				final var mat = Matrix4f.createScaleMatrix(scale, -scale, scale);
+				this.glyph.render(style.isItalic(), x, -y, mat, builder, r, g, b, a, 0xF000F0);
+			}
+		}
+
+		private static final Matrix4f IDENTITY = new Matrix4f();
+		static {
+			IDENTITY.setIdentity();
+		}
+
+		// lmfao
+		private static ResourceLocation extractTextureFromRenderType(RenderType renderType) {
+			if (renderType instanceof RenderType.CompositeRenderType composite) {
+				if (composite.state.textureState instanceof RenderStateShard.TextureStateShard shard) {
+					if (shard.texture.isPresent()) {
+						return shard.texture.get();
+					}
+				}
+			}
+			throw new IllegalArgumentException(String.format(
+					"RenderType {} has no TextureStateShard",
+					renderType.toString()));
+		}
+
+		@Override
+		public boolean accept(int var1, Style style, int character) {
+			final var fontSet = FontAccessor.getFontSet(this.font, style.getFont());
+			final var glyphInfo = fontSet.getGlyphInfo(character);
+			final var bakedGlyph = style.isObfuscated() && Character.isSpaceChar(character)
+					? fontSet.getRandomGlyph(glyphInfo)
+					: fontSet.getGlyph(character);
+
+			float r = 1f, g = 1f, b = 1f, a = 1f;
+			final var textColor = style.getColor();
+			if (textColor != null) {
+				int k = textColor.getValue();
+				r = (float) (k >> 16 & 0xFF) / 255f;
+				g = (float) (k >> 8 & 0xFF) / 255f;
+				b = (float) (k & 0xFF) / 255f;
+			}
+
+			final var renderType = bakedGlyph.renderType(Font.DisplayMode.NORMAL);
+			final var texture = extractTextureFromRenderType(renderType);
+
+			if (!(bakedGlyph instanceof EmptyGlyph)) {
+				final var glyphs = this.builtGlyphs.entry(texture).orInsertWith(Vector::new);
+				glyphs.push(new PositionedGlyph(bakedGlyph, (float) this.x, (float) this.y, style, r, g, b, a));
+			}
+
+			this.x += glyphInfo.getAdvance(style.isBold());
+			return true;
+		}
+
+		public void draw(VertexBuilder builder, DrawState drawState) {
+			for (final var entry : this.builtGlyphs.entries().iterable()) {
+				final var fontTexture = GlTexture2d.importTexture(entry.key);
+				fontTexture.setMinFilter(GlTexture.MinFilter.NEAREST);
+				fontTexture.setMagFilter(GlTexture.MagFilter.NEAREST);
+
+				final var shader = UltravioletShaders.SHADER_VANILLA_RENDERTYPE_TEXT.get();
+				shader.setupDefaultShaderUniforms();
+				shader.setUniformSampler("Sampler2", LightTextureAccessor.get());
+				shader.setUniformf("ColorModulator", ColorRgba.WHITE);
+				shader.setUniformSampler("Sampler0", fontTexture);
+
+				final var glyphBuilder = builder.beginGeneric(PrimitiveType.QUADS,
+						BufferLayout.POSITION_COLOR_TEX_LIGHTMAP);
+				final var consumer = glyphBuilder.asVanilla();
+				for (final var glyph : entry.getOrThrow().iterable()) {
+					glyph.draw(consumer);
+				}
+				glyphBuilder.end().draw(shader, drawState);
+			}
+
+			this.builtGlyphs.clear();
+		}
+
+	}
 
 	@Override
 	public void render(RenderContext ctx) {
-		if (this.plot == null)
+		if (this.xyPlot == null)
 			createScatterPlot();
-		renderScatterPlot(ctx, this.plot);
+		setupCamera(ctx);
+
+		final var snapshot = RenderMatricesSnapshot.capture();
+		this.camera.applyProjection();
+		this.camera.applyView();
+
+		renderScatterPlot(ctx, this.xyPlot, Rect.BIPOLAR);
+		renderHistogram(ctx, this.xMapping, this.xHistogram, new Rect(-1, -1.3, 1, -1.05), false);
+		renderHistogram(ctx, this.yMapping, this.yHistogram, new Rect(-1.3, -1, -1.05, 1), true);
+
+		snapshot.restore();
 	}
 
 }

@@ -1,29 +1,36 @@
 package net.xavil.universegen.system;
 
+import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
 import javax.annotation.Nullable;
+
+import com.google.common.base.Charsets;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Constants;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
+import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
+import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
+import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
+import net.xavil.ultraviolet.common.universe.system.RealisticStarSystemGenerator;
+import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
 
 public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 
 	public static enum Type {
-		MAIN_SEQUENCE(true),
-		GIANT(true),
-		WHITE_DWARF(true),
-		NEUTRON_STAR(false),
-		BLACK_HOLE(false);
-
-		public final boolean hasSpectralClass;
-
-		private Type(boolean hasSpectralClass) {
-			this.hasSpectralClass = hasSpectralClass;
-		}
+		STAR,
+		WHITE_DWARF,
+		NEUTRON_STAR,
+		BLACK_HOLE,
 	}
 
 	public StellarCelestialNode.Type type;
@@ -156,11 +163,11 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 		}
 
 		private void doMainSequenceTrack(SplittableRng rng) {
-			this.type = Type.MAIN_SEQUENCE;
+			this.type = Type.STAR;
 		}
 
 		private void doGiantTrack(SplittableRng rng) {
-			this.type = Type.GIANT;
+			this.type = Type.STAR;
 
 			final var t = Mth.inverseLerp(this.ageMyr, this.mainSequenceLifetimeMyr,
 					this.mainSequenceLifetimeMyr * 1.4);
@@ -268,9 +275,13 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 		// @formatter:on
 	};
 
+	// TODO: do something slightly better than this garbage
 	public final @Nullable String getSpectralClassification() {
-		if (!this.type.hasSpectralClass)
-			return "Non-Spectral";
+		if (this.type == null)
+			return "[Unknown]";
+
+		// final var logLum = Math.log10(this.luminosityLsol);
+		// final var bvIndex = Math.pow(5601 / this.temperature, 1.5) - 0.4;
 
 		// this is dum, write an actual star classifier and use the HR diagram instead
 		for (final var interval : CLASSIFICATION_TABLE) {
@@ -278,24 +289,16 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 				var num = Mth.inverseLerp(this.temperature, interval.minBound, interval.maxBound);
 				num = 10 * (1 - num);
 				var res = String.format("%s%.1f", interval.name, num);
-				switch (this.type) {
-					case GIANT -> {
-						return res + "III";
-					}
-					case MAIN_SEQUENCE -> {
-						return res + "V";
-					}
-					case WHITE_DWARF -> {
-						return "D" + res;
-					}
-					default -> {
-						Assert.isUnreachable();
-					}
-				}
+				return switch (this.type) {
+					case STAR -> res + " V";
+					case WHITE_DWARF -> "WD* " + res;
+					case NEUTRON_STAR -> "N* " + res;
+					case BLACK_HOLE -> "Bh";
+				};
 			}
 		}
 
-		return "Class O0";
+		return "O0 Ia";
 	}
 
 	public final double apparentBrightness(double distanceTm) {
@@ -304,98 +307,148 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 		// P / 4 * pi * r^2
 	}
 
-	private static final double[] RED_POLYNOMIAL_COEFFICENTS = { 4.93596077e0, -1.29917429e0, 1.64810386e-01,
-			-1.16449912e-02, 4.86540872e-04, -1.19453511e-05, 1.59255189e-07, -8.89357601e-10 };
-	private static final double[] GREEN1_POLYNOMIAL_COEFFICENTS = { -4.95931720e-01, 1.08442658e0, -9.17444217e-01,
-			4.94501179e-01, -1.48487675e-01, 2.49910386e-02, -2.21528530e-03, 8.06118266e-05 };
-	private static final double[] GREEN2_POLYNOMIAL_COEFFICENTS = { 3.06119745e0, -6.76337896e-01, 8.28276286e-02,
-			-5.72828699e-03, 2.35931130e-04, -5.73391101e-06, 7.58711054e-08, -4.21266737e-10 };
-	private static final double[] BLUE_POLYNOMIAL_COEFFICENTS = { 4.93997706e-01, -8.59349314e-01, 5.45514949e-01,
-			-1.81694167e-01, 4.16704799e-02, -6.01602324e-03, 4.80731598e-04, -1.61366693e-05 };
+	public final CelestialNode generateSystem(long systemSeed, Galaxy galaxy, GalaxySector sector,
+			GalaxySectorId sectorId, GalaxySector.ElementHolder elem) {
 
-	// this value should be as small as possible while still giving good results.
-	// smaller values mean more cache hits when doing lots of random table lookups.
-	// i did not test 256 for fitness, i just picked it at random.
-	private static final int BLACK_BODY_COLOR_TABLE_SIZE = 256;
-	private static final float[] BLACK_BODY_COLOR_TABLE;
+		final var rng = new SplittableRng(systemSeed);
 
-	private static double poly(double[] coefficients, double x) {
-		double result = coefficients[0];
-		double xn = x;
-		for (int i = 1; i < coefficients.length; i++) {
-			result += xn * coefficients[i];
-			xn *= x;
+		final var ctx = new StarSystemGenerator.Context(
+				rng.uniformLong("generation_seed"),
+				galaxy, sector, sectorId, elem);
+		// final var systemGenerator = new RealisticStarSystemGenerator();
+		final var systemGenerator = new BasicStarSystemGenerator(this);
+		final var rootNode = systemGenerator.generate(ctx);
+
+		rootNode.build();
+		rootNode.assignSeeds(rng.uniformLong("node_seed"));
+
+		return rootNode;
+	}
+
+	public static final BlackbodyTable BLACK_BODY_COLOR_TABLE;
+
+	public static final class BlackbodyTable {
+		public final int rowCount;
+		private final float[] colorRgb;
+		private final float[] visualBrightnessMultiplier;
+		public final float temperatureMin, temperatureMax;
+
+		private static final class Entry {
+			public float temperature;
+			public float bolometricRatio;
+			public float efficencyY;
+			public float x, y, Y;
+			public float r, g, b;
+
+			private void storeColumn(String column, float value) {
+				switch (column) {
+					case "temperature" -> this.temperature = value;
+					case "bolometric_ratio" -> this.bolometricRatio = value;
+					case "eff_Y" -> this.efficencyY = value;
+					case "x" -> this.x = value;
+					case "y" -> this.y = value;
+					case "Y" -> this.Y = value;
+					case "r" -> this.r = value;
+					case "g" -> this.g = value;
+					case "b" -> this.b = value;
+					default -> {
+					}
+				}
+			}
 		}
-		return result;
+
+		private static String readString(ByteBuffer buf) {
+			final var byteCount = buf.getInt();
+			final var startPos = buf.position();
+			buf.position(startPos + byteCount);
+			return new String(buf.array(), startPos, byteCount, Charsets.UTF_8);
+		}
+
+		// assumes that each row is a constant delta temperature from each other, and
+		// that the first row's temperature is temperatureMin, and the last row's
+		// temperature is temperatureMax
+		public BlackbodyTable(ByteBuffer buf) {
+			final var columnCount = buf.getInt();
+			final var columns = new Vector<String>(columnCount);
+			for (int i = 0; i < columnCount; ++i)
+				columns.push(readString(buf));
+
+			this.rowCount = buf.getInt();
+			this.temperatureMin = buf.getFloat();
+			this.temperatureMax = buf.getFloat();
+			final var entry = new Entry();
+
+			this.colorRgb = new float[3 * this.rowCount];
+			this.visualBrightnessMultiplier = new float[this.rowCount];
+
+			for (int i = 0; i < this.rowCount; ++i) {
+				for (final var column : columns.iterable()) {
+					entry.storeColumn(column, buf.getFloat());
+
+					this.visualBrightnessMultiplier[i] = entry.bolometricRatio * entry.efficencyY;
+					this.colorRgb[3 * i + 0] = entry.r;
+					this.colorRgb[3 * i + 1] = entry.g;
+					this.colorRgb[3 * i + 2] = entry.b;
+				}
+			}
+		}
+
+		public float lookupBrightnessMultiplier(double temperatureK) {
+			final var fi = this.rowCount * Mth.inverseLerp(temperatureK, this.temperatureMin, this.temperatureMax);
+			final int i = Mth.floor(fi);
+			final var frac = fi - i;
+			if (i >= this.rowCount - 1) {
+				return this.visualBrightnessMultiplier[this.visualBrightnessMultiplier.length - 1];
+			} else if (i < 0) {
+				return this.visualBrightnessMultiplier[0];
+			}
+			return Mth.lerp((float) frac, this.visualBrightnessMultiplier[i], this.visualBrightnessMultiplier[i + 1]);
+		}
+
+		public void lookupColor(Vec3.Mutable out, double temperatureK) {
+			final var fi = this.rowCount * Mth.inverseLerp(temperatureK, this.temperatureMin, this.temperatureMax);
+			final int i = Mth.floor(fi);
+			final var frac = fi - i;
+			if (i >= this.rowCount - 1) {
+				out.x = this.colorRgb[this.colorRgb.length - 3];
+				out.y = this.colorRgb[this.colorRgb.length - 2];
+				out.z = this.colorRgb[this.colorRgb.length - 1];
+				return;
+			} else if (i < 0) {
+				out.x = this.colorRgb[0];
+				out.y = this.colorRgb[1];
+				out.z = this.colorRgb[2];
+				return;
+			}
+			out.x = Mth.lerp(frac, this.colorRgb[3 * i + 0], this.colorRgb[3 * i + 3]);
+			out.y = Mth.lerp(frac, this.colorRgb[3 * i + 1], this.colorRgb[3 * i + 4]);
+			out.z = Mth.lerp(frac, this.colorRgb[3 * i + 2], this.colorRgb[3 * i + 5]);
+		}
+	}
+
+	@Nullable
+	private static ByteBuffer loadBlackbodyLut() {
+		try {
+			final var stream = StellarCelestialNode.class.getResourceAsStream("/black_body_lut.bin");
+			return ByteBuffer.wrap(stream.readAllBytes()).order(ByteOrder.BIG_ENDIAN);
+		} catch (IOException ex) {
+			Mod.LOGGER.error("Failed to load star catalog");
+			ex.printStackTrace();
+			return null;
+		}
 	}
 
 	static {
-		// adapted from https://gist.github.com/stasikos/06b02d18f570fc1eaa9f
-		BLACK_BODY_COLOR_TABLE = new float[3 * BLACK_BODY_COLOR_TABLE_SIZE];
-		for (int i = 0; i < BLACK_BODY_COLOR_TABLE_SIZE; ++i) {
-			double x = 40.0 * (i / (float) BLACK_BODY_COLOR_TABLE_SIZE);
-			double temperatureK = 1000.0 * x;
-
-			double red, green, blue;
-
-			// R
-			if (temperatureK < 6527) {
-				red = 1;
-			} else {
-				red = poly(RED_POLYNOMIAL_COEFFICENTS, x);
-			}
-			// G
-			if (temperatureK < 850) {
-				green = 0;
-			} else if (temperatureK <= 6600) {
-				green = poly(GREEN1_POLYNOMIAL_COEFFICENTS, x);
-			} else {
-				green = poly(GREEN2_POLYNOMIAL_COEFFICENTS, x);
-			}
-			// B
-			if (temperatureK < 1900) {
-				blue = 0;
-			} else if (temperatureK < 6600) {
-				blue = poly(BLUE_POLYNOMIAL_COEFFICENTS, x);
-			} else {
-				blue = 1;
-			}
-
-			red = Mth.clamp(red, 0, 1);
-			blue = Mth.clamp(blue, 0, 1);
-			green = Mth.clamp(green, 0, 1);
-
-			int idx = 3 * i;
-			BLACK_BODY_COLOR_TABLE[idx++] = (float) red;
-			BLACK_BODY_COLOR_TABLE[idx++] = (float) green;
-			BLACK_BODY_COLOR_TABLE[idx++] = (float) blue;
-		}
+		BLACK_BODY_COLOR_TABLE = new BlackbodyTable(loadBlackbodyLut());
 	}
 
-	public static void blackBodyColorFromTable(Vec3.Mutable out, double temperatureK) {
-		final var fi = BLACK_BODY_COLOR_TABLE_SIZE * Math.min(temperatureK, 40000) / 40000;
-		final int i = Mth.floor(fi);
-		final var frac = fi - i;
-		if (i >= BLACK_BODY_COLOR_TABLE_SIZE - 1) {
-			out.x = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 3];
-			out.y = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 2];
-			out.z = BLACK_BODY_COLOR_TABLE[BLACK_BODY_COLOR_TABLE.length - 1];
-			return;
-		} else if (i < 0) {
-			// what?
-			out.x = BLACK_BODY_COLOR_TABLE[0];
-			out.y = BLACK_BODY_COLOR_TABLE[1];
-			out.z = BLACK_BODY_COLOR_TABLE[2];
-			return;
-		}
-		out.x = Mth.lerp(frac, BLACK_BODY_COLOR_TABLE[3 * i + 0], BLACK_BODY_COLOR_TABLE[3 * i + 3]);
-		out.y = Mth.lerp(frac, BLACK_BODY_COLOR_TABLE[3 * i + 1], BLACK_BODY_COLOR_TABLE[3 * i + 4]);
-		out.z = Mth.lerp(frac, BLACK_BODY_COLOR_TABLE[3 * i + 2], BLACK_BODY_COLOR_TABLE[3 * i + 5]);
+	public float getBrightnessMultiplier() {
+		return BLACK_BODY_COLOR_TABLE.lookupBrightnessMultiplier(this.temperature);
 	}
 
 	public ColorRgba getColor() {
 		final var res = new Vec3.Mutable();
-		blackBodyColorFromTable(res, this.temperature);
+		BLACK_BODY_COLOR_TABLE.lookupColor(res, this.temperature);
 		return ColorRgba.fromDoubles(res.x, res.y, res.z, 1);
 	}
 

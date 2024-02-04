@@ -67,7 +67,7 @@ public class ProtoplanetaryDisc {
 
 	private void placePlanetesimal(StableRandom rng) {
 		final var semiMajor = rng.uniformDouble("semi_major",
-				this.planetesimalBounds.lower, this.planetesimalBounds.higher);
+				this.planetesimalBounds.min, this.planetesimalBounds.max);
 		final var maxInclination = Math.atan(1 / (15 * semiMajor));
 		final var inclination = rng.weightedDouble("inclination", 8, 0, maxInclination);
 
@@ -81,7 +81,7 @@ public class ProtoplanetaryDisc {
 
 	private void placeRoguePlanetesimal(StableRandom rng) {
 		final var semiMajor = rng.uniformDouble("semi_major",
-				this.planetesimalBounds.lower, this.planetesimalBounds.higher);
+				this.planetesimalBounds.min, this.planetesimalBounds.max);
 		final var inclination = rng.uniformDouble("inclination", 0, Math.PI);
 
 		final var planetesimal = Planetesimal.random(this.ctx, semiMajor, inclination);

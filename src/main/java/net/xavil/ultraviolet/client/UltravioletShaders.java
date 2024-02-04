@@ -27,11 +27,13 @@ public class UltravioletShaders extends HawkShaders {
 	public static final ResourceLocation SHADER_BLOOM_DOWNSAMPLE_LOCATION = Mod.namespaced("post/bloom/downsample.glsl");
 	public static final ResourceLocation SHADER_BLOOM_UPSAMPLE_LOCATION = Mod.namespaced("post/bloom/upsample.glsl");
 	public static final ResourceLocation SHADER_MAIN_POSTPROCESS_LOCATION = Mod.namespaced("post/main_post.glsl");
+	public static final ResourceLocation SHADER_UN_VANILLA_LOCATION = Mod.namespaced("post/unvanilla.glsl");
 
 	public static final ResourceLocation SHADER_ATMOSPHERE_LOCATION = Mod.namespaced("post/atmosphere.glsl");
 	public static final ResourceLocation SHADER_GRAVITATIONAL_LENSING_LOCATION = Mod.namespaced("post/gravitational_lensing.glsl");
 
 	public static final ResourceLocation SHADER_UI_POINTS_LOCATION = Mod.namespaced("main/ui/points_generic.glsl");
+	public static final ResourceLocation SHADER_UI_QUADS_LOCATION = Mod.namespaced("main/ui/quads_generic.glsl");
 
 	public static final Supplier<ShaderProgram> SHADER_CELESTIAL_NODE = () -> getShader(SHADER_CELESTIAL_NODE_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_RING = () -> getShader(SHADER_RING_LOCATION);
@@ -46,6 +48,8 @@ public class UltravioletShaders extends HawkShaders {
 	public static final Supplier<ShaderProgram> SHADER_ATMOSPHERE = () -> getShader(SHADER_ATMOSPHERE_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_GRAVITATIONAL_LENSING = () -> getShader(SHADER_GRAVITATIONAL_LENSING_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_UI_POINTS = () -> getShader(SHADER_UI_POINTS_LOCATION);
+	public static final Supplier<ShaderProgram> SHADER_UI_QUADS = () -> getShader(SHADER_UI_QUADS_LOCATION);
+	public static final Supplier<ShaderProgram> SHADER_UN_VANILLA = () -> getShader(SHADER_UN_VANILLA_LOCATION);
 	// @formatter:on
 
 	public static void registerShaders(HawkRendering.ShaderSink acceptor) {
@@ -61,11 +65,13 @@ public class UltravioletShaders extends HawkShaders {
 		acceptor.accept(SHADER_BLOOM_DOWNSAMPLE_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 		acceptor.accept(SHADER_BLOOM_UPSAMPLE_LOCATION,   AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 		acceptor.accept(SHADER_MAIN_POSTPROCESS_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
+		acceptor.accept(SHADER_UN_VANILLA_LOCATION,       AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 
 		acceptor.accept(SHADER_ATMOSPHERE_LOCATION,            AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 		acceptor.accept(SHADER_GRAVITATIONAL_LENSING_LOCATION, AttributeSet.POSITION_TEX, GlFragmentWrites.COLOR_ONLY);
 
-		acceptor.accept(SHADER_UI_POINTS_LOCATION, AttributeSet.POSITION_COLOR, GlFragmentWrites.COLOR_ONLY);
+		acceptor.accept(SHADER_UI_POINTS_LOCATION, AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+		acceptor.accept(SHADER_UI_QUADS_LOCATION,  AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
 		// @formatter:on
 	}
 }

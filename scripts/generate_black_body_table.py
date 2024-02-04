@@ -219,25 +219,25 @@ COLUMN_x = Column('x', lambda val: f"{val:.4f}")
 COLUMN_y = Column('y', lambda val: f"{val:.4f}")
 # color of the blackbody radiator (linear sRGB)
 # essentially just a linear transformation of XYZ coordinates to sRGB.these values might be negative, or might be greater than 1.
-COLUMN_R = Column('r', lambda val: f"{val:.4f}")
-COLUMN_G = Column('g', lambda val: f"{val:.4f}")
-COLUMN_B = Column('b', lambda val: f"{val:.4f}")
+COLUMN_R_UNCLAMPED = Column('r_unclamped', lambda val: f"{val:.4f}")
+COLUMN_G_UNCLAMPED = Column('g_unclamped', lambda val: f"{val:.4f}")
+COLUMN_B_UNCLAMPED = Column('b_unclamped', lambda val: f"{val:.4f}")
 # color of the blackbody radiator (sRGB)
-COLUMN_R_CLIPPED = Column('r_clipped', lambda val: f"{255 * val:.0f}")
-COLUMN_G_CLIPPED = Column('g_clipped', lambda val: f"{255 * val:.0f}")
-COLUMN_B_CLIPPED = Column('b_clipped', lambda val: f"{255 * val:.0f}")
+COLUMN_R = Column('r', lambda val: f"{255 * val:.0f}")
+COLUMN_G = Column('g', lambda val: f"{255 * val:.0f}")
+COLUMN_B = Column('b', lambda val: f"{255 * val:.0f}")
 
 class DataGenerator(object):
 	def __init__(self):
 		pass
 
-	def start():
+	def start(self):
 		pass
 
 	def emit(self, row):
 		pass
 
-	def finish():
+	def finish(self):
 		pass
 
 class CompositeGenerator(DataGenerator):
@@ -293,7 +293,7 @@ class CsvGenerator(DataGenerator):
 		self.output = output
 		self.columns = columns
 
-	def start(generator):
+	def start(self):
 		self.output.write(','.join([col.name for col in self.columns]))
 		self.output.write('\n')
 
@@ -319,7 +319,6 @@ class BinaryGenerator(DataGenerator):
 		self.output.write(struct.pack('>i', self.row_count))
 
 	def start(self):
-		self.output.write(struct.pack('>ff', TEMPERATURE_MIN, TEMPERATURE_MAX))
 		self.output.write(struct.pack('>i', len(self.columns)))
 		for col in self.columns:
 			self.output.write(struct.pack('>i', len(col.name)))
@@ -327,6 +326,7 @@ class BinaryGenerator(DataGenerator):
 		# placeholder, will be filled in later
 		self.row_count_position = self.output.tell()
 		self.output.write(struct.pack('>i', 0))
+		self.output.write(struct.pack('>ff', TEMPERATURE_MIN, TEMPERATURE_MAX))
 	
 	def emit(self, row):
 		self.row_count += 1
@@ -367,19 +367,19 @@ def create_temperature_table(generator):
 		row[COLUMN_y] = radiance_y
 
 		radiance_r, radiance_g, radiance_b = CIEXYZ_TO_SRGB.mul(radiance_X, radiance_Y, radiance_Z)
-		row[COLUMN_R] = radiance_r
-		row[COLUMN_G] = radiance_g
-		row[COLUMN_B] = radiance_b
+		row[COLUMN_R_UNCLAMPED] = radiance_r
+		row[COLUMN_G_UNCLAMPED] = radiance_g
+		row[COLUMN_B_UNCLAMPED] = radiance_b
 
 		r, g, b = xy_to_sRGB(radiance_x, radiance_y)
-		row[COLUMN_R_CLIPPED] = r
-		row[COLUMN_G_CLIPPED] = g
-		row[COLUMN_B_CLIPPED] = b
+		row[COLUMN_R] = r
+		row[COLUMN_G] = g
+		row[COLUMN_B] = b
 
 		generator.emit(row)
 	generator.finish()
 
-DEFAULT_COLUMNS = [COLUMN_TEMPERATURE, COLUMN_BOLOMETRIC_RATIO, COLUMN_EFFICENCY_Y, COLUMN_x, COLUMN_y, COLUMN_Y]
+DEFAULT_COLUMNS = [COLUMN_TEMPERATURE, COLUMN_BOLOMETRIC_RATIO, COLUMN_EFFICENCY_Y, COLUMN_x, COLUMN_y, COLUMN_Y, COLUMN_R, COLUMN_G, COLUMN_B]
 # with open('blackbody.csv', 'w') as f:
 # 	create_temperature_table(CsvGenerator(f, DEFAULT_COLUMNS))
 with OUTPUT_PATH.open('wb') as f:

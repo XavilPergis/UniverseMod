@@ -6,6 +6,7 @@ import java.util.function.Supplier;
 import it.unimi.dsi.fastutil.ints.Int2ObjectFunction;
 import it.unimi.dsi.fastutil.ints.IntConsumer;
 import it.unimi.dsi.fastutil.ints.IntPredicate;
+import it.unimi.dsi.fastutil.ints.IntUnaryOperator;
 import net.xavil.hawklib.collections.iterator.IntoIteratorInt;
 import net.xavil.hawklib.collections.iterator.IteratorInt;
 import net.xavil.hawklib.hash.FastHasher;
@@ -31,6 +32,8 @@ public abstract sealed class MaybeInt implements IntoIteratorInt, Hashable {
 	}
 
 	public abstract <U> Maybe<U> map(Int2ObjectFunction<? extends U> mapper);
+
+	public abstract MaybeInt mapInt(IntUnaryOperator mapper);
 
 	public abstract <U> Maybe<U> flatMap(Int2ObjectFunction<Maybe<? extends U>> mapper);
 
@@ -68,6 +71,11 @@ public abstract sealed class MaybeInt implements IntoIteratorInt, Hashable {
 		@Override
 		public <U> Maybe.None<U> map(Int2ObjectFunction<? extends U> mapper) {
 			return Maybe.none();
+		}
+
+		@Override
+		public MaybeInt mapInt(IntUnaryOperator mapper) {
+			return MaybeInt.none();
 		}
 
 		@Override
@@ -159,6 +167,11 @@ public abstract sealed class MaybeInt implements IntoIteratorInt, Hashable {
 		@Override
 		public <U> Maybe.Some<U> map(Int2ObjectFunction<? extends U> mapper) {
 			return new Maybe.Some<>(mapper.get(this.value));
+		}
+
+		@Override
+		public MaybeInt mapInt(IntUnaryOperator mapper) {
+			return new MaybeInt.Some(mapper.apply(this.value));
 		}
 
 		@Override

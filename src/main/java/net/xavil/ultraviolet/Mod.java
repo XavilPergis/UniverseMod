@@ -105,10 +105,6 @@ public class Mod implements ModInitializer {
 		CommandRegistrationCallback.EVENT.register((dispatcher, dedicated) -> {
 			ModDebugCommand.register(dispatcher, dedicated);
 		});
-
-		ServerWorldEvents.LOAD.register((server, level) -> {
-			Mod.LOGGER.error("LOAD {}", level);
-		});
 	}
 
 	private static void teleportToStation(ServerPlayer sender, int id) {

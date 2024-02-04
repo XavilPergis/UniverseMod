@@ -53,7 +53,7 @@ public interface Rng {
 	}
 
 	default double uniformDouble(Interval interval) {
-		return uniformDouble(interval.lower, interval.higher);
+		return uniformDouble(interval.min, interval.max);
 	}
 
 	default boolean chance(double chance) {

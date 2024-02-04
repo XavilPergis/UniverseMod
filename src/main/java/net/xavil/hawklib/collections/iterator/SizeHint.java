@@ -1,13 +1,17 @@
 package net.xavil.hawklib.collections.iterator;
 
-import java.util.OptionalInt;
+import net.xavil.hawklib.MaybeInt;
 
-public record SizeHint(int lowerBound, OptionalInt upperBound) {
-	public static final SizeHint UNKNOWN = new SizeHint(0, OptionalInt.empty());
+public record SizeHint(int lowerBound, MaybeInt upperBound) {
+	public static final SizeHint UNKNOWN = new SizeHint(0, MaybeInt.none());
 	public static final SizeHint ZERO = exactly(0);
 
 	public static SizeHint exactly(int bound) {
-		return new SizeHint(bound, OptionalInt.of(bound));
+		return new SizeHint(bound, MaybeInt.some(bound));
+	}
+
+	public boolean isExact() {
+		return this.upperBound.innerEquals(this.lowerBound);
 	}
 
 	public SizeHint withLowerBound(int lowerBound) {
@@ -15,10 +19,10 @@ public record SizeHint(int lowerBound, OptionalInt upperBound) {
 	}
 
 	public SizeHint withUpperBound(int upperBound) {
-		return withUpperBound(OptionalInt.of(upperBound));
+		return withUpperBound(MaybeInt.some(upperBound));
 	}
 
-	public SizeHint withUpperBound(OptionalInt upperBound) {
+	public SizeHint withUpperBound(MaybeInt upperBound) {
 		return new SizeHint(lowerBound, upperBound);
 	}
 }

@@ -11,7 +11,10 @@ import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
+import net.minecraft.client.renderer.LightTexture;
+import net.xavil.ultraviolet.client.PostProcessing;
 import net.xavil.ultraviolet.client.SkyRenderer;
 
 @Mixin(LevelRenderer.class)
@@ -27,6 +30,13 @@ public abstract class LevelRendererMixin {
 			if (SkyRenderer.INSTANCE.renderSky(poseStack, projectionMatrix, tickDelta, camera, bl))
 				info.cancel();
 		}
+	}
+
+	@Inject(method = "renderLevel", at = @At("TAIL"))
+	private void renderPostProcessing(PoseStack poseStack, float partialTick, long finishNanoTime,
+			boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture,
+			Matrix4f projectionMatrix, CallbackInfo info) {
+		PostProcessing.runWorldPostProcessing();
 	}
 
 }

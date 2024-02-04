@@ -42,12 +42,12 @@ public class DustBands {
 			this.bands.clear();
 
 			final double dr = initialInterval.size() / INITIAL_BAND_RESOLUTION;
-			double prev = discDensityAt(ctx, initialInterval.lower);
+			double prev = discDensityAt(ctx, initialInterval.min);
 
 			double totalMass = 0;
 			for (int i = 0; i < INITIAL_BAND_RESOLUTION; ++i) {
 				final var tl = i / (double) INITIAL_BAND_RESOLUTION;
-				final var rl = Mth.lerp(tl, initialInterval.lower, initialInterval.higher);
+				final var rl = Mth.lerp(tl, initialInterval.min, initialInterval.max);
 				final var rh = rl + dr;
 
 				final var cur = discDensityAt(ctx, rh);
@@ -100,13 +100,13 @@ public class DustBands {
 		// large enough that this might help with perf. idk though.
 		private int findStartIndex(Interval interval) {
 			int boundL = 0, boundH = this.bands.size() - 1;
-			while (boundL != boundH && boundH >= 0) {
+			while (boundL < boundH && boundH >= 0) {
 				final var curI = (boundL + boundH) / 2;
 				final var cur = this.bands.get(curI).bandL;
 
-				if (cur < interval.lower) {
+				if (cur < interval.min) {
 					boundL = curI + 1;
-				} else if (cur > interval.lower) {
+				} else if (cur > interval.min) {
 					boundH = curI - 1;
 				} else {
 					boundL = boundH = curI;
@@ -114,7 +114,7 @@ public class DustBands {
 			}
 
 			final var bandValue = this.bands.get(boundL).bandL;
-			if (interval.lower > bandValue)
+			if (interval.min > bandValue)
 				return boundL + 1;
 
 			// the band array might contain intervals with duplicate starting values, which
@@ -141,27 +141,27 @@ public class DustBands {
 				final var band = this.bands.get(i);
 
 				// after we stop intersecting a band, we won't intersect any others
-				if (interval.higher < band.bandL)
+				if (interval.max < band.bandL)
 					return accumulatedMass;
 				Assert.isTrue(interval.intersects(band.bandL, band.bandH));
 
 				final var sweepRatio = 0.5;
 
-				final var removalSize = Math.max(0, Math.min(band.bandH, interval.higher)
-						- Math.max(band.bandL, interval.lower));
+				final var removalSize = Math.max(0, Math.min(band.bandH, interval.max)
+						- Math.max(band.bandL, interval.min));
 				accumulatedMass += sweepRatio * band.mass * (removalSize / Interval.size(band.bandL, band.bandH));
 
-				if (Interval.contains(band.bandL, band.bandH, interval.lower)) {
-					final var bandMass = band.mass * (interval.lower - band.bandL)
+				if (Interval.contains(band.bandL, band.bandH, interval.min)) {
+					final var bandMass = band.mass * (interval.min - band.bandL)
 							/ Interval.size(band.bandL, band.bandH);
-					this.bands.insert(i, new Band(band.bandL, interval.lower, bandMass));
+					this.bands.insert(i, new Band(band.bandL, interval.min, bandMass));
 					i += 1;
 				}
 
-				if (Interval.contains(band.bandL, band.bandH, interval.higher)) {
-					final var bandMass = band.mass * (band.bandH - interval.higher)
+				if (Interval.contains(band.bandL, band.bandH, interval.max)) {
+					final var bandMass = band.mass * (band.bandH - interval.max)
 							/ Interval.size(band.bandL, band.bandH);
-					this.bands.insert(i, new Band(interval.higher, band.bandH, bandMass));
+					this.bands.insert(i, new Band(interval.max, band.bandH, bandMass));
 					i += 1;
 				}
 
@@ -225,8 +225,8 @@ public class DustBands {
 				final var r = node.orbitalShape.semiMajor();
 				final var m = Math.sqrt(criticalMass / node.mass);
 
-				final var l = r - (m / (m + 1)) * (r - dustSweepInterval.lower);
-				final var h = r + (m / (m + 1)) * (dustSweepInterval.higher - r);
+				final var l = r - (m / (m + 1)) * (r - dustSweepInterval.min);
+				final var h = r + (m / (m + 1)) * (dustSweepInterval.max - r);
 
 				final var gasSweepInterval = new Interval(l, h);
 

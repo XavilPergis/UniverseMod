@@ -245,7 +245,8 @@ public abstract class HawkScreen extends Screen {
 				layer.renderPost(sceneTexture, ctx);
 			}
 
-			HawkRendering.applyPostProcessing(GlFramebuffer.MAIN, ctx.currentTexture.colorTexture);
+			HawkRendering.applyPostProcessing(GlFramebuffer.getMainFramebuffer(), ctx.currentTexture.colorTexture);
+			// ctx.currentTexture.framebuffer.copyTo(GlFramebuffer.getMainFramebuffer());
 		} finally {
 			disposer.close();
 			ctx.currentTexture.close();

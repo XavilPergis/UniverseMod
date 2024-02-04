@@ -46,7 +46,7 @@ public class Galaxy {
 		this.info = info;
 		this.densityFields = densityFields;
 
-		addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
+		// addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
 	}
 
 	public void addGenerationLayer(GalaxyGenerationLayer layer) {

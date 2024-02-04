@@ -236,6 +236,7 @@ public class Units {
 	// ----- known quantities -----
 	// power
 	public static final double W_PER_Lsol = 3.827e26;
+	public static final double Lsol_PER_W = 1.0 / W_PER_Lsol;
 
 	// @formatter:off
 	// distance

@@ -19,8 +19,8 @@ import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlState;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
-import net.xavil.ultraviolet.debug.ClientConfig;
-import net.xavil.ultraviolet.debug.ConfigKey;
+import net.xavil.ultraviolet.common.config.ClientConfig;
+import net.xavil.ultraviolet.common.config.ConfigKey;
 
 public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 

@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.common.universe.system;
+package net.xavil.ultraviolet.common.universe.system.realistic_generator;
 
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.StableRandom;
@@ -6,11 +6,11 @@ import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
-import net.xavil.ultraviolet.common.universe.system.gen.AccreteContext;
-import net.xavil.ultraviolet.common.universe.system.gen.ProtoplanetaryDisc;
-import net.xavil.ultraviolet.common.universe.system.gen.SimulationParameters;
-import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
+import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator.Context;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode.Properties;
 
 public final class RealisticStarSystemGenerator implements StarSystemGenerator {
 

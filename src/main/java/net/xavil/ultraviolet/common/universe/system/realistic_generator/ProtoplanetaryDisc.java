@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.common.universe.system.gen;
+package net.xavil.ultraviolet.common.universe.system.realistic_generator;
 
 import java.util.Arrays;
 import java.util.Comparator;
@@ -20,7 +20,7 @@ import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalShape;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.universegen.system.CelestialNode;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
 
 // TODO: this simulation is okay enough, but the algorithm is from the 80's and doesnt include more recent developments in astrophysics and whatnot.
 //

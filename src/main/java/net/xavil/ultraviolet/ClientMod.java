@@ -1,28 +1,22 @@
 package net.xavil.ultraviolet;
 
 
-import com.mojang.blaze3d.vertex.DefaultVertexFormat;
-
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.HawkTextureManager;
-import net.xavil.hawklib.client.flexible.BufferLayout;
-import net.xavil.hawklib.client.gl.GlFragmentWrites;
-import net.xavil.hawklib.client.gl.shader.AttributeSet;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.client.BloomEffect;
 import net.xavil.ultraviolet.client.PostProcessing;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.GalaxyMapScreen;
-import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
 import net.xavil.ultraviolet.client.screen.SystemMapScreen;
+import net.xavil.ultraviolet.common.config.ClientConfig;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.ClientUniverse;
-import net.xavil.ultraviolet.debug.ClientConfig;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.ultraviolet.networking.ModNetworking;
@@ -111,8 +105,7 @@ public class ClientMod implements ClientModInitializer {
 			final var system = galaxy.sectorManager.forceLoad(systemTicket).unwrap();
 
 			final var galaxyMap = new GalaxyMapScreen(CLIENT.screen, galaxy, systemId.galaxySector());
-			final var systemMap = new NewSystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
-			// final var systemMap = new SystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
+			final var systemMap = new SystemMapScreen(galaxyMap, galaxy, packet.toOpen, system);
 			CLIENT.setScreen(systemMap);
 		}
 	}

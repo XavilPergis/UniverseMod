@@ -3,7 +3,6 @@ package net.xavil.hawklib.client.gl.shader;
 import org.lwjgl.opengl.GL45C;
 
 import net.xavil.hawklib.HawkLib;
-import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 
 public final class UniformSlot {

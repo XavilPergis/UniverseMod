@@ -39,9 +39,9 @@ public final class GlobalData extends SavedData {
 		nbt.put("dynamic_levels", dynamicLevels);
 
 		final var spaceStations = new ListTag();
-		for (final var station : this.spaceStations.iterable()) {
-			// spaceStations.add(SpaceStation.toNbt(station));
-		}
+		// for (final var station : this.spaceStations.iterable()) {
+		// 	spaceStations.add(SpaceStation.toNbt(station));
+		// }
 		nbt.put("space_stations", spaceStations);
 
 		return nbt;

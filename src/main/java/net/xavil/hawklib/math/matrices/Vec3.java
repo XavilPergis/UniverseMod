@@ -1,7 +1,5 @@
 package net.xavil.hawklib.math.matrices;
 
-import java.util.Random;
-
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector3f;

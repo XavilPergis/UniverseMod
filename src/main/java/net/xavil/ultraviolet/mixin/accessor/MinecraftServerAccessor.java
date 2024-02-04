@@ -10,9 +10,9 @@ import net.minecraft.server.level.progress.ChunkProgressListenerFactory;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.WorldData;
+import net.xavil.ultraviolet.common.config.CommonConfig;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
-import net.xavil.ultraviolet.debug.CommonConfig;
 
 public interface MinecraftServerAccessor {
 

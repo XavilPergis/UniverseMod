@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.common.universe.system.gen;
+package net.xavil.ultraviolet.common.universe.system.realistic_generator;
 
 import net.xavil.hawklib.StableRandom;
 import net.xavil.hawklib.math.Interval;

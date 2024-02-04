@@ -1,4 +1,4 @@
-package net.xavil.universegen.system;
+package net.xavil.ultraviolet.common.universe.system;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -20,9 +20,6 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
-import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
-import net.xavil.ultraviolet.common.universe.system.RealisticStarSystemGenerator;
-import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
 
 public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 

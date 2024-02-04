@@ -1,7 +1,5 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
-import java.util.Random;
-
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;

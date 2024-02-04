@@ -1,8 +1,7 @@
 package net.xavil.ultraviolet.common.universe;
 
-import java.util.function.DoubleBinaryOperator;
-
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.SimplexNoise;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 

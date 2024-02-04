@@ -1,11 +1,10 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
-import java.util.Random;
-
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.LinearSpline;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
@@ -16,12 +15,7 @@ import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.ScalarField;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.ultraviolet.common.universe.system.StarSystemGenerator;
-import net.xavil.ultraviolet.common.universe.system.BasicStarSystemGenerator;
-import net.xavil.universegen.LinearSpline;
-import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.universegen.system.StellarProperties;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
@@ -108,12 +102,6 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	static double levelCoverage(int level) {
 		return LEVEL_COVERAGE_INTERVALS[level].size();
-	}
-
-	private static double sectorDensityFactor(int level) {
-		return 1;
-		// final var interval = LEVEL_MASS_T_INTERVALS[level];
-		// return (interval.higher - interval.lower);
 	}
 
 	public static double generateStarMassForLevel(SplittableRng rng, int level) {
@@ -289,8 +277,8 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			GenerationInfo info, SplittableRng rng) {
 		final var minSystemAgeFactor = Math.min(1, info.stellarAge.sample(elem.systemPosTm));
 		// final var systemAgeFactor = rng.weightedDouble("age", 0.8);
-		// final var systemAgeMyr = this.parentGalaxy.info.ageMya
-		// * Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
+		// final var systemAgeMyr = this.parentGalaxy.info.ageMya *
+		// Mth.lerp(systemAgeFactor, minSystemAgeFactor, 1);
 		final var systemAgeMyr = rng.weightedDouble("age", 1.0, 10, this.parentGalaxy.info.ageMya);
 
 		final var starMass = generateStarMassForLevel(rng, info.ctx.level);

@@ -10,10 +10,10 @@ import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Disposable;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.PerLevelData;
+import net.xavil.ultraviolet.common.config.ConfigProvider;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
-import net.xavil.ultraviolet.debug.ConfigProvider;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 
 @Mixin(Level.class)

@@ -22,10 +22,10 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.storage.LevelStorageSource;
 import net.minecraft.world.level.storage.WorldData;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.common.config.CommonConfig;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
-import net.xavil.ultraviolet.debug.CommonConfig;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 

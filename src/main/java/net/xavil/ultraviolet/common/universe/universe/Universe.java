@@ -2,9 +2,6 @@ package net.xavil.ultraviolet.common.universe.universe;
 
 import java.util.Random;
 
-import javax.annotation.Nullable;
-
-import net.minecraft.server.MinecraftServer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
@@ -19,12 +16,11 @@ import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.universegen.system.CelestialNode;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
 
@@ -116,18 +112,6 @@ public abstract class Universe implements Disposable {
 		return this.sectorManager.getGalaxy(id.universeSector())
 				.flatMap(galaxy -> galaxy.getSystemPos(id.galaxySector()));
 	}
-
-	// public Option<Vec3> getSystemNodePos(SystemNodeId id, double time) {
-	// final var systemPos = getSystemPos(id.system()).unwrapOrNull();
-	// final var system = getSystem(id.system()).unwrapOrNull();
-	// if (systemPos == null || system == null)
-	// return Option.none();
-	// final var node = system.rootNode.lookup(id.nodeId());
-	// if (node == null)
-	// return Option.none();
-	// system.rootNode.updatePositions(time);
-	// return Option.some(systemPos.add(node.position));
-	// }
 
 	public Maybe<CelestialNode> getSystemNode(SystemNodeId id) {
 		return this.sectorManager.getGalaxy(id.system().universeSector())

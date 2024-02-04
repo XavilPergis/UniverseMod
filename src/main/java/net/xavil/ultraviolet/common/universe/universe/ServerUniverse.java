@@ -1,7 +1,6 @@
 package net.xavil.ultraviolet.common.universe.universe;
 
 import java.util.OptionalLong;
-import java.util.Random;
 
 import net.minecraft.core.Holder;
 import net.minecraft.server.MinecraftServer;
@@ -28,16 +27,16 @@ import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
+import net.xavil.ultraviolet.common.universe.system.BinaryCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
+import net.xavil.ultraviolet.common.universe.system.CelestialRing;
+import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSyncCelestialTimePacket;
-import net.xavil.universegen.system.BinaryCelestialNode;
-import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.CelestialRing;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
@@ -198,6 +197,7 @@ public final class ServerUniverse extends Universe {
 				rng.uniformDouble(-Math.PI, Math.PI), rng.uniformDouble(-Math.PI, Math.PI), rng.uniformDouble(0, 1000));
 	}
 
+	@SuppressWarnings("unused")
 	private StartingSystem startingSystemTest() {
 		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 5);
 
@@ -233,6 +233,7 @@ public final class ServerUniverse extends Universe {
 		return new StartingSystem(13610, "Test", bABCD, earth);
 	}
 
+	@SuppressWarnings("unused")
 	private StartingSystem startingSystemSaggitariusA() {
 		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 5);
 
@@ -264,6 +265,7 @@ public final class ServerUniverse extends Universe {
 		return new StartingSystem(13610, "Saggitarius A*", sagA, earth);
 	}
 
+	@SuppressWarnings("unused")
 	private StartingSystem startingSystemSol() {
 		// NOTE: reference plane is the ecliptic plane
 		final var sol = StellarCelestialNode.fromMass(StellarCelestialNode.Type.STAR, Yg_PER_Msol * 1);

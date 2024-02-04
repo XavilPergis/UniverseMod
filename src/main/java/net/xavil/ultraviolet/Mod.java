@@ -8,10 +8,7 @@ import org.slf4j.LoggerFactory;
 
 import net.fabricmc.api.ModInitializer;
 import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
-import net.fabricmc.fabric.api.event.lifecycle.v1.ServerWorldEvents;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
-import net.minecraft.SharedConstants;
-import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
 import net.minecraft.resources.ResourceKey;
@@ -34,6 +31,7 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.ultraviolet.common.PerLevelData;
 import net.xavil.ultraviolet.common.block.ModBlocks;
+import net.xavil.ultraviolet.common.config.ModDebugCommand;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.item.StarmapItem;
 import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
@@ -41,7 +39,8 @@ import net.xavil.ultraviolet.common.level.ModChunkGenerator;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
-import net.xavil.ultraviolet.debug.ModDebugCommand;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
+import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
@@ -56,8 +55,6 @@ import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundStationJumpBeginPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSyncCelestialTimePacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundUniverseSyncPacket;
-import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class Mod implements ModInitializer {

@@ -1,6 +1,5 @@
 package net.xavil.ultraviolet.common.level;
 
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
@@ -12,10 +11,8 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.Util;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderSet;
 import net.minecraft.core.Registry;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.core.SectionPos;
 import net.minecraft.resources.RegistryOps;
 import net.minecraft.server.level.WorldGenRegion;
 import net.minecraft.util.Mth;
@@ -42,7 +39,7 @@ import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.ultraviolet.common.block.ModBlocks;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
 
 public class ModChunkGenerator extends ChunkGenerator {
 
@@ -131,12 +128,6 @@ public class ModChunkGenerator extends ChunkGenerator {
 	// === RIVERS/LAKES/OCEANS ===
 
 	private final double cellMargin = 2.0;
-	private final double baseScale = 20.0;
-	private final double scaleMultiplier = 2.0;
-	private final double baseChance = 0.7;
-	private final double chanceMultiplier = 0.8;
-	private final int levels = 10;
-	private final int attempts = 3;
 
 	// https://iquilezles.org/articles/smin/
 	private static double smin(double a, double b, double k) {

@@ -51,9 +51,9 @@ public class DynamicDimensionManager {
 	}
 
 	public void tick() {
-		for (final var key : this.levelsToUnload.iterable()) {
-
-		}
+		// TODO
+		// for (final var key : this.levelsToUnload.iterable()) {
+		// }
 		this.levelsToUnload.clear();
 	}
 

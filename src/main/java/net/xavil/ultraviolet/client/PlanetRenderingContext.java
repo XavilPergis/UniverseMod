@@ -6,10 +6,12 @@ import javax.annotation.Nullable;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.ColorSpline;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.WeightedList;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
@@ -17,7 +19,11 @@ import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
+import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
+
 import static net.xavil.hawklib.client.HawkDrawStates.*;
 
 import net.xavil.hawklib.client.camera.CachedCamera;
@@ -30,9 +36,6 @@ import net.xavil.hawklib.client.gl.texture.GlTexture1d;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.ColorAccess;
 import net.xavil.hawklib.math.ColorHsva;
@@ -478,7 +481,7 @@ public final class PlanetRenderingContext implements Disposable {
 			nodeShader.setUniformSampler("uGasGiantColorGradient", clientInfo.gasGiantGradient);
 		}
 
-		if (node instanceof PlanetaryCelestialNode planetNode) {
+		if (node instanceof PlanetaryCelestialNode) {
 		} else if (node instanceof StellarCelestialNode starNode) {
 			nodeShader.setUniformf("uStarColor", starNode.getColor().withA(starNode.getBrightnessMultiplier()));
 		}
@@ -501,7 +504,7 @@ public final class PlanetRenderingContext implements Disposable {
 				&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE)) {
 
 			final var builder2 = builder.beginGeneric(PrimitiveType.POINT_QUADS,
-					UltravioletVertexFormats.BILLBOARD_FORMAT);
+					UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
 
 			// final var actualOrigin = this.floatingOrigin;
 
@@ -564,6 +567,7 @@ public final class PlanetRenderingContext implements Disposable {
 		}
 	}
 
+	// TODO: draw rings again
 	private static void addRing(FlexibleVertexConsumer builder, CachedCamera camera,
 			Vec3 center, double innerRadius, double outerRadius) {
 		int segmentCount = 60;

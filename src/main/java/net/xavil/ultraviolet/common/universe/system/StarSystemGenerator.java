@@ -4,7 +4,6 @@ import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
-import net.xavil.universegen.system.CelestialNode;
 
 public interface StarSystemGenerator {
 

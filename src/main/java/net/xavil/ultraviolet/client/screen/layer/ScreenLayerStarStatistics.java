@@ -14,7 +14,6 @@ import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSink;
 import net.minecraft.util.Mth;
-import net.minecraft.util.StringDecomposer;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.camera.CachedCamera;
@@ -24,7 +23,6 @@ import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
-import net.xavil.hawklib.client.flexible.VertexBuilder.GenericVertexDispatcher;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
@@ -75,7 +73,7 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 	private static final ColorRgba AXIS_MARKER_COLOR = new ColorRgba(0.05f, 0.83f, 0.07f, 1f);
 	private static final ColorRgba MAJOR_MARKER_COLOR = new ColorRgba(1f, 1f, 1f, 0.8f);
 	private static final ColorRgba MINOR_MARKER_COLOR = new ColorRgba(0.5f, 0.5f, 0.5f, 0.1f);
-	private static final ColorRgba HISTOGRAM_COLOR = new ColorRgba(0.5f, 0.5f, 0.5f, 0.1f);
+	private static final ColorRgba HISTOGRAM_COLOR = new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f);
 
 	public ScreenLayerStarStatistics(HawkScreen attachedScreen, SectorTicket<?> ticket, Vec3 center) {
 		super(attachedScreen);
@@ -224,10 +222,10 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 				hy = Mth.lerp(percent, bounds.max().y, bounds.min().y);
 			}
 
-			builder.vertex(hx, ly, 0).color(new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f)).uv0(1, 0).endVertex();
-			builder.vertex(lx, ly, 0).color(new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f)).uv0(0, 0).endVertex();
-			builder.vertex(lx, hy, 0).color(new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f)).uv0(0, 1).endVertex();
-			builder.vertex(hx, hy, 0).color(new ColorRgba(0.05f, 0.83f, 0.07f, 0.5f)).uv0(1, 1).endVertex();
+			builder.vertex(hx, ly, 0).color(HISTOGRAM_COLOR).uv0(1, 0).endVertex();
+			builder.vertex(lx, ly, 0).color(HISTOGRAM_COLOR).uv0(0, 0).endVertex();
+			builder.vertex(lx, hy, 0).color(HISTOGRAM_COLOR).uv0(0, 1).endVertex();
+			builder.vertex(hx, hy, 0).color(HISTOGRAM_COLOR).uv0(1, 1).endVertex();
 		}
 
 		builder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(),

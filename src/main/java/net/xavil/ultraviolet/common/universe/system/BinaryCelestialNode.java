@@ -1,4 +1,4 @@
-package net.xavil.universegen.system;
+package net.xavil.ultraviolet.common.universe.system;
 
 import net.xavil.hawklib.math.Ellipse;
 import net.xavil.hawklib.math.OrbitalPlane;

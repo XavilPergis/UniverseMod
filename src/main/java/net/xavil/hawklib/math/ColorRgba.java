@@ -184,20 +184,20 @@ public final class ColorRgba implements ColorAccess, Hashable {
 		return (float) Math.pow(a, b);
 	}
 
-	public static float gamma(float c) {
+	public static float applySrgbGamma(float c) {
 		return c <= 0.0031308 ? 12.92f * c : 1.055f * powf(c, 1f / 2.4f) - 0.055f;
 	}
 
-	public static float degamma(float c) {
+	public static float unapplySrgbGamma(float c) {
 		return c <= 0.04045f ? c / 12.92f : powf((c + 0.055f) / 1.055f, 2.4f);
 	}
 
 	public static ColorRgba linearToSrgb(ColorRgba c) {
-		return new ColorRgba(gamma(c.r), gamma(c.g), gamma(c.b), c.a);
+		return new ColorRgba(applySrgbGamma(c.r), applySrgbGamma(c.g), applySrgbGamma(c.b), c.a);
 	}
 
 	public static ColorRgba srgbToLinear(ColorRgba c) {
-		return new ColorRgba(degamma(c.r), degamma(c.g), degamma(c.b), c.a);
+		return new ColorRgba(unapplySrgbGamma(c.r), unapplySrgbGamma(c.g), unapplySrgbGamma(c.b), c.a);
 	}
 
 }

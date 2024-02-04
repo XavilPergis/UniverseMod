@@ -1,14 +1,12 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
-import java.util.Random;
-
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.StellarCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.matrices.Vec3;

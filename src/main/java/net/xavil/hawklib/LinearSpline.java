@@ -1,4 +1,4 @@
-package net.xavil.universegen;
+package net.xavil.hawklib;
 
 import java.util.Comparator;
 

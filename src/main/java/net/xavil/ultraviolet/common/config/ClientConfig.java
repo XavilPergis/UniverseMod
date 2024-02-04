@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.debug;
+package net.xavil.ultraviolet.common.config;
 
 import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.collections.interfaces.MutableMap;

@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.debug;
+package net.xavil.ultraviolet.common.config;
 
 import java.util.function.Consumer;
 import java.util.function.Function;

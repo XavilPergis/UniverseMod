@@ -1,4 +1,4 @@
-package net.xavil.universegen.system;
+package net.xavil.ultraviolet.common.universe.system;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -11,7 +11,6 @@ import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.VectorFloat;
 import net.xavil.hawklib.collections.impl.VectorInt;
-import net.xavil.hawklib.collections.interfaces.ImmutableListFloat;
 import net.xavil.ultraviolet.Mod;
 
 public final class StellarProperties {
@@ -81,32 +80,6 @@ public final class StellarProperties {
 
 	static {
 		loadInMemory();
-	}
-
-	private int binarySearch(ImmutableListFloat list, float value) {
-		return binarySearch(list, 0, list.size(), value);
-	}
-
-	private int binarySearch(ImmutableListFloat list, int start, int end, float value) {
-		int boundL = start, boundH = end - 1;
-		while (boundL < boundH && boundH >= start) {
-			final var midpointIndex = (boundL + boundH) / 2;
-			final var midpointValue = list.get(midpointIndex);
-
-			if (midpointValue < value) {
-				boundL = midpointIndex + 1;
-			} else if (midpointValue > value) {
-				boundH = midpointIndex - 1;
-			} else {
-				boundL = boundH = midpointIndex;
-			}
-		}
-
-		final var listValue = list.get(boundL);
-		if (value > listValue)
-			return boundL + 1;
-
-		return boundL;
 	}
 
 	// very naive interpolation of stellar isochrone data - hopefully it's good

@@ -24,6 +24,7 @@ public record OrbitalPlane(Quat rotationFromReference) {
 				rng.uniformDouble(0, 2.0 * Math.PI));
 	}
 
+	@Deprecated
 	public static OrbitalPlane fromInclination(double inclinationRad, StableRandom rng) {
 		return fromOrbitalElements(inclinationRad,
 				rng.uniformDouble("longitude_of_ascending_node", 0, 2.0 * Math.PI),

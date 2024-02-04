@@ -1,9 +1,9 @@
 package net.xavil.ultraviolet.mixin.accessor;
 
 import net.minecraft.world.level.Level;
+import net.xavil.ultraviolet.common.config.ConfigProvider;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
-import net.xavil.ultraviolet.debug.ConfigProvider;
 
 public interface LevelAccessor {
 

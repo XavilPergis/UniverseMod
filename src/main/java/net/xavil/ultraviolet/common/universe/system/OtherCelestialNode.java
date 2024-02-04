@@ -1,4 +1,4 @@
-package net.xavil.universegen.system;
+package net.xavil.ultraviolet.common.universe.system;
 
 public non-sealed class OtherCelestialNode extends CelestialNode {
 

@@ -1,26 +1,11 @@
 package net.xavil.ultraviolet.mixin.impl;
 
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.gen.Accessor;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-
 import com.mojang.blaze3d.platform.NativeImage;
-import com.mojang.math.Vector3f;
-
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LightTexture;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.effect.MobEffects;
-import net.minecraft.world.level.Level;
-import net.xavil.hawklib.math.matrices.Vec3;
-import net.xavil.ultraviolet.ClientMod;
 import net.xavil.ultraviolet.mixin.accessor.LightTextureAccessor;
 
 @Mixin(LightTexture.class)
@@ -37,9 +22,9 @@ public abstract class LightTextureMixin implements AutoCloseable, LightTextureAc
 	@Accessor("lightTextureLocation")
 	public abstract ResourceLocation ultraviolet_lightTextureLocation();
 
-	private Vector3f baseSkyColor;
+	// private Vector3f baseSkyColor;
 
-	private Vec3.Mutable scratchColor = new Vec3.Mutable();
+	// private Vec3.Mutable scratchColor = new Vec3.Mutable();
 
 	// @Redirect(method = "updateLightTexture", at = @At(value = "INVOKE", target =
 	// "Lcom/mojang/math/Vector3f/Vector3f;<init>(FFF)V", ordinal = 0))

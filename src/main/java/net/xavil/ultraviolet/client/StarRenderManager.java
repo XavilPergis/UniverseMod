@@ -17,15 +17,15 @@ import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
+import net.xavil.ultraviolet.common.config.ClientConfig;
+import net.xavil.ultraviolet.common.config.ConfigKey;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
 import net.xavil.ultraviolet.common.universe.universe.GalaxyTicket;
-import net.xavil.ultraviolet.debug.ClientConfig;
-import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
-import net.xavil.universegen.system.StellarCelestialNode;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class StarRenderManager implements Disposable {
@@ -170,7 +170,7 @@ public final class StarRenderManager implements Disposable {
 		this.starSnapshotPosition = centerPos;
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT_QUADS,
-				UltravioletVertexFormats.BILLBOARD_FORMAT);
+				UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
 		final var ctx = new StarBuildingContext(builder, camera, centerPos, false);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			drawSectorStars(ctx, sector);
@@ -182,7 +182,7 @@ public final class StarRenderManager implements Disposable {
 
 	private void drawStarsImmediate(CachedCamera camera, Vec3 centerPos) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT_QUADS,
-				UltravioletVertexFormats.BILLBOARD_FORMAT);
+				UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
 		final var ctx = new StarBuildingContext(builder, camera, centerPos, true);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			drawSectorStars(ctx, sector);

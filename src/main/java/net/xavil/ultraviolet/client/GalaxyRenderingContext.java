@@ -16,9 +16,9 @@ import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
+import net.xavil.ultraviolet.common.config.ClientConfig;
+import net.xavil.ultraviolet.common.config.ConfigKey;
 import net.xavil.ultraviolet.common.universe.DensityFields;
-import net.xavil.ultraviolet.debug.ClientConfig;
-import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
@@ -69,7 +69,7 @@ public class GalaxyRenderingContext implements Disposable {
 
 		int successfulPlacements = 0;
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
-				.beginGeneric(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.BILLBOARD_FORMAT);
+				.beginGeneric(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
 		for (var i = 0; i < this.attemptCount; ++i) {
 			if (successfulPlacements >= this.particleLimit)
 				break;

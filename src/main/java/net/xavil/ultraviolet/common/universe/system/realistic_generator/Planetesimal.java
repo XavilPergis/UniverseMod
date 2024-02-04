@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.common.universe.system.gen;
+package net.xavil.ultraviolet.common.universe.system.realistic_generator;
 
 import java.util.function.BiConsumer;
 
@@ -13,16 +13,16 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
-import net.xavil.universegen.system.BinaryCelestialNode;
-import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.CelestialNodeChild;
-import net.xavil.universegen.system.CelestialRing;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.universegen.system.UnaryCelestialNode;
 import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
+import net.xavil.ultraviolet.common.universe.system.BinaryCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
+import net.xavil.ultraviolet.common.universe.system.CelestialNodeChild;
+import net.xavil.ultraviolet.common.universe.system.CelestialRing;
+import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
 
 public class Planetesimal implements IntoIterator<Planetesimal> {
 

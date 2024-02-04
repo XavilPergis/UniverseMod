@@ -10,9 +10,7 @@ public record Ellipse(Vec3 center, Vec3 right, Vec3 up) {
 	}
 
 	public static Ellipse fromOrbit(Vec3Access focus, OrbitalPlane plane, OrbitalShape shape, double precessionAngle, boolean rightFocus) {
-		// var rotation = plane.rotationFromReference();
-		// rotation = Quat.axisAngle(plane.normal(), precessionAngle).hamiltonProduct(rotation);
-		var rotation = plane.rotationFromReference().hamiltonProduct(Quat.axisAngle(Vec3.YP, precessionAngle));
+		final var rotation = plane.rotationFromReference().hamiltonProduct(Quat.axisAngle(Vec3.YP, precessionAngle));
 
 		final var flipRight = rightFocus ? -1.0 : 1.0;
 		final var rightDir = rotation.transform(Vec3.XP).mul(flipRight);

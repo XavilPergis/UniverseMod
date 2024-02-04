@@ -3,7 +3,6 @@ package net.xavil.ultraviolet.client.screen.layer;
 import java.util.function.Consumer;
 
 import net.xavil.hawklib.Units;
-import net.xavil.hawklib.math.Interval;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;

@@ -17,10 +17,9 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.dimension.DimensionType;
 import net.minecraft.world.level.storage.WritableLevelData;
-import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.PerLevelData;
-import net.xavil.ultraviolet.debug.ConfigKey;
-import net.xavil.ultraviolet.debug.ConfigProvider;
+import net.xavil.ultraviolet.common.config.ConfigKey;
+import net.xavil.ultraviolet.common.config.ConfigProvider;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
 

@@ -13,12 +13,6 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.Formulas;
 import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
-import net.xavil.universegen.system.BinaryCelestialNode;
-import net.xavil.universegen.system.CelestialNode;
-import net.xavil.universegen.system.CelestialNodeChild;
-import net.xavil.universegen.system.PlanetaryCelestialNode;
-import net.xavil.universegen.system.StellarCelestialNode;
-import net.xavil.universegen.system.UnaryCelestialNode;
 
 public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
@@ -231,73 +225,7 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		return res;
 	}
 
-	private static double discDensity(double cutoutDistance, double massFactor, double r) {
-		// inflection point
-		final var k = cutoutDistance;
-		// steepness
-		final var n = 100;
-
-		// mask values apst this will be treated as 1, used to avoid generating
-		// intermediate infinities
-		final var L = 0.999;
-
-		final var kn = k * n;
-
-		// the values of d at which `mask(d) = L` and `mask(d) = 1-L` respectively
-		// x=k\sqrt[kn]{\frac{R}{\left(1-R\right)}}
-		final var maskLimitH = k * Math.pow((1 - L) / L, 1 / kn);
-		// substitute L for 1-L in previous equation
-		final var maskLimitL = k * Math.pow(L / (1 - L), 1 / kn);
-		final double mask;
-		if (r <= maskLimitL) {
-			mask = 0;
-		} else if (r >= maskLimitH) {
-			mask = 1;
-		} else {
-			// m\left(x\right)=\frac{x^{kn}}{k^{kn}+x^{kn}}\left\{x\ge0\right\}
-			mask = Math.pow(r, kn) / (Math.pow(k, kn) + Math.pow(r, kn));
-		}
-
-		final double E = 0.2;
-		final double a = 5;
-		final double N = 3;
-
-		// f\left(x\right)=Ee^{-ax^{\frac{1}{N}}}\left\{x\ge0\right\}
-		final var density = E * massFactor
-				* Math.exp(-a * Math.pow(r, 1 / N));
-
-		return mask * density;
-	}
-
-	private static final int MASS_INTEGRATION_SUBDIVISIONS = 16;
-
-	// very simplistic, considers
-	private static double sweptMass(double cutoutDistance, double massFactor, double inner, double outer) {
-		final var dr = (outer - inner) / MASS_INTEGRATION_SUBDIVISIONS;
-		double sum = 0.0;
-		double prev = inner * discDensity(cutoutDistance, massFactor, inner);
-		for (int i = 1; i <= MASS_INTEGRATION_SUBDIVISIONS; ++i) {
-			final var r = Mth.lerp(i / (double) MASS_INTEGRATION_SUBDIVISIONS, inner, outer);
-			final var cur = r * discDensity(cutoutDistance, massFactor, r);
-			sum += dr * (prev + cur / 2); // trapezoid sum
-			prev = cur;
-		}
-		return Units.Yg_PER_Msol * 2 * Math.PI * sum;
-	}
-
-	private double totalStellarMass(CelestialNode node) {
-		if (node instanceof BinaryCelestialNode binaryNode) {
-			return totalStellarMass(binaryNode.inner) + totalStellarMass(binaryNode.outer);
-		}
-		// if (node instanceof StellarCelestialNode starNode) {
-		// }
-		return node.massYg;
-		// throw new IllegalArgumentException("node was not stellar or binary!");
-	}
-
 	private void generateMoonsAroundPlanet(CelestialNode planet, double maxDistance) {
-
-		// final var stellarMass = totalStellarMass(parent);
 
 		// TODO: pick better minimum and maximum
 		final var discMin = getExclusionRadius(planet);
@@ -355,19 +283,8 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 		this.rng.pop();
 	}
 
-	private double resonantSemiMajor(double semiMajor, double ratio) {
-		// a1, R in [0, 1] -> a2
-		// T1 = sqrt(k*a1^3)
-		// T2 = T1 / R
-		// a2 = cbrt(T2^2 / k)
-
-		// a2 = cbrt((sqrt(k * a1^3) / R)^2 / k)
-		// a2 = cbrt(a1^3 / R^2)
-		// a2 = (a1^3 / R^2)^(1/3)
-		// a2 = a1 / R^(2/3)
-		return semiMajor * Math.pow(ratio, (2.0 / 3.0));
-	}
-
+	// hey nerd, just so you know, for a semi-major axis a and orbital period ratio
+	// R, the second semi-major axis is `a / R^(2/3)`
 	private void generatePlanetsAroundStar(Context ctx, CelestialNode parent, double initialDiscMass,
 			double maxDistance) {
 		// TODO: what is metallicity used for? I think some amount of metals are needed
@@ -377,13 +294,12 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 
 		final var maxPlanetCount = Mth.floor(this.rng.weightedDouble("max_planets", 2.0, 0.0, 100.0));
 
-		final var cutoutDistance = Math.sqrt(Units.Msol_PER_Yg * totalStellarMass(parent));
-
 		// TODO: pick better minimum and maximum
-		final var discMin = Math.max(0.02, getExclusionRadius(parent));
-		double discMax = Units.Tm_PER_au
-				* this.rng.weightedDouble("disc_max", 1, 0, 100)
-				* Math.sqrt(Units.Msol_PER_Yg * parent.massYg);
+		final var massDistanceFactor = Math.max(
+				Units.Tm_PER_au * Math.pow(Units.Msol_PER_Yg * parent.massYg, 1.0 / 1.7),
+				getExclusionRadius(parent));
+		final var discMin = 0.1 * massDistanceFactor;
+		double discMax = this.rng.weightedDouble("disc_max", 1, 0, 100) * massDistanceFactor;
 		discMax = Math.min(discMax, maxDistance);
 
 		// double discMass = initialDiscMass;

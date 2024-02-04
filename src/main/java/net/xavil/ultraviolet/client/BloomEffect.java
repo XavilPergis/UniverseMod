@@ -7,7 +7,6 @@ import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.RenderTexture;

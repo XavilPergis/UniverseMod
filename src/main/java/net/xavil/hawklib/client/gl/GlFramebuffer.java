@@ -318,14 +318,14 @@ public final class GlFramebuffer extends GlObject {
 	private static Maybe<float[]> getFloatClearValue(ClearState untyped) {
 		if (untyped instanceof ClearState.SetFloat floatState) {
 			return Maybe.some(floatState.clearValue);
-		} else if (untyped instanceof ClearState.SetInt intState) {
+		} else if (untyped instanceof ClearState.SetInt) {
 			throw new IllegalArgumentException();
 		}
 		return Maybe.none();
 	}
 
 	private static Maybe<int[]> getIntClearValue(ClearState untyped) {
-		if (untyped instanceof ClearState.SetFloat floatState) {
+		if (untyped instanceof ClearState.SetFloat) {
 			throw new IllegalArgumentException();
 		} else if (untyped instanceof ClearState.SetInt intState) {
 			return Maybe.some(intState.clearValue);

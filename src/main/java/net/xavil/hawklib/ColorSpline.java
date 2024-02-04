@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.client;
+package net.xavil.hawklib;
 
 import java.util.Comparator;
 
@@ -61,7 +61,7 @@ public final class ColorSpline {
 		return t <= lo.t ? ColorOklab.toLinearSrgb(lo.color) : ColorOklab.toLinearSrgb(hi.color);
 	}
 
-	interface ColorConsumer {
+	public interface ColorConsumer {
 		void accept(int i, float r, float g, float b, float a);
 	}
 

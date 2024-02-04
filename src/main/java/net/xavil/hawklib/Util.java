@@ -6,6 +6,8 @@ import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
+import net.xavil.hawklib.collections.interfaces.ImmutableListFloat;
+
 public final class Util {
 
 	private Util() {}
@@ -41,6 +43,32 @@ public final class Util {
 
 	public static String escapeMinus(int n) {
 		return n >= 0 ? "" + n : "m" + -n;
+	}
+
+	public static int binarySearch(ImmutableListFloat list, float value) {
+		return binarySearch(list, 0, list.size(), value);
+	}
+
+	public static int binarySearch(ImmutableListFloat list, int start, int end, float value) {
+		int boundL = start, boundH = end;
+		while (boundL < boundH && boundH >= start) {
+			final var midpointIndex = (boundL + boundH) / 2;
+			final var midpointValue = list.get(midpointIndex);
+
+			if (midpointValue < value) {
+				boundL = midpointIndex + 1;
+			} else if (midpointValue > value) {
+				boundH = midpointIndex;
+			} else {
+				boundL = boundH = midpointIndex;
+			}
+		}
+
+		final var listValue = list.get(boundL);
+		if (value > listValue)
+			return boundL + 1;
+
+		return boundL;
 	}
 	
 }

@@ -1,4 +1,4 @@
-package net.xavil.universegen.system;
+package net.xavil.ultraviolet.common.universe.system;
 
 import java.util.Comparator;
 import java.util.function.Consumer;

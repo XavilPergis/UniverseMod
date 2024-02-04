@@ -28,7 +28,6 @@
 		"render.RenderSystemMixin",
 		"render.ShaderInstanceMixin",
 		"render.WindowMixin",
-		"render.MainTargetMixin",
 		"render.RenderTargetMixin",
 		"render.FontMixin",
 		"gravity.ParticleMixin"

@@ -7,7 +7,6 @@ import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
-import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.StarRenderManager;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.HawkShaders;
@@ -18,18 +17,18 @@ import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
-import net.xavil.ultraviolet.client.screen.NewSystemMapScreen;
 import net.xavil.ultraviolet.client.screen.SystemMapScreen;
+import net.xavil.ultraviolet.client.screen.SystemExplorerScreen;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.client.screen.StarStatisticsScreen;
+import net.xavil.ultraviolet.common.config.ClientConfig;
+import net.xavil.ultraviolet.common.config.ConfigKey;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorPos;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
-import net.xavil.ultraviolet.debug.ClientConfig;
-import net.xavil.ultraviolet.debug.ConfigKey;
 import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -95,10 +94,10 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				this.galaxy.sectorManager.getSystem(selected).ifSome(system -> {
 					final var id = new SystemId(this.galaxy.galaxyId, selected);
 					if (keypress.hasModifiers(GLFW.GLFW_MOD_SHIFT)) {
-						final var screen = new NewSystemMapScreen(this.screen, this.galaxy, id, system);
+						final var screen = new SystemMapScreen(this.screen, this.galaxy, id, system);
 						this.client.setScreen(screen);
 					} else {
-						final var screen = new SystemMapScreen(this.screen, this.galaxy, id, system);
+						final var screen = new SystemExplorerScreen(this.screen, this.galaxy, id, system);
 						screen.camera.pitch.set(this.screen.camera.pitch.target);
 						screen.camera.yaw.set(this.screen.camera.yaw.target);
 						this.client.setScreen(screen);
@@ -110,20 +109,6 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		} else if (keypress.keyCode == GLFW.GLFW_KEY_H) {
 			this.client.setScreen(new StarStatisticsScreen(this.screen, this.starRenderer.getSectorTicket(),
 					this.camera.posTm.xyz()));
-
-			// try (final var disposer = Disposable.scope()) {
-			// final var center = this.starRenderer.getSectorTicket().info.centerPos;
-			// // final var ticket = this.galaxy.sectorManager.createSectorTicket(disposer,
-			// new SectorTicketInfo.Multi(
-			// // center, 3.0 * GalaxySector.BASE_SIZE_Tm,
-			// SectorTicketInfo.Multi.SCALES_UNIFORM));
-			// final var ticket = this.starRenderer.getSectorTicket();
-			// ticket.attachedManager.forceLoad(ticket);
-
-			// final var survey = new StarSurvey();
-			// survey.init(ticket);
-			// StarSurvey.printSurvey(survey, msg -> Mod.LOGGER.info("{}", msg));
-			// }
 
 			return true;
 		}

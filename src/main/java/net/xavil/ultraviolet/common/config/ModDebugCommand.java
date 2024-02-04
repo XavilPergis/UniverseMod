@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.debug;
+package net.xavil.ultraviolet.common.config;
 
 import static net.minecraft.commands.Commands.argument;
 import static net.minecraft.commands.Commands.literal;

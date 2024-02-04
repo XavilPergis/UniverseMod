@@ -1,8 +1,5 @@
 package net.xavil.ultraviolet.common.universe.station;
 
-import javax.annotation.Nullable;
-
-import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
@@ -46,12 +43,6 @@ public final class SpaceStation {
 			this.location.close();
 		this.location = location;
 	}
-
-	// private void setJumpInfo(@Nullable JumpInfo info) {
-	// if (this.jumpInfo != null)
-	// this.jumpInfo.close();
-	// this.jumpInfo = info;
-	// }
 
 	public Vec3 getGavityAt(Vec3Access pos) {
 		return Vec3.YN.mul(0.05);

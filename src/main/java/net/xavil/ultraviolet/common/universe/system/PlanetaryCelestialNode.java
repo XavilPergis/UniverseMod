@@ -1,4 +1,4 @@
-package net.xavil.universegen.system;
+package net.xavil.ultraviolet.common.universe.system;
 
 import java.util.OptionalLong;
 import java.util.function.Supplier;

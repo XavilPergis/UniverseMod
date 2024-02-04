@@ -2,7 +2,6 @@ package net.xavil.hawklib.collections.impl;
 
 import java.util.function.Consumer;
 
-import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;

@@ -4,13 +4,12 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.DensityFields;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
-import net.xavil.universegen.system.CelestialNode;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class Galaxy {

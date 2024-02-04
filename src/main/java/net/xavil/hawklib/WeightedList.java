@@ -1,4 +1,4 @@
-package net.xavil.ultraviolet.client;
+package net.xavil.hawklib;
 
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;

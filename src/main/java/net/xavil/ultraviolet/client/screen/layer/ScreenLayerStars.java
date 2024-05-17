@@ -8,6 +8,7 @@ import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.ultraviolet.client.StarRenderManager;
+import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CameraConfig;
@@ -29,37 +30,40 @@ import net.xavil.ultraviolet.common.universe.galaxy.SectorPos;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
+import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.Ray;
+import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.VecMath;
 
 public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	private final HawkScreen3d screen;
 	public final Galaxy galaxy;
 	private final StarRenderManager starRenderer;
 	private final Vec3 originOffset;
+	private boolean mapMode = true;
 
 	public ScreenLayerStars(HawkScreen3d attachedScreen, Galaxy galaxy, Vec3 originOffset) {
 		super(attachedScreen, new CameraConfig(1e2, false, 1e9, false));
 		this.screen = attachedScreen;
 		this.galaxy = galaxy;
 		this.originOffset = originOffset;
-		// this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
-		// new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm,
-		// SectorTicketInfo.Multi.SCALES_EXP)));
+		double[] scales = SectorTicketInfo.Multi.SCALES_EXP;
+		// scales = SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED;
+		// scales = SectorTicketInfo.Multi.SCALES_UNIFORM;
+		// scales = new double[] { 1, 2, 5, 12, 20, 40, 80, 512 };
 		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
-				new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm,
-						SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED)));
-		// this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
-		// new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, new double[]
-		// { 1, 4, 8, 16, 32, 64, 128, 256 })));
+				new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, scales)));
 		this.starRenderer.setOriginOffset(this.originOffset);
 	}
 
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
-		if (ClientConfig.get(ConfigKey.SECTOR_TICKET_AROUND_FOCUS))
-			return camera.focus;
-		return camera.pos.sub(this.originOffset).mul(camera.metersPerUnit / 1e12);
+		return camera.focus;
+		// if (this.mapMode)
+		// 	return camera.focus;
+		// return camera.pos.sub(this.originOffset).mul(camera.metersPerUnit / 1e12);
 	}
 
 	@Override
@@ -68,8 +72,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			return true;
 
 		if (button == 0) {
-			final var ray = this.lastCamera.rayForPicking(this.client.getWindow(), mousePos);
-			final var selected = pickElement(this.lastCamera, ray);
+			final var selected = pickElement(this.camera, mousePos);
 			insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM, selected.unwrapOrNull());
 			return true;
 		}
@@ -79,13 +82,13 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 
 	@Override
 	public boolean handleKeypress(Keypress keypress) {
-		if (keypress.keyCode == GLFW.GLFW_KEY_K) {
+		if (keypress.keyCode == GLFW.GLFW_KEY_TAB) {
+			this.mapMode = !this.mapMode;
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_K) {
 			this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
-		}
-		if (keypress.keyCode == GLFW.GLFW_KEY_L) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_L) {
 			this.starRenderer.setMode(StarRenderManager.Mode.MAP);
-		}
-		if (keypress.keyCode == GLFW.GLFW_KEY_R) {
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_R) {
 			final var selected = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
 			if (selected != null) {
 				final var disposer = new Disposable.Multi();
@@ -116,46 +119,111 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		return false;
 	}
 
-	private Maybe<GalaxySectorId> pickElement(OrbitCamera.Cached camera, Ray ray) {
+	private Maybe<GalaxySectorId> pickElement(OrbitCamera.Cached camera, Vec2 mousePos) {
 		// @formatter:off
 		final var closest = new Object() {
-			double    distance    = Double.POSITIVE_INFINITY;
+			double    depth       = Double.POSITIVE_INFINITY;
 			int       sectorIndex = -1;
 			SectorPos sectorPos   = null;
 		};
 		// @formatter:on
+
+		final var window = this.client.getWindow();
+		final var mouseX = 2.0 * mousePos.x / window.getGuiScaledWidth() - 1.0;
+		final var mouseY = 1.0 - 2.0 * mousePos.y / window.getGuiScaledHeight();
+		final var mousePosClip = new Vec2(mouseX, mouseY);
+
 		final var viewCenter = getStarViewCenterPos(camera);
+
+		final var mouseRay = camera.rayForPicking(window, mousePos);
+		// final var mouseRay = Ray.transform(new Ray(mousePosClip.xy0(), Vec3.ZN),
+		// 		Mat4.mul(camera.viewMatrix, camera.inverseProjectionMatrix));
+
+		// i swear to FUCK. WHY do i have to use the inverse view matrix here. this goes
+		// against everything i know to be true. crying. pissing. shitting. etc.
+		//
+		// like, i use the combined view-projection matrix as a shader uniform and it
+		// seems to work fine, and im doing the same sort of world pos -> clip pos that
+		// i do in those shaders, so why don't i get results that make sense?
+		final var viewProjMatrix = Mat4.mul(camera.projectionMatrix, camera.inverseViewMatrix);
+
+		final var selectionRadius = 0.02;
+
 		final var ticket = this.starRenderer.getSectorTicket();
-		this.galaxy.sectorManager.enumerate(ticket, sector -> {
-			final var min = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
-			final var max = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
-			if (!ray.intersectAABB(min, max))
-				return;
-			final var levelSize = GalaxySector.sizeForLevel(sector.pos().level());
+		ticket.info.enumerateAffectedSectors(pos -> {
+			final var sector = ticket.attachedManager.getSector(pos).unwrapOrNull();
+
+			// clip-space axis-aligned bounding rectangle containing the corners of the
+			// sector's world space bounding box, with a little bit of padding to account
+			// for the width of the selection column.
+
+			final var sectorMinWorld = sector.pos().minBound().mul(1e12 / camera.metersPerUnit);
+			final var sectorMaxWorld = sector.pos().maxBound().mul(1e12 / camera.metersPerUnit);
+			if (!mouseRay.intersectAabb(sectorMinWorld, sectorMaxWorld)) {
+				return SectorTicketInfo.EnumerationAction.SKIP_CHILDREN;
+			}
+
+			// final double nx = sectorMinWorld.x, ny = sectorMinWorld.y, nz =
+			// sectorMinWorld.z;
+			// final double px = sectorMaxWorld.x, py = sectorMaxWorld.y, pz =
+			// sectorMaxWorld.z;
+
+			// double minX = Double.POSITIVE_INFINITY, maxX = Double.NEGATIVE_INFINITY;
+			// double minY = Double.POSITIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
+
+			// final var min = VecMath.transformPerspective(viewProjMatrix, sectorMinWorld,
+			// 1);
+			// final var max = VecMath.transformPerspective(viewProjMatrix, sectorMaxWorld,
+			// 1);
+			// final var sectorBoundsX = new Interval(Math.min(min.x, max.x),
+			// Math.max(min.x, max.x))
+			// .expand(selectionRadius);
+			// final var sectorBoundsY = new Interval(Math.min(min.y, max.y),
+			// Math.max(min.y, max.y))
+			// .expand(selectionRadius);
+
+			// if (camera.pos.x < sectorMinWorld.x || camera.pos.x >= sectorMaxWorld.x
+			// || camera.pos.y < sectorMinWorld.y || camera.pos.y >= sectorMaxWorld.y
+			// || camera.pos.z < sectorMinWorld.z || camera.pos.z >= sectorMaxWorld.z) {
+			// }
+			// if (Math.min(min.z, max.z) > 1
+			// || !sectorBoundsX.contains(mousePosClip.x)
+			// || !sectorBoundsY.contains(mousePosClip.y))
+			// return SectorTicketInfo.EnumerationAction.SKIP_CHILDREN;
+
+			// coarse grained filters, dont consider any subsectors or elements of a sector
+			// that the selection ray does not interact with.
+			// if (Math.min(min.z, max.z) > 1
+			// || !sectorBoundsX.contains(mousePosClip.x)
+			// || !sectorBoundsY.contains(mousePosClip.y))
+
+			final var levelSize = ticket.info.radiusForLevel(sector.pos().level());
 
 			final var elem = new GalaxySector.ElementHolder();
-			final var pos = elem.systemPosTm;
-			final var proj = new Vec3.Mutable(0, 0, 0);
+			final var point = new Vec3.Mutable(0, 0, 0);
 			for (int i = 0; i < sector.elements.size(); ++i) {
 				sector.elements.load(elem, i);
 
-				if (pos.distanceTo(viewCenter) > levelSize)
+				// don't consider points that are in the current sector but outside of the
+				// visual bubble around the 3d cursor position
+				if (elem.systemPosTm.distanceTo(viewCenter) > levelSize)
 					continue;
 
-				final var distance = ray.origin().distanceTo(pos);
-				if (!ray.intersectsSphere(pos, 0.02 * distance))
+				// project point into clip space
+				VecMath.transformPerspective(point, viewProjMatrix, elem.systemPosTm, 1);
+
+				// select the closest star in a asmall column around the cursor position
+				if (point.z > 1 || point.xy().distanceTo(mousePosClip) > selectionRadius)
 					continue;
 
-				Vec3.sub(pos, pos, ray.origin());
-				Vec3.projectOnto(proj, pos, ray.dir());
-				final var projDist = pos.distanceTo(proj);
-				if (projDist < closest.distance) {
-					closest.distance = projDist;
+				if (point.z < closest.depth) {
+					closest.depth = point.z;
 					closest.sectorPos = sector.pos();
 					closest.sectorIndex = i;
 				}
 			}
 
+			return SectorTicketInfo.EnumerationAction.CONTINUE;
 		});
 
 		if (closest.sectorIndex == -1)
@@ -169,13 +237,49 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		final var viewCenter = getStarViewCenterPos(cullingCamera);
 		final var ticket = this.starRenderer.getSectorTicket();
 
+		if (this.mapMode) {
+			ticket.info.baseRadius = 3 * GalaxySector.BASE_SIZE_Tm;
+			ticket.info.scales = SectorTicketInfo.Multi.SCALES_UNIFORM;
+			this.starRenderer.setMode(StarRenderManager.Mode.MAP);
+		} else {
+			ticket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
+			ticket.info.scales = SectorTicketInfo.Multi.SCALES_EXP;
+			this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
+		}
 		this.starRenderer.draw(camera, viewCenter);
+
+		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
+		final var selectedSystem = selectedId == null ? null
+				: this.galaxy.sectorManager.getSystem(selectedId).unwrapOrNull();
+		if (selectedSystem != null) {
+			final var shader = UltravioletShaders.SHADER_UI_QUADS.get();
+			shader.setupDefaultShaderUniforms();
+			final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
+					PrimitiveType.QUAD_DUPLICATED, BufferLayout.POSITION_COLOR_TEX);
+
+			final var distance = camera.pos.distanceTo(selectedSystem.pos);
+			final Vec3 xo = camera.right.mul(0.05 * distance), yo = camera.up.mul(0.05 * distance);
+			final var nn = selectedSystem.pos.sub(xo).sub(yo).sub(camera.pos);
+			final var np = selectedSystem.pos.sub(xo).add(yo).sub(camera.pos);
+			final var pn = selectedSystem.pos.add(xo).sub(yo).sub(camera.pos);
+			final var pp = selectedSystem.pos.add(xo).add(yo).sub(camera.pos);
+
+			final var color = ColorRgba.GREEN.withA(0.333f);
+			builder.vertex(pn).color(color).uv0(1, 0).endVertex();
+			builder.vertex(nn).color(color).uv0(0, 0).endVertex();
+			builder.vertex(np).color(color).uv0(0, 1).endVertex();
+			builder.vertex(pp).color(color).uv0(1, 1).endVertex();
+
+			builder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(),
+					HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
+
+		}
 
 		// TODO: render things that are currently jumping between systems
 
 		if (ClientConfig.get(ConfigKey.SHOW_SECTOR_BOUNDARIES)) {
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER
-					.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
+					.beginGeneric(PrimitiveType.LINE_DUPLICATED, BufferLayout.POSITION_COLOR_NORMAL);
 			ticket.attachedManager.enumerate(ticket, sector -> {
 				if (!this.galaxy.sectorManager.isComplete(sector.pos()))
 					;

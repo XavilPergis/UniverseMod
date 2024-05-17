@@ -14,6 +14,7 @@ import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
+import net.xavil.hawklib.client.gl.texture.GlTextureCubemap;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.ultraviolet.Mod;
@@ -73,8 +74,8 @@ public class SkyRenderer implements Disposable {
 	}
 
 	private static Quat orientationFromMinecraftCamera(Camera camera) {
-		final var px = Vec3.from(camera.getLeftVector()).neg();
-		final var py = Vec3.from(camera.getUpVector());
+		final var px = new Vec3(camera.getLeftVector()).neg();
+		final var py = new Vec3(camera.getUpVector());
 		final var pz = px.cross(py);
 		return Quat.fromOrthonormalBasis(px, py, pz);
 	}
@@ -165,7 +166,7 @@ public class SkyRenderer implements Disposable {
 			this.systemTicket = galaxy.sectorManager.createSystemTicketManual(null);
 
 		if (this.galaxyRenderingContext == null)
-			this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy.densityFields);
+			this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy.parameters);
 	}
 
 	public void disposeTickets() {
@@ -185,6 +186,42 @@ public class SkyRenderer implements Disposable {
 			this.galaxyRenderingContext.close();
 			this.galaxyRenderingContext = null;
 		}
+	}
+
+	private GlTextureCubemap captureSkybox(Vec3 captureLocation) {
+		final var cubemap = new GlTextureCubemap();
+		cubemap.createStorage(GlTexture.Format.RGBA16_FLOAT, 1024);
+
+		final var cam = new CachedCamera();
+		final var projMat = Mat4.perspectiveProjection(0.5 * Math.PI, 1, 1e2, 1e10);
+
+		try (final var disposer = Disposable.scope()) {
+			final var framebuffer = disposer
+					.attach(new GlFramebuffer(GlFragmentWrites.COLOR_ONLY, cubemap.size().d2()));
+			framebuffer.enableAllColorAttachments();
+			framebuffer.createDepthTarget(false, GlTexture.Format.DEPTH_UNSPECIFIED);
+			for (final var face : GlTextureCubemap.Face.values()) {
+				framebuffer.setColorTarget(GlFragmentWrites.COLOR, cubemap.createFaceTarget(face));
+				framebuffer.checkStatus();
+				framebuffer.bind();
+
+				final var viewMat = new Mat4.Mutable();
+				switch (face) {
+					case XN -> Mat4.setLookAt(viewMat, Vec3.XN, captureLocation, Vec3.YP);
+					case XP -> Mat4.setLookAt(viewMat, Vec3.XP, captureLocation, Vec3.YP);
+					case YN -> Mat4.setLookAt(viewMat, Vec3.YN, captureLocation, Vec3.ZN);
+					case YP -> Mat4.setLookAt(viewMat, Vec3.YP, captureLocation, Vec3.ZP);
+					case ZN -> Mat4.setLookAt(viewMat, Vec3.ZN, captureLocation, Vec3.YP);
+					case ZP -> Mat4.setLookAt(viewMat, Vec3.ZP, captureLocation, Vec3.YP);
+				};
+
+				cam.load(viewMat, projMat, 1e12);
+
+				this.starRenderer.draw(cam, captureLocation);
+			}
+		}
+
+		return cubemap;
 	}
 
 	private void drawCelestialObjects(Camera srcCamera, GlFramebuffer target, float partialTick) {
@@ -283,8 +320,6 @@ public class SkyRenderer implements Disposable {
 		this.planetContext.begin(time);
 		this.planetContext.setupLights(system, camera);
 		system.rootNode.visit(node -> {
-			final var profiler2 = Minecraft.getInstance().getProfiler();
-			profiler2.push("id:" + node.getId());
 			modelTfm.push();
 
 			if (node instanceof UnaryCelestialNode unaryNode) {
@@ -301,22 +336,25 @@ public class SkyRenderer implements Disposable {
 				modelTfm.push();
 				// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -unaryNode.rotationalRate *
 				// time));
-				// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, unaryNode.obliquityAngle));
+				modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, unaryNode.obliquityAngle));
+				modelTfm.appendRotation(node.referencePlane.rotationFromReference());
 				// modelTfm.appendScale(radiusUnits);
 				modelTfm.appendTransform(Mat4.scale(radiusUnits));
 				// modelTfm.appendTranslation(nodePosUnits.mul(camera.metersPerUnit / 1e12));
 				// modelTfm.appendRotation(camera.orientation.inverse());
 				modelTfm.appendTranslation(camera.toCameraSpace(nodePosUnits));
 
+				final var profiler2 = Minecraft.getInstance().getProfiler();
+				profiler2.push("id:" + node.getId());
 				if (EntityAccessor.getWorldType(this.client.player) instanceof WorldType.SystemNode loc) {
 					final var skip = loc.id.nodeId() == node.getId();
 					this.planetContext.render(builder, camera, unaryNode, modelTfm, skip);
 				} else {
 					this.planetContext.render(builder, camera, unaryNode, modelTfm, false);
 				}
+				profiler2.pop();
 			}
 			modelTfm.pop();
-			profiler2.pop();
 		});
 
 		this.planetContext.end();
@@ -370,7 +408,8 @@ public class SkyRenderer implements Disposable {
 		// profiler.push("clear");
 		// mainTarget.bind();
 		// // clear depth because celestial objects use a totally different coordinate
-		// // system than the actual minecraft world, so we would potentially get planets
+		// // system than the actual minecraft world, so we would potentially get
+		// planets
 		// // drawn in front of terrain...
 		// mainTarget.clearDepthAttachment(1.0f);
 		// profiler.pop();
@@ -384,6 +423,8 @@ public class SkyRenderer implements Disposable {
 
 	public GlTexture2d compositeMainWorld(GlFramebuffer mainTarget) {
 		final var mainImage = mainTarget.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
+		if (this.mainSkyTarget == null)
+			return mainImage;
 
 		this.mainSkyTarget.bind();
 		final var shader = UltravioletShaders.SHADER_UN_VANILLA.get();

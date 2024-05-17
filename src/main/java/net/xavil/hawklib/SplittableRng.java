@@ -1,36 +1,42 @@
 package net.xavil.hawklib;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.math.Interval;
 
+/**
+ * A source of pseudo-random numbers that is not sensitive to the ordering or
+ * amount of rng calls, good for ensuring the stability of
+ * procedurally-generated assets while still allowing for their evolution.
+ */
 public final class SplittableRng {
-	private long seed;
+	private long current;
 
 	private long[] seedStack = null;
 	private int seedStackSize;
 
 	public SplittableRng(long seed) {
-		this.seed = scramble(seed);
+		this.current = scramble(seed);
 	}
 
-	public void setSeed(long seed) {
-		this.seed = scramble(seed);
+	public void setCurrent(long seed) {
+		this.current = scramble(seed);
 	}
 
 	public void setSeedRaw(long seed) {
-		this.seed = seed;
+		this.current = seed;
 	}
 
 	public void advance() {
 		// equivalent to `advanceWith(0)`
-		this.seed = scramble(this.seed);
+		this.current = scramble(this.current);
 	}
 
 	public void advanceWith(long key) {
-		this.seed = uniformLong(key);
+		this.current = uniformLong(key);
 	}
 
 	public void advanceWith(String key) {
-		this.seed = uniformLong(key);
+		this.current = uniformLong(key);
 	}
 
 	// https://jonkagstrom.com/bit-mixer-construction/
@@ -73,8 +79,8 @@ public final class SplittableRng {
 				System.arraycopy(this.seedStack, 0, newStack, 0, this.seedStackSize);
 			this.seedStack = newStack;
 		}
-		this.seedStack[this.seedStackSize++] = this.seed;
-		this.seed = uniformLong(key);
+		this.seedStack[this.seedStackSize++] = this.current;
+		this.current = uniformLong(key);
 	}
 
 	public void push(String key) {
@@ -88,12 +94,35 @@ public final class SplittableRng {
 	public void pop() {
 		if (this.seedStackSize == 0)
 			throw new IllegalStateException("cannot pop from empty rng stack!");
-		this.seed = this.seedStack[--this.seedStackSize];
+		this.current = this.seedStack[--this.seedStackSize];
 	}
 
 	// it's important that this is not called with the current rng seed!
 	public long uniformLong(long key) {
-		return scramble(this.seed ^ key);
+		return scramble(this.current ^ key);
+	}
+
+	public long uniformLong(long key, long min, long max) {
+		if (min == max)
+			throw new IllegalArgumentException(String.format(
+					"cannot draw uniform number from empty range, bounds are both equal to {}",
+					min));
+		if (min == max - 1)
+			return min;
+
+		// FIXME: this can overflow and produce garbage
+		final var dist = max - min;
+		// largest power of 2 greater than `dist`
+		final var mask = (1 << (64 - Long.numberOfLeadingZeros(dist - 1))) - 1;
+
+		// generate number in [0, 2^ceil(log2(dist))] until it falls within range.
+		// just sampling a random number and doing a modulo would produce incorrect results for ranges that are not a power of two, since it would generate a 
+		long cur = uniformLong(key) & mask;
+		while (cur > dist) {
+			cur = scramble(cur) & mask;
+		}
+
+		return cur + min;
 	}
 
 	public int uniformInt(long key) {
@@ -105,6 +134,18 @@ public final class SplittableRng {
 	public double uniformDouble(long key) {
 		// this is basically what Java's Random.nextDouble() does.
 		return 0x1.0p-53 * (uniformLong(key) >>> 11);
+	}
+
+	public double weightedDouble(long key, ProbabilityDistribution distribution) {
+		return distribution.pick(uniformDouble(key));
+	}
+
+	public double weightedDouble(long key, ProbabilityDistribution distribution, double min, double max) {
+		return Mth.lerp(distribution.pick(uniformDouble(key)), min, max);
+	}
+
+	public double weightedDouble(long key, ProbabilityDistribution distribution, Interval interval) {
+		return interval.lerp(distribution.pick(uniformDouble(key)));
 	}
 
 	public double uniformDouble(long key, double min, double max) {
@@ -165,12 +206,24 @@ public final class SplittableRng {
 		return uniformDouble(key.hashCode(), min, max);
 	}
 
+	public double weightedDouble(String key, ProbabilityDistribution distribution) {
+		return weightedDouble(key.hashCode(), distribution);
+	}
+
 	public double weightedDouble(String key, double exponent) {
 		return weightedDouble(key.hashCode(), exponent);
 	}
 
 	public double weightedDouble(String key, double exponent, double min, double max) {
 		return weightedDouble(key.hashCode(), exponent, min, max);
+	}
+
+	public double uniformDouble(String key, Interval interval) {
+		return uniformDouble(key.hashCode(), interval.min, interval.max);
+	}
+
+	public double weightedDouble(String key, double exponent, Interval interval) {
+		return weightedDouble(key.hashCode(), exponent, interval.min, interval.max);
 	}
 
 	public <E extends Enum<?>> E uniformEnum(String key, Class<E> clazz) {

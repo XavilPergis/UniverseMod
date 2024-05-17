@@ -146,9 +146,7 @@ public final class ServerUniverse extends Universe {
 	}
 
 	private StellarCelestialNode makeStar(Rng rng, double massMsol, double ageMyr) {
-		final var properties = new StellarCelestialNode.Properties();
-		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * massMsol, ageMyr);
-		return StellarCelestialNode.fromProperties(properties);
+		return StellarCelestialNode.fromInitialParameters(0, Yg_PER_Msol * massMsol, ageMyr, 1.42857e-02);
 	}
 
 	private BinaryCelestialNode makeBinary(Rng rng, CelestialNode a, CelestialNode b, double ecc, double outerAu,
@@ -237,16 +235,10 @@ public final class ServerUniverse extends Universe {
 	private StartingSystem startingSystemSaggitariusA() {
 		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 5);
 
-		final var properties = new StellarCelestialNode.Properties();
-		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * 4.3e6, 13610);
-		final var sagA = StellarCelestialNode.fromProperties(properties);
-
-		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * 20, 1);
-		final var starA = StellarCelestialNode.fromProperties(properties);
-		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * 7, 3);
-		final var starB = StellarCelestialNode.fromProperties(properties);
-		properties.load(new SplittableRng(rng.uniformLong()), Yg_PER_Msol * 0.15, 3);
-		final var starC = StellarCelestialNode.fromProperties(properties);
+		final var sagA = StellarCelestialNode.fromInitialParameters(0, Yg_PER_Msol * 4.3e6, 13610, 1.42857e-02);
+		final var starA = StellarCelestialNode.fromInitialParameters(0, Yg_PER_Msol * 20, 1, 1.42857e-02);
+		final var starB = StellarCelestialNode.fromInitialParameters(0, Yg_PER_Msol * 7, 3, 1.42857e-02);
+		final var starC = StellarCelestialNode.fromInitialParameters(0, Yg_PER_Msol * 0.15, 3, 1.42857e-02);
 
 		final var earth = new PlanetaryCelestialNode(PlanetaryCelestialNode.Type.EARTH_LIKE_WORLD, Yg_PER_Mearth * (1),
 				1, 287.91);
@@ -265,10 +257,14 @@ public final class ServerUniverse extends Universe {
 		return new StartingSystem(13610, "Saggitarius A*", sagA, earth);
 	}
 
-	@SuppressWarnings("unused")
 	private StartingSystem startingSystemSol() {
 		// NOTE: reference plane is the ecliptic plane
-		final var sol = StellarCelestialNode.fromMass(StellarCelestialNode.Type.STAR, Yg_PER_Msol * 1);
+		final var sol = new StellarCelestialNode();
+		sol.type = StellarCelestialNode.Type.STAR;
+		sol.massYg = Yg_PER_Msol;
+		sol.radius = 695700;
+		sol.luminosityLsol = 1;
+		sol.temperature = 5772;
 		sol.obliquityAngle = Math.toRadians(7.25);
 		sol.rotationalRate = 2.90307e-6;
 
@@ -372,12 +368,12 @@ public final class ServerUniverse extends Universe {
 	}
 
 	public void prepare() {
-		final var rng = Rng.fromSeed(getUniqueUniverseSeed() + 4);
+		final var rng = getSaltedRngUnique("prepare");
 
 		// var startingSystem = startingSystemTest();
 		final var startingSystem = startingSystemSol();
 		startingSystem.rootNode.build();
-		startingSystem.rootNode.assignSeeds(rng.uniformLong());
+		startingSystem.rootNode.assignSeeds(rng.uniformLong("starting_system_seeds"));
 
 		final var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);
 
@@ -388,7 +384,7 @@ public final class ServerUniverse extends Universe {
 			this.sectorManager.forceLoad(tempTicket);
 
 			final var galaxySector = this.sectorManager.getSector(sectorPos).unwrap();
-			final var elementIndex = rng.uniformInt(0, galaxySector.initialElements.size());
+			final var elementIndex = rng.rng("galaxy_index").uniformInt(0, galaxySector.initialElements.size());
 
 			final var tempTicket2 = this.sectorManager.createGalaxyTicket(disposer,
 					new UniverseSectorId(sectorPos, elementIndex));
@@ -396,7 +392,7 @@ public final class ServerUniverse extends Universe {
 
 			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, startingSystem.systemAgeMya,
 					startingSystem.name, startingSystem.rootNode, startingNodeId);
-			galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
+			// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
 			galaxy.addGenerationLayer(this.startingGenerator);
 			final var startingId = this.startingGenerator.getStartingSystemId();
 

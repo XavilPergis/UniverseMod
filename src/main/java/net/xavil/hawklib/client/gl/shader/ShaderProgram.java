@@ -1,10 +1,8 @@
 package net.xavil.hawklib.client.gl.shader;
 
-import java.nio.IntBuffer;
+import javax.annotation.Nullable;
 
 import org.lwjgl.opengl.GL45C;
-import org.lwjgl.system.MemoryStack;
-
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.VertexFormat;
@@ -14,10 +12,13 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
 import net.minecraft.resources.ResourceLocation;
+import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.HawkLib;
+import net.xavil.hawklib.client.gl.GlBuffer;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.GlObject;
+import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
@@ -25,34 +26,20 @@ import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 public final class ShaderProgram extends GlObject implements UniformHolder {
 
 	public ShaderProgram(int id, boolean owned) {
-		super(id, owned);
+		super(ObjectType.PROGRAM, id, owned);
 	}
 
 	public ShaderProgram(ShaderInstance imported) {
-		super(imported.getId(), false);
+		super(ObjectType.PROGRAM, imported.getId(), false);
 		this.wrappedVanillaShader = imported;
 		queryUniforms();
 		setupAttribBindings(imported.getVertexFormat(), false);
 		setupFragLocations(GlFragmentWrites.VANILLA);
 	}
 
-	public ShaderProgram() {
-		super(GL45C.glCreateProgram(), true);
-	}
-
-	public ShaderProgram(ResourceLocation loadedFrom) {
-		this();
+	public ShaderProgram(@Nullable ResourceLocation loadedFrom) {
+		super(ObjectType.PROGRAM, GL45C.glCreateProgram(), true);
 		this.loadedFrom = loadedFrom;
-	}
-
-	@Override
-	protected void destroy() {
-		GL45C.glDeleteProgram(this.id);
-	}
-
-	@Override
-	public ObjectType objectType() {
-		return ObjectType.PROGRAM;
 	}
 
 	@Override
@@ -79,10 +66,29 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 		}
 	}
 
+	private static final class StorageBufferSlot {
+		public final String blockName;
+		public final int bindingIndex;
+
+		public GlBuffer.Slice bufferSlice = null;
+
+		public StorageBufferSlot(String blockName, int bindingIndex) {
+			this.blockName = blockName;
+			this.bindingIndex = bindingIndex;
+		}
+
+		public void bind() {
+			Assert.isNotNull(this.bufferSlice);
+			this.bufferSlice.bindRange(GlBuffer.Type.SHADER_STORAGE, this.bindingIndex);
+			this.bufferSlice = null;
+		}
+	}
+
 	private ResourceLocation loadedFrom = null;
 	private boolean areUniformsDirty = false;
-	private boolean hasAnySamplerUniform = false;
+	private boolean hasTextureUniforms = false;
 	private final MutableMap<String, UniformSlot> uniforms = MutableMap.hashMap();
+	private final MutableMap<String, StorageBufferSlot> storageBuffers = MutableMap.hashMap();
 	private final MutableMap<String, AttributeSlot> attributes = MutableMap.hashMap();
 	private AttributeSet attributeSet;
 	private GlFragmentWrites fragmentWrites;
@@ -124,41 +130,89 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 		this.attributeSet = attributeSet;
 		this.uniforms.clear();
 		this.attributes.clear();
-		this.hasAnySamplerUniform = false;
+		this.hasTextureUniforms = false;
 		queryUniforms();
 		setupAttribBindings(attributeSet, true);
 		setupFragLocations(fragmentWrites);
 		return true;
 	}
 
-	public UniformSlot queryUniform(int index) {
-		try (final var stack = MemoryStack.stackPush()) {
-			final IntBuffer sizeBuffer = stack.mallocInt(1), typeBuffer = stack.mallocInt(1);
-			final var name = GL45C.glGetActiveUniform(this.id, index, sizeBuffer, typeBuffer);
-			final var type = UniformSlot.Type.from(typeBuffer.get(0));
-			final var size = sizeBuffer.get(0);
+	// me when i overengineer everything
+	private static abstract class ResourceQueryHelper {
+		public static final class Param {
+			public final int key;
+			private int value;
 
-			// filter out shader builtins
-			if (name.startsWith("gl_"))
-				return null;
-			// TODO: support structs in some capacity
-			if (name.endsWith("[0]"))
-				name.substring(name.length() - "[0]".length());
+			public Param(int key) {
+				this.key = key;
+			}
 
-			final var location = GL45C.glGetUniformLocation(this.id, name);
-			return new UniformSlot(type, name, size, location);
+			public int get() {
+				return this.value;
+			}
+		}
+
+		private final Vector<Param> params = new Vector<>();
+		private int[] propertyKeys, propertyValues;
+
+		protected Param addQueryParam(int queryKey) {
+			final var param = new Param(queryKey);
+			this.params.push(param);
+			return param;
+		}
+
+		public void query(ShaderProgram program, int iface, int index) {
+			if (this.propertyKeys == null || this.propertyKeys.length != this.params.size()) {
+				this.propertyKeys = new int[this.params.size()];
+				for (int i = 0; i < this.params.size(); ++i)
+					this.propertyKeys[i] = this.params.get(i).key;
+			}
+			if (this.propertyValues == null || this.propertyValues.length != this.params.size())
+				this.propertyValues = new int[this.params.size()];
+			GL45C.glGetProgramResourceiv(program.id, iface, index, this.propertyKeys, null, this.propertyValues);
+			for (int i = 0; i < this.params.size(); ++i)
+				this.params.get(i).value = this.propertyValues[i];
 		}
 	}
 
 	private void queryUniforms() {
-		final var uniformCount = GL45C.glGetProgrami(this.id, GL45C.GL_ACTIVE_UNIFORMS);
-		for (int i = 0; i < uniformCount; ++i) {
-			final var slot = queryUniform(i);
-			if (slot != null) {
-				this.uniforms.insert(slot.name, slot);
-				this.hasAnySamplerUniform |= slot.type.componentType == UniformSlot.ComponentType.SAMPLER;
-			}
+		final var uniformProperties = new ResourceQueryHelper() {
+			final Param type = addQueryParam(GL45C.GL_TYPE);
+			final Param arraySize = addQueryParam(GL45C.GL_ARRAY_SIZE);
+			final Param blockIndex = addQueryParam(GL45C.GL_BLOCK_INDEX);
+			final Param location = addQueryParam(GL45C.GL_LOCATION);
+		};
+
+		final var storageProperties = new ResourceQueryHelper() {
+			final Param bufferBinding = addQueryParam(GL45C.GL_BUFFER_BINDING);
+		};
+
+		final var activeUniformCount = GL45C.glGetProgramInterfacei(this.id, GL45C.GL_UNIFORM,
+				GL45C.GL_ACTIVE_RESOURCES);
+		for (int i = 0; i < activeUniformCount; ++i) {
+			uniformProperties.query(this, GL45C.GL_UNIFORM, i);
+			// this uniform is part of a uniform block; skip it for now
+			if (uniformProperties.blockIndex.get() != -1)
+				continue;
+			final var name = GL45C.glGetProgramResourceName(this.id, GL45C.GL_UNIFORM, i);
+			final var type = UniformSlot.Type.from(uniformProperties.type.get());
+			final var arraySize = uniformProperties.arraySize.get();
+			final var location = uniformProperties.location.get();
+
+			this.uniforms.insert(name, new UniformSlot(type, name, arraySize, location));
+			this.hasTextureUniforms |= type.isTexture;
 		}
+
+		final var activeStorageBufferCount = GL45C.glGetProgramInterfacei(this.id, GL45C.GL_SHADER_STORAGE_BLOCK,
+				GL45C.GL_ACTIVE_RESOURCES);
+		for (int i = 0; i < activeStorageBufferCount; ++i) {
+			storageProperties.query(this, GL45C.GL_SHADER_STORAGE_BLOCK, i);
+			final var name = GL45C.glGetProgramResourceName(this.id, GL45C.GL_SHADER_STORAGE_BLOCK, i);
+			final var bufferBinding = storageProperties.bufferBinding.get();
+			this.storageBuffers.insert(name, new StorageBufferSlot(name, bufferBinding));
+			// Mod.LOGGER.error("shader storage block {} '{}': binding={}", i, name, bufferBinding);
+		}
+
 	}
 
 	private void setupAttribBindings(VertexFormat format, boolean bind) {
@@ -202,6 +256,13 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 		this.areUniformsDirty |= dirty;
 	}
 
+	public void setStorageBuffer(String blockName, GlBuffer.Slice bufferSlice) {
+		final var slot = this.storageBuffers.get(blockName).unwrapOrNull();
+		if (slot == null)
+			return;
+		slot.bufferSlice = bufferSlice;
+	}
+
 	// public void setUniformBlock(String blockName, UniformBuffer buffer) {
 	// this.uniformBlocks.insert(blockName, buffer);
 	// }
@@ -209,7 +270,7 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 	public void bind() {
 		GlManager.useProgram(this.id);
 		// normal uniforms
-		if (this.hasAnySamplerUniform || this.areUniformsDirty) {
+		if (this.hasTextureUniforms || this.areUniformsDirty) {
 			// since texture unit binding can change sorta whenever, we always have to check
 			// that the texture currently stored in a sampler uniform is the active texture
 			// for the current texture unit.
@@ -217,7 +278,8 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 			this.uniforms.values().forEach(slot -> slot.upload(this, uploadContext));
 			this.areUniformsDirty = false;
 		}
-		// TODO: uniform buffers
+
+		this.storageBuffers.values().forEach(slot -> slot.bind());
 
 		// apply vanilla shader stuff
 		if (this.wrappedVanillaShader != null) {
@@ -249,7 +311,7 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 		setupDefaultVanillaUniforms(this.getWrappedVanillaShader());
 	}
 
-	private static void setupDefaultVanillaUniforms(ShaderInstance shader) {
+	private static void setupDefaultVanillaUniforms(@Nullable ShaderInstance shader) {
 		if (shader == null)
 			return;
 		if (shader.MODEL_VIEW_MATRIX != null)

@@ -339,8 +339,8 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 			final var combinedShape = binaryNode.getCombinedShape();
 			final var ellipseA = binaryNode.getEllipseA(referencePlane, time);
 			final var ellipseB = binaryNode.getEllipseB(referencePlane, time);
-			getOrbitalPosition(binaryNode.getInner().position, ellipseA, combinedShape, false, time);
-			getOrbitalPosition(binaryNode.getOuter().position, ellipseB, combinedShape, true, time);
+			getOrbitalPosition(binaryNode.getInner().position, ellipseA, combinedShape, false, time, binaryNode.phase);
+			getOrbitalPosition(binaryNode.getOuter().position, ellipseB, combinedShape, true, time, binaryNode.phase);
 			final var newPlane = binaryNode.orbitalPlane.withReferencePlane(referencePlane);
 			binaryNode.getInner().updatePositions(newPlane, time);
 			binaryNode.getOuter().updatePositions(newPlane, time);
@@ -348,7 +348,7 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 
 		for (var childOrbit : this.childNodes.iterable()) {
 			final var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
-			getOrbitalPosition(childOrbit.node.position, newPlane, childOrbit.orbitalShape, false, time);
+			getOrbitalPosition(childOrbit.node.position, newPlane, childOrbit.orbitalShape, false, time, childOrbit.phase);
 			childOrbit.node.updatePositions(newPlane, time);
 		}
 	}
@@ -358,15 +358,15 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	}
 
 	public Vec3.Mutable getOrbitalPosition(Vec3.Mutable out, OrbitalPlane plane, OrbitalShape shape, boolean reverse,
-			double time) {
+			double time, double phase) {
 		final var ellipse = Ellipse.fromOrbit(this.position, plane, shape, this.apsidalRate * time, reverse);
-		return getOrbitalPosition(out, ellipse, shape, reverse, time);
+		return getOrbitalPosition(out, ellipse, shape, reverse, time, phase);
 	}
 
 	public Vec3.Mutable getOrbitalPosition(Vec3.Mutable out, Ellipse ellipse, OrbitalShape shape, boolean reverse,
-			double time) {
+			double time, double phase) {
 		final var orbitalPeriod = Formulas.orbitalPeriod(shape.semiMajor(), this.massYg);
-		final var meanAnomaly = (2 * Math.PI / orbitalPeriod) * time;
+		final var meanAnomaly = phase + (2 * Math.PI / orbitalPeriod) * time;
 		final var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, shape.eccentricity());
 		return ellipse.pointFromTrueAnomaly(out, reverse ? -trueAnomaly : trueAnomaly);
 	}

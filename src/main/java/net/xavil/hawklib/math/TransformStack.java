@@ -8,6 +8,7 @@ import net.xavil.hawklib.math.matrices.interfaces.Vec4Access;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec4;
+import net.xavil.hawklib.math.matrices.VecMath;
 
 public final class TransformStack {
 	private final MutableList<Mat4.Mutable> freeMatrices = new Vector<>();
@@ -85,11 +86,11 @@ public final class TransformStack {
 	}
 
 	public Vec3 applyTransform(Vec3Access vec, double w) {
-		return Mat4.mul(this.current, vec, w);
+		return VecMath.transformPerspective(this.current, vec, w);
 	}
 
 	public Vec4 applyTransform(Vec4Access vec) {
-		return Mat4.mul(this.current, vec);
+		return VecMath.transform(this.current, vec);
 	}
 
 	public Mat4 copyCurrent() {

@@ -11,11 +11,11 @@ import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 
 public final class BufferRenderer {
 
-	public static final VertexBuilder IMMEDIATE_BUILDER = new VertexBuilder(0x400000);
+	public static final GrowableVertexBuilder IMMEDIATE_BUILDER = new GrowableVertexBuilder(0x400000);
 	public static final Mesh IMMEDIATE_BUFFER = new Mesh();
 
 	public static void draw(ShaderProgram shader, VertexBuilder.BuiltBuffer buffer, DrawState drawState) {
-		setupDefaultShaderUniforms(shader);
+		shader.setupDefaultShaderUniforms();
 		IMMEDIATE_BUFFER.upload(buffer, GlBuffer.UsageHint.STREAM_DRAW);
 		IMMEDIATE_BUFFER.draw(shader, drawState);
 	}
@@ -36,7 +36,7 @@ public final class BufferRenderer {
 
 	public static void drawFullscreen(ShaderProgram shader, DrawState drawState) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
-				.beginGeneric(PrimitiveType.QUADS, BufferLayout.POSITION_TEX);
+				.beginGeneric(PrimitiveType.QUAD_DUPLICATED, BufferLayout.POSITION_TEX);
 		builder.vertex(-1, 1, 0).uv0(0, 1).endVertex();
 		builder.vertex(1, 1, 0).uv0(1, 1).endVertex();
 		builder.vertex(1, -1, 0).uv0(1, 0).endVertex();
@@ -46,10 +46,6 @@ public final class BufferRenderer {
 		GlManager.enableCull(false);
 		draw(shader, built, drawState);
 		GlManager.popState();
-	}
-
-	public static void setupDefaultShaderUniforms(ShaderProgram shader) {
-		shader.setupDefaultShaderUniforms();
 	}
 
 	public static void setupCameraUniforms(ShaderProgram shader, CachedCamera camera) {

@@ -53,13 +53,13 @@ public final class SectorManager {
 
 			if (cur == null && next != null) {
 				// empty -> full
-				this.loanedTicket.info.enumerateAffectedSectors(toLoad::insert);
+				this.loanedTicket.info.enumerateAllAffectedSectors(toLoad::insert);
 			} else if (cur != null && next == null) {
 				// full -> empty
-				this.loanedTicket.info.enumerateAffectedSectors(toUnload::insert);
+				this.loanedTicket.info.enumerateAllAffectedSectors(toUnload::insert);
 			} else {
 				// full -> full
-				this.loanedTicket.info.enumerateAffectedSectors(this.newSectors::insert);
+				this.loanedTicket.info.enumerateAllAffectedSectors(this.newSectors::insert);
 
 				// find differences between previously-loaded sectors and newly-loaded sectors
 				this.currentSectors.forEach(sector -> {
@@ -255,10 +255,9 @@ public final class SectorManager {
 			int total = 0;
 			int complete = 0;
 		};
-		sectorTicket.info.enumerateAffectedSectors(pos -> {
+		sectorTicket.info.enumerateAllAffectedSectors(pos -> {
 			res.total += 1;
 			res.complete += isComplete(pos) ? 1 : 0;
-			return true;
 		});
 		return res.complete / (double) res.total;
 	}

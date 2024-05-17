@@ -1,49 +1,46 @@
 package net.xavil.ultraviolet.client;
 
+import static net.xavil.hawklib.client.HawkDrawStates.DRAW_STATE_ADDITIVE_BLENDING;
+import static net.xavil.hawklib.client.HawkDrawStates.DRAW_STATE_OPAQUE;
+
 import java.util.Comparator;
 
 import javax.annotation.Nullable;
 
-import net.minecraft.util.Mth;
-import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.ColorSpline;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.WeightedList;
-import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.ImmutableList;
-import net.xavil.hawklib.collections.interfaces.MutableMap;
-import net.xavil.hawklib.collections.interfaces.MutableSet;
-import net.xavil.hawklib.collections.iterator.IntoIterator;
-import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.client.screen.RenderHelper;
-import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
-import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
-import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
-
-import static net.xavil.hawklib.client.HawkDrawStates.*;
-
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.Mesh;
+import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.gl.texture.GlClientTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture1d;
-import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
-import net.xavil.hawklib.client.flexible.Mesh;
-import net.xavil.hawklib.client.flexible.PrimitiveType;
-import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.math.ColorAccess;
 import net.xavil.hawklib.math.ColorHsva;
 import net.xavil.hawklib.math.ColorOklch;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.TransformStack;
-import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.VecMath;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
+import net.xavil.ultraviolet.client.screen.RenderHelper;
+import net.xavil.ultraviolet.common.config.ClientConfig;
+import net.xavil.ultraviolet.common.config.ConfigKey;
+import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.StarSystem;
+import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
 
 public final class PlanetRenderingContext implements Disposable {
 
@@ -57,8 +54,8 @@ public final class PlanetRenderingContext implements Disposable {
 	private final Light[] lights = new Light[4];
 
 	private static final class ClientNodeInfo implements Disposable {
-		public GlTexture1d gasGiantGradient;
 		public boolean wasUsedThisFrame = false;
+		public GlTexture1d gasGiantGradient;
 
 		public ClientNodeInfo() {
 		}
@@ -76,10 +73,14 @@ public final class PlanetRenderingContext implements Disposable {
 	}
 
 	public PlanetRenderingContext() {
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.QUADS,
+		final var builder1 = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.QUAD_DUPLICATED,
 				BufferLayout.POSITION_TEX_COLOR_NORMAL);
-		RenderHelper.addCubeSphere(builder, Vec3.ZERO, 1, 16);
-		this.sphereMesh.upload(builder.end());
+		RenderHelper.addCubeSphere(builder1, Vec3.ZERO, 1, 16);
+		this.sphereMesh.upload(builder1.end());
+		final var builder2 = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.QUAD_DUPLICATED,
+				BufferLayout.POSITION_TEX_COLOR_NORMAL);
+		RenderHelper.addCubeSphere(builder2, Vec3.ZERO, 1, 16);
+		this.sphereMesh.upload(builder2.end());
 	}
 
 	@Override
@@ -288,62 +289,62 @@ public final class PlanetRenderingContext implements Disposable {
 
 		// @formatter:off
 		// browns
-		builder.anyOf("base", 20);
-			builder.anyOf("lightness", 2);
-				builder.colorHsv(2, 25, 0.4, 0.2, 0);
-				builder.colorHsv(2, 25, 0.4, 0.3, 0);
-				builder.colorHsv(1, 25, 0.4, 0.4, 0);
+		builder.anyOf("base", 800);
+			builder.anyOf("lightness", 200);
+				builder.colorHsv(20, 25, 0.4, 0.2, 0);
+				builder.colorHsv(20, 25, 0.4, 0.3, 0);
+				builder.colorHsv(10, 25, 0.4, 0.4, 0);
 			builder.end();
-			builder.anyOf("lightness", 1);
-				builder.colorHsv(2, 25, 0.4, 0.5, 0);
-				builder.colorHsv(2, 25, 0.4, 0.6, 0);
-				builder.colorHsv(2, 25, 0.4, 0.8, 0);
-				builder.colorSrgb("white", 2, 1, 1, 1, 0);
+			builder.anyOf("lightness", 40);
+				builder.colorHsv(20, 25, 0.4, 0.5, 0);
+				builder.colorHsv(20, 25, 0.4, 0.6, 0);
+				builder.colorHsv(20, 25, 0.4, 0.8, 0);
+				builder.colorSrgb("white", 20, 1, 1, 1, 0);
 			builder.end();
 		builder.end();
 
 		// beiges
-		builder.anyOf("base", 20);
-		builder.colorHsv(2, 25, 0.4, 0.8, 0);
-		builder.colorHsv(2, 25, 0.4, 0.7, 0);
-		builder.colorHsv(2, 25, 0.4, 0.6, 0);
-		builder.colorHsv(2, 25, 0.7, 0.5, 0);
+		builder.anyOf("base", 600);
+		builder.colorHsv(20, 25, 0.4, 0.8, 0);
+		builder.colorHsv(20, 25, 0.4, 0.7, 0);
+		builder.colorHsv(20, 25, 0.4, 0.6, 0);
+		builder.colorHsv(20, 25, 0.7, 0.5, 0);
 		// builder.colorSrgb(2, 0.8 * 1.000f, 0.8 * 0.918f, 0.8 * 0.796f, 0f); // bright beige
 		// builder.colorSrgb(2, 1.000f, 0.918f, 0.796f, 0f); // bright beige
 		// builder.colorSrgb(2, 0.890f, 0.812f, 0.690f, 0f); // bright beige
 		builder.end();
 
 		// blue/violet
-		builder.anyOf("base", 10);
-		builder.colorHsv(2, 260, 0.4, 0.2, 0f);
-		builder.colorHsv(2, 260, 0.4, 0.3, 0f);
-		builder.colorHsv(2, 260, 0.4, 0.4, 0f);
+		builder.anyOf("base", 600);
+		builder.colorHsv(20, 260, 0.4, 0.2, 0f);
+		builder.colorHsv(20, 260, 0.4, 0.3, 0f);
+		builder.colorHsv(20, 260, 0.4, 0.4, 0f);
 		// builder.colorSrgb("white", 2, 1, 1, 1, 0);
 		builder.end();
 
 		// snowball
-		builder.anyOf("base", 8);
-			builder.colorSrgb(200, 1, 1, 1, 0);
-			builder.colorSrgb(200, 0.9, 0.9, 0.9, 0);
+		builder.anyOf("base", 100);
+			builder.colorSrgb(2000, 1, 1, 1, 0);
+			builder.colorSrgb(2000, 0.9, 0.9, 0.9, 0);
 			builder.anyOf("accent", 10);
-				builder.colorHsv(2, 25, 0.4, 0.2, 0);
-				builder.colorHsv(2, 25, 0.4, 0.3, 0);
-				builder.colorHsv(1, 25, 0.4, 0.4, 0);
+				builder.colorHsv(20, 25, 0.4, 0.2, 0);
+				builder.colorHsv(20, 25, 0.4, 0.3, 0);
+				builder.colorHsv(10, 25, 0.4, 0.4, 0);
 			builder.end();
-			builder.colorHsv("accent", 1, 280, 1, 0.9, 0);
-			builder.colorHsv("accent", 1, 35, 1, 0.9, 0);
-			builder.colorHsv("accent", 1, 200, 1, 0.9, 0);
+			builder.colorHsv("accent", 10, 280, 1, 0.9, 0);
+			builder.colorHsv("accent", 10, 35, 1, 0.9, 0);
+			builder.colorHsv("accent", 10, 200, 1, 0.9, 0);
 		builder.end();
 
-		builder.anyOf("base", 3);
-			builder.colorSrgb("white", 2, 1, 1, 1, 0);
+		builder.anyOf("base", 10);
+			builder.colorSrgb("white", 20, 1, 1, 1, 0);
 			for (double h = 0; h < 360; h += 50) {
 				if (h >= 50 && h <= 150) continue;
 				builder.anyOf("bright", 1);
-				builder.colorHsv(         1, h, 0.3, 0.8, 0);
-				builder.colorHsv(         1, h, 0.3, 0.7, 0);
-				builder.colorHsv("shade", 1, h, 0.8, 0.8, 0);
-				builder.colorHsv("shade", 1, h, 0.3, 0.5, 0);
+				builder.colorHsv(         10, h, 0.3, 0.8, 0);
+				builder.colorHsv(         10, h, 0.3, 0.7, 0);
+				builder.colorHsv("shade", 10, h, 0.8, 0.8, 0);
+				builder.colorHsv("shade", 10, h, 0.3, 0.5, 0);
 				builder.end();
 			}
 			// builder.colorSrgb(1, 0.239f, 0.255f, 0.878f, 0f); // bright violet-blue
@@ -353,7 +354,7 @@ public final class PlanetRenderingContext implements Disposable {
 			// builder.colorSrgb(0.05, 0.000f, 1.000f, 0.055f, 1f); // bright green
 		builder.end();
 
-		builder.colorSrgb(0.1, 0, 1, 0, 2);
+		// builder.colorSrgb(0.1, 0, 1, 0, 2);
 		// @formatter:on
 
 		// builder.oneOf();
@@ -457,7 +458,8 @@ public final class PlanetRenderingContext implements Disposable {
 		for (var i = 0; i < starCount; ++i) {
 			final var star = stars.get(i);
 			final var pos = camera.toCameraSpace(this.origin.add(star.position));
-			setupLight(i, pos, star.getColor().withA(star.getBrightnessMultiplier()));
+			// final var luminosityW = star.luminosityLsol * Units.W_PER_Lsol;
+			setupLight(i, pos, star.getColor().withA((float) star.luminosityLsol * star.getBrightnessMultiplier()));
 		}
 	}
 
@@ -467,6 +469,10 @@ public final class PlanetRenderingContext implements Disposable {
 			throw new IllegalStateException(String.format(
 					"cannot render celestial node before begin() was called!"));
 		}
+
+		// that's not supposed to happen!!
+		if (node == null)
+			return;
 
 		final var clientInfo = makeClientInfoIfNeeded(node);
 		clientInfo.wasUsedThisFrame = true;
@@ -498,47 +504,65 @@ public final class PlanetRenderingContext implements Disposable {
 		BufferRenderer.setupCameraUniforms(pointShader, camera);
 		nodeShader.setupDefaultShaderUniforms();
 		pointShader.setupDefaultShaderUniforms();
-		StarRenderManager.setupStarShader(pointShader, camera);
+
+		pointShader.setupDefaultShaderUniforms();
+		pointShader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
+		pointShader.setUniformf("uTime", this.celestialTime);
+		pointShader.setUniformf("uStarSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_SIZE));
+		pointShader.setUniformf("uStarLuminosityScale", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_SCALE));
+		pointShader.setUniformf("uStarLuminosityMax", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_MAX));
+		pointShader.setUniformf("uStarBrightnessScale", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_SCALE));
+		pointShader.setUniformf("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
+		pointShader.setUniformf("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
+		pointShader.setUniformf("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
+		pointShader.setUniformf("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));	
+
+		// StarRenderManager.setupStarShader(pointShader, camera);
 
 		if (!skip && !(node instanceof StellarCelestialNode starNode
 				&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE)) {
 
-			final var builder2 = builder.beginGeneric(PrimitiveType.POINT_QUADS,
-					UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
+			final var builder2 = builder.beginGeneric(PrimitiveType.POINT_DUPLICATED,
+					UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_REALISTIC);
 
 			// final var actualOrigin = this.floatingOrigin;
 
 			// don't render the stars that are behind the camera in immediate mode
 			// if (ctx.isImmediateMode) {
-			// 	Vec3.set(toStar, elem.systemPosTm);
-			// 	Vec3.sub(toStar, toStar, ctx.centerPos);
-			// 	if (toStar.dot(ctx.camera.forward) == 0)
-			// 		return;
+			// Vec3.set(toStar, elem.systemPosTm);
+			// Vec3.sub(toStar, toStar, ctx.centerPos);
+			// if (toStar.dot(ctx.camera.forward) == 0)
+			// return;
 			// }
 
 			// Vec3.sub(elem.systemPosTm, elem.systemPosTm, actualOrigin);
 			// Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
-			// Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 / ctx.camera.metersPerUnit);
-
+			// Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 /
+			// ctx.camera.metersPerUnit);
 
 			// if (this.mode == Mode.REALISTIC) {
-			// 	ctx.builder.vertex(elem.systemPosTm)
-			// 			.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
-			// 			.uv0((float) elem.luminosityLsol, 0)
-			// 			.endVertex();
+			// ctx.builder.vertex(elem.systemPosTm)
+			// .color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z,
+			// 1)
+			// .uv0((float) elem.luminosityLsol, 0)
+			// .endVertex();
 			// } else if (this.mode == Mode.MAP) {
-			// 	ctx.builder.vertex(elem.systemPosTm)
-			// 			.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
-			// 			.endVertex();	
+			// ctx.builder.vertex(elem.systemPosTm)
+			// .color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z,
+			// 1)
+			// .endVertex();
 			// }
 
-			// final var nodePos = node.position.sub(camera.posTm).sub(this.origin).div(1e12).div(1e12 / camera.metersPerUnit);
-			// final var nodePos = node.position.sub(camera.posTm).sub(this.origin).div(1e12 / camera.metersPerUnit);
+			// final var nodePos =
+			// node.position.sub(camera.posTm).sub(this.origin).div(1e12).div(1e12 /
+			// camera.metersPerUnit);
+			// final var nodePos = node.position.sub(camera.posTm).sub(this.origin).div(1e12
+			// / camera.metersPerUnit);
 
 			transform.push();
 			transform.appendTranslation(this.origin);
-			// final var nodePos = Mat4.mul(transform.current(), node.position, 1);
-			final var nodePos = Mat4.mul(transform.current(), Vec3.ZERO, 1);
+			// final var nodePos = VecMath.transformPerspective(transform.current(), node.position, 1);
+			final var nodePos = VecMath.transformPerspective(transform.current(), Vec3.ZERO, 1);
 			// final var nodePos = node.position.sub(camera.posTm);
 			transform.pop();
 
@@ -556,13 +580,7 @@ public final class PlanetRenderingContext implements Disposable {
 						.uv0(0.0000000018554f, 0)
 						.endVertex();
 			}
-			// builder2.vertex(Vec3.ZN)
-			// 		// TODO: determine color and luminosity from reflected light
-			// 		.color(ColorRgba.RED)
-			// 		.uv0(100000f, 0)
-			// 		.endVertex();
 			builder2.end().draw(pointShader, DRAW_STATE_ADDITIVE_BLENDING);
-
 			this.sphereMesh.draw(nodeShader, DRAW_STATE_OPAQUE);
 		}
 	}

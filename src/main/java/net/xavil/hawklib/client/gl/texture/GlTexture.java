@@ -1,5 +1,7 @@
 package net.xavil.hawklib.client.gl.texture;
 
+import java.nio.ByteBuffer;
+
 import javax.annotation.Nullable;
 
 import org.lwjgl.opengl.GL45C;
@@ -106,7 +108,7 @@ public abstract class GlTexture extends GlObject {
 		RGB12_UINT_NORM           (GL45C.GL_RGB12,              ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "12-Bit RGB Normalized Unsigned Integer"),
 		RGB10A2_UINT_NORM         (GL45C.GL_RGB10_A2,           ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "10-Bit RGB + 2-Bit A Normalized Unsigned Integer"),
 		R11G11B10_FLOAT           (GL45C.GL_R11F_G11F_B10F,     ComponentType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "11-Bit RG + 10-Bit B Float"),
-		RGB9E5_FLOAT              (GL45C.GL_RGB9_E5,            ComponentType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "RGB9E5 Float"),
+		RGB9E5_FLOAT              (GL45C.GL_RGB9_E5,            ComponentType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "9-Bit RGB Mantissa + 5-Bit Shared Exponent Float"),
 		// depth/stencil
 		DEPTH32_FLOAT             (GL45C.GL_DEPTH_COMPONENT32F, ComponentType.FLOAT, SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth32 Float"),
 		DEPTH32_UINT_NORM         (GL45C.GL_DEPTH_COMPONENT32,  ComponentType.UINT,  SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth32 Unsigned Integer"),
@@ -264,25 +266,29 @@ public abstract class GlTexture extends GlObject {
 	}
 
 	public static enum Type {
-		D1(GL45C.GL_TEXTURE_1D, GL45C.GL_TEXTURE_BINDING_1D, "1D"),
-		D2(GL45C.GL_TEXTURE_2D, GL45C.GL_TEXTURE_BINDING_2D, "2D"),
-		D3(GL45C.GL_TEXTURE_3D, GL45C.GL_TEXTURE_BINDING_3D, "3D"),
-		CUBEMAP(GL45C.GL_TEXTURE_CUBE_MAP, GL45C.GL_TEXTURE_BINDING_CUBE_MAP, "Cubemap"),
-		D1_ARRAY(GL45C.GL_TEXTURE_1D_ARRAY, GL45C.GL_TEXTURE_BINDING_1D_ARRAY, "1D Array"),
-		D2_ARRAY(GL45C.GL_TEXTURE_2D_ARRAY, GL45C.GL_TEXTURE_BINDING_2D_ARRAY, "2D Array"),
-		D2_MS(GL45C.GL_TEXTURE_2D_MULTISAMPLE, GL45C.GL_TEXTURE_BINDING_2D_MULTISAMPLE, "2D Multisampled"),
-		D2_MS_ARRAY(GL45C.GL_TEXTURE_2D_MULTISAMPLE_ARRAY, GL45C.GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY,
+		D1(GL45C.GL_TEXTURE_1D, GL45C.GL_TEXTURE_BINDING_1D, SliceDimension.D1, "1D"),
+		D2(GL45C.GL_TEXTURE_2D, GL45C.GL_TEXTURE_BINDING_2D, SliceDimension.D2, "2D"),
+		D3(GL45C.GL_TEXTURE_3D, GL45C.GL_TEXTURE_BINDING_3D, SliceDimension.D3, "3D"),
+		CUBE(GL45C.GL_TEXTURE_CUBE_MAP, GL45C.GL_TEXTURE_BINDING_CUBE_MAP, SliceDimension.D2_ARRAY, "Cubemap"),
+		CUBE_ARRAY(GL45C.GL_TEXTURE_CUBE_MAP_ARRAY, GL45C.GL_TEXTURE_BINDING_CUBE_MAP_ARRAY, null, "Cubemap Array"),
+		D1_ARRAY(GL45C.GL_TEXTURE_1D_ARRAY, GL45C.GL_TEXTURE_BINDING_1D_ARRAY, SliceDimension.D1_ARRAY, "1D Array"),
+		D2_ARRAY(GL45C.GL_TEXTURE_2D_ARRAY, GL45C.GL_TEXTURE_BINDING_2D_ARRAY, SliceDimension.D2_ARRAY, "2D Array"),
+		D2_MS(GL45C.GL_TEXTURE_2D_MULTISAMPLE, GL45C.GL_TEXTURE_BINDING_2D_MULTISAMPLE, null, "2D Multisampled"),
+		D2_MS_ARRAY(GL45C.GL_TEXTURE_2D_MULTISAMPLE_ARRAY, GL45C.GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY, null,
 				"2D Multisampled Array"),
-		BUFFER(GL45C.GL_TEXTURE_BUFFER, GL45C.GL_TEXTURE_BINDING_BUFFER, "Buffer-Backed"),
-		RECTANGLE(GL45C.GL_TEXTURE_RECTANGLE, GL45C.GL_TEXTURE_BINDING_RECTANGLE, "Rectangle");
+		BUFFER(GL45C.GL_TEXTURE_BUFFER, GL45C.GL_TEXTURE_BINDING_BUFFER, null, "Buffer-Backed"),
+		RECTANGLE(GL45C.GL_TEXTURE_RECTANGLE, GL45C.GL_TEXTURE_BINDING_RECTANGLE, SliceDimension.D2, "Rectangle");
 
 		public final int id;
 		public final int bindingId;
+		@Nullable
+		public final SliceDimension sliceDimension;
 		public final String description;
 
-		private Type(int id, int bindingId, String description) {
+		private Type(int id, int bindingId, SliceDimension sliceDimension, String description) {
 			this.id = id;
 			this.bindingId = bindingId;
+			this.sliceDimension = sliceDimension;
 			this.description = description;
 		}
 
@@ -296,7 +302,8 @@ public abstract class GlTexture extends GlObject {
 				case GL45C.GL_TEXTURE_1D -> D1;
 				case GL45C.GL_TEXTURE_2D -> D2;
 				case GL45C.GL_TEXTURE_3D -> D3;
-				case GL45C.GL_TEXTURE_CUBE_MAP -> CUBEMAP;
+				case GL45C.GL_TEXTURE_CUBE_MAP -> CUBE;
+				case GL45C.GL_TEXTURE_CUBE_MAP_ARRAY -> CUBE_ARRAY;
 				case GL45C.GL_TEXTURE_1D_ARRAY -> D1_ARRAY;
 				case GL45C.GL_TEXTURE_2D_ARRAY -> D2_ARRAY;
 				case GL45C.GL_TEXTURE_2D_MULTISAMPLE -> D2_MS;
@@ -458,6 +465,20 @@ public abstract class GlTexture extends GlObject {
 		}
 	}
 
+	public static enum ImageAccess {
+		READ(GL45C.GL_READ_ONLY, "Read-only"),
+		WRITE(GL45C.GL_WRITE_ONLY, "Write-only"),
+		READ_WRITE(GL45C.GL_READ_WRITE, "Read/Write");
+
+		public final int id;
+		public final String description;
+
+		private ImageAccess(int id, String description) {
+			this.id = id;
+			this.description = description;
+		}
+	}
+
 	public final Type type;
 
 	protected Size size = Size.ZERO;
@@ -471,34 +492,15 @@ public abstract class GlTexture extends GlObject {
 	protected WrapMode wrapModeR;
 
 	protected GlTexture(Type type, int id, boolean owned) {
-		super(id, owned);
+		super(ObjectType.TEXTURE, id, owned);
 		this.type = type;
 		queryTexParams();
 	}
 
 	protected GlTexture(Type type) {
-		super(GL45C.glCreateTextures(type.id), true);
+		super(ObjectType.TEXTURE, GL45C.glCreateTextures(type.id), true);
 		this.type = type;
 		queryTexParams();
-	}
-
-	@Override
-	protected void destroy() {
-		// FIXME: update GlStateManager stuff
-		GL45C.glDeleteTextures(this.id);
-	}
-
-	@Override
-	public void writeDebugInfo(StringBuilder output) {
-		super.writeDebugInfo(output);
-		output.append(String.format("  size: [%s] %s\n",
-				String.valueOf(this.type), String.valueOf(this.size)));
-		output.append(String.format("  format: %s\n",
-				String.valueOf(this.textureFormat)));
-		output.append(String.format("  filtering: [min:%s] [max:%s]\n",
-				String.valueOf(this.minFilter), String.valueOf(this.magFilter)));
-		output.append(String.format("  wrap: [S:%s] [T:%s] [R:%s]\n",
-				String.valueOf(this.wrapModeS), String.valueOf(this.wrapModeT), String.valueOf(this.wrapModeR)));
 	}
 
 	private void queryTexParams() {
@@ -507,7 +509,7 @@ public abstract class GlTexture extends GlObject {
 		this.wrapModeS = WrapMode.from(GL45C.glGetTextureParameteri(this.id, GL45C.GL_TEXTURE_WRAP_S));
 		this.wrapModeT = WrapMode.from(GL45C.glGetTextureParameteri(this.id, GL45C.GL_TEXTURE_WRAP_T));
 		this.wrapModeR = WrapMode.from(GL45C.glGetTextureParameteri(this.id, GL45C.GL_TEXTURE_WRAP_R));
-		if (this.type != Type.CUBEMAP) {
+		if (this.type != Type.CUBE) {
 			final var sizeX = GL45C.glGetTextureLevelParameteri(this.id, 0, GL45C.GL_TEXTURE_WIDTH);
 			final var sizeY = GL45C.glGetTextureLevelParameteri(this.id, 0, GL45C.GL_TEXTURE_HEIGHT);
 			final var sizeZ = GL45C.glGetTextureLevelParameteri(this.id, 0, GL45C.GL_TEXTURE_DEPTH);
@@ -520,15 +522,10 @@ public abstract class GlTexture extends GlObject {
 			}
 		} else {
 			final var size = GL45C.glGetTextureLevelParameteri(this.id, 0, GL45C.GL_TEXTURE_WIDTH);
-			this.size = new Size(size, size, 1, 1);
+			this.size = new Size(size, size, 1, 6);
 			this.textureFormat = Format
 					.from(GL45C.glGetTexLevelParameteri(this.id, 0, GL45C.GL_TEXTURE_INTERNAL_FORMAT));
 		}
-	}
-
-	@Override
-	public final ObjectType objectType() {
-		return ObjectType.TEXTURE;
 	}
 
 	public Size size() {
@@ -602,23 +599,237 @@ public abstract class GlTexture extends GlObject {
 		this.wrapModeS = this.wrapModeT = this.wrapModeR = mode;
 	}
 
-	// public void createStorage(GlTexture.Format textureFormat, int width, int height, int depth) {
-	// 	GlLimits.validateTextureSize(width, height, depth);
-	// 	if (this.textureFormat == textureFormat
-	// 			&& this.size.width == width
-	// 			&& this.size.height == height
-	// 			&& this.size.depth == depth)
-	// 		return;
+	public void generateMipmaps() {
+		GL45C.glGenerateTextureMipmap(this.id);
+	}
 
-	// 	switch (this.type) {
-	// 		case D2 -> GL45C.glTextureStorage2D(this.id, 1, textureFormat.id, width, height);
-	// 		case D2_MS -> GL45C.glTextureStorage2DMultisample(this.type.id, 4, textureFormat.id, width, height, true);
-	// 		default -> throw new IllegalStateException(
-	// 				debugDescription() + "Invalid type for 2d texture: " + this.type.description);
-	// 	}
-	// 	this.textureFormat = textureFormat;
-	// 	this.size = new Size(width, height, 1, 1);
-	// 	this.storageAllocated = true;
-	// }
+	/**
+	 * Creates a slice that covers the entire image, including all array layers.
+	 * 
+	 * @param lodLevel The mip level the slice will refer to.
+	 * @return A slice covering the entirety of a single mip level of this image.
+	 */
+	public Slice slice(int lodLevel) {
+		if (this.type.sliceDimension == null)
+			throw new IllegalStateException(String.format(
+					"%s: texture is not sliceable",
+					this.debugDescription()));
+		return new Slice(this, this.type.sliceDimension, lodLevel, 0, this.size.layers,
+				0, 0, 0, this.size.width, this.size.height, this.size.depth);
+	}
+
+	/**
+	 * Creates a slice that covers the entire image, including all array layers.
+	 * 
+	 * @return A slice covering the entirety of the first mip level of this image.
+	 */
+	public Slice slice() {
+		return slice(0);
+	}
+
+	public static enum SliceDimension {
+		D1(null), D2(null), D3(null), D1_ARRAY(D1), D2_ARRAY(D2);
+
+		public final SliceDimension flat;
+
+		private SliceDimension(SliceDimension flat) {
+			this.flat = flat;
+		}
+	}
+
+	public static final class Slice {
+		public final GlTexture texture;
+		public final SliceDimension dimension;
+		public final int lodLevel;
+		public final int layerOffset, layerCount;
+		public final int offsetX, offsetY, offsetZ;
+		public final int sizeX, sizeY, sizeZ;
+
+		private static boolean isDimensionCompatible(SliceDimension textureDim, SliceDimension sliceDim) {
+			return textureDim == sliceDim || textureDim.flat == sliceDim;
+		}
+
+		public Slice(GlTexture texture, SliceDimension dimension,
+				int lodLevel,
+				int layerOffset, int layerCount,
+				int offsetX, int offsetY, int offsetZ,
+				int sizeX, int sizeY, int sizeZ) {
+
+			if (texture.type.sliceDimension == null || !isDimensionCompatible(texture.type.sliceDimension, dimension)) {
+				throw new IllegalArgumentException(String.format(
+						"%s: texture slice dimension mismtch: texture is a %s texture, but the slice is of dimension %d",
+						texture.debugDescription(), texture.type, dimension));
+			}
+
+			if (offsetX + sizeX > texture.size.width
+					|| offsetY + sizeY > texture.size.height
+					|| offsetZ + sizeZ > texture.size.depth) {
+				throw new IllegalArgumentException(String.format(
+						"%s: texture slice bounds error: texture size is (%d,%d,%d), but slice covers (%d,%d,%d) to (%d,%d,%d)",
+						texture.debugDescription(),
+						texture.size.width, texture.size.height, texture.size.depth,
+						offsetX, offsetY, offsetZ,
+						offsetX + sizeX, offsetY + sizeY, offsetZ + sizeZ));
+			}
+
+			if (layerOffset + layerCount > texture.size.layers) {
+				throw new IllegalArgumentException(String.format(
+						"%s: texture slice bounds error: texture has %d layers, but slice references layers %d to %d",
+						texture.debugDescription(), texture.size.layers, layerOffset, layerCount));
+			}
+
+			this.texture = texture;
+			this.dimension = dimension;
+			this.lodLevel = lodLevel;
+			this.layerOffset = layerOffset;
+			this.layerCount = layerCount;
+			this.offsetX = offsetX;
+			this.offsetY = offsetY;
+			this.offsetZ = offsetZ;
+			this.sizeX = sizeX;
+			this.sizeY = sizeY;
+			this.sizeZ = sizeZ;
+		}
+
+		@Override
+		public String toString() {
+			return String.format("Slice (%d,%d,%d:%d,%d,%d) [%d:%d] of %s",
+					this.offsetX, this.offsetY, this.offsetZ,
+					this.offsetX + this.sizeX, this.offsetY + this.sizeY, this.offsetZ + this.sizeZ,
+					this.layerOffset, this.layerOffset + this.layerCount,
+					this.texture);
+		}
+
+		public Slice sliceLayers(int layerIndex, int layerCount) {
+			if (this.dimension.flat == null)
+				throw new IllegalArgumentException(String.format(
+						"%s: cannot index non-array texture slice", this.toString()));
+
+			if (layerIndex + layerCount > this.layerCount)
+				throw new IllegalArgumentException(String.format(
+						"%s: texture slice bounds error: slice layer count is %d, but new slice covers %d to %d",
+						this.toString(), this.layerCount, layerIndex, layerIndex + layerCount));
+
+			return new Slice(this.texture, this.dimension,
+					this.lodLevel,
+					this.layerOffset + layerIndex, layerCount,
+					this.offsetX, this.offsetY, this.offsetZ,
+					this.sizeX, this.sizeY, this.sizeZ);
+		}
+
+		public Slice sliceLayer(int layerIndex) {
+			if (this.dimension.flat == null)
+				throw new IllegalArgumentException(String.format(
+						"%s: cannot index non-array texture slice", this.toString()));
+
+			if (layerIndex + layerCount > this.layerCount)
+				throw new IllegalArgumentException(String.format(
+						"%s: texture slice bounds error: layer %d is out of bounds for layer count of %d",
+						this.toString(), layerIndex, this.layerCount));
+
+			return new Slice(this.texture, this.dimension.flat,
+					this.lodLevel,
+					this.layerOffset + layerIndex, 1,
+					this.offsetX, this.offsetY, this.offsetZ,
+					this.sizeX, this.sizeY, this.sizeZ);
+		}
+
+		public Slice slice(int layerOffset, int layerCount,
+				int offsetX, int offsetY, int offsetZ,
+				int sizeX, int sizeY, int sizeZ) {
+
+			if (layerOffset + layerCount > this.layerCount)
+				throw new IllegalArgumentException(String.format(
+						"%s: texture slice bounds error: slice layer count is %d, but new slice covers %d to %d",
+						this.toString(), this.layerCount, layerOffset, layerOffset + layerCount));
+
+			if (offsetX + sizeX > this.sizeX || offsetY + sizeY > this.sizeY || offsetZ + sizeZ > this.sizeZ)
+				throw new IllegalArgumentException(String.format(
+						"%s: texture slice bounds error: slice size is (%d,%d,%d), but new slice covers (%d,%d,%d) to (%d,%d,%d)",
+						this.toString(),
+						this.sizeX, this.sizeY, this.sizeZ,
+						offsetX, offsetY, offsetZ,
+						offsetX + sizeX, offsetY + sizeY, offsetZ + sizeZ));
+
+			return new Slice(this.texture, this.dimension,
+					this.lodLevel,
+					this.layerOffset + layerOffset, layerCount,
+					this.offsetX + offsetX, this.offsetY + offsetY, this.offsetZ + offsetZ,
+					sizeX, sizeY, sizeZ);
+		}
+
+		// the slice*d methods slice all layers for array textures
+
+		public Slice slice1d(int offsetX, int sizeX) {
+			return slice(0, this.layerCount, offsetX, 0, 0, sizeX, 1, 1);
+		}
+
+		public Slice slice2d(int offsetX, int offsetY, int sizeX, int sizeY) {
+			return slice(0, this.layerCount, offsetX, offsetY, 0, sizeX, sizeY, 1);
+		}
+
+		public Slice slice3d(int offsetX, int offsetY, int offsetZ, int sizeX, int sizeY, int sizeZ) {
+			return slice(0, this.layerCount, offsetX, offsetY, offsetZ, sizeX, sizeY, sizeZ);
+		}
+
+		public void invalidate() {
+			GL45C.glInvalidateTexSubImage(this.texture.id, this.lodLevel,
+					this.offsetX, this.offsetY, this.offsetZ,
+					this.sizeX, this.sizeY, this.sizeZ);
+		}
+
+		public void copyTo(Slice dst) {
+			if (dst.offsetX + this.sizeX > dst.sizeX
+					|| dst.offsetY + this.sizeY > dst.sizeY
+					|| dst.offsetZ + this.sizeZ > dst.sizeZ) {
+				throw new IllegalArgumentException(String.format(
+						"%s: texture slice bounds error: (%dx%dx%d) copy from src offset (%d,%d,%d) and dst offset (%d,%d,%d) would exceed destination bounds of (%dx%dx%d)",
+						this.toString(),
+						this.sizeX, this.sizeY, this.sizeZ,
+						this.offsetX, this.offsetY, this.offsetZ,
+						dst.offsetX, dst.offsetY, dst.offsetZ,
+						dst.sizeX, dst.sizeY, dst.sizeZ));
+			}
+			GL45C.glCopyImageSubData(
+					this.texture.id, this.texture.type.id, this.lodLevel,
+					this.offsetX, this.offsetY, this.offsetZ,
+					dst.texture.id, dst.texture.type.id, dst.lodLevel,
+					dst.offsetX, dst.offsetY, dst.offsetZ,
+					this.sizeX, this.sizeY, this.sizeZ);
+		}
+
+		public void uploadImage(int dataFormat, int dataType, ByteBuffer data) {
+			// slice covers no texels! avoid even calling opengl in this case.
+			if (this.layerCount == 0 || this.sizeX == 0 || this.sizeY == 0 || this.sizeZ == 0)
+				return;
+
+			if (this.dimension == SliceDimension.D1 && this.texture.type.sliceDimension == SliceDimension.D1) {
+				GL45C.glTextureSubImage1D(this.texture.id, this.lodLevel,
+						this.offsetX, this.sizeX,
+						dataFormat, dataType, data);
+			} else if (this.dimension == SliceDimension.D2 && this.texture.type.sliceDimension == SliceDimension.D2) {
+				GL45C.glTextureSubImage2D(this.texture.id, this.lodLevel,
+						this.offsetX, this.offsetY, this.sizeX, this.sizeY,
+						dataFormat, dataType, data);
+			} else if (this.dimension == SliceDimension.D3 && this.texture.type.sliceDimension == SliceDimension.D3) {
+				GL45C.glTextureSubImage3D(this.texture.id, this.lodLevel,
+						this.offsetX, this.offsetY, this.offsetZ, this.sizeX, this.sizeY, this.sizeZ,
+						dataFormat, dataType, data);
+			} else if ((this.dimension == SliceDimension.D1 || this.dimension == SliceDimension.D1_ARRAY)
+					&& this.texture.type.sliceDimension == SliceDimension.D1_ARRAY) {
+				// single slice of a texture array
+				GL45C.glTextureSubImage2D(this.texture.id, this.lodLevel,
+						this.offsetX, this.layerOffset, this.sizeX, this.layerCount,
+						dataFormat, dataType, data);
+			} else if ((this.dimension == SliceDimension.D2 || this.dimension == SliceDimension.D2_ARRAY)
+					&& this.texture.type.sliceDimension == SliceDimension.D2_ARRAY) {
+				// single slice of a texture array
+				GL45C.glTextureSubImage3D(this.texture.id, this.lodLevel,
+						this.offsetX, this.offsetY, this.layerOffset, this.sizeX, this.sizeY, this.layerCount,
+						dataFormat, dataType, data);
+			}
+
+		}
+	}
 
 }

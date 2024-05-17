@@ -53,7 +53,7 @@ public interface EntityAccessor {
 	}
 
 	static Maybe<Vec3> getEntityGravity(Entity entity) {
-		return getGravityAt(entity.getLevel(), Vec3.from(entity.position()));
+		return getGravityAt(entity.getLevel(), new Vec3(entity.position()));
 	}
 
 	static void applyGravity(Entity entity, Vec3 vanillaAcceleration) {

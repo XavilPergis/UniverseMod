@@ -3,35 +3,47 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.ultraviolet.common.universe.DensityFields;
+import net.xavil.ultraviolet.common.universe.GalaxyParameters;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.system.CelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
+import net.xavil.hawklib.math.Interval;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class Galaxy {
 
+	public static final Interval METALLICITY_RANGE = new Interval(1.42857e-06, 4.51753e-02);
+
 	public static class Info {
 		public final GalaxyType type;
 		public final long seed;
-		public final double ageMya;
+		public final double ageMyr;
+		public final double radius;
+		public final double irregularity;
 
-		public Info(GalaxyType type, long seed, double ageMya) {
+		public Info(GalaxyType type, long seed, double ageMyr, double radius, double irregularity) {
 			this.type = type;
 			this.seed = seed;
-			this.ageMya = ageMya;
+			this.ageMyr = ageMyr;
+			this.radius = radius;
+			this.irregularity = irregularity;
 		}
 
 		public double maxMetallicity() {
-			return 0.2;
+			return 0.05;
+		}
+
+		public GalaxyParameters createGalaxyParameters(SplittableRng rng) {
+			return this.type.createGalaxyParameters(this, rng);
 		}
 	}
 
 	public final Universe parentUniverse;
-	public final DensityFields densityFields;
+	public final GalaxyParameters parameters;
 	public final Info info;
 	public final UniverseSectorId galaxyId;
 
@@ -39,22 +51,23 @@ public class Galaxy {
 
 	public final SectorManager sectorManager = new SectorManager(this);
 
-	public Galaxy(Universe parentUniverse, UniverseSectorId galaxyId, Info info, DensityFields densityFields) {
+	public Galaxy(Universe parentUniverse, UniverseSectorId galaxyId, Info info, GalaxyParameters densityFields) {
 		this.parentUniverse = parentUniverse;
 		this.galaxyId = galaxyId;
 		this.info = info;
-		this.densityFields = densityFields;
+		this.parameters = densityFields;
 
-		// addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
+		addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
 	}
 
 	public void addGenerationLayer(GalaxyGenerationLayer layer) {
 		// for (final var other : this.generationLayers.iterable()) {
-		// 	if (other.layerId == layer.layerId) {
-		// 		Mod.LOGGER.warn("tried to insert a galaxy generation layer with id {}, but it was already inserted!",
-		// 				layer.layerId);
-		// 		return;
-		// 	}
+		// if (other.layerId == layer.layerId) {
+		// Mod.LOGGER.warn("tried to insert a galaxy generation layer with id {}, but it
+		// was already inserted!",
+		// layer.layerId);
+		// return;
+		// }
 		// }
 		layer.layerId = this.generationLayers.size();
 		this.generationLayers.reserveExact(1);

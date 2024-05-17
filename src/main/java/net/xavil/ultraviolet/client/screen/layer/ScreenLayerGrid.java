@@ -18,6 +18,7 @@ import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlState;
+import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.config.ClientConfig;
 import net.xavil.ultraviolet.common.config.ConfigKey;
@@ -48,7 +49,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		renderGrid(builder, camera, cullingCamera, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
 	}
 
-	public static final DrawState GRID_STATE = DrawState.builder()
+	public static final DrawState GRID_STATE = new DrawState.Builder()
 			.enableDepthWrite(false)
 			.enableCulling(false)
 			.enableAdditiveBlending()
@@ -59,7 +60,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
 			Vec3 focusPos,
 			double gridDiameter, int subcellsPerCell, int gridLineCount) {
-		final var dispatch = builder.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
+		final var dispatch = builder.beginGeneric(PrimitiveType.LINE_DUPLICATED, BufferLayout.POSITION_COLOR_NORMAL);
 		addGrid(dispatch, camera, cullingCamera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
 		RenderSystem.lineWidth(2);
 		dispatch.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(), GRID_STATE);
@@ -186,6 +187,8 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 
 	@Override
 	public void render3d(OrbitCamera.Cached camera, RenderContext ctx) {
+		if (!getBlackboard(BlackboardKeys.SHOW_GUIDES).unwrapOr(true))
+			return;
 		final var cullingCamera = getCullingCamera();
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 

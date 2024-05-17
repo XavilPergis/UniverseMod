@@ -28,6 +28,14 @@ public final class GlTexture2d extends GlTexture {
 		createStorage(this.textureFormat, width, height);
 	}
 
+	public Slice slice2d(int lodLevel, int offsetX, int offsetY, int sizeX, int sizeY) {
+		return new Slice(this, SliceDimension.D2, lodLevel, 0, 1, offsetX, offsetY, 0, sizeX, sizeY, 1);
+	}
+
+	public Slice slice2d(int offsetX, int offsetY, int sizeX, int sizeY) {
+		return slice2d(offsetX, offsetY, sizeX, sizeY);
+	}
+
 	@Override
 	public GlTexture2d asTexture2d() {
 		return this;
@@ -39,8 +47,10 @@ public final class GlTexture2d extends GlTexture {
 
 	public void createStorage(GlTexture.Format textureFormat, int width, int height) {
 		GlLimits.validateTextureSize(width, height);
-		if (this.textureFormat == textureFormat && this.size.width == width && this.size.height == height)
-			return;
+		if (this.storageAllocated)
+			throw new IllegalStateException(String.format(
+					"%s: Tried to update immutable texture storage",
+					debugDescription()));
 
 		switch (this.type) {
 			case D2 -> GL45C.glTextureStorage2D(this.id, 1, textureFormat.id, width, height);

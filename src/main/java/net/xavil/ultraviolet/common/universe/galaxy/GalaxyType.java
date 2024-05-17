@@ -1,11 +1,16 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.ProbabilityDistribution;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
-import net.xavil.ultraviolet.common.universe.DensityFields;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.ultraviolet.common.universe.GalaxyParameters;
 import net.xavil.ultraviolet.common.universe.ScalarField;
+import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.Sdf;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public enum GalaxyType {
 
@@ -32,141 +37,141 @@ public enum GalaxyType {
 			}
 		}
 
-		static ScalarField spoke(SplittableRng rng, Params params) {
-			final var size = rng.uniformDouble("spoke_size", 1.2, 1.5) * params.discHeightFactor * params.radius;
-			final var density = rng.weightedDouble("spoke_density", 2, 1.0, 2.0);
+		static final class Spoke {
+			public final double spokeSize, spokeDensity, spokeAngle;
+			public final boolean isMajor;
 
-			final var angleY = 2.0 * Math.PI * rng.uniformDouble("spoke_angle");
-			final var p = Vec3.ZP.mul(params.radius).rotateY(angleY);
+			public Spoke(SplittableRng rng, Params params, boolean isMajor) {
+				this.spokeSize = rng.uniformDouble("spoke_size");
+				this.spokeDensity = rng.uniformDouble("spoke_density");
+				this.spokeAngle = rng.uniformDouble("spoke_angle");
+				this.isMajor = isMajor;
+			}
 
-			var spoke = ScalarField.sdfLineSegment(p.neg(), p);
+			public double evaluate(Params params, Vec3Access pos) {
+				final var size = Mth.lerp(this.spokeSize, 1.2, 1.5) * params.discHeightFactor * params.radius;
+				final var density = Mth.lerp(this.spokeDensity, 1.0, 2.0);
 
-			// exponential^2 falloff
-			spoke = ScalarField.pow(spoke.mul(1 / size), 2);
-			// sets where the spoke "ends". ie, spoke density will be `0.01` at `size`
-			// distance from the spoke center
-			spoke = ScalarField.pow(0.01 / density, spoke).mul(density);
+				final var angleY = 2.0 * Math.PI * this.spokeAngle;
+				final var p = Vec3.ZP.mul(params.radius).rotateY(angleY);
 
-			// prevent core and spoke overlapping
-			final var exclusionRadius = params.galacticCoreSizeFactor * params.radius;
-			var coreMask = ScalarField.sub(1, ScalarField.sphereCloud(exclusionRadius));
-			coreMask = coreMask.withExponent(4.0);
-			spoke = spoke.mul(coreMask);
+				var spoke = Sdf.capsule(pos, p.neg(), p, 0);
+				spoke = Math.pow(spoke / size, 2);
+				spoke = density * Math.pow(0.01 / density, spoke);
 
-			return spoke;
+				if (!this.isMajor)
+					spoke *= 0.1;
+
+				return spoke;
+			}
+
+		}
+
+		static final class DensityField {
+
+			private final Vector<Spoke> spokes = new Vector<>();
+			private final double spiralFactor;
+
+			public DensityField(SplittableRng rng, Params params) {
+				// "spokes" of higher star densities that are often (i think) home to active
+				// star formation, meaning you have bands of new star systems all throughout the
+				// spokes.
+				final var majorSpokeCount = Mth.floor(rng.uniformDouble("major_spoke_count", 2, 3));
+				final var minorSpokeCount = Mth.floor(rng.uniformDouble("minor_spoke_count", 3, 10));
+				var spiralFactor = rng.uniformDouble("spiral_factor", 1, 2);
+				if (rng.chance("reverse_spiral", 0.5))
+					spiralFactor *= -1.0;
+				this.spiralFactor = spiralFactor;
+
+				rng.push("major_spokes");
+				for (int i = 0; i < majorSpokeCount; ++i) {
+					rng.advance();
+					this.spokes.push(new Spoke(rng, params, true));
+				}
+				rng.pop();
+				rng.push("minor_spokes");
+				for (int i = 0; i < minorSpokeCount; ++i) {
+					rng.advance();
+					this.spokes.push(new Spoke(rng, params, false));
+				}
+				rng.pop();
+			}
+
+			public void evaluate(Params params, Vec3Access pos, GalaxyRegionWeights masks) {
+				final var centerDist = Sdf.sphere(pos, Vec3.ZERO, 0) / params.radius;
+				final var galaxyMask = Math.max(0, 1 - pos.length() / params.radius);
+
+				// core
+				final var corePos = pos.mul(params.galaxySquish.mul(1, 0.9, 1));
+				final var coreDist = Sdf.sphere(corePos, 0) / params.radius;
+				masks.core = Math.pow(10, -22.0 * coreDist);
+
+				// halo
+				masks.halo = Math.max(0, 1 - centerDist / 2.5);
+
+				// disc
+				final var discPos = pos.mul(params.galaxySquish);
+				final var discDist = Math.abs(Sdf.plane(discPos, Vec3.YP) / params.radius);
+				masks.disc = Math.pow(10, -30.0 * discDist);
+				masks.disc *= galaxyMask;
+
+				// spiral arms
+				Vec3 spokePos = pos.mul(params.galaxySquish);
+				spokePos = ScalarField.spiralAboutY(spokePos, this.spiralFactor, 1.2 * params.radius);
+				for (final var spoke : this.spokes.iterable()) {
+					masks.arms += spoke.evaluate(params, spokePos);
+				}
+
+				// final var exclusionRadius = params.galacticCoreSizeFactor * params.radius;
+				// masks.arms *= Math.pow(Math.min(1, pos.length() / exclusionRadius), 4.0);
+				masks.arms *= Math.pow(10, -10.0 * discDist);
+				// spoke contribution -> 0 at galaxy limit
+				masks.arms *= galaxyMask;
+			}
 		}
 
 		@Override
-		public DensityFields createDensityFields(double galaxyAge, SplittableRng rng) {
+		public GalaxyParameters createGalaxyParameters(Galaxy.Info info, SplittableRng rng) {
 			final var params = new Params(rng);
+			final var df = new DensityField(rng, params);
 
-			// (i think) central bulge is full of mostly quite old stars orbiting somewhat
-			// chaotically around the central black hole.
-			var galacticCoreDensity = ScalarField.sphereCloud(params.galacticCoreSizeFactor * params.radius);
-			galacticCoreDensity = galacticCoreDensity.mulPos(params.galaxySquish);
-			galacticCoreDensity = galacticCoreDensity.withExponent(4);
-			galacticCoreDensity = galacticCoreDensity.mul(1600);
-			// var galacticCoreAge = ScalarField.random().lerp(1, galaxyAge);
+			final GalaxyRegionWeights.Field maskField = (pos, masks) -> df.evaluate(params, pos, masks);
 
-			// galactic halo is a very large region of very low stellar density that extends
-			// quite far, in a sphere around the central black hole
-			var galacticHalo = ScalarField.sphereCloud(2.5 * params.radius);
-			galacticHalo = galacticHalo.mulPos(params.galaxySquish);
-			galacticHalo = galacticHalo.mul(0.004);
-			// var galacticHaloAge = ScalarField.random().withExponent(1e-5).lerp(1,
-			// galaxyAge);
+			final var ageDomain = new Interval(0, info.ageMyr);
+			final var coreSfh = ProbabilityDistribution.interpolate(age -> {
+				double t = age / info.ageMyr;
+				t = Math.exp(-4.3 * t);
+				return Mth.lerp(t, 1, 1000);
+			}, ageDomain, 4096);
 
-			// relatively thin disc of uniform star density and stellar ages
-			var uniformDisc = ScalarField.verticalDisc(params.radius,
-					params.radius * params.discHeightFactor, 2);
-			uniformDisc = uniformDisc.mul(0.6);
-			// var uniformDiscAge = ScalarField.random().lerp(0.3 * galaxyAge, galaxyAge);
+			final var armsSfh = ProbabilityDistribution.interpolate(age -> {
+				double t = age / info.ageMyr;
+				final var N = 21;
+				t = Math.expm1(N * t) / Math.expm1(N);
+				return Mth.lerp(t, 50, 1000);
+			}, ageDomain, 4096);
 
-			// "spokes" of higher star densities that are often (i think) home to active
-			// star formation, meaning you have bands of new star systems all throughout the
-			// spokes.
-			final var majorSpokeCount = Mth.floor(rng.uniformDouble("major_spoke_count", 2, 3));
-			final var minorSpokeCount = Mth.floor(rng.uniformDouble("minor_spoke_count", 3, 10));
-			var spiralFactor = rng.uniformDouble("spiral_factor", 1, 2);
-			if (rng.chance("reverse_spiral", 0.5))
-				spiralFactor *= -1.0;
+			final var discSfh = ProbabilityDistribution.interpolate(age -> {
+				double t = age / info.ageMyr;
+				final double warp = -2.1, squish = 4.8, peak = 0.43;
+				t = Math.expm1(warp * t) / Math.expm1(warp);
+				t = Math.exp(-squish * Mth.square(t - peak));
+				return t;
+			}, ageDomain, 4096);
 
-			ScalarField spokes = ScalarField.uniform(0);
-			rng.push("major_spokes");
-			for (int i = 0; i < majorSpokeCount; ++i) {
-				rng.advance();
-				spokes = spokes.add(spoke(rng, params));
-			}
-			rng.pop();
-			rng.push("minor_spokes");
-			for (int i = 0; i < minorSpokeCount; ++i) {
-				rng.advance();
-				spokes = spokes.add(spoke(rng, params).mul(0.1));
-			}
-			rng.pop();
+			final var haloSfh = ProbabilityDistribution.interpolate(age -> 1, ageDomain, 4096);
 
-			// spoke contribution -> 0 at galaxy limit
-			spokes = spokes.mul(ScalarField.sphereCloud(params.radius));
-			spokes = spokes.spiralAboutY(spiralFactor, 1.2 * params.radius);
-			spokes = spokes.mulPos(params.galaxySquish);
-			spokes = spokes.mul(50);
-			// var spokesAge = ScalarField.random().withExponent(1e5).lerp(1, galaxyAge);
+			final var densityWeights = new GalaxyRegionWeights();
+			densityWeights.core = 200;
+			densityWeights.arms = 0.5;
+			densityWeights.disc = 0.005;
+			densityWeights.halo = 0.000001;
 
-			// var densityCombined = galacticCoreDensity.add(galacticHalo).add(uniformDisc).add(spokes);
-			// var densityCombined = galacticHalo.add(uniformDisc).add(spokes);
-			// var densityCombined = ScalarField.uniform(0.004);
-			var densityCombined = ScalarField.uniform(0);
-			densityCombined = densityCombined.add(galacticCoreDensity);
-			densityCombined = densityCombined.add(uniformDisc);
-			densityCombined = densityCombined.add(spokes);
-			var ageCombined = ScalarField.uniform(0.0);
-
-			// Tm^-3/ly^-3 -> ly^3/Tm^3
-			var finalStellarDensity = densityCombined.mul(ly3_PER_Tm3).max(0);
-			var finalMinAge = ageCombined.max(0);
-			// var finalMetallicity = ScalarField.uniform(0.5).max(0);
-			var finalMetallicity = ScalarField.simplexNoise(rng.uniformDouble("metallicity_seed", 0, 10000))
-					.mul(0.5).add(0.5)
-					.withExponent(1.6)
-					.lerp(0.0001, 0.2)
-					.mulPos(10.0 * Units.Tm_PER_ly);
-
-			return new DensityFields(params.radius, galaxyAge, finalStellarDensity, finalMinAge, finalMetallicity);
+			return new GalaxyParameters(params.radius, info.ageMyr, maskField, densityWeights,
+					coreSfh, armsSfh, discSfh, haloSfh);
 		}
 	},
-	// a disc galaxy with a nebulous, almost elliptical-like core and no noticable
-	// spirals.
-	// LENTICULAR("lenticular") {
-	// @Override
-	// public DensityFields createDensityFields(double galaxyAge, Random random) {
-	// final var radius = Units.Tm_PER_ly * (random.nextDouble(2000, 9000));
-	// var field = ScalarField.sphereCloud(radius).withExponent(4).mul(5);
-	// var densityCombined = field;
-	// var ageCombined = ScalarField.uniform(0.5);
-	// var finalStellarDensity = densityCombined.mul(ly3_PER_Tm3);
-	// var finalMinAge = ageCombined;
-	// return new DensityFields(galaxyAge, radius, finalStellarDensity,
-	// finalMinAge);
-	// }
-	// },
-	ELLIPTICAL("elliptical") {
-		@Override
-		public DensityFields createDensityFields(double galaxyAge, SplittableRng rng) {
-			final var radius = Units.Tm_PER_ly * (rng.uniformDouble("radius", 10000, 60000));
-			var field = ScalarField.sphereCloud(radius).withExponent(2).mul(20);
-
-			var densityCombined = field;
-			var ageCombined = ScalarField.uniform(0.0);
-
-			var finalStellarDensity = densityCombined.mul(ly3_PER_Tm3).max(0);
-			var finalMinAge = ageCombined.max(0);
-			var finalMetallicity = ScalarField.uniform(0.5).max(0);
-
-			return new DensityFields(radius, galaxyAge, finalStellarDensity, finalMinAge, finalMetallicity);
-		}
-	};
-
-	private static final double ly3_PER_Tm3 = Math.pow(Units.ly_PER_Tm, 3.0);
+	;
 
 	public final String name;
 
@@ -174,5 +179,5 @@ public enum GalaxyType {
 		this.name = name;
 	}
 
-	public abstract DensityFields createDensityFields(double galaxyAge, SplittableRng rng);
+	public abstract GalaxyParameters createGalaxyParameters(Galaxy.Info info, SplittableRng rng);
 }

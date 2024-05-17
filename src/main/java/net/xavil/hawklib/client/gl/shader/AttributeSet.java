@@ -66,6 +66,7 @@ public final class AttributeSet implements Hashable {
 			INT4 = new Attribute(BufferLayout.AttributeType.INT, 4, 1);
 	// @formatter:on
 
+	public static final AttributeSet EMPTY = builder().build();
 	public static final AttributeSet POSITION = builder()
 			.attrib("aPos", FLOAT3)
 			.build();

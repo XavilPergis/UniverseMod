@@ -46,12 +46,12 @@ public final class GlFramebuffer extends GlObject {
 
 		MAIN_FRAMEBUFFER = new GlFramebuffer(target);
 		MAIN_FRAMEBUFFER.enableAllColorAttachments();
-		
+
 		return MAIN_FRAMEBUFFER;
 	}
 
 	public GlFramebuffer(RenderTarget imported) {
-		super(imported.frameBufferId, false);
+		super(ObjectType.FRAMEBUFFER, imported.frameBufferId, false);
 		this.importedTarget = imported;
 		this.fragmentWrites = GlFragmentWrites.COLOR_ONLY;
 		this.size = new Vec2i(imported.width, imported.height);
@@ -66,7 +66,7 @@ public final class GlFramebuffer extends GlObject {
 	}
 
 	public GlFramebuffer(GlFragmentWrites fragmentWrites, Vec2i size) {
-		super(GL45C.glCreateFramebuffers(), true);
+		super(ObjectType.FRAMEBUFFER, GL45C.glCreateFramebuffers(), true);
 		this.importedTarget = null;
 		this.size = size;
 		this.viewport = new Viewport(Vec2i.ZERO, size);
@@ -83,13 +83,11 @@ public final class GlFramebuffer extends GlObject {
 	}
 
 	@Override
-	protected void destroy() {
-		GL45C.glDeleteFramebuffers(this.id);
-	}
-
-	@Override
-	public ObjectType objectType() {
-		return ObjectType.FRAMEBUFFER;
+	public void close() {
+		super.close();
+		if (this.depthAttachment != null)
+			this.depthAttachment.close();
+		this.colorAttachments.values().forEach(GlFramebufferAttachment::close);
 	}
 
 	public void resize(Vec2i size) {

@@ -8,6 +8,7 @@ import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.SplittableRng;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxyType;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
@@ -44,13 +45,33 @@ public abstract class Universe implements Disposable {
 		this.disposer.close();
 	}
 
+	// a seed shared across all instances of this mod by default. will likely be
+	// made configurable in the future. its constant because i want everyone to
+	// exist in the same universe and be able to talk about discoveries and see them
+	// for themselves.
 	public abstract long getCommonUniverseSeed();
 
+	// a seed unique to each world, so that a few things like starting system
+	// location may be randomized
 	public abstract long getUniqueUniverseSeed();
 
 	public abstract StartingSystemGalaxyGenerationLayer getStartingSystemGenerator();
 
+	// abstract because ClientUniverse will produce a ClientLevel and ServerUniverse
+	// will produce a ServerLevel
 	public abstract Level createLevelForStation(String name, int id);
+
+	public SplittableRng getSaltedRngCommon(String salt) {
+		final var rng = new SplittableRng(getCommonUniverseSeed());
+		rng.advanceWith(salt);
+		return rng;
+	}
+
+	public SplittableRng getSaltedRngUnique(String salt) {
+		final var rng = new SplittableRng(getUniqueUniverseSeed());
+		rng.advanceWith(salt);
+		return rng;
+	}
 
 	public Maybe<SpaceStation> getStation(int id) {
 		return this.spaceStations.get(id);
@@ -59,7 +80,7 @@ public abstract class Universe implements Disposable {
 	public Maybe<Integer> createStation(String name, StationLocation location) {
 		if (this.spaceStations.values().any(station -> station.name == name))
 			return Maybe.none();
-		
+
 		while (this.spaceStations.containsKey(this.nextStationId)) {
 			this.nextStationId += 1;
 		}
@@ -86,11 +107,11 @@ public abstract class Universe implements Disposable {
 	}
 
 	public final double getCelestialTime() {
-		return getCelestialTime(0);
+		return getCelestialTime(1);
 	}
 
 	public double getCelestialTime(float partialTick) {
-		return Mth.lerp(partialTick, this.lastCelestialTime, this.celestialTime); 
+		return Mth.lerp(partialTick, this.lastCelestialTime, this.celestialTime);
 	}
 
 	public Maybe<StarSystem> loadSystem(Disposable.Multi disposer, SystemId id) {
@@ -118,13 +139,6 @@ public abstract class Universe implements Disposable {
 				.flatMap(galaxy -> galaxy.getSystemNode(id.system().galaxySector(), id.nodeId()));
 	}
 
-	protected static Vec3 randomVec(Random random) {
-		var x = random.nextDouble(0, VOLUME_LENGTH_ZM);
-		var y = random.nextDouble(0, VOLUME_LENGTH_ZM);
-		var z = random.nextDouble(0, VOLUME_LENGTH_ZM);
-		return new Vec3(x, y, z);
-	}
-
 	// galaxies per Zm^3
 	private static double sampleDensity(Vec3 volumeOffsetZm) {
 		// TODO: use a noise field or something
@@ -133,7 +147,7 @@ public abstract class Universe implements Disposable {
 	}
 
 	public final ImmutableList<UniverseSector.InitialElement> generateSectorElements(Vec3i volumeCoords) {
-		final var rng = new SplittableRng(this.getCommonUniverseSeed());
+		final var rng = getSaltedRngCommon("galaxy_info");
 		rng.advanceWith(volumeCoords.hash());
 
 		final var volumeMin = volumeCoords.lowerCorner().mul(VOLUME_LENGTH_ZM);
@@ -160,17 +174,20 @@ public abstract class Universe implements Disposable {
 		// final var galaxyType = GalaxyType.ELLIPTICAL;
 		final var galaxyType = GalaxyType.SPIRAL;
 		final var seed = rng.uniformLong("seed");
-		final var age = rng.uniformDouble("age", 100, 10000);
-		return new Galaxy.Info(galaxyType, seed, age);
+		// final var age = rng.uniformDouble("age", 100, 10000);
+		final var age = 13000;
+		final var irregularity = 0.0;
+		final var radius = 52850 * Units.Tm_PER_ly;
+		return new Galaxy.Info(galaxyType, seed, age, radius, irregularity);
 	}
 
 	public final Galaxy generateGalaxy(UniverseSectorId galaxyId, Galaxy.Info info) {
-		final var rng = new SplittableRng(getCommonUniverseSeed());
+		final var rng = getSaltedRngCommon("galaxy_full");
 		rng.advanceWith(galaxyId.sectorPos().x);
 		rng.advanceWith(galaxyId.sectorPos().y);
 		rng.advanceWith(galaxyId.sectorPos().z);
 		rng.advanceWith(galaxyId.id());
-		return new Galaxy(this, galaxyId, info, info.type.createDensityFields(info.ageMya, rng));
+		return new Galaxy(this, galaxyId, info, info.createGalaxyParameters(rng));
 	}
 
 }

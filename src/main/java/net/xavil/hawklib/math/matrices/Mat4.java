@@ -118,6 +118,13 @@ public final class Mat4 implements Hashable, Mat4Access {
 		return this;
 	}
 
+	/**
+	 * Multiplies two matrices together.
+	 * 
+	 * @param a The left hand side of the multiplication.
+	 * @param b The right hand side of the multiplication.
+	 * @return The result of the multiplication.
+	 */
 	public static Mat4 mul(Mat4Access a, Mat4Access b) {
 		final var r0c0 = (a.r0c0() * b.r0c0()) + (a.r0c1() * b.r1c0()) + (a.r0c2() * b.r2c0()) + (a.r0c3() * b.r3c0());
 		final var r0c1 = (a.r0c0() * b.r0c1()) + (a.r0c1() * b.r1c1()) + (a.r0c2() * b.r2c1()) + (a.r0c3() * b.r3c1());
@@ -138,64 +145,14 @@ public final class Mat4 implements Hashable, Mat4Access {
 		return new Mat4(r0c0, r0c1, r0c2, r0c3, r1c0, r1c1, r1c2, r1c3, r2c0, r2c1, r2c2, r2c3, r3c0, r3c1, r3c2, r3c3);
 	}
 
-	public static Vec4.Mutable transform(Vec4.Mutable out, Vec4.Mutable r, Mat4Access a) {
-		final var x = (a.r0c0() * r.x) + (a.r0c1() * r.y) + (a.r0c2() * r.z) + (a.r0c3() * r.w);
-		final var y = (a.r1c0() * r.x) + (a.r1c1() * r.y) + (a.r1c2() * r.z) + (a.r1c3() * r.w);
-		final var z = (a.r2c0() * r.x) + (a.r2c1() * r.y) + (a.r2c2() * r.z) + (a.r2c3() * r.w);
-		final var w = (a.r3c0() * r.x) + (a.r3c1() * r.y) + (a.r3c2() * r.z) + (a.r3c3() * r.w);
-		out.x = x;
-		out.y = y;
-		out.z = z;
-		out.w = w;
-		return out;
-	}
-
-	public static Vec3.Mutable transform(Vec3.Mutable out, Vec3.Mutable r, double ww, Mat4Access a) {
-		final var x = (a.r0c0() * r.x) + (a.r0c1() * r.y) + (a.r0c2() * r.z) + (a.r0c3() * ww);
-		final var y = (a.r1c0() * r.x) + (a.r1c1() * r.y) + (a.r1c2() * r.z) + (a.r1c3() * ww);
-		final var z = (a.r2c0() * r.x) + (a.r2c1() * r.y) + (a.r2c2() * r.z) + (a.r2c3() * ww);
-		final var w = (a.r3c0() * r.x) + (a.r3c1() * r.y) + (a.r3c2() * r.z) + (a.r3c3() * ww);
-		out.x = x / w;
-		out.y = y / w;
-		out.z = z / w;
-		return out;
-	}
-
-	public static Vec4 mul(Mat4Access a, Vec4Access b) {
-		final var x = (a.r0c0() * b.x()) + (a.r0c1() * b.y()) + (a.r0c2() * b.z()) + (a.r0c3() * b.w());
-		final var y = (a.r1c0() * b.x()) + (a.r1c1() * b.y()) + (a.r1c2() * b.z()) + (a.r1c3() * b.w());
-		final var z = (a.r2c0() * b.x()) + (a.r2c1() * b.y()) + (a.r2c2() * b.z()) + (a.r2c3() * b.w());
-		final var w = (a.r3c0() * b.x()) + (a.r3c1() * b.y()) + (a.r3c2() * b.z()) + (a.r3c3() * b.w());
-		return Vec4.from(x, y, z, w);
-	}
-
-	public static Vec3 mul(Mat4Access a, Vec3Access b, double ww) {
-		final var x = (a.r0c0() * b.x()) + (a.r0c1() * b.y()) + (a.r0c2() * b.z()) + (a.r0c3() * ww);
-		final var y = (a.r1c0() * b.x()) + (a.r1c1() * b.y()) + (a.r1c2() * b.z()) + (a.r1c3() * ww);
-		final var z = (a.r2c0() * b.x()) + (a.r2c1() * b.y()) + (a.r2c2() * b.z()) + (a.r2c3() * ww);
-		final var w = (a.r3c0() * b.x()) + (a.r3c1() * b.y()) + (a.r3c2() * b.z()) + (a.r3c3() * ww);
-		return new Vec3(x / w, y / w, z / w);
-	}
-
-	public static double mul(Vec3.Mutable out, Mat4Access a, Vec3Access b, double ww) {
-		final var x = (a.r0c0() * b.x()) + (a.r0c1() * b.y()) + (a.r0c2() * b.z()) + (a.r0c3() * ww);
-		final var y = (a.r1c0() * b.x()) + (a.r1c1() * b.y()) + (a.r1c2() * b.z()) + (a.r1c3() * ww);
-		final var z = (a.r2c0() * b.x()) + (a.r2c1() * b.y()) + (a.r2c2() * b.z()) + (a.r2c3() * ww);
-		final var w = (a.r3c0() * b.x()) + (a.r3c1() * b.y()) + (a.r3c2() * b.z()) + (a.r3c3() * ww);
-		out.x = x;
-		out.y = y;
-		out.z = z;
-		return w;
-	}
-
-	public static Mat4 mul(double a, Mat4Access b) {
-		return new Mat4(
-				a * b.r0c0(), a * b.r0c1(), a * b.r0c2(), a * b.r0c3(),
-				a * b.r1c0(), a * b.r1c1(), a * b.r1c2(), a * b.r1c3(),
-				a * b.r2c0(), a * b.r2c1(), a * b.r2c2(), a * b.r2c3(),
-				a * b.r3c0(), a * b.r3c1(), a * b.r3c2(), a * b.r3c3());
-	}
-
+	/**
+	 * Multiplies two matrices together.
+	 * 
+	 * @param r A mutable matrix that will store the result of the multiplication.
+	 * @param a The left hand side of the multiplication.
+	 * @param b The right hand side of the multiplication.
+	 * @return The parameter {@code r}.
+	 */
 	public static Mat4.Mutable mul(Mat4.Mutable r, Mat4Access a, Mat4Access b) {
 		// @formatter:off
 		final var r0c0 = (a.r0c0() * b.r0c0()) + (a.r0c1() * b.r1c0()) + (a.r0c2() * b.r2c0()) + (a.r0c3() * b.r3c0());
@@ -222,6 +179,50 @@ public final class Mat4 implements Hashable, Mat4Access {
 		// @formatter:on
 	}
 
+	/**
+	 * Multiplies a matrix by a scalar.
+	 * 
+	 * @param a The scalar value.
+	 * @param b The matrix to be scaled.
+	 * @return The result of the multiplication.
+	 */
+	public static Mat4 mul(double a, Mat4Access b) {
+		return new Mat4(
+				a * b.r0c0(), a * b.r0c1(), a * b.r0c2(), a * b.r0c3(),
+				a * b.r1c0(), a * b.r1c1(), a * b.r1c2(), a * b.r1c3(),
+				a * b.r2c0(), a * b.r2c1(), a * b.r2c2(), a * b.r2c3(),
+				a * b.r3c0(), a * b.r3c1(), a * b.r3c2(), a * b.r3c3());
+	}
+
+	/**
+	 * Multiplies a matrix by a scalar.
+	 * 
+	 * @param r A mutable matrix that will store the result of the multiplication.
+	 * @param a The scalar value.
+	 * @param b The matrix to be scaled.
+	 * @return The parameter {@code r}.
+	 */
+	public static Mat4.Mutable mul(Mat4.Mutable r, double a, Mat4Access b) {
+		// @formatter:off
+		r.r0c0 = a * b.r0c0(); r.r0c1 = a * b.r0c1(); r.r0c2 = a * b.r0c2(); r.r0c3 = a * b.r0c3();
+		r.r1c0 = a * b.r1c0(); r.r1c1 = a * b.r1c1(); r.r1c2 = a * b.r1c2(); r.r1c3 = a * b.r1c3();
+		r.r2c0 = a * b.r2c0(); r.r2c1 = a * b.r2c1(); r.r2c2 = a * b.r2c2(); r.r2c3 = a * b.r2c3();
+		r.r3c0 = a * b.r3c0(); r.r3c1 = a * b.r3c1(); r.r3c2 = a * b.r3c2(); r.r3c3 = a * b.r3c3();
+		return r;
+		// @formatter:on
+	}
+
+	/**
+	 * Multiplies a matrix by a uniform scale matrix, as if
+	 * {@code mul(r, scale(s), b)} had been written. This method places the scale
+	 * matrix on the left hand side of the multiplication.
+	 * 
+	 * @param r A mutable matrix that will store the result of the multiplication.
+	 * @param s A scale factor representing the left hand side of the
+	 *          multiplication.
+	 * @param b The right hand side of the multiplication.
+	 * @return The parameter {@code r}.
+	 */
 	public static Mat4.Mutable mulScale(Mat4.Mutable r, double s, Mat4Access b) {
 		// @formatter:off
 		r.r0c0 = s * b.r0c0(); r.r0c1 = s * b.r0c1(); r.r0c2 = s * b.r0c2(); r.r0c3 = s * b.r0c3();
@@ -232,6 +233,17 @@ public final class Mat4 implements Hashable, Mat4Access {
 		// @formatter:on
 	}
 
+	/**
+	 * Multiplies a matrix by a uniform scale matrix, as if
+	 * {@code mul(r, a, scale(s))} had been written. This method places the scale
+	 * matrix on the right hand side of the multiplication.
+	 * 
+	 * @param r A mutable matrix that will store the result of the multiplication.
+	 * @param a The left hand side of the multiplication.
+	 * @param s A scale factor representing the right hand side of the
+	 *          multiplication.
+	 * @return The parameter {@code r}.
+	 */
 	public static Mat4.Mutable mulScale(Mat4.Mutable r, Mat4Access a, double s) {
 		// @formatter:off
 		r.r0c0 = s * a.r0c0(); r.r0c1 = s * a.r0c1(); r.r0c2 = s * a.r0c2(); r.r0c3 = a.r0c3();
@@ -242,6 +254,17 @@ public final class Mat4 implements Hashable, Mat4Access {
 		// @formatter:on
 	}
 
+	/**
+	 * Multiplies a matrix by a translation matrix, as if
+	 * {@code mul(r, translate(a), b)} had been written. This method places the
+	 * translation matrix on the left hand side of the multiplication.
+	 * 
+	 * @param r A mutable matrix that will store the result of the multiplication.
+	 * @param s A translation vector representing the left hand side of the
+	 *          multiplication.
+	 * @param b The right hand side of the multiplication.
+	 * @return The parameter {@code r}.
+	 */
 	public static Mat4.Mutable mulTranslation(Mat4.Mutable r, Vec3Access a, Mat4Access b) {
 		// @formatter:off
 		r.r0c0 = b.r0c0() + a.x() * b.r3c0(); r.r0c1 = b.r0c1() + a.x() * b.r3c1(); r.r0c2 = b.r0c2() + a.x() * b.r3c2(); r.r0c3 = b.r0c3() + a.x() * b.r3c3();
@@ -254,21 +277,13 @@ public final class Mat4 implements Hashable, Mat4Access {
 
 	public static Mat4.Mutable mulTranslation(Mat4.Mutable r, Mat4Access a, Vec3Access b) {
 		// @formatter:off
-		r.r0c0 = a.r0c0();
-		r.r0c1 = a.r0c1();
-		r.r0c2 = a.r0c2();
+		r.r0c0 = a.r0c0(); r.r0c1 = a.r0c1(); r.r0c2 = a.r0c2();
 		r.r0c3 = (a.r0c0() * b.x()) + (a.r0c1() * b.y()) + (a.r0c2() * b.z()) + (a.r0c3() * 1);
-		r.r1c0 = a.r1c0();
-		r.r1c1 = a.r1c1();
-		r.r1c2 = a.r1c2();
+		r.r1c0 = a.r1c0(); r.r1c1 = a.r1c1(); r.r1c2 = a.r1c2();
 		r.r1c3 = (a.r1c0() * b.x()) + (a.r1c1() * b.y()) + (a.r1c2() * b.z()) + (a.r1c3() * 1);
-		r.r2c0 = a.r2c0();
-		r.r2c1 = a.r2c1();
-		r.r2c2 = a.r2c2();
+		r.r2c0 = a.r2c0(); r.r2c1 = a.r2c1(); r.r2c2 = a.r2c2();
 		r.r2c3 = (a.r2c0() * b.x()) + (a.r2c1() * b.y()) + (a.r2c2() * b.z()) + (a.r2c3() * 1);
-		r.r3c0 = a.r3c0();
-		r.r3c1 = a.r3c1();
-		r.r3c2 = a.r3c2();
+		r.r3c0 = a.r3c0(); r.r3c1 = a.r3c1(); r.r3c2 = a.r3c2();
 		r.r3c3 = (a.r3c0() * b.x()) + (a.r3c1() * b.y()) + (a.r3c2() * b.z()) + (a.r3c3() * 1);
 		return r;
 		// @formatter:on
@@ -342,27 +357,6 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r1c0 = r1c0; r.r1c1 = r1c1; r.r1c2 = r1c2; r.r1c3 = a.r1c3();
 		r.r2c0 = r2c0; r.r2c1 = r2c1; r.r2c2 = r2c2; r.r2c3 = a.r2c3();
 		r.r3c0 = r3c0; r.r3c1 = r3c1; r.r3c2 = r3c2; r.r3c3 = a.r3c3();
-		return r;
-		// @formatter:on
-	}
-
-	public static Vec4.Mutable mul(Vec4.Mutable r, Mat4Access a, Vec4Access b) {
-		// @formatter:off
-		final var x = (a.r0c0() * b.x()) + (a.r0c1() * b.y()) + (a.r0c2() * b.z()) + (a.r0c3() * b.w());
-		final var y = (a.r1c0() * b.x()) + (a.r1c1() * b.y()) + (a.r1c2() * b.z()) + (a.r1c3() * b.w());
-		final var z = (a.r2c0() * b.x()) + (a.r2c1() * b.y()) + (a.r2c2() * b.z()) + (a.r2c3() * b.w());
-		final var w = (a.r3c0() * b.x()) + (a.r3c1() * b.y()) + (a.r3c2() * b.z()) + (a.r3c3() * b.w());
-		r.x = x; r.y = y; r.z = z; r.w = w;
-		return r;
-		// @formatter:on
-	}
-
-	public static Mat4.Mutable mul(Mat4.Mutable r, double a, Mat4Access b) {
-		// @formatter:off
-		r.r0c0 = a * b.r0c0(); r.r0c1 = a * b.r0c1(); r.r0c2 = a * b.r0c2(); r.r0c3 = a * b.r0c3();
-		r.r1c0 = a * b.r1c0(); r.r1c1 = a * b.r1c1(); r.r1c2 = a * b.r1c2(); r.r1c3 = a * b.r1c3();
-		r.r2c0 = a * b.r2c0(); r.r2c1 = a * b.r2c1(); r.r2c2 = a * b.r2c2(); r.r2c3 = a * b.r2c3();
-		r.r3c0 = a * b.r3c0(); r.r3c1 = a * b.r3c1(); r.r3c2 = a * b.r3c2(); r.r3c3 = a * b.r3c3();
 		return r;
 		// @formatter:on
 	}
@@ -536,6 +530,14 @@ public final class Mat4 implements Hashable, Mat4Access {
 		return r;
 	}
 
+	public static Mat4 lookAt(Vec3Access target, Vec3Access up) {
+		final var pz = target.neg().normalize();
+		// FIXME: degenerate case when pz and up are colinear is not handled
+		final var px = up.cross(pz).normalize();
+		final var py = pz.cross(px);
+		return Mat4.fromBases(px, py, pz, Vec3.ZERO);
+	}
+
 	public static Mat4.Mutable setBases(Mat4.Mutable r, Vec3Access x, Vec3Access y, Vec3Access z, Vec3Access pos) {
 		// @formatter:off
 		r.r0c0 = x.x(); r.r0c1 = y.x(); r.r0c2 = z.x(); r.r0c3 = pos.x();
@@ -583,18 +585,6 @@ public final class Mat4 implements Hashable, Mat4Access {
 
 	public Mat4 mul(double scalar) {
 		return Mat4.mul(scalar, this);
-	}
-
-	public Mat4 mul(Mat4 rhs) {
-		return Mat4.mul(this, rhs);
-	}
-
-	public Vec4 mul(Vec4Access rhs) {
-		return Mat4.mul(this, rhs);
-	}
-
-	public Vec3 mul(Vec3Access rhs, double w) {
-		return Mat4.mul(this, rhs, w);
 	}
 
 	public Mat4 prependTransform(Mat4 other) {
@@ -648,9 +638,6 @@ public final class Mat4 implements Hashable, Mat4Access {
 		final var d3r012c023 = r0c0 * d2r12c23 - r0c2 * d2r12c03 + r0c3 * d2r12c02;
 		final var d3r012c013 = r0c0 * d2r12c13 - r0c1 * d2r12c03 + r0c3 * d2r12c01;
 		final var d3r012c012 = r0c0 * d2r12c12 - r0c1 * d2r12c02 + r0c2 * d2r12c01;
-
-		// final var m = asMinecraft();
-		// return m.invert() ? Option.some(fromMinecraft(m)) : Option.none();
 
 		final var det = r0c0 * d3r123c123 - r0c1 * d3r123c023 + r0c2 * d3r123c013 - r0c3 * d3r123c012;
 		if (Math.abs(det) < 1e-8)
@@ -903,33 +890,45 @@ public final class Mat4 implements Hashable, Mat4Access {
 			hasher.appendDouble(this.r3c2);
 			hasher.appendDouble(this.r3c3);
 		}
+
+		@Override
+		public String toString() {
+			return formatMatrix(this, "Mat4.Mutable");
+		}
+	}
+
+	@Override
+	public String toString() {
+		return formatMatrix(this, "Mat4");
 	}
 
 	// #region Formatting
-	public String toString() {
+
+	private static String formatMatrix(Mat4Access mat, String tag) {
 		final var sb = new StringBuilder();
-		final var r0c0 = formatNumber(this.r0c0);
-		final var r0c1 = formatNumber(this.r0c1);
-		final var r0c2 = formatNumber(this.r0c2);
-		final var r0c3 = formatNumber(this.r0c3);
-		final var r1c0 = formatNumber(this.r1c0);
-		final var r1c1 = formatNumber(this.r1c1);
-		final var r1c2 = formatNumber(this.r1c2);
-		final var r1c3 = formatNumber(this.r1c3);
-		final var r2c0 = formatNumber(this.r2c0);
-		final var r2c1 = formatNumber(this.r2c1);
-		final var r2c2 = formatNumber(this.r2c2);
-		final var r2c3 = formatNumber(this.r2c3);
-		final var r3c0 = formatNumber(this.r3c0);
-		final var r3c1 = formatNumber(this.r3c1);
-		final var r3c2 = formatNumber(this.r3c2);
-		final var r3c3 = formatNumber(this.r3c3);
+		final var r0c0 = formatNumber(mat.r0c0());
+		final var r0c1 = formatNumber(mat.r0c1());
+		final var r0c2 = formatNumber(mat.r0c2());
+		final var r0c3 = formatNumber(mat.r0c3());
+		final var r1c0 = formatNumber(mat.r1c0());
+		final var r1c1 = formatNumber(mat.r1c1());
+		final var r1c2 = formatNumber(mat.r1c2());
+		final var r1c3 = formatNumber(mat.r1c3());
+		final var r2c0 = formatNumber(mat.r2c0());
+		final var r2c1 = formatNumber(mat.r2c1());
+		final var r2c2 = formatNumber(mat.r2c2());
+		final var r2c3 = formatNumber(mat.r2c3());
+		final var r3c0 = formatNumber(mat.r3c0());
+		final var r3c1 = formatNumber(mat.r3c1());
+		final var r3c2 = formatNumber(mat.r3c2());
+		final var r3c3 = formatNumber(mat.r3c3());
 		final var c0 = FormattedColumnInfo.from(r0c0, r1c0, r2c0, r3c0);
 		final var c1 = FormattedColumnInfo.from(r0c1, r1c1, r2c1, r3c1);
 		final var c2 = FormattedColumnInfo.from(r0c2, r1c2, r2c2, r3c2);
 		final var c3 = FormattedColumnInfo.from(r0c3, r1c3, r2c3, r3c3);
 
-		sb.append("Mat4:\n⎡");
+		sb.append(tag);
+		sb.append(":\n⎡");
 		alignDecimal(sb, r0c0, c0);
 		sb.append(" ");
 		alignDecimal(sb, r0c1, c1);

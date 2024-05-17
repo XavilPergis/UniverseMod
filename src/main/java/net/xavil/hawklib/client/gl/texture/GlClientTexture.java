@@ -146,57 +146,17 @@ public final class GlClientTexture implements Disposable {
 		this.format.putPixel(this.data, pixelIndex(x, y, z), r, g, b, a);
 	}
 
-	public void upload(GlTexture serverTexture, int layer) {
+	public void uploadTo(GlTexture.Slice dst) {
 		// TODO: assert that the current buffer format is convertible to the gl texture
 		// format
-		if (layer > serverTexture.size.layers) {
-			throw new IllegalArgumentException(String.format(
-					"cannot upload to layer (%d), there are only (%d) layers in the dest image",
-					layer, serverTexture.size.layers));
-		}
-
-		switch (serverTexture.type) {
-			case D1, D1_ARRAY -> {
-				if (serverTexture.size.width != this.sizeX) {
-					throw new IllegalArgumentException(String.format(
-							"client texture of size (%d) and gl texture of size (%d) are mismatched",
-							this.sizeX, serverTexture.size.width));
-				}
-				GL45C.glTextureSubImage1D(serverTexture.id, layer, 0, this.sizeX,
-						GL45C.GL_RGBA, this.format.glType, this.data);
-			}
-			case D2, D2_ARRAY -> {
-				if (serverTexture.size.width != this.sizeX
-						|| serverTexture.size.height != this.sizeY) {
-					throw new IllegalArgumentException(String.format(
-							"client texture of size (%d, %d) and gl texture of size (%d, %d) are mismatched",
-							this.sizeX, this.sizeY,
-							serverTexture.size.width, serverTexture.size.height));
-				}
-				GL45C.glTextureSubImage2D(serverTexture.id, layer, 0, 0, this.sizeX, this.sizeY,
-						GL45C.GL_RGBA, this.format.glType, this.data);
-			}
-			case D3 -> {
-				if (serverTexture.size.width != this.sizeX
-						|| serverTexture.size.height != this.sizeY
-						|| serverTexture.size.depth != this.sizeZ) {
-					throw new IllegalArgumentException(String.format(
-							"client texture of size (%d, %d, %d) and gl texture of size (%d, %d, %d) are mismatched",
-							this.sizeX, this.sizeY, this.sizeZ,
-							serverTexture.size.width, serverTexture.size.height, serverTexture.size.depth));
-				}
-				GL45C.glTextureSubImage3D(serverTexture.id, layer, 0, 0, 0, this.sizeX, this.sizeY, this.sizeZ,
-						GL45C.GL_RGBA, this.format.glType, this.data);
-			}
-			default -> {
-			}
-		}
+		dst.uploadImage(GL45C.GL_RGBA, this.format.glType, data);
 	}
 
 	private <T extends GlTexture> T makeTexture(T value, Consumer<T> setup) {
 		try {
 			setup.accept(value);
-			upload(value, 0);
+			uploadTo(value.slice());
+			value.generateMipmaps();
 			return value;
 		} catch (Throwable t) {
 			value.close();

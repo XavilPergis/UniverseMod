@@ -9,8 +9,6 @@ import net.xavil.hawklib.client.gl.texture.GlTexture;
 
 public final class GlState implements GlStateSink {
 
-	private static final UnmanagedStateSink UNMANAGED = UnmanagedStateSink.INSTANCE;
-
 	public static enum EnableFlag {
 		ENABLED(GL45C.GL_TRUE, "Enabled"),
 		DISABLED(GL45C.GL_FALSE, "Disabled");
@@ -306,6 +304,8 @@ public final class GlState implements GlStateSink {
 		}
 	}
 
+	private static final UnmanagedStateSink UNMANAGED = UnmanagedStateSink.INSTANCE;
+
 	public static final int MAX_TEXTURE_UNITS = Math.min(32, GlLimits.MAX_TEXTURE_IMAGE_UNITS);
 	public static final int TEXTURE_TARGET_COUNT = GlTexture.Type.values().length;
 	public static final int BUFFER_TARGET_COUNT = GlBuffer.Type.values().length;
@@ -412,7 +412,11 @@ public final class GlState implements GlStateSink {
 		this.boundTextureUnit = src.boundTextureUnit;
 	}
 
-	public void sync() {
+	/**
+	 * Captures the current OpenGL state, storing it in this object. This is
+	 * potentially a very expensive operation and should be avoided if possible.
+	 */
+	public void capture() {
 		this.polygonMode = PolygonMode.from(GL45C.glGetInteger(GL45C.GL_POLYGON_MODE));
 		this.cullingEnabled = EnableFlag.from(GL45C.glGetBoolean(GL45C.GL_CULL_FACE));
 		this.cullFace = CullFace.from(GL45C.glGetInteger(GL45C.GL_CULL_FACE_MODE));

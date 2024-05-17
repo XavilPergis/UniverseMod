@@ -8,6 +8,7 @@ import net.xavil.hawklib.math.Ray;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.VecMath;
 import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
@@ -22,14 +23,15 @@ public class CachedCamera {
 	public double farPlane;
 
 	public final Mat4.Mutable viewMatrix = new Mat4.Mutable();
+	public final Mat4.Mutable inverseViewMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable projectionMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable inverseProjectionMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable viewProjectionMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable inverseViewProjectionMatrix = new Mat4.Mutable();
 
 	public void load(Vec3Access pos, Quat orientation, Mat4 projectionMatrix, double metersPerUnit) {
-		Mat4.setRotationTranslation(this.viewMatrix, orientation, pos.neg());
-		Mat4.invert(this.viewMatrix, this.viewMatrix);
+		Mat4.setRotationTranslation(this.inverseViewMatrix, orientation, pos.neg());
+		Mat4.invert(this.viewMatrix, this.inverseViewMatrix);
 		load(this.viewMatrix, projectionMatrix, metersPerUnit);
 	}
 
@@ -41,6 +43,7 @@ public class CachedCamera {
 	}
 
 	public void recalculateCached() {
+		Mat4.invert(this.inverseViewMatrix, this.viewMatrix);
 		Mat4.invert(this.inverseProjectionMatrix, this.projectionMatrix);
 		Mat4.mul(this.viewProjectionMatrix, this.projectionMatrix, viewMatrix);
 		Mat4.invert(this.inverseViewProjectionMatrix, this.viewProjectionMatrix);
@@ -55,8 +58,8 @@ public class CachedCamera {
 		Vec3.neg(this.left, this.right);
 		Vec3.neg(this.backward, this.forward);
 
-		this.nearPlane = Mat4.mul(this.inverseProjectionMatrix, Vec3.ZN, 1.0).z;
-		this.farPlane = Mat4.mul(this.inverseProjectionMatrix, Vec3.ZP, 1.0).z;
+		this.nearPlane = VecMath.transformPerspective(this.inverseProjectionMatrix, Vec3.ZN, 1.0).z;
+		this.farPlane = VecMath.transformPerspective(this.inverseProjectionMatrix, Vec3.ZP, 1.0).z;
 
 		this.orientation = Quat.fromAffineMatrix(this.viewMatrix);
 	}
@@ -132,28 +135,28 @@ public class CachedCamera {
 
 	public FrustumCorners captureFrustumCornersWorld() {
 		// @formatter:off
-		final var nnn = new Vec3(-1, -1, -1).transformBy(this.inverseViewProjectionMatrix);
-		final var nnp = new Vec3(-1, -1,  1).transformBy(this.inverseViewProjectionMatrix);
-		final var npn = new Vec3(-1,  1, -1).transformBy(this.inverseViewProjectionMatrix);
-		final var npp = new Vec3(-1,  1,  1).transformBy(this.inverseViewProjectionMatrix);
-		final var pnn = new Vec3( 1, -1, -1).transformBy(this.inverseViewProjectionMatrix);
-		final var pnp = new Vec3( 1, -1,  1).transformBy(this.inverseViewProjectionMatrix);
-		final var ppn = new Vec3( 1,  1, -1).transformBy(this.inverseViewProjectionMatrix);
-		final var ppp = new Vec3( 1,  1,  1).transformBy(this.inverseViewProjectionMatrix);
+		final var nnn = VecMath.transformPerspective(this.inverseViewProjectionMatrix, new Vec3(-1, -1, -1), 1);
+		final var nnp = VecMath.transformPerspective(this.inverseViewProjectionMatrix, new Vec3(-1, -1,  1), 1);
+		final var npn = VecMath.transformPerspective(this.inverseViewProjectionMatrix, new Vec3(-1,  1, -1), 1);
+		final var npp = VecMath.transformPerspective(this.inverseViewProjectionMatrix, new Vec3(-1,  1,  1), 1);
+		final var pnn = VecMath.transformPerspective(this.inverseViewProjectionMatrix, new Vec3( 1, -1, -1), 1);
+		final var pnp = VecMath.transformPerspective(this.inverseViewProjectionMatrix, new Vec3( 1, -1,  1), 1);
+		final var ppn = VecMath.transformPerspective(this.inverseViewProjectionMatrix, new Vec3( 1,  1, -1), 1);
+		final var ppp = VecMath.transformPerspective(this.inverseViewProjectionMatrix, new Vec3( 1,  1,  1), 1);
 		// @formatter:on
 		return new FrustumCorners(nnn, nnp, npn, npp, pnn, pnp, ppn, ppp);
 	}
 
 	public FrustumCorners captureFrustumCornersView() {
 		// @formatter:off
-		final var nnn = new Vec3(-1, -1, -1).transformBy(this.inverseProjectionMatrix);
-		final var nnp = new Vec3(-1, -1,  1).transformBy(this.inverseProjectionMatrix);
-		final var npn = new Vec3(-1,  1, -1).transformBy(this.inverseProjectionMatrix);
-		final var npp = new Vec3(-1,  1,  1).transformBy(this.inverseProjectionMatrix);
-		final var pnn = new Vec3( 1, -1, -1).transformBy(this.inverseProjectionMatrix);
-		final var pnp = new Vec3( 1, -1,  1).transformBy(this.inverseProjectionMatrix);
-		final var ppn = new Vec3( 1,  1, -1).transformBy(this.inverseProjectionMatrix);
-		final var ppp = new Vec3( 1,  1,  1).transformBy(this.inverseProjectionMatrix);
+		final var nnn = VecMath.transformPerspective(this.inverseProjectionMatrix, new Vec3(-1, -1, -1), 1);
+		final var nnp = VecMath.transformPerspective(this.inverseProjectionMatrix, new Vec3(-1, -1,  1), 1);
+		final var npn = VecMath.transformPerspective(this.inverseProjectionMatrix, new Vec3(-1,  1, -1), 1);
+		final var npp = VecMath.transformPerspective(this.inverseProjectionMatrix, new Vec3(-1,  1,  1), 1);
+		final var pnn = VecMath.transformPerspective(this.inverseProjectionMatrix, new Vec3( 1, -1, -1), 1);
+		final var pnp = VecMath.transformPerspective(this.inverseProjectionMatrix, new Vec3( 1, -1,  1), 1);
+		final var ppn = VecMath.transformPerspective(this.inverseProjectionMatrix, new Vec3( 1,  1, -1), 1);
+		final var ppp = VecMath.transformPerspective(this.inverseProjectionMatrix, new Vec3( 1,  1,  1), 1);
 		// @formatter:on
 		return new FrustumCorners(nnn, nnp, npn, npp, pnn, pnp, ppn, ppp);
 	}
@@ -163,11 +166,11 @@ public class CachedCamera {
 	}
 
 	public Vec3 worldToNdc(Vec3 posWorld) {
-		return posWorld.transformBy(this.viewProjectionMatrix);
+		return VecMath.transformPerspective(this.viewProjectionMatrix, posWorld, 1);
 	}
 
 	public Vec3 ndcToWorld(Vec3 posNdc) {
-		return posNdc.transformBy(this.inverseViewProjectionMatrix);
+		return VecMath.transformPerspective(this.inverseViewProjectionMatrix, posNdc, 1);
 	}
 
 	public Ray rayForPicking(Window window, Vec2 mousePos) {
@@ -175,7 +178,7 @@ public class CachedCamera {
 		final var y = 1.0 - (2.0 * mousePos.y) / window.getGuiScaledHeight();
 
 		var dir = new Vec3(x, y, -1);
-		dir = dir.transformBy(this.inverseProjectionMatrix);
+		dir = VecMath.transformPerspective(this.inverseProjectionMatrix, dir, 1);
 		dir = this.orientation.inverse().transform(dir);
 		return new Ray(this.pos.xyz(), dir);
 	}

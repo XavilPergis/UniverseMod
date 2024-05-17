@@ -1,7 +1,6 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
 import java.util.function.Consumer;
-import java.util.function.Predicate;
 
 import net.xavil.hawklib.collections.interfaces.ImmutableSet;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
@@ -19,6 +18,14 @@ public abstract sealed class SectorTicketInfo {
 		return new Single(pos);
 	}
 
+	public static enum EnumerationAction {
+		CONTINUE, SKIP_CHILDREN, EXIT;
+	}
+
+	public interface EnumerationPredicate {
+		EnumerationAction accept(SectorPos pos);
+	}
+
 	public ImmutableSet<SectorPos> allAffectedSectors() {
 		final var sectors = MutableSet.<SectorPos>hashSet();
 		enumerateAllAffectedSectors(sectors::insert);
@@ -28,14 +35,14 @@ public abstract sealed class SectorTicketInfo {
 	public void enumerateAllAffectedSectors(Consumer<SectorPos> consumer) {
 		enumerateAffectedSectors(pos -> {
 			consumer.accept(pos);
-			return true;
+			return EnumerationAction.CONTINUE;
 		});
 	}
 
 	@Override
 	public abstract SectorTicketInfo clone();
 
-	public abstract void enumerateAffectedSectors(Predicate<SectorPos> consumer);
+	public abstract void enumerateAffectedSectors(EnumerationPredicate consumer);
 
 	/**
 	 * Determines whether or not the change from {@code prev} should trigger loading
@@ -68,8 +75,8 @@ public abstract sealed class SectorTicketInfo {
 		}
 
 		@Override
-		public void enumerateAffectedSectors(Predicate<SectorPos> consumer) {
-			consumer.test(this.sector);
+		public void enumerateAffectedSectors(EnumerationPredicate consumer) {
+			consumer.accept(this.sector);
 		}
 
 		@Override
@@ -116,19 +123,51 @@ public abstract sealed class SectorTicketInfo {
 			return Intersections.sphereAabb(this.centerPos, radius, pos.minBound(), pos.maxBound());
 		}
 
+		private boolean enumerateAffectedSectorsInner(SectorPos pos, EnumerationPredicate consumer) {
+			if (!isInside(pos))
+				return false;
+
+			final var action = consumer.accept(pos);
+			if (action == EnumerationAction.EXIT)
+				return true;
+			if (action == EnumerationAction.SKIP_CHILDREN || pos.level() <= 0)
+				return false;
+
+			final int cx = 2 * pos.levelCoords().x, cy = 2 * pos.levelCoords().y, cz = 2 * pos.levelCoords().z;
+			
+			// @formatter:off
+			final var nnn = new SectorPos(pos.level() - 1, new Vec3i(cx + 0, cy + 0, cz + 0));
+			if (enumerateAffectedSectorsInner(nnn, consumer)) return true;
+			final var nnp = new SectorPos(pos.level() - 1, new Vec3i(cx + 0, cy + 0, cz + 1));
+			if (enumerateAffectedSectorsInner(nnp, consumer)) return true;
+			final var npn = new SectorPos(pos.level() - 1, new Vec3i(cx + 0, cy + 1, cz + 0));
+			if (enumerateAffectedSectorsInner(npn, consumer)) return true;
+			final var npp = new SectorPos(pos.level() - 1, new Vec3i(cx + 0, cy + 1, cz + 1));
+			if (enumerateAffectedSectorsInner(npp, consumer)) return true;
+			final var pnn = new SectorPos(pos.level() - 1, new Vec3i(cx + 1, cy + 0, cz + 0));
+			if (enumerateAffectedSectorsInner(pnn, consumer)) return true;
+			final var pnp = new SectorPos(pos.level() - 1, new Vec3i(cx + 1, cy + 0, cz + 1));
+			if (enumerateAffectedSectorsInner(pnp, consumer)) return true;
+			final var ppn = new SectorPos(pos.level() - 1, new Vec3i(cx + 1, cy + 1, cz + 0));
+			if (enumerateAffectedSectorsInner(ppn, consumer)) return true;
+			final var ppp = new SectorPos(pos.level() - 1, new Vec3i(cx + 1, cy + 1, cz + 1));
+			if (enumerateAffectedSectorsInner(ppp, consumer)) return true;
+			// @formatter:on
+
+			return false;
+		}
+
 		@Override
-		public void enumerateAffectedSectors(Predicate<SectorPos> consumer) {
-			for (int level = 0; level <= GalaxySector.ROOT_LEVEL; ++level) {
-				final var radiusCur = radiusForLevel(level);
-				final var curMin = GalaxySector.levelCoordsForPos(level, this.centerPos.sub(Vec3.broadcast(radiusCur)));
-				final var curMax = GalaxySector.levelCoordsForPos(level, this.centerPos.add(Vec3.broadcast(radiusCur)));
-				for (int x = curMin.x; x <= curMax.x; ++x) {
-					for (int y = curMin.y; y <= curMax.y; ++y) {
-						for (int z = curMin.z; z <= curMax.z; ++z) {
-							final var spos = new SectorPos(level, new Vec3i(x, y, z));
-							if (isInside(spos) && !consumer.test(spos))
-								return;
-						}
+		public void enumerateAffectedSectors(EnumerationPredicate consumer) {
+			final var radiusCur = radiusForLevel(GalaxySector.ROOT_LEVEL);
+			final var curMin = GalaxySector.levelCoordsForPos(GalaxySector.ROOT_LEVEL, this.centerPos.sub(Vec3.broadcast(radiusCur)));
+			final var curMax = GalaxySector.levelCoordsForPos(GalaxySector.ROOT_LEVEL, this.centerPos.add(Vec3.broadcast(radiusCur)));
+			for (int x = curMin.x; x <= curMax.x; ++x) {
+				for (int y = curMin.y; y <= curMax.y; ++y) {
+					for (int z = curMin.z; z <= curMax.z; ++z) {
+						final var pos = new SectorPos(GalaxySector.ROOT_LEVEL, new Vec3i(x, y, z));
+						if (enumerateAffectedSectorsInner(pos, consumer))
+							return;
 					}
 				}
 			}

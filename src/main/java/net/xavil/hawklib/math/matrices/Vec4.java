@@ -1,7 +1,5 @@
 package net.xavil.hawklib.math.matrices;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector4f;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
@@ -69,20 +67,6 @@ public final class Vec4 implements Hashable, Vec4Access {
 	public Vec4 projectOnto(Vec4 other) {
 		final var b = other.normalize();
 		return b.mul(this.dot(b));
-	}
-
-	public Vec4 transformBy(PoseStack.Pose pose) {
-		return transformBy(pose.pose());
-	}
-
-	public Vec4 transformBy(Matrix4f matrix) {
-		final var vec = asMinecraft();
-		vec.transform(matrix);
-		return from(vec);
-	}
-
-	public Vec4 transformBy(Mat4 matrix) {
-		return matrix.mul(this);
 	}
 
 	public static Vec4 lerp(double delta, Vec4 a, Vec4 b) {

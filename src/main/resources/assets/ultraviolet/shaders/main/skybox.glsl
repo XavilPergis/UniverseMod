@@ -28,7 +28,7 @@ out vec4 fColor;
 
 void main() {
 	fColor = vec4(0.0);
-	fColor += foos[4].a[2];
+	fColor += foos[1].a[2];
 	fColor += foos[4].b[2];
 	fColor += texture(SkyboxSampler, texCoord0);
 }

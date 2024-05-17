@@ -10,6 +10,7 @@ public final class GlFragmentWrites {
 	public static final String POSITION = "fPosition";
 	public static final String NORMAL = "fNormal";
 
+	public static final GlFragmentWrites EMPTY = new GlFragmentWrites(new ResourceLocation("hawk", "empty"));
 	public static final GlFragmentWrites COLOR_ONLY = new GlFragmentWrites(new ResourceLocation("hawk", "color"), COLOR);
 	public static final GlFragmentWrites VANILLA = new GlFragmentWrites(new ResourceLocation("default"), "fragColor");
 
@@ -43,6 +44,11 @@ public final class GlFragmentWrites {
 
 	public int getFragmentWriteCount() {
 		return this.outputNames.length;
+	}
+
+	@Override
+	public String toString() {
+		return "FragmentWrites[" + this.name.toString() + "]";
 	}
 
 }

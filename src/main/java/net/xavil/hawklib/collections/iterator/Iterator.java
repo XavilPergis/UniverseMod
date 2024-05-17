@@ -86,29 +86,41 @@ public interface Iterator<T> extends IntoIterator<T> {
 	}
 
 	/**
-	 * Returns whether this iterator is known to definitely be fused.
-	 * 
-	 * <p>
-	 * Subsequent calls to this method <i>must</i> return the same value as the
-	 * previous. i.e., if an iterator reports that it is fused, it must
-	 * <i>always</i> report that it is fused.
-	 * </p>
-	 * 
-	 * @return {@code true} if this iterator is definitely fused.
+	 * If this flag is set, it is guaranteed that this iterator will not yield any
+	 * more elements after {@link #hasNext()} returns {@code false}.
 	 */
-	default boolean isFused() {
-		return hasProperties(PROPERTY_FUSED);
-	}
-
 	static final int PROPERTY_FUSED = 1 << 0;
+	/**
+	 * If this flag is set, it is guaranteed that this iterator will not yield any
+	 * null values.
+	 */
 	static final int PROPERTY_NONNULL = 1 << 1;
+	/**
+	 * If this flag is set, this iterator is known to be unbounded, and will always
+	 * have more elements to yield.
+	 */
+	static final int PROPERTY_INFINITE = 1 << 2;
 
-	default boolean hasProperties(int propertyMask) {
-		return (properties() & propertyMask) == propertyMask;
-	}
-
+	/**
+	 * It is assumed that an iterator will not report different properties at
+	 * different times after construction.
+	 * 
+	 * @return This iterator's properties.
+	 */
 	default int properties() {
 		return 0;
+	}
+
+	static <T> boolean hasProperties(Iterator<T> iter, int propertyMask) {
+		return (iter.properties() & propertyMask) == propertyMask;
+	}
+
+	static <T> boolean hasProperties(IteratorFloat iter, int propertyMask) {
+		return (iter.properties() & propertyMask) == propertyMask;
+	}
+
+	static <T> boolean hasProperties(IteratorInt iter, int propertyMask) {
+		return (iter.properties() & propertyMask) == propertyMask;
 	}
 
 	/**
@@ -307,6 +319,26 @@ public interface Iterator<T> extends IntoIterator<T> {
 		public T next() {
 			return null;
 		}
+
+		@Override
+		public Iterator<T> filter(Predicate<? super T> predicate) {
+			return this;
+		}
+
+		@Override
+		public <U> Iterator<U> map(Function<? super T, ? extends U> mapper) {
+			return empty();
+		}
+
+		@Override
+		public Iterator<T> skip(int amount) {
+			return this;
+		}
+
+		@Override
+		public Iterator<T> limit(int limit) {
+			return this;
+		}
 	}
 
 	static <T> Iterator<T> once(T value) {
@@ -340,6 +372,79 @@ public interface Iterator<T> extends IntoIterator<T> {
 		public T next() {
 			this.emitted = true;
 			return this.value;
+		}
+	}
+
+	static <T> Iterator<T> repeat(T value) {
+		return new Repeat<>(value, -1);
+	}
+
+	static <T> Iterator<T> repeat(T value, int limit) {
+		return new Repeat<>(value, limit);
+	}
+
+	final class Repeat<T> implements Iterator<T> {
+		private final T value;
+		private int limit = -1;
+
+		private Repeat(T value, int limit) {
+			this.value = value;
+			this.limit = limit;
+		}
+
+		@Override
+		public int properties() {
+			int props = PROPERTY_FUSED;
+			if (this.value != null)
+				props |= PROPERTY_NONNULL;
+			if (this.limit < 0)
+				props |= PROPERTY_INFINITE;
+			return props;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return this.limit > 0;
+		}
+
+		@Override
+		public T next() {
+			return this.value;
+		}
+
+		@Override
+		public int fillArray(@NotNull T[] array, int start, int end) {
+			if (end > array.length || start > end || start < 0 || end < 0)
+				throw new IllegalArgumentException(String.format(
+						"Invalid range bounds of [%d, %d) for array of length %d",
+						start, end, array.length));
+			if (this.limit < 0) {
+				Arrays.fill(array, start, end, this.value);
+				return end - start;
+			} else {
+				final var copyAmount = Math.min(end - start, this.limit);
+				Arrays.fill(array, start, start + copyAmount, this.value);
+				this.limit -= copyAmount;
+				return copyAmount;
+			}
+		}
+
+		@Override
+		public <U> Iterator<U> map(Function<? super T, ? extends U> mapper) {
+			return new Repeat<U>(mapper.apply(this.value), this.limit);
+		}
+
+		@Override
+		public Iterator<T> skip(int amount) {
+			if (this.limit >= 0)
+				this.limit = Math.max(0, this.limit - amount);
+			return this;
+		}
+
+		@Override
+		public Iterator<T> limit(int limit) {
+			this.limit = Math.min(limit, this.limit);
+			return this;
 		}
 	}
 
@@ -459,7 +564,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 	}
 
 	default Iterator<T> filterNull() {
-		if (hasProperties(PROPERTY_NONNULL))
+		if (hasProperties(this, PROPERTY_NONNULL))
 			return this;
 		return new Filter<T>(this) {
 			@Override
@@ -745,6 +850,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 			int props = PROPERTY_FUSED | PROPERTY_NONNULL;
 			for (final var source : this.sources) {
 				final var childProps = source.properties();
+				props |= childProps & Iterator.PROPERTY_INFINITE;
 				if ((childProps & PROPERTY_NONNULL) == 0)
 					props = props & ~PROPERTY_NONNULL;
 			}
@@ -876,7 +982,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 	}
 
 	default Iterator<T> fused() {
-		if (this.isFused())
+		if (hasProperties(this, PROPERTY_FUSED))
 			return this;
 		return new Fused<>(this);
 	}

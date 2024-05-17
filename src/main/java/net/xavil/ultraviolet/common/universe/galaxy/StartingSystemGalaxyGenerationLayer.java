@@ -55,15 +55,15 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		final var rng = new SplittableRng(this.parentGalaxy.parentUniverse.getUniqueUniverseSeed());
 		rng.advanceWith("pick_starting_system_location");
 
-		final var densityFields = this.parentGalaxy.densityFields;
+		final var galaxyParams = this.parentGalaxy.parameters;
 
 		// TODO: fix this. currently, it always fails
 		for (int i = 0; i < STARTING_LOCATION_SAMPLE_ATTEMPTS; ++i) {
 			rng.advance();
 			final var samplePos = Vec3.random(rng,
-					Vec3.broadcast(-densityFields.galaxyRadius),
-					Vec3.broadcast(densityFields.galaxyRadius));
-			final var density = densityFields.stellarDensity.sample(samplePos);
+					Vec3.broadcast(-galaxyParams.galaxyRadius),
+					Vec3.broadcast(galaxyParams.galaxyRadius));
+			final var density = galaxyParams.sampleDensity(samplePos);
 			if (STARTING_LOCATION_ACCEPTABLE_DENSITY.contains(density)) {
 				Vec3.set(out, samplePos);
 				return true;
@@ -97,7 +97,8 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		this.startingSystemInfo.systemSeed = 0xf100f;
 		this.startingSystemInfo.temperatureK = primaryStar.temperature;
 
-		this.startingSystem = new StarSystem(this.systemName, this.parentGalaxy, this.startingSystemInfo, this.startingNode);
+		this.startingSystem = new StarSystem(this.systemName, this.parentGalaxy, this.startingSystemInfo,
+				this.startingNode, 1.42857e-02);
 	}
 
 	private void findElementIndex() {

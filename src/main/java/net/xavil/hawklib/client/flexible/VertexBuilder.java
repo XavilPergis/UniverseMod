@@ -1,15 +1,10 @@
 package net.xavil.hawklib.client.flexible;
 
 import java.nio.ByteBuffer;
-import org.slf4j.Logger;
 
-import com.mojang.blaze3d.platform.MemoryTracker;
 import com.mojang.blaze3d.vertex.VertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat.IndexType;
-import com.mojang.logging.LogUtils;
 
-import net.minecraft.util.Mth;
-import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
@@ -17,45 +12,7 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
-// this could probably be more efficient by writing to a persistent-mapped buffer.
-public final class VertexBuilder {
-
-	private static final int GROWTH_SIZE = 0x400000;
-	private static final Logger LOGGER = LogUtils.getLogger();
-
-	private int vertexStartByteOffset = 0;
-	private int vertexByteOffset = 0;
-	private BufferLayout currentLayout = null;
-	private PrimitiveType primitiveType = null;
-	private ByteBuffer buffer;
-	private int vertexCount = 0;
-	private VertexDispatcher currentDispatcher;
-
-	private GenericVertexDispatcher genericDispatcher = new GenericVertexDispatcher();
-
-	// the amount of buffers that have been created but not yet drawn. We cannot
-	// reuse our allocation if we have undrawn buffers.
-	private int undrawnBufferCount = 0;
-
-	public ByteBuffer backingBufferView() {
-		return this.buffer.asReadOnlyBuffer();
-	}
-
-	public ByteBuffer backingBuffer() {
-		return this.buffer;
-	}
-
-	public BufferLayout currentLayout() {
-		return this.currentLayout;
-	}
-
-	public int batchStartOffset() {
-		return this.vertexStartByteOffset;
-	}
-
-	public int nextVertexOffset() {
-		return this.vertexByteOffset;
-	}
+public abstract class VertexBuilder {
 
 	public final class BuiltBuffer implements Disposable {
 		public final BufferLayout layout;
@@ -70,7 +27,8 @@ public final class VertexBuilder {
 
 		private boolean isDrawn = false;
 
-		public BuiltBuffer(ByteBuffer vertexData, ByteBuffer indexData, BufferLayout layout,
+		public BuiltBuffer(
+				ByteBuffer vertexData, ByteBuffer indexData, BufferLayout layout,
 				PrimitiveType primitiveType, IndexType indexType,
 				int vertexCount, int indexCount) {
 			this.layout = layout;
@@ -98,21 +56,6 @@ public final class VertexBuilder {
 
 		public void drawWithoutClosing(ShaderProgram shader, DrawState drawState) {
 			BufferRenderer.draw(shader, this, drawState);
-		}
-	}
-
-	private void handleBufferDrawn(BuiltBuffer buffer) {
-		this.undrawnBufferCount -= 1;
-		if (this.undrawnBufferCount == 0) {
-			reset();
-		}
-	}
-
-	public void assertBuffersDrawn() {
-		if (this.undrawnBufferCount > 0) {
-			throw new IllegalStateException(String.format(
-					"Vertex Builder had %d undrawn buffers!",
-					this.undrawnBufferCount));
 		}
 	}
 
@@ -334,7 +277,7 @@ public final class VertexBuilder {
 
 		@Override
 		public void endVertex() {
-			this.builder.emitVertexGuarded();
+			this.builder.emitVertex();
 		}
 
 		@Override
@@ -426,110 +369,22 @@ public final class VertexBuilder {
 
 	}
 
-	public VertexBuilder(int maxFaceCount) {
-		this.buffer = MemoryTracker.create(maxFaceCount * 6);
-	}
+	protected final GenericVertexDispatcher genericDispatcher = new GenericVertexDispatcher();
 
-	private static int roundUp(int bytesToGrow) {
-		int growthBucketSize = GROWTH_SIZE;
-		if (bytesToGrow == 0)
-			return growthBucketSize;
-		if (bytesToGrow < 0)
-			growthBucketSize = -growthBucketSize;
-		int bytesAboveBucketStart = bytesToGrow % growthBucketSize;
-		if (bytesAboveBucketStart == 0)
-			return bytesToGrow;
-		return bytesToGrow + growthBucketSize - bytesAboveBucketStart;
-	}
+	protected abstract void handleBufferDrawn(BuiltBuffer buffer);
 
-	private void ensureBufferCapacity(int additionalBytes) {
-		if (this.vertexByteOffset + additionalBytes <= this.buffer.capacity())
-			return;
-		final var oldSize = this.buffer.capacity();
-		final var newSize = oldSize + roundUp(additionalBytes);
-		// final var newSize = (int) (oldSize + 1.5 * oldSize);
-		LOGGER.info("Needed to grow VertexBuilder buffer: Old size {} bytes, new size {} bytes.",
-				oldSize, newSize);
-		this.buffer = MemoryTracker.resize(this.buffer, newSize);
-		// for some reason, glfw seems to allocate but not initialize a ByteBuffer
-		// instance, and write all the important fields except for postion.
-		this.buffer.position(0);
-		// the element holders store references to the previous buffer, we need to
-		// invalidate those.
-		this.currentDispatcher.setup(this, this.currentLayout, this.buffer);
-	}
+	protected abstract void emitVertex();
 
-	public <T extends VertexDispatcher> T begin(T dispatcher, PrimitiveType mode, BufferLayout layout) {
-		dispatcher.setup(this, layout, this.buffer);
-		this.currentLayout = layout;
-		this.primitiveType = mode;
-		this.vertexStartByteOffset = Mth.roundToward(this.vertexByteOffset, 4);
-		this.currentDispatcher = dispatcher;
-		return dispatcher;
-	}
+	protected abstract BuiltBuffer end();
+
+	public abstract <T extends VertexDispatcher> T begin(T dispatcher, PrimitiveType mode, BufferLayout layout);
 
 	public GenericVertexDispatcher beginGeneric(PrimitiveType mode, BufferLayout layout) {
 		return begin(this.genericDispatcher, mode, layout);
 	}
 
-	private BuiltBuffer end() {
-		Assert.isTrue(isBuilding());
-		final var indexCount = this.primitiveType.indexCount(this.vertexCount);
-		final var indexType = VertexFormat.IndexType.least(indexCount);
+	public abstract boolean isBuilding();
 
-		final var vertexData = this.buffer.slice(this.vertexStartByteOffset,
-				this.vertexByteOffset - this.vertexStartByteOffset);
-
-		final var built = this.new BuiltBuffer(vertexData, null, this.currentLayout, this.primitiveType,
-				indexType,
-				this.vertexCount, indexCount);
-		this.vertexCount = 0;
-		this.currentLayout = null;
-		this.primitiveType = null;
-		this.currentDispatcher = null;
-
-		return built;
-	}
-
-	public boolean isBuilding() {
-		return this.currentLayout != null;
-	}
-
-	public void reset() {
-		this.vertexByteOffset = 0;
-		this.vertexStartByteOffset = 0;
-	}
-
-	private void emitVertexGuarded() {
-		if (this.currentLayout == null)
-			throw new RuntimeException("cannot add vertices to FlexibleBufferBuilder; it is not currently building!");
-		try {
-			emitVertex();
-		} catch (Throwable t) {
-			var msg = "Buffer Builder Error:\n";
-			msg += String.format("Current Capacity: %d ", this.buffer.capacity());
-			msg += String.format("Current Limit: %d ", this.buffer.limit());
-			msg += String.format("Current Offset: %d ", this.vertexByteOffset);
-			throw new RuntimeException(msg, t);
-		}
-	}
-
-	private void emitVertex() {
-		final var vertexSize = this.currentLayout.byteStride;
-		final var emissionSize = vertexSize * (this.primitiveType.duplicationCount + 1);
-
-		ensureBufferCapacity(emissionSize);
-
-		this.currentDispatcher.emit(this.vertexByteOffset);
-
-		int writePos = this.vertexByteOffset + vertexSize;
-		for (int i = 0; i < this.primitiveType.duplicationCount; ++i) {
-			this.buffer.put(writePos, this.buffer, this.vertexByteOffset, vertexSize);
-			writePos += vertexSize;
-		}
-
-		this.vertexByteOffset += emissionSize;
-		this.vertexCount += this.primitiveType.duplicationCount + 1;
-	}
+	public abstract void reset();
 
 }

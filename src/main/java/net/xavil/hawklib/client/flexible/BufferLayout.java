@@ -20,36 +20,6 @@ public final class BufferLayout {
 		this.totalAttribCount = totalAttribCount;
 	}
 
-	public void setupVertexState(GlVertexArray vertexArray, int baseAttribIndex, int bindingIndex, int instanceRate) {
-		for (final var element : this.elements.iterable()) {
-			for (int i = 0; i < element.attribSlotCount; ++i) {
-				final var attribIndex = baseAttribIndex + element.attribSlotOffset + i;
-				GL45C.glEnableVertexArrayAttrib(vertexArray.id, attribIndex);
-				switch (element.attribType) {
-					case FLOAT -> GL45C.glVertexArrayAttribFormat(vertexArray.id,
-							attribIndex,
-							element.componentCount, element.type.gl, element.isNormalized,
-							element.byteOffset);
-					case INT -> GL45C.glVertexArrayAttribIFormat(vertexArray.id,
-							attribIndex,
-							element.componentCount, element.type.gl,
-							element.byteOffset);
-				}
-				GL45C.glVertexArrayAttribBinding(vertexArray.id, attribIndex, bindingIndex);	
-				GL45C.glVertexArrayBindingDivisor(vertexArray.id, attribIndex, instanceRate);
-			}
-		}
-	}
-
-	public void clearVertexState(GlVertexArray vertexArray, int baseAttribIndex) {
-		for (final var element : this.elements.iterable()) {
-			for (int i = 0; i < element.attribSlotCount; ++i) {
-				final var attribIndex = baseAttribIndex + element.attribSlotOffset + i;
-				GL45C.glDisableVertexArrayAttrib(vertexArray.id, attribIndex);
-			}
-		}
-	}
-
 	public static Builder builder() {
 		return new Builder();
 	}

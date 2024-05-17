@@ -13,7 +13,8 @@ public final class ShaderStage extends GlObject {
 	public static enum Stage {
 		VERTEX(GL45C.GL_VERTEX_SHADER, "Vertex Stage", "VERTEX"),
 		TESSELATION_CONTROL(GL45C.GL_TESS_CONTROL_SHADER, "Tesselation Control Stage", "TESSELATION_CONTROL"),
-		TESSELATION_EVALUATION(GL45C.GL_TESS_EVALUATION_SHADER, "Tesselation Evaluation Stage", "TESSELATION_EVALUATION"),
+		TESSELATION_EVALUATION(GL45C.GL_TESS_EVALUATION_SHADER, "Tesselation Evaluation Stage",
+				"TESSELATION_EVALUATION"),
 		GEOMETRY(GL45C.GL_GEOMETRY_SHADER, "Geometry Stage", "GEOMETRY"),
 		FRAGMENT(GL45C.GL_FRAGMENT_SHADER, "Fragment Stage", "FRAGMENT"),
 		COMPUTE(GL45C.GL_COMPUTE_SHADER, "Fragment Stage", "COMPUTE");
@@ -44,23 +45,13 @@ public final class ShaderStage extends GlObject {
 	public final Stage type;
 
 	public ShaderStage(int id, boolean owned) {
-		super(id, owned);
+		super(ObjectType.SHADER, id, owned);
 		this.type = Stage.from(GL45C.glGetShaderi(id, GL45C.GL_SHADER_TYPE));
 	}
 
 	public ShaderStage(Stage type) {
-		super(GL45C.glCreateShader(type.id), true);
+		super(ObjectType.SHADER, GL45C.glCreateShader(type.id), true);
 		this.type = type;
-	}
-
-	@Override
-	protected void destroy() {
-		GL45C.glDeleteShader(this.id);
-	}
-
-	@Override
-	public ObjectType objectType() {
-		return ObjectType.SHADER;
 	}
 
 	public void setSource(String source) {

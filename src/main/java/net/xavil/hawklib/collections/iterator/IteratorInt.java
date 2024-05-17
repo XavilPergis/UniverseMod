@@ -1,11 +1,12 @@
 package net.xavil.hawklib.collections.iterator;
 
+import java.nio.IntBuffer;
 import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import it.unimi.dsi.fastutil.ints.IntUnaryOperator;
 import it.unimi.dsi.fastutil.ints.Int2ObjectFunction;
@@ -129,7 +130,7 @@ public interface IteratorInt extends IntoIteratorInt {
 	 *                                  than than 0.
 	 * @throws NullPointerException     when the array is null.
 	 */
-	default int fillArray(@NotNull int[] array, int start, int end) {
+	default int fillArray(@Nonnull int[] array, int start, int end) {
 		if (end > array.length || start > end || start < 0 || end < 0)
 			throw new IllegalArgumentException(String.format(
 					"Invalid range bounds of [%d, %d) for array of length %d",
@@ -294,33 +295,129 @@ public interface IteratorInt extends IntoIteratorInt {
 	}
 
 	static IteratorInt repeat(int value) {
-		return new Repeat(value);
+		return new Repeat(value, -1);
 	}
 
 	static IteratorInt repeat(int value, int limit) {
-		return repeat(value).limit(limit);
+		return new Repeat(value, limit);
 	}
 
 	final class Repeat implements IteratorInt {
 		private final int value;
+		private int limit = -1;
 
-		private Repeat(int value) {
+		private Repeat(int value, int limit) {
 			this.value = value;
+			this.limit = limit;
 		}
 
 		@Override
 		public int properties() {
-			return PROPERTY_FUSED | PROPERTY_INFINITE;
+			int props = Iterator.PROPERTY_FUSED;
+			if (this.limit < 0)
+				props |= Iterator.PROPERTY_INFINITE;
+			return props;
 		}
 
 		@Override
 		public boolean hasNext() {
-			return true;
+			return this.limit > 0;
 		}
 
 		@Override
 		public int next() {
+			this.limit -= 1;
 			return this.value;
+		}
+
+		@Override
+		public int fillArray(@Nonnull int[] array, int start, int end) {
+			if (end > array.length || start > end || start < 0 || end < 0)
+				throw new IllegalArgumentException(String.format(
+						"Invalid range bounds of [%d, %d) for array of length %d",
+						start, end, array.length));
+			if (this.limit < 0) {
+				Arrays.fill(array, start, end, this.value);
+				return end - start;
+			} else {
+				final var copyAmount = Math.min(end - start, this.limit);
+				Arrays.fill(array, start, start + copyAmount, this.value);
+				this.limit -= copyAmount;
+				return copyAmount;
+			}
+		}
+
+		@Override
+		public <U> Iterator<U> map(Int2ObjectFunction<? extends U> mapper) {
+			return Iterator.repeat(mapper.get(this.value), this.limit);
+		}
+
+		@Override
+		public IteratorInt mapToInt(IntUnaryOperator mapper) {
+			return new Repeat(mapper.apply(this.value), this.limit);
+		}
+
+		@Override
+		public IteratorInt skip(int amount) {
+			if (this.limit >= 0)
+				this.limit = Math.max(0, this.limit - amount);
+			return this;
+		}
+
+		@Override
+		public IteratorInt limit(int limit) {
+			this.limit = Math.min(limit, this.limit);
+			return this;
+		}
+	}
+
+	static IteratorInt fromBuffer(IntBuffer buffer) {
+		return new IntBufferIterator(buffer);
+	}
+
+	final class IntBufferIterator implements IteratorInt {
+		private final IntBuffer buffer;
+
+		private IntBufferIterator(IntBuffer buffer) {
+			this.buffer = buffer.duplicate();
+		}
+
+		@Override
+		public boolean hasNext() {
+			return this.buffer.hasRemaining();
+		}
+
+		@Override
+		public int next() {
+			return this.buffer.get();
+		}
+
+		@Override
+		public SizeHint sizeHint() {
+			return SizeHint.exactly(this.buffer.remaining());
+		}
+
+		@Override
+		public int fillArray(@Nonnull int[] array, int start, int end) {
+			if (end > array.length || start > end || start < 0 || end < 0)
+				throw new IllegalArgumentException(String.format(
+						"Invalid range bounds of [%d, %d) for array of length %d",
+						start, end, array.length));
+			final var position = this.buffer.position();
+			this.buffer.get(array, start, Math.min(end - start, this.buffer.limit() - position));
+			return this.buffer.position() - position;
+		}
+
+		@Override
+		public IteratorInt skip(int amount) {
+			this.buffer.position(Math.min(this.buffer.position() + amount, this.buffer.limit()));
+			return this;
+		}
+
+		@Override
+		public IteratorInt limit(int limit) {
+			this.buffer.limit(Math.min(this.buffer.position() + limit, this.buffer.limit()));
+			return this;
 		}
 	}
 
@@ -533,7 +630,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			return this.source.properties() & ~PROPERTY_NONNULL;
+			return this.source.properties();
 		}
 
 		@Override
@@ -647,7 +744,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			return this.source.properties() & ~PROPERTY_NONNULL;
+			return this.source.properties();
 		}
 
 		@Override
@@ -750,7 +847,11 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			return PROPERTY_FUSED;
+			int props = Iterator.PROPERTY_FUSED;
+			for (final var source : this.sources) {
+				props |= source.properties() & Iterator.PROPERTY_INFINITE;
+			}
+			return props;
 		}
 
 		@Override

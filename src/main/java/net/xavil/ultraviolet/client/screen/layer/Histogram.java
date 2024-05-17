@@ -59,6 +59,20 @@ public final class Histogram {
 		return this.total;
 	}
 
+	public void setBins(IteratorInt binIterator) {
+		this.outliersLo.clear();
+		this.outliersHi.clear();
+		this.outliersLoCount = this.outliersHiCount = 0;
+		
+		final var binCount = this.bins.size();
+		this.bins.clear();
+		this.bins.extend(binIterator.limit(binCount));
+		this.bins.extend(IteratorInt.repeat(0, binCount - this.bins.size()));
+
+		this.total = 0;
+		this.bins.forEach(count -> this.total += count);
+	}
+
 	public void insert(double value) {
 		this.total += 1;
 		final var t = this.mapping.remap(value);

@@ -122,7 +122,7 @@ vec3 lightContribution(in LightingContext ctx, in Light light) {
 	vec3 lightContribution = vec3(1.0);
 	lightContribution *= brdfCookTorrance(ctx, light, toLight);
 	lightContribution *= radiance;
-	lightContribution *= pdot(ctx.normalV, toLight);
+	lightContribution *= pow(pdot(ctx.normalV, toLight), 1.0);
 
 	return lightContribution;
 }

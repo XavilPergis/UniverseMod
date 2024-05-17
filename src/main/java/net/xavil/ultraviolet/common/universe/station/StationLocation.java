@@ -20,6 +20,7 @@ import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.hawklib.math.OrbitalPlane;
 import net.xavil.hawklib.math.OrbitalShape;
 import net.xavil.hawklib.math.matrices.Vec3;
+
 public abstract sealed class StationLocation implements Disposable {
 
 	public abstract Vec3 getPos();
@@ -148,7 +149,8 @@ public abstract sealed class StationLocation implements Disposable {
 				return this;
 			final var time = universe.getCelestialTime();
 			final var localPos = universe.getSystemNode(this.id)
-					.map(node -> node.getOrbitalPosition(new Vec3.Mutable(), this.plane, this.shape, false, time).xyz())
+					.map(node -> node.getOrbitalPosition(new Vec3.Mutable(), this.plane, this.shape, false, time, 0)
+							.xyz())
 					.unwrapOrNull();
 			this.pos = this.systemPos.add(localPos);
 			return this;
@@ -291,8 +293,8 @@ public abstract sealed class StationLocation implements Disposable {
 	}
 
 	// public static final class GalaxyRelative extends StationLocation {
-	// 	public UniverseSectorId id;
-	// 	public Vec3 pos;
+	// public UniverseSectorId id;
+	// public Vec3 pos;
 	// }
 
 	public static CompoundTag toNbt(StationLocation location) {

@@ -1,29 +1,42 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
+import static net.xavil.hawklib.client.HawkDrawStates.DRAW_STATE_LINES;
+import static net.xavil.hawklib.client.HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES;
+
+import java.util.Comparator;
+
 import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.util.Mth;
-
-import static net.xavil.hawklib.client.HawkDrawStates.*;
-import static net.xavil.ultraviolet.client.UltravioletShaders.*;
-
-import java.util.Comparator;
-
-import net.xavil.ultraviolet.client.PlanetRenderingContext;
-import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.VertexBuilder;
-import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.RenderTexture;
+import net.xavil.hawklib.client.flexible.VertexBuilder;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
+import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.collections.Blackboard;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.math.Ellipse;
+import net.xavil.hawklib.math.Formulas;
+import net.xavil.hawklib.math.Quat;
+import net.xavil.hawklib.math.Ray;
+import net.xavil.hawklib.math.TransformStack;
+import net.xavil.hawklib.math.matrices.Mat4;
+import net.xavil.hawklib.math.matrices.Vec2;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.ultraviolet.client.PlanetRenderingContext;
+import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.config.ClientConfig;
@@ -43,26 +56,11 @@ import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
-import net.xavil.hawklib.client.screen.HawkScreen3d;
-import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
-import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
-import net.xavil.hawklib.collections.Blackboard;
-import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.math.ColorRgba;
-import net.xavil.hawklib.math.Ellipse;
-import net.xavil.hawklib.math.Quat;
-import net.xavil.hawklib.math.Ray;
-import net.xavil.hawklib.math.TransformStack;
-import net.xavil.hawklib.math.matrices.Mat4;
-import net.xavil.hawklib.math.matrices.Vec2;
-import net.xavil.hawklib.math.matrices.Vec3;
 
 public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	public final Galaxy galaxy;
 	private final SystemTicket ticket;
 	// private CelestialNode systemRoot;
-
-	public boolean showGuides = true;
 
 	private PlanetRenderingContext renderContext = this.disposer.attach(new PlanetRenderingContext());
 
@@ -143,8 +141,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 					}
 				}
 			}
-		} else if (keypress.keyCode == GLFW.GLFW_KEY_G) {
-			this.showGuides = !this.showGuides;
+		} else if (keypress.hasModifiers(GLFW.GLFW_MOD_CONTROL) && keypress.keyCode == GLFW.GLFW_KEY_G) {
+			insertBlackboard(BlackboardKeys.SHOW_GUIDES, !getBlackboard(BlackboardKeys.SHOW_GUIDES).unwrapOr(true));
 		} else if (keypress.keyCode == GLFW.GLFW_KEY_J) {
 			final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOrNull();
 			if (selectedId != null) {
@@ -234,6 +232,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			modelTfm.push();
 			modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, node.rotationalRate * time));
 			modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+			modelTfm.appendRotation(node.referencePlane.rotationFromReference());
 			// modelTfm.appendScale(radiusUnits);
 			modelTfm.appendTransform(Mat4.scale(radiusUnits));
 			// modelTfm.appendTranslation(nodePosUnits.mul(camera.metersPerUnit / 1e12));
@@ -247,25 +246,26 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				ctx.currentTexture.colorTexture.setWrapMode(GlTexture.WrapMode.MIRRORED_REPEAT);
 
 				final var color = new Vec3.Mutable();
-				StellarCelestialNode.BLACK_BODY_COLOR_TABLE.lookupColor(color, 1200);
-
+				StellarCelestialNode.BLACK_BODY_COLOR_TABLE.lookupColor(color, 1000);
 				shader.setUniformf("uAccretionDiscColor", color);
-				// shader.setUniform("uAccretionDiscColor", 1.0, 0.2, 0.0);
-				// shader.setUniform("uAccretionDiscColor", 0.5, 0.0, 1.0);
+
+				// shader.setUniformf("uAccretionDiscColor", 0.0, 0.0, 1.0);
+				// shader.setUniformf("uAccretionDiscColor", 1.0, 0.2, 0.0);
+				// shader.setUniformf("uAccretionDiscColor", 0.5, 0.0, 1.0);
 				// shader.setUniformf("uAccretionDiscColor", 0.0, 0.0, 0.0);
 				shader.setUniformf("uAccretionDiscNormal", 0.5, 1.0, 0.2);
 				shader.setUniformf("uAccretionDiscDensityFalloff", 3.0);
 				shader.setUniformf("uAccretionDiscInnerPercent", 0.2);
 				shader.setUniformf("uAccretionDiscInnerFalloff", 100.0);
-				shader.setUniformf("uAccretionDiscDensityFalloffRadial", 4.0);
+				shader.setUniformf("uAccretionDiscDensityFalloffRadial", 10.0);
 				shader.setUniformf("uAccretionDiscDensityFalloffVerticalInner", 100.0);
-				shader.setUniformf("uAccretionDiscDensityFalloffVerticalOuter", 100.0);
-				// shader.setUniformf("uAccretionDiscBrightness", 250.0);
+				shader.setUniformf("uAccretionDiscDensityFalloffVerticalOuter", 300.0);
+				// shader.setUniformf("uAccretionDiscBrightness", 10000.0);
 				shader.setUniformf("uAccretionDiscBrightness", 0.0);
-				shader.setUniformf("uEffectLimitFactor", 30.0);
+				shader.setUniformf("uEffectLimitFactor", 50.0);
 				shader.setUniformf("uGravitationalConstant", 100.0);
 				shader.setUniformf("uPosition", this.camera.toCameraSpace(node.position.xyz()));
-				shader.setUniformf("uMass", node.massYg);
+				shader.setUniformf("uMass", 1000 * node.massYg);
 
 				// input textures
 				shader.setUniformSampler("uColorTexture", ctx.currentTexture.colorTexture);
@@ -341,7 +341,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		}
 
 		for (final var node : system.rootNode.iterable()) {
-			if (this.showGuides)
+			if (getBlackboard(BlackboardKeys.SHOW_GUIDES).unwrapOr(true))
 				showOrbitGuides(builder, camera, cullingCamera, node, time);
 		}
 
@@ -360,23 +360,19 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 	private static void addEllipseArc(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, double endpointAngleL,
-			double endpointAngleH, int maxDepth, boolean fadeOut) {
+			double endpointAngleH, int maxDepth, double phase, boolean fadeOut) {
 
 		final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
 		var subdivisionSegments = 2;
 
-		var endpointL = ellipse.pointFromTrueAnomaly(endpointAngleL);
-		var endpointH = ellipse.pointFromTrueAnomaly(endpointAngleH);
+		var endpointL = ellipse.pointFromTrueAnomaly(endpointAngleL + phase);
+		var endpointH = ellipse.pointFromTrueAnomaly(endpointAngleH + phase);
 		var midpointSegment = endpointL.div(2).add(endpointH.div(2));
 
 		var segmentLength = endpointL.distanceTo(endpointH);
 
 		var maxDistance = 10 * cullingCamera.scale;
 		var divisionFactor = 30;
-
-		// var midpointAngle = (endpointAngleL + endpointAngleL) / 2;
-		// var midpointIdeal = ellipse.pointFromTrueAnomaly(midpointAngle);
-		// var totalMidpointError = midpointIdeal.distanceTo(midpointSegment);
 
 		if (ClientConfig.get(ConfigKey.SHOW_LINE_LODS)) {
 			color = ClientConfig.getDebugColor(maxDepth);
@@ -393,7 +389,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				var percentH = (i + 1) / (double) subdivisionSegments;
 				var angleL = Mth.lerp(percentL, endpointAngleL, endpointAngleH);
 				var angleH = Mth.lerp(percentH, endpointAngleL, endpointAngleH);
-				addEllipseArc(builder, camera, cullingCamera, ellipse, color, angleL, angleH, maxDepth - 1, fadeOut);
+				addEllipseArc(builder, camera, cullingCamera, ellipse, color, angleL, angleH, maxDepth - 1, phase,
+						fadeOut);
 			}
 
 			if (ClientConfig.get(ConfigKey.SHOW_ALL_LINE_LODS)) {
@@ -410,6 +407,9 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				alphaL *= Math.max(0, 1 - Mth.inverseLerp(distL, 0, maxDistance));
 				alphaH *= Math.max(0, 1 - Mth.inverseLerp(distH, 0, maxDistance));
 			}
+
+			alphaL *= Math.pow(Mth.clamp(Mth.inverseLerp(endpointAngleL, 0.0, 2.0 * Math.PI), 0, 1), 2);
+			alphaH *= Math.pow(Mth.clamp(Mth.inverseLerp(endpointAngleH, 0.0, 2.0 * Math.PI), 0, 1), 2);
 			if (alphaH == 0 && alphaL == 0)
 				return;
 			RenderHelper.addLine(builder,
@@ -421,13 +421,14 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	private static void addEllipse(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, boolean fadeOut) {
+			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, double phase, boolean fadeOut) {
 		var basePathSegments = 32;
 		var maxDepth = 4;
 		for (var i = 0; i < basePathSegments; ++i) {
 			var angleL = 2 * Math.PI * (i / (double) basePathSegments);
 			var angleH = 2 * Math.PI * ((i + 1) / (double) basePathSegments);
-			addEllipseArc(builder, camera, cullingCamera, ellipse, color, angleL, angleH, maxDepth, fadeOut);
+			addEllipseArc(builder, camera, cullingCamera, ellipse, color, angleL, angleH, maxDepth,
+					phase, fadeOut);
 		}
 	}
 
@@ -447,21 +448,32 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 	private void showBinaryGuides(VertexBuilder vertexBuilder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, BinaryCelestialNode node, double celestialTime) {
-		final var builder = vertexBuilder.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
+		final var builder = vertexBuilder.beginGeneric(PrimitiveType.LINE_DUPLICATED,
+				BufferLayout.POSITION_COLOR_NORMAL);
 
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 
 		/* if (!(node.getA() instanceof BinaryCelestialNode)) */ {
+			final var orbitalPeriod = Formulas.orbitalPeriod(
+					node.orbitalShapeInner.semiMajor() + node.orbitalShapeOuter.semiMajor(), node.massYg);
+			final var meanAnomaly = node.phase + (2 * Math.PI / orbitalPeriod) * celestialTime;
+			final var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, node.orbitalShapeOuter.eccentricity());
+
 			final var ellipse = node.getEllipseA(node.referencePlane, celestialTime);
 			final var isSelected = selectedId != node.getInner().getId();
 			final var color = getPathColor(BlackboardKeys.BINARY_PATH_COLOR, isSelected);
-			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
+			addEllipse(builder, camera, cullingCamera, ellipse, color, trueAnomaly, isSelected);
 		}
 		/* if (!(node.getB() instanceof BinaryCelestialNode)) */ {
+			final var orbitalPeriod = Formulas.orbitalPeriod(
+					node.orbitalShapeInner.semiMajor() + node.orbitalShapeOuter.semiMajor(), node.massYg);
+			final var meanAnomaly = node.phase + (2 * Math.PI / orbitalPeriod) * celestialTime;
+			final var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, node.orbitalShapeOuter.eccentricity());
+
 			final var ellipse = node.getEllipseB(node.referencePlane, celestialTime);
 			final var isSelected = selectedId != node.getOuter().getId();
 			final var color = getPathColor(BlackboardKeys.BINARY_PATH_COLOR, isSelected);
-			addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
+			addEllipse(builder, camera, cullingCamera, ellipse, color, -trueAnomaly, isSelected);
 		}
 
 		RenderSystem.lineWidth(2);
@@ -470,14 +482,20 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 	private void showUnaryGuides(VertexBuilder vertexBuilder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, CelestialNodeChild<?> orbiter, double celestialTime) {
-		final var builder = vertexBuilder.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
+		final var builder = vertexBuilder.beginGeneric(PrimitiveType.LINE_DUPLICATED,
+				BufferLayout.POSITION_COLOR_NORMAL);
 
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
 
 		final var ellipse = orbiter.getEllipse(celestialTime);
 		final var isSelected = selectedId != orbiter.node.getId();
 		final var color = getPathColor(BlackboardKeys.UNARY_PATH_COLOR, isSelected);
-		addEllipse(builder, camera, cullingCamera, ellipse, color, isSelected);
+
+		final var orbitalPeriod = Formulas.orbitalPeriod(orbiter.orbitalShape.semiMajor(), orbiter.parentNode.massYg);
+		final var meanAnomaly = orbiter.phase + (2 * Math.PI / orbitalPeriod) * celestialTime;
+		final var trueAnomaly = Formulas.calculateTrueAnomaly(meanAnomaly, orbiter.orbitalShape.eccentricity());
+
+		addEllipse(builder, camera, cullingCamera, ellipse, color, trueAnomaly, isSelected);
 
 		RenderSystem.lineWidth(2);
 		builder.end().draw(SHADER_VANILLA_RENDERTYPE_LINES.get(), DRAW_STATE_LINES);

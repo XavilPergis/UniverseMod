@@ -6,6 +6,9 @@ import javax.annotation.Nonnull;
 
 public final class Assert {
 
+	public static final boolean DEBUG_MODE = true;
+	public static final boolean EXPENSIVE_DEBUG_MODE = DEBUG_MODE && true;
+
 	public static void breakpoint() {
 		// [set a breakpoint on this line]
 	}

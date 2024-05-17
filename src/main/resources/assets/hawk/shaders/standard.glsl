@@ -20,6 +20,12 @@ float lerp(float t, float oMin, float oMax) { return mix(oMin, oMax, t); }
 vec2  lerp(float t,  vec2 oMin,  vec2 oMax) { return mix(oMin, oMax, t); }
 vec3  lerp(float t,  vec3 oMin,  vec3 oMax) { return mix(oMin, oMax, t); }
 vec4  lerp(float t,  vec4 oMin,  vec4 oMax) { return mix(oMin, oMax, t); }
+vec2  lerp( vec2 t,  vec2 oMin,  vec2 oMax) { return vec2(lerp(t.x, oMin.x, oMax.x), lerp(t.y, oMin.y, oMax.y)); }
+vec3  lerp( vec3 t,  vec3 oMin,  vec3 oMax) { return vec3(lerp(t.x, oMin.x, oMax.x), lerp(t.y, oMin.y, oMax.y), lerp(t.z, oMin.z, oMax.z)); }
+vec4  lerp( vec4 t,  vec4 oMin,  vec4 oMax) { return vec4(lerp(t.x, oMin.x, oMax.x), lerp(t.y, oMin.y, oMax.y), lerp(t.z, oMin.z, oMax.z), lerp(t.w, oMin.w, oMax.w)); }
+vec2  lerp( vec2 t, float oMin, float oMax) { return lerp(t, vec2(oMin), vec2(oMax)); }
+vec3  lerp( vec3 t, float oMin, float oMax) { return lerp(t, vec3(oMin), vec3(oMax)); }
+vec4  lerp( vec4 t, float oMin, float oMax) { return lerp(t, vec4(oMin), vec4(oMax)); }
 
 float invLerp(float n, float iMin, float iMax) {
 	return (n - iMin) / (iMax - iMin);

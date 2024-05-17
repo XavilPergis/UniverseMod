@@ -8,15 +8,13 @@ import java.time.Instant;
 
 import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Disposable;
-import net.xavil.hawklib.client.gl.shader.ShaderProgram;
-import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
-import net.xavil.ultraviolet.client.screen.RenderHelper;
+import net.xavil.hawklib.client.gl.GlBuffer;
 import net.xavil.ultraviolet.common.config.ClientConfig;
 import net.xavil.ultraviolet.common.config.ConfigKey;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -119,7 +117,8 @@ public final class StarRenderManager implements Disposable {
 
 	public void draw(CachedCamera camera, Vec3 centerPos) {
 		this.sectorTicket.info.centerPos = centerPos;
-		this.sectorTicket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
+		// this.sectorTicket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
+		// this.sectorTicket.info.scales = SectorTicketInfo.Multi.SCALES_EXP;
 
 		if (this.floatingOrigin == null
 				|| camera.posTm.distanceTo(this.floatingOrigin) > this.floatingOriginThreshold) {
@@ -169,8 +168,10 @@ public final class StarRenderManager implements Disposable {
 
 		this.starSnapshotPosition = centerPos;
 
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT_QUADS,
-				UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
+		final var vertexFormat = this.mode == Mode.REALISTIC
+				? UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_REALISTIC
+				: UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_UI;
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT, vertexFormat);
 		final var ctx = new StarBuildingContext(builder, camera, centerPos, false);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			drawSectorStars(ctx, sector);
@@ -181,49 +182,17 @@ public final class StarRenderManager implements Disposable {
 	}
 
 	private void drawStarsImmediate(CachedCamera camera, Vec3 centerPos) {
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT_QUADS,
-				UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
+		final var vertexFormat = this.mode == Mode.REALISTIC
+				? UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_REALISTIC
+				: UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_UI;
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.POINT, vertexFormat);
 		final var ctx = new StarBuildingContext(builder, camera, centerPos, true);
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			drawSectorStars(ctx, sector);
 		});
 
-		final var snapshot = RenderMatricesSnapshot.capture();
-		camera.applyProjection();
-		// CachedCamera.applyView(camera.orientation);
-
-		final var origin = this.floatingOrigin;
-		final var offset = camera.posTm.sub(origin).mul(1e12 / camera.metersPerUnit);
-
-		// TODO: cleanup
-		{
-			final var poseStack = RenderSystem.getModelViewStack();
-			poseStack.setIdentity();
-
-			poseStack.mulPose(camera.orientation.asMinecraft());
-			// poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
-			poseStack.translate(-offset.x, -offset.y, -offset.z);
-			// poseStack.translate(org.x, org.y, org.z);
-			final var inverseViewRotationMatrix = poseStack.last().normal().copy();
-			if (inverseViewRotationMatrix.invert()) {
-				RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
-			}
-
-			RenderSystem.applyModelViewMatrix();
-		}
-
-		if (this.mode == Mode.REALISTIC) {
-			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC.get();
-			StarRenderManager.setupStarShader(shader, camera);
-			builder.end().draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
-		} else if (this.mode == Mode.MAP) {
-			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_UI.get();
-			StarRenderManager.setupStarShader(shader, camera);
-			builder.end().draw(shader, DRAW_STATE_OPAQUE);
-		}
-
-		snapshot.restore();
-
+		BufferRenderer.IMMEDIATE_BUFFER.upload(builder.end(), GlBuffer.UsageHint.STREAM_DRAW);
+		drawStars(camera, BufferRenderer.IMMEDIATE_BUFFER);
 	}
 
 	// TODO: would it be better to split up rendering into "chunks", so that we
@@ -280,6 +249,11 @@ public final class StarRenderManager implements Disposable {
 			if (elem.systemPosTm.distanceTo(ctx.centerPos) > levelSize)
 				continue;
 
+			// too dim to notice, dont waste time on it. skips a lot of black holes that are
+			// present at higher octree levels.
+			if (this.mode == Mode.REALISTIC && elem.luminosityLsol < 1e-9)
+				continue;
+
 			// don't render the stars that are behind the camera in immediate mode
 			if (ctx.isImmediateMode) {
 				Vec3.set(toStar, elem.systemPosTm);
@@ -329,64 +303,65 @@ public final class StarRenderManager implements Disposable {
 	// }
 
 	private void drawStarsFromBuffer(CachedCamera camera, Vec3 centerPos) {
-		final var snapshot = RenderMatricesSnapshot.capture();
-		camera.applyProjection();
-
-		final var origin = this.floatingOrigin;
-		final var offset = camera.posTm.sub(origin).mul(1e12 / camera.metersPerUnit);
-
-		{
-			final var poseStack = RenderSystem.getModelViewStack();
-			poseStack.setIdentity();
-
-			poseStack.mulPose(camera.orientation.asMinecraft());
-			// poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
-			poseStack.translate(-offset.x, -offset.y, -offset.z);
-			// poseStack.translate(this.originOffset.x, this.originOffset.y,
-			// this.originOffset.z);
-			final var inverseViewRotationMatrix = poseStack.last().normal().copy();
-			if (inverseViewRotationMatrix.invert()) {
-				RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
-			}
-
-			RenderSystem.applyModelViewMatrix();
-		}
-
 		// FIXME: floating point precision issues
 		// it would be better to build the geometry buffer relative to a point close to
 		// the camera, instead of building it in world space and translating back to the
 		// origin.
 
+		drawStars(camera, this.starsMesh);
+	}
+
+	private void drawStars(CachedCamera camera, Mesh starsMesh) {
+		final var snapshot = RenderMatricesSnapshot.capture();
+		camera.applyProjection();
+
+		final var universe = MinecraftClientAccessor.getUniverse();
+		final var partialTick = Minecraft.getInstance().getFrameTime();
+
+		final var origin = this.floatingOrigin;
+		final var offset = camera.posTm.sub(origin).mul(1e12 / camera.metersPerUnit);
+
+		final var poseStack = RenderSystem.getModelViewStack();
+		poseStack.setIdentity();
+
+		poseStack.mulPose(camera.orientation.asMinecraft());
+		// poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
+		poseStack.translate(-offset.x, -offset.y, -offset.z);
+		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
+		if (inverseViewRotationMatrix.invert()) {
+			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
+		}
+
+		RenderSystem.applyModelViewMatrix();
+
 		if (this.mode == Mode.REALISTIC) {
 			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_REALISTIC.get();
 			shader.setupDefaultShaderUniforms();
-			setupStarShader(shader, camera);
-			this.starsMesh.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
+			shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
+			shader.setUniformf("uTime", universe.getCelestialTime(partialTick));
+			shader.setUniformf("uStarSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_SIZE));
+			shader.setUniformf("uStarLuminosityScale", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_SCALE));
+			shader.setUniformf("uStarLuminosityMax", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_MAX));
+			shader.setUniformf("uStarBrightnessScale", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_SCALE));
+			shader.setUniformf("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
+			shader.setUniformf("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
+			shader.setUniformf("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
+			shader.setUniformf("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));	
+			starsMesh.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 		} else if (this.mode == Mode.MAP) {
 			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_UI.get();
 			shader.setupDefaultShaderUniforms();
-			setupStarShader(shader, camera);
-			this.starsMesh.draw(shader, DRAW_STATE_OPAQUE);
+			shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
+			shader.setUniformf("uTime", universe.getCelestialTime(partialTick));
+			shader.setUniformf("uMinDistance", 0.0);
+			shader.setUniformf("uMaxDistance", 100000.0);
+			shader.setUniformf("uFadeoutDistance", 5000000.0);
+			shader.setUniformf("uMinSize", 3.0);
+			shader.setUniformf("uMaxSize", 15.0);
+			starsMesh.draw(shader, DRAW_STATE_OPAQUE);
 		}
 
 		snapshot.restore();
-	}
-
-	public static void setupStarShader(ShaderProgram shader, CachedCamera camera) {
-		final var universe = MinecraftClientAccessor.getUniverse();
-		final var partialTick = Minecraft.getInstance().getFrameTime();
-		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.STAR_ICON_LOCATION));
-		shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
-		shader.setUniformf("uTime", universe.getCelestialTime(partialTick));
-
-		shader.setUniformf("uStarSize", ClientConfig.get(ConfigKey.STAR_SHADER_STAR_SIZE));
-		shader.setUniformf("uStarLuminosityScale", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_SCALE));
-		shader.setUniformf("uStarLuminosityMax", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_MAX));
-		shader.setUniformf("uStarBrightnessScale", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_SCALE));
-		shader.setUniformf("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
-		shader.setUniformf("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
-		shader.setUniformf("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
-		shader.setUniformf("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));
 	}
 
 	@Override

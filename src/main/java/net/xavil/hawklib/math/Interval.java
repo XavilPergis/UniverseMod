@@ -9,6 +9,8 @@ import net.xavil.hawklib.hash.Hasher;
 public final class Interval implements Hashable {
 
 	public static final Interval ZERO = new Interval(0, 0);
+	public static final Interval UNIPOLAR = new Interval(0, 1);
+	public static final Interval BIPOLAR = new Interval(-1, 1);
 
 	public final double min, max;
 
@@ -65,12 +67,23 @@ public final class Interval implements Hashable {
 		return new Interval(scale * this.min, scale * this.max);
 	}
 
+	public Interval add(double shift) {
+		return new Interval(this.min + shift, this.max + shift);
+	}
+
 	public double lerp(double t) {
 		return Mth.lerp(t, this.min, this.max);
 	}
 
 	public double inverseLerp(double v) {
 		return Mth.inverseLerp(v, this.min, this.max);
+	}
+
+	public Interval expand(double n) {
+		double min = this.min - n, max = this.max + n;
+		if (min > max)
+			min = max = (this.min + this.max) / 2;
+		return new Interval(min, max);
 	}
 
 	@Override

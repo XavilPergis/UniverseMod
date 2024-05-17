@@ -1,6 +1,9 @@
 package net.xavil.hawklib.collections.impl;
 
 import java.util.Arrays;
+
+import javax.annotation.Nonnull;
+
 import it.unimi.dsi.fastutil.ints.IntConsumer;
 import it.unimi.dsi.fastutil.ints.IntPredicate;
 import net.xavil.hawklib.Assert;
@@ -131,16 +134,10 @@ public final class VectorInt implements MutableListInt {
 			} catch (Throwable throwable) {
 				src -= 1;
 				System.arraycopy(this.elements, src, this.elements, dst, this.size - src);
-				// final var oldSize = this.size;
 				this.size -= src - dst;
-				// for (int i = this.size; i < oldSize; ++i)
-				// 	this.elements[i] = null;
 				throw throwable;
 			}
 		}
-		// for (int i = dst; i < this.size; ++i) {
-		// 	this.elements[i] = null;
-		// }
 		this.size = dst;
 	}
 
@@ -155,7 +152,11 @@ public final class VectorInt implements MutableListInt {
 		}
 	}
 
-	public void shiftExtend(int index, IntoIteratorInt elements) {
+	private interface InsertFunction {
+		void insert(int index, int element);
+	}
+
+	private void extendPreamble(int index, IntoIteratorInt elements, InsertFunction func) {
 		ListUtil.checkBounds(index, this.size, false);
 
 		final var iter = elements.iter();
@@ -164,31 +165,30 @@ public final class VectorInt implements MutableListInt {
 		// reserve enough space so we know we can do the arraycopy
 		reserve(minElementCount);
 
-		// batch shifts together for lower bound - we won't hit the slow path for simple
-		// copies from one collection to another, but will if we eg filter.
+		// if a lower bound is reported, we can fill at least that many elements
+		// directly, instead of inserting one-at-a-time. This is especially advantageous
+		// for order-preserving insertions, since each insertion must shift all elements
+		// after the insertion point. Since we use Iterator::fillArray, extending a
+		// vector from another boils down to a simple array copy.
 		if (minElementCount > 0) {
 			final var copyCount = Math.min(minElementCount, this.size - index);
 			System.arraycopy(this.elements, index, this.elements, index + minElementCount, copyCount);
-
-			for (int i = index; i < index + minElementCount; ++i) {
-				this.elements[i] = iter.next();
-			}
+			iter.fillArray(this.elements, index, index + minElementCount);
 			this.size += minElementCount;
 		}
 
-		// do it the slow way :(
+		// any stragglers are inserted the naive way, since we cant preallocate space
+		// for them.
 		for (int i = index + minElementCount; iter.hasNext(); ++i)
-			shiftInsert(i, iter.next());
+			func.insert(i, iter.next());
+	}
+
+	public void shiftExtend(int index, IntoIteratorInt elements) {
+		extendPreamble(index, elements, this::shiftInsert);
 	}
 
 	public void swapExtend(int index, IntoIteratorInt elements) {
-		ListUtil.checkBounds(index, this.size, false);
-
-		final var iter = elements.iter();
-		reserve(iter.sizeHint().lowerBound());
-
-		for (int i = index; iter.hasNext(); ++i)
-			swapInsert(i, iter.next());
+		extendPreamble(index, elements, this::swapInsert);
 	}
 
 	@Override
@@ -314,7 +314,7 @@ public final class VectorInt implements MutableListInt {
 
 	public static class Iter implements IteratorInt {
 		private final VectorInt vector;
-		private int cur;
+		private int cur, end;
 
 		public Iter(VectorInt vector) {
 			this(vector, 0);
@@ -323,16 +323,17 @@ public final class VectorInt implements MutableListInt {
 		private Iter(VectorInt vector, int cur) {
 			this.vector = vector;
 			this.cur = cur;
+			this.end = vector.size;
 		}
 
 		@Override
 		public SizeHint sizeHint() {
-			return SizeHint.exactly(this.vector.size);
+			return SizeHint.exactly(this.end - this.cur);
 		}
 
 		@Override
 		public boolean hasNext() {
-			return this.cur < this.vector.size;
+			return this.cur < this.end;
 		}
 
 		@Override
@@ -341,8 +342,19 @@ public final class VectorInt implements MutableListInt {
 		}
 
 		@Override
+		public int fillArray(@Nonnull int[] array, int start, int end) {
+			if (end > array.length || start > end || start < 0 || end < 0)
+				throw new IllegalArgumentException(String.format(
+						"Invalid range bounds of [%d, %d) for array of length %d",
+						start, end, array.length));
+			final var copyLength = Math.min(start - end, this.end - this.cur);
+			System.arraycopy(this.vector.elements, this.cur, array, start, copyLength);
+			return copyLength;
+		}
+
+		@Override
 		public void forEach(IntConsumer consumer) {
-			for (; this.cur < this.vector.size; ++this.cur) {
+			for (; this.cur < this.end; ++this.cur) {
 				consumer.accept(this.vector.elements[this.cur]);
 			}
 		}
@@ -354,8 +366,14 @@ public final class VectorInt implements MutableListInt {
 
 		@Override
 		public IteratorInt skip(int amount) {
-			final var newCur = Math.min(this.cur + amount, this.vector.size);
-			return new Iter(this.vector, newCur);
+			this.cur = Math.min(this.end, this.cur + amount);
+			return this;
+		}
+
+		@Override
+		public IteratorInt limit(int limit) {
+			this.end = Math.min(this.end, this.cur + limit);
+			return this;
 		}
 	}
 

@@ -22,6 +22,14 @@ public final class GlTexture3d extends GlTexture {
 		createStorage(this.textureFormat, width, height, depth);
 	}
 
+	public Slice slice3d(int lodLevel, int offsetX, int offsetY, int offsetZ, int sizeX, int sizeY, int sizeZ) {
+		return new Slice(this, SliceDimension.D3, lodLevel, 0, 1, offsetX, offsetY, offsetZ, sizeX, sizeY, sizeZ);
+	}
+
+	public Slice slice3d(int offsetX, int offsetY, int offsetZ, int sizeX, int sizeY, int sizeZ) {
+		return slice3d(0, offsetX, offsetY, offsetZ, sizeX, sizeY, sizeZ);
+	}
+
 	public void createStorage(GlTexture.Format textureFormat, int width, int height, int depth) {
 		GlLimits.validateTextureSize(width);
 		if (this.textureFormat == textureFormat

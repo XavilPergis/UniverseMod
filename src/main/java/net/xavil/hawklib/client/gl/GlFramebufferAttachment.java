@@ -5,7 +5,7 @@ import javax.annotation.Nullable;
 import org.lwjgl.opengl.GL45C;
 
 import net.xavil.hawklib.Disposable;
-import net.xavil.hawklib.client.gl.texture.GlCubemapTexture;
+import net.xavil.hawklib.client.gl.texture.GlTextureCubemap;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.client.gl.texture.GlTexture.Format;
@@ -78,6 +78,13 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		return null;
 	}
 
+	/**
+	 * This may be a texture or a renderbuffer.
+	 * 
+	 * @return The framebuffer write target
+	 */
+	public abstract GlObject asGlObject();
+
 	public static final class Texture2d extends GlFramebufferAttachment {
 		public final GlTexture2d target;
 
@@ -112,6 +119,11 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		}
 
 		@Override
+		public GlObject asGlObject() {
+			return this.target;
+		}
+
+		@Override
 		public String toString() {
 			return (this.owned ? "owned " : "unowned ") + "texture 2d attachment: " + this.target;
 		}
@@ -124,10 +136,10 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 	}
 
 	public static final class CubemapFace extends GlFramebufferAttachment {
-		public final GlCubemapTexture target;
-		public final GlCubemapTexture.Face face;
+		public final GlTextureCubemap target;
+		public final GlTextureCubemap.Face face;
 
-		public CubemapFace(GlCubemapTexture target, GlCubemapTexture.Face face) {
+		public CubemapFace(GlTextureCubemap target, GlTextureCubemap.Face face) {
 			super(false);
 			this.target = target;
 			this.face = face;
@@ -155,6 +167,11 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 
 		@Override
 		public GlTexture asTexture() {
+			return this.target;
+		}
+
+		@Override
+		public GlObject asGlObject() {
 			return this.target;
 		}
 
@@ -196,6 +213,11 @@ public abstract sealed class GlFramebufferAttachment implements Disposable {
 		@Override
 		public Format format() {
 			return this.target.format();
+		}
+
+		@Override
+		public GlObject asGlObject() {
+			return this.target;
 		}
 
 		@Override

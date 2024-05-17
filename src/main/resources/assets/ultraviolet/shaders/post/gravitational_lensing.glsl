@@ -80,7 +80,7 @@ void main() {
 
 		bool hitEventHorizon = false;
 
-		int stepCount = 350;
+		int stepCount = 100;
 		float stepSize = 2.0 * effectLimit / float(stepCount);
 
 		// the amount of light the accretion disc has contributed for this ray
@@ -130,7 +130,7 @@ void main() {
 			float planeDistance = abs(sdf(rayV.origin, discPlane)) / effectLimit;
 			
 			float vert = mix(uAccretionDiscDensityFalloffVerticalInner, uAccretionDiscDensityFalloffVerticalOuter, t);
-			float densityFactor = exp(-vert * planeDistance);
+			float densityFactor = exp(-vert * planeDistance / mix(0.1, 1.0, t));
 
 			vec3 col = uAccretionDiscColor;
 			col = t * uAccretionDiscBrightness * col;

@@ -82,8 +82,8 @@ public final class ImmutableListArray<T> implements ImmutableList<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return true;
+		public int properties() {
+			return Iterator.PROPERTY_FUSED;
 		}
 
 		@Override

@@ -5,14 +5,11 @@ import javax.annotation.Nullable;
 import org.lwjgl.glfw.GLFW;
 
 import com.mojang.blaze3d.systems.RenderSystem;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
-import net.xavil.hawklib.client.screen.HawkScreen;
-import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.MutableMap;
-import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.HawkDrawStates;
@@ -23,28 +20,9 @@ import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.gl.DrawState;
-import net.xavil.ultraviolet.Mod;
-import net.xavil.ultraviolet.client.GalaxyRenderingContext;
-import net.xavil.ultraviolet.client.PlanetRenderingContext;
-import net.xavil.ultraviolet.client.StarRenderManager;
-import net.xavil.ultraviolet.client.UltravioletShaders;
-import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
-import net.xavil.ultraviolet.common.universe.WorldType;
-import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
-import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
-import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
-import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
-import net.xavil.ultraviolet.common.universe.id.SystemId;
-import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
-import net.xavil.ultraviolet.common.universe.system.BinaryCelestialNode;
-import net.xavil.ultraviolet.common.universe.system.CelestialNode;
-import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
-import net.xavil.ultraviolet.common.universe.system.realistic_generator.ProtoplanetaryDisc;
-import net.xavil.ultraviolet.common.universe.system.realistic_generator.RealisticStarSystemGenerator;
-import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
-import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
-import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
+import net.xavil.hawklib.client.screen.HawkScreen;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.NumericOps;
 import net.xavil.hawklib.math.Quat;
@@ -53,6 +31,27 @@ import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.VecMath;
+import net.xavil.ultraviolet.client.GalaxyRenderingContext;
+import net.xavil.ultraviolet.client.PlanetRenderingContext;
+import net.xavil.ultraviolet.client.StarRenderManager;
+import net.xavil.ultraviolet.client.UltravioletShaders;
+import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
+import net.xavil.ultraviolet.common.universe.WorldType;
+import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
+import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
+import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
+import net.xavil.ultraviolet.common.universe.id.SystemId;
+import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
+import net.xavil.ultraviolet.common.universe.system.BinaryCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.CelestialNode;
+import net.xavil.ultraviolet.common.universe.system.StarSystem;
+import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
+// import net.xavil.ultraviolet.common.universe.system.realistic_generator.ProtoplanetaryDisc;
+// import net.xavil.ultraviolet.common.universe.system.realistic_generator.RealisticStarSystemGenerator;
+import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
+import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
+import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
 
 public class SystemMapScreen extends HawkScreen {
 
@@ -74,8 +73,6 @@ public class SystemMapScreen extends HawkScreen {
 
 	private PlanetRenderingContext renderContext = this.disposer.attach(new PlanetRenderingContext());
 
-	private DebugInfo debugInfo = null;
-
 	public SystemMapScreen(@Nullable Screen previousScreen, Galaxy galaxy, SystemId systemId, StarSystem system) {
 		super(new TranslatableComponent("narrator.screen.systemmap"), previousScreen);
 
@@ -84,7 +81,7 @@ public class SystemMapScreen extends HawkScreen {
 
 		this.layers.push(new ScreenLayerBackground(this, ColorRgba.BLACK));
 
-		this.galaxyRenderer = this.disposer.attach(new GalaxyRenderingContext(galaxy.densityFields));
+		this.galaxyRenderer = this.disposer.attach(new GalaxyRenderingContext(galaxy.parameters));
 		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy, SectorTicketInfo.visual(Vec3.ZERO)));
 	}
 
@@ -142,6 +139,7 @@ public class SystemMapScreen extends HawkScreen {
 	private double nodeRadius(UnaryCelestialNode node) {
 		// return Math.max(0.025, 2 * node.radius / (node.radius + REFERENCE_RADIUS));
 		return Math.max(0.025, Math.pow(node.radius / REFERENCE_RADIUS, 1.0 / 2.0));
+		// return node.radius / REFERENCE_RADIUS;
 	}
 
 	private void layoutChildren(LayoutNode res, CelestialNode node) {
@@ -231,7 +229,7 @@ public class SystemMapScreen extends HawkScreen {
 	private void renderNode(RenderContext ctx, LayoutNode layout, Vec2 pos, boolean isVertical) {
 		double currentLineStart = 0;
 		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-				PrimitiveType.LINES,
+				PrimitiveType.LINE_DUPLICATED,
 				BufferLayout.POSITION_COLOR_NORMAL);
 		for (final var elem : layout.elements.iterable()) {
 			if (elem.node instanceof LayoutNodeBinary) {
@@ -277,7 +275,7 @@ public class SystemMapScreen extends HawkScreen {
 			modelTfm.appendTranslation(pos.xy0());
 
 			final var quadBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					PrimitiveType.QUADS,
+					PrimitiveType.QUAD_DUPLICATED,
 					BufferLayout.POSITION_COLOR_TEX);
 
 			final var s = 1.0 * layout.nodeSize;
@@ -296,7 +294,7 @@ public class SystemMapScreen extends HawkScreen {
 			quadBuilder.vertex(sNP).color(color.withA(0)).uv0(0, 1).endVertex();
 			quadBuilder.vertex(sPP).color(color).uv0(1, 1).endVertex();
 
-			quadBuilder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(), DrawState.builder()
+			quadBuilder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(), new DrawState.Builder()
 					// .enableDepthTest(GlState.DepthFunc.LESS)
 					// .enableDepthWrite(true)
 					.enableCulling(false)
@@ -323,7 +321,7 @@ public class SystemMapScreen extends HawkScreen {
 			renderNode(ctx, bnode.nodeB, elemPosB, isVertical);
 
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					PrimitiveType.LINES,
+					PrimitiveType.LINE_DUPLICATED,
 					BufferLayout.POSITION_COLOR_NORMAL);
 			final var da = layout.rectOffsetUN - bnode.nodeA.rectOffsetUN;
 			final var db = layout.rectOffsetUN - bnode.nodeB.rectOffsetUN;
@@ -354,7 +352,7 @@ public class SystemMapScreen extends HawkScreen {
 
 		if (shouldRenderDebugInfo()) {
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					PrimitiveType.LINES,
+					PrimitiveType.LINE_DUPLICATED,
 					BufferLayout.POSITION_COLOR_NORMAL);
 			final var s = layout.nodeSize;
 			// @formatter:off
@@ -449,10 +447,6 @@ public class SystemMapScreen extends HawkScreen {
 		this.animationTimer += 10.0 * this.client.getDeltaFrameTime();
 
 		CelestialNode rootNode = null;
-		if (this.debugInfo != null) {
-			rootNode = this.debugInfo.currentNode;
-		}
-
 		final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
 		if (system == null)
 			return;
@@ -520,10 +514,6 @@ public class SystemMapScreen extends HawkScreen {
 			return false;
 
 		CelestialNode rootNode = null;
-		if (this.debugInfo != null) {
-			rootNode = this.debugInfo.currentNode;
-		}
-
 		final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
 		if (system == null)
 			return false;
@@ -537,7 +527,8 @@ public class SystemMapScreen extends HawkScreen {
 		final var mouseNormX = (2.0 * mousePos.x / window.getGuiScaledWidth()) - 1;
 		final var mouseNormY = 4.0 * (window.getGuiScaledHeight() - mousePos.y) / window.getHeight() - 1;
 		final var mouseNormalized = new Vec2(mouseNormX, mouseNormY);
-		final var mouseWorld = Mat4.mul(this.uiCamera.inverseViewProjectionMatrix, mouseNormalized.xy1(), 1).xy();
+		final var mouseWorld = VecMath
+				.transformPerspective(this.uiCamera.inverseViewProjectionMatrix, mouseNormalized.xy1(), 1).xy();
 
 		this.selectedNode = -1;
 		for (final var entry : positions.nodeRects.entries().iterable()) {
@@ -587,19 +578,6 @@ public class SystemMapScreen extends HawkScreen {
 
 	@Override
 	public boolean keyPressed(Keypress keypress) {
-		if (keypress.hasModifiers(GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_ALT)) {
-			if (keypress.keyCode == GLFW.GLFW_KEY_P) {
-				if (this.debugInfo != null) {
-					this.debugInfo = null;
-				} else {
-					final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
-					if (system == null)
-						return true;
-					this.debugInfo = new DebugInfo(system);
-				}
-			}
-		}
-
 		if (keypress.keyCode == GLFW.GLFW_KEY_R) {
 			if (this.selectedNode != -1) {
 				final var packet = new ServerboundTeleportToLocationPacket();
@@ -622,84 +600,7 @@ public class SystemMapScreen extends HawkScreen {
 			return true;
 		}
 
-		if (this.debugInfo != null) {
-			// save/unsave current step
-			if (keypress.keyCode == GLFW.GLFW_KEY_SPACE) {
-				if (this.debugInfo.savedSteps.contains(this.debugInfo.currentStep)) {
-					this.debugInfo.savedSteps.remove(this.debugInfo.currentStep);
-				} else {
-					this.debugInfo.savedSteps.insert(this.debugInfo.currentStep);
-				}
-			}
-			// advance simulation
-			if (keypress.keyCode == GLFW.GLFW_KEY_RIGHT) {
-				int newStep = this.debugInfo.currentStep + 1;
-				if (keypress.hasModifiers(GLFW.GLFW_MOD_CONTROL)) {
-					while (newStep < 10000 && !this.debugInfo.savedSteps.contains(newStep))
-						newStep += 1;
-				}
-				this.debugInfo.seekTo(newStep);
-			}
-			// go back
-			if (keypress.keyCode == GLFW.GLFW_KEY_LEFT) {
-				int newStep = this.debugInfo.currentStep - 1;
-				if (keypress.hasModifiers(GLFW.GLFW_MOD_CONTROL)) {
-					while (newStep > 0 && !this.debugInfo.savedSteps.contains(newStep))
-						newStep -= 1;
-				}
-				this.debugInfo.seekTo(newStep);
-			}
-			if (keypress.keyCode == GLFW.GLFW_KEY_0) {
-				this.debugInfo.seekTo(0);
-			}
-		}
-
 		return false;
-	}
-
-	private static final class DebugInfo {
-		public StarSystem system;
-
-		public int currentStep = 0;
-		private ProtoplanetaryDisc disc;
-		public CelestialNode currentNode;
-
-		public MutableSet<Integer> savedSteps = MutableSet.hashSet();
-
-		public DebugInfo(StarSystem system) {
-			this.system = system;
-			setup();
-			seekTo(0);
-		}
-
-		public void setup() {
-			final var elem = new GalaxySector.ElementHolder();
-			this.system.copySystemInfo(elem);
-			this.disc = RealisticStarSystemGenerator.createDisc(this.system.parentGalaxy, elem);
-		}
-
-		public void seekTo(int step) {
-			step = Mth.clamp(step, 0, 10000);
-			if (step < this.currentStep) {
-				this.disc = null;
-				this.currentNode = null;
-				setup();
-				this.currentStep = 0;
-				Mod.LOGGER.info("----------------------------------------");
-			}
-
-			while (this.currentStep < step) {
-				try {
-					this.disc.step();
-				} catch (Throwable t) {
-					t.printStackTrace();
-					this.currentNode = null;
-					return;
-				}
-				this.currentStep += 1;
-			}
-			this.currentNode = this.disc.root.convertToCelestialNode();
-		}
 	}
 
 }

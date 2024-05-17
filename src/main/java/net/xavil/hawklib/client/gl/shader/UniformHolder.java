@@ -23,19 +23,52 @@ public interface UniformHolder {
 		return slot;
 	}
 
-	default void setUniformSampler(String uniformName, GlTexture texture) {
+	default void setUniformSampler(String uniformName, UniformSlot.SamplerUniform uniform) {
+		final var texture = uniform.texture.get();
 		if (texture == null)
 			return;
-		Assert.isTrue(!texture.isDestroyed());
 		Assert.isTrue(texture.isValid());
-		final var uniformType = UniformSlot.Type.from(texture.format().samplerType, texture.type);
+		final var uniformType = UniformSlot.Type.fromSampler(texture.format().samplerType, texture.type);
 		final var slot = getSlot(uniformName, uniformType);
 		if (slot != null) {
 			boolean d = false;
-			d |= slot.setTexture(0, texture);
+			d |= slot.setSampler(0, uniform);
 			slot.markDirty(d);
 			this.markDirty(d);
 		}
+	}
+
+	default void setUniformSampler(String uniformName, GlTexture texture) {
+		setUniformSampler(uniformName, new UniformSlot.SamplerUniform(texture));
+	}
+
+	default void setUniformImage(String uniformName, UniformSlot.ImageUniform uniform) {
+		final var texture = uniform.texture.get();
+		if (texture == null)
+			return;
+		Assert.isTrue(texture.isValid());
+		final var uniformType = UniformSlot.Type.fromImage(texture.format().componentType, texture.type);
+		final var slot = getSlot(uniformName, uniformType);
+		if (slot != null) {
+			boolean d = false;
+			d |= slot.setImage(0, uniform);
+			slot.markDirty(d);
+			this.markDirty(d);
+		}
+	}
+
+	default void setUniformImage(String uniformName, GlTexture texture, int level, int layer,
+			GlTexture.ImageAccess access, GlTexture.Format format) {
+		setUniformImage(uniformName, new UniformSlot.ImageUniform(texture, level, layer, access, format));
+	}
+
+	default void setUniformImage(String uniformName, GlTexture texture,
+			GlTexture.ImageAccess access, GlTexture.Format format) {
+		setUniformImage(uniformName, new UniformSlot.ImageUniform(texture, access, format));
+	}
+
+	default void setUniformImage(String uniformName, GlTexture texture, GlTexture.ImageAccess access) {
+		setUniformImage(uniformName, new UniformSlot.ImageUniform(texture, access));
 	}
 
 	default void setUniformi(String uniformName, int v0) {

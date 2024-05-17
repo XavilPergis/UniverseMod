@@ -23,6 +23,8 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec2i;
+import net.xavil.ultraviolet.client.BloomEffect;
+import net.xavil.ultraviolet.client.PostProcessing;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 
 public abstract class HawkScreen extends Screen {
@@ -242,7 +244,13 @@ public abstract class HawkScreen extends Screen {
 				layer.renderPost(sceneTexture, ctx);
 			}
 
-			HawkRendering.applyPostProcessing(GlFramebuffer.getMainFramebuffer(), ctx.currentTexture.colorTexture);
+			final var hdrPost = disposer.attach(RenderTexture.HDR_COLOR.acquireTemporary());
+			BloomEffect.render(hdrPost.framebuffer, ctx.currentTexture.colorTexture);
+
+			PostProcessing.runTonemappingPass(new RenderTexture(GlFramebuffer.getMainFramebuffer()),
+					hdrPost.colorTexture);
+			// HawkRendering.applyPostProcessing(GlFramebuffer.getMainFramebuffer(),
+			// ctx.currentTexture.colorTexture);
 			// ctx.currentTexture.framebuffer.copyTo(GlFramebuffer.getMainFramebuffer());
 		} finally {
 			disposer.close();

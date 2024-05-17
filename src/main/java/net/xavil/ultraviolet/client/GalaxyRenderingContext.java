@@ -18,84 +18,93 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.config.ClientConfig;
 import net.xavil.ultraviolet.common.config.ConfigKey;
-import net.xavil.ultraviolet.common.universe.DensityFields;
+import net.xavil.ultraviolet.common.universe.GalaxyParameters;
+import net.xavil.ultraviolet.common.universe.galaxy.GalaxyRegionWeights;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class GalaxyRenderingContext implements Disposable {
 
-	private final DensityFields densityFields;
+	private final GalaxyParameters params;
 	private Mesh pointsBuffer = new Mesh();
 	private boolean isInitialized = false;
 
-	public GalaxyRenderingContext(DensityFields densityFields) {
-		this.densityFields = densityFields;
+	public GalaxyRenderingContext(GalaxyParameters params) {
+		this.params = params;
 	}
 
 	private double metersPerUnit = -1;
 	private int attemptCount = -1;
 	private int particleLimit = -1;
 
-	private void buildGalaxyPoints(DensityFields densityFields, double metersPerUnit) {
+	private void buildGalaxyPoints(GalaxyParameters params, double metersPerUnit) {
 		if (!needsRebuild(metersPerUnit))
 			return;
 		this.isInitialized = true;
 
 		final var rng = Rng.wrap(new Random());
 
-		final var volumeMin = Vec3.broadcast(-densityFields.galaxyRadius).mul(1, 0.25, 1);
-		final var volumeMax = Vec3.broadcast(densityFields.galaxyRadius).mul(1, 0.25, 1);
-
-		double highestSeenDensity = Double.NEGATIVE_INFINITY;
-		double lowestSeenDensity = Double.POSITIVE_INFINITY;
-		double averageDensity = 0;
-
-		final int initialDensitySampleCount = 10000;
+		final var volumeMin = Vec3.broadcast(-params.galaxyRadius).mul(1, 0.25, 1);
+		final var volumeMax = Vec3.broadcast(params.galaxyRadius).mul(1, 0.25, 1);
 
 		final var samplePos = new Vec3.Mutable();
-		for (var i = 0; i < initialDensitySampleCount; ++i) {
-			// density is specified in Tm^-3 (ie, number of stars per cubic terameter)
-			Vec3.loadRandom(samplePos, rng, volumeMin, volumeMax);
-			var density = densityFields.stellarDensity.sample(samplePos);
-
-			if (density > highestSeenDensity)
-				highestSeenDensity = density;
-			if (density < lowestSeenDensity)
-				lowestSeenDensity = density;
-			averageDensity += density;
-		}
-
-		averageDensity /= initialDensitySampleCount;
-
+		final var weights = new GalaxyRegionWeights();
 		int successfulPlacements = 0;
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
-				.beginGeneric(PrimitiveType.POINT_QUADS, UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
+				.beginGeneric(PrimitiveType.POINT_DUPLICATED,
+						UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_REALISTIC);
+
+		// final var coreColor = new ColorRgba(1.000f, 0.945f, 0.576f, 0.01f * 1.00f);
+		// final var armsColor = new ColorRgba(0.839f, 0.910f, 0.988f, 0.01f * 0.80f);
+		// final var discColor = new ColorRgba(0.988f, 0.980f, 0.937f, 0.01f * 0.10f);
+		final var coreColor = new ColorRgba(1.000f, 0.945f, 0.576f, 10f * 1.00f);
+		final var armsColor = new ColorRgba(0.839f, 0.910f, 0.988f, 10f * 0.80f);
+		final var discColor = new ColorRgba(0.988f, 0.980f, 0.937f, 10f * 0.10f);
+
 		for (var i = 0; i < this.attemptCount; ++i) {
 			if (successfulPlacements >= this.particleLimit)
 				break;
 
 			// density is specified in Tm^-3 (ie, number of stars per cubic terameter)
 			Vec3.loadRandom(samplePos, rng, volumeMin, volumeMax);
-			final var density = densityFields.stellarDensity.sample(samplePos);
+			params.masks.evaluate(samplePos, weights);
+			weights.core *= Math.min(100, params.stellarDensityWeights.core);
+			weights.arms *= Math.min(100, params.stellarDensityWeights.arms);
+			weights.disc *= Math.min(100, params.stellarDensityWeights.disc);
+			weights.halo *= Math.min(100, params.stellarDensityWeights.halo);
 
-			if (density >= rng.uniformDouble(0, 0.1 * averageDensity)) {
-				double maxT = 2.0 / Math.PI * Math.atan(10.0 * density / averageDensity);
-				double t = rng.uniformDouble(0, maxT);
-				// size = Math.max(size, 2e7);
-				// size = Mth.clamp(size, 5e6, 7e7);
-				// size = Mth.clamp(size, 1e7, 1e7);
-				t = Mth.clamp(t, 0, 1);
-				double size = Mth.lerp(t, 1e7, 1e8);
+			final var density = weights.totalWeight();
+
+			ColorRgba colorRes = ColorRgba.TRANSPARENT;
+			// colorRes = colorRes.add(coreColor.mul((float) (weights.core / (weights.core + weights.arms + weights.disc))));
+			// colorRes = colorRes.add(armsColor.mul((float) (weights.arms / (weights.disc + weights.core + weights.arms))));
+			// colorRes = colorRes.add(discColor.mul((float) (weights.disc / (weights.arms + weights.disc + weights.core))));
+			colorRes = colorRes.add(coreColor.mul((float) weights.core));
+			colorRes = colorRes.add(armsColor.mul((float) weights.arms));
+			colorRes = colorRes.add(discColor.mul((float) weights.disc));
+
+			// double maxT = 2.0 / Math.PI * Math.atan(10.0 * density);
+			float r, g, b, a;
+			r = (float) (2.0 / Math.PI * Math.atan(colorRes.r));
+			g = (float) (2.0 / Math.PI * Math.atan(colorRes.g));
+			b = (float) (2.0 / Math.PI * Math.atan(colorRes.b));
+			a = (float) (2.0 / Math.PI * Math.atan(colorRes.a));
+			colorRes = new ColorRgba(r, g, b, a);
+
+			if (density >= 0.01) {
+				// double t = rng.uniformDouble(0, maxT);
+				// t = Mth.clamp(t, 0, 1);
+				// double size = 8e7;
+				double size = 4.5e7;
 				size = size * (1e12 / metersPerUnit);
-				builder.vertex(samplePos).color(ColorRgba.WHITE.withA(0.1f)).uv0((float) size, 0).endVertex();
+				builder.vertex(samplePos).color(colorRes).uv0((float) size, 0).endVertex();
 				successfulPlacements += 1;
 			}
 		}
 
 		this.pointsBuffer.upload(builder.end());
 
-		Mod.LOGGER.info("built galaxy dust buffer: {} placements, density in [{},{}]", successfulPlacements,
-				lowestSeenDensity, highestSeenDensity);
+		Mod.LOGGER.debug("Built galaxy particle buffer, {} particles", successfulPlacements);
 	}
 
 	private boolean needsRebuild(double metersPerUnit) {
@@ -116,10 +125,7 @@ public class GalaxyRenderingContext implements Disposable {
 	}
 
 	public void draw(CachedCamera camera, Vec3 originOffset) {
-		try {
-			buildGalaxyPoints(this.densityFields, camera.metersPerUnit);
-		} catch (Throwable t) {
-		}
+		buildGalaxyPoints(this.params, camera.metersPerUnit);
 
 		final var snapshot = RenderMatricesSnapshot.capture();
 		camera.applyProjection();

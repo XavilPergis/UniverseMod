@@ -16,6 +16,10 @@ public interface Hasher {
 		return ((int) (h >>> 32)) ^ ((int) h);
 	}
 
+	default Hasher appendEnum(Enum<?> value) {
+		return appendString(value.name());
+	}
+
 	default Hasher appendString(String value) {
 		return appendInt(value.hashCode());
 	}

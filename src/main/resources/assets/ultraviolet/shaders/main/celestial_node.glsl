@@ -64,10 +64,10 @@ vec3 applyLighting(in Material material, in FragmentInfo frag) {
 	res += lightContribution(ctx, makePointLight((uViewMatrix * vec4(uLightPos3.xyz, 1.0)).xyz, uLightColor3.rgb * uLightColor3.a));
 	res += material.emissiveFlux;
 
-	if (length(res) > 30.0) {
-		res /= length(res);
-		res *= 30.0;
-	}
+	// if (length(res) > 30.0) {
+	// 	res /= length(res);
+	// 	res *= 30.0;
+	// }
 
 	return res;
 }

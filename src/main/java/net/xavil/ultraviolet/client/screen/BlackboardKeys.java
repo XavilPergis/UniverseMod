@@ -14,6 +14,8 @@ public final class BlackboardKeys {
 			.create("selected_star_system_node");
 	public static final Blackboard.Key<String, Integer> FOLLOWING_STAR_SYSTEM_NODE = Blackboard.Key
 			.create("following_star_system_node");
+	public static final Blackboard.Key<String, Boolean> SHOW_GUIDES = Blackboard.Key
+			.create("show_guides");
 
 	public static final Blackboard.Key<String, ColorRgba> BINARY_PATH_COLOR = Blackboard.Key
 			.create("binary_path_color", new ColorRgba(0.1f, 0.4f, 0.5f, 0.5f));

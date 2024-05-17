@@ -1,5 +1,7 @@
 package net.xavil.ultraviolet.common.universe.galaxy;
 
+import java.util.function.Consumer;
+
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
@@ -27,6 +29,20 @@ public record SectorPos(int level, Vec3i levelCoords) implements Hashable {
 
 	public Vec3i rootCoords() {
 		return this.levelCoords.floorDiv(1 << (GalaxySector.ROOT_LEVEL - this.level));
+	}
+
+	public void enumerateDirectChildren(Consumer<SectorPos> consumer) {
+		if (this.level <= 0)
+			return;
+		final int cx = 2 * this.levelCoords.x, cy = 2 * this.levelCoords.y, cz = 2 * this.levelCoords.z;
+		consumer.accept(new SectorPos(level - 1, new Vec3i(cx * 2 + 0, cy * 2 + 0, cz * 2 + 0)));
+		consumer.accept(new SectorPos(level - 1, new Vec3i(cx * 2 + 0, cy * 2 + 0, cz * 2 + 1)));
+		consumer.accept(new SectorPos(level - 1, new Vec3i(cx * 2 + 0, cy * 2 + 1, cz * 2 + 0)));
+		consumer.accept(new SectorPos(level - 1, new Vec3i(cx * 2 + 0, cy * 2 + 1, cz * 2 + 1)));
+		consumer.accept(new SectorPos(level - 1, new Vec3i(cx * 2 + 1, cy * 2 + 0, cz * 2 + 0)));
+		consumer.accept(new SectorPos(level - 1, new Vec3i(cx * 2 + 1, cy * 2 + 0, cz * 2 + 1)));
+		consumer.accept(new SectorPos(level - 1, new Vec3i(cx * 2 + 1, cy * 2 + 1, cz * 2 + 0)));
+		consumer.accept(new SectorPos(level - 1, new Vec3i(cx * 2 + 1, cy * 2 + 1, cz * 2 + 1)));
 	}
 
 	@Override

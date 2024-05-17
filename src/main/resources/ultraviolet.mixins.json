@@ -30,6 +30,7 @@
 		"render.WindowMixin",
 		"render.RenderTargetMixin",
 		"render.FontMixin",
+		"render.GlDebugMixin",
 		"gravity.ParticleMixin"
 	],
 	"injectors": {

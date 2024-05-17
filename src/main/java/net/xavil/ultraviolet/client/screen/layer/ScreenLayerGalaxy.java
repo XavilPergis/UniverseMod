@@ -22,7 +22,7 @@ public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
 
 	public ScreenLayerGalaxy(HawkScreen3d screen, Galaxy galaxy, Vec3 originOffset) {
 		super(screen, new CameraConfig(1e3, false, 1e15, false));
-		this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy.densityFields);
+		this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy.parameters);
 		this.originOffset = originOffset;
 	}
 
@@ -31,8 +31,9 @@ public class ScreenLayerGalaxy extends HawkScreen3d.Layer3d {
 		if (keypress.keyCode == GLFW.GLFW_KEY_P && keypress.hasModifiers(GLFW.GLFW_MOD_CONTROL)) {
 			this.galaxyRenderingContext.close();
 			final var rng = new SplittableRng(new Random().nextLong());
-			final var df = GalaxyType.SPIRAL.createDensityFields(13000, rng);
-			this.galaxyRenderingContext = new GalaxyRenderingContext(df);
+			final var params = new Galaxy.Info(GalaxyType.SPIRAL, rng.uniformLong("seed"), 13000.0, 5.0, 0.0)
+					.createGalaxyParameters(rng);
+			this.galaxyRenderingContext = new GalaxyRenderingContext(params);
 			return true;
 		}
 		return false;

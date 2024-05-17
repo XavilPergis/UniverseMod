@@ -33,14 +33,9 @@ public final class UnmanagedStateSink implements GlStateSink {
 	@Override
 	public void bindTexture(GlTexture.Type target, int id) {
 		// NOTE: GlStateManager only tracks 2d textures
-		if (target == GlTexture.Type.D2) {
-			if (id != GlStateManager.TEXTURES[GlStateManager.activeTexture].binding) {
-				GlStateManager.TEXTURES[GlStateManager.activeTexture].binding = id;
-				GL45C.glBindTexture(target.id, id);
-			}
-		} else {
-			GL45C.glBindTexture(target.id, id);
-		}
+		if (target == GlTexture.Type.D2)
+			GlStateManager.TEXTURES[GlStateManager.activeTexture].binding = id;
+		GL45C.glBindTexture(target.id, id);
 	}
 
 	@Override

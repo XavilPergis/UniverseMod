@@ -152,12 +152,12 @@ public final class RenderTexture implements Disposable {
 		final var id = pool.nextRenderTextureId++;
 		this.descriptor = descriptor;
 		this.framebuffer = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY, size);
-		this.framebuffer.setDebugName("Temporary " + id);
+		this.framebuffer.setDebugName("Temporary RenderTexture " + id);
 		this.framebuffer.createColorTarget(GlFragmentWrites.COLOR, descriptor.colorFormat);
 
 		// color target
 		this.colorTexture = this.framebuffer.getColorTarget(GlFragmentWrites.COLOR).asTexture2d();
-		this.colorTexture.setDebugName(String.format("Temporary %d '%s'", id, GlFragmentWrites.COLOR));
+		this.colorTexture.setDebugName(String.format("Temporary RenderTexture %d '%s'", id, GlFragmentWrites.COLOR));
 		this.colorTexture.setMinFilter(GlTexture.MinFilter.LINEAR);
 		this.colorTexture.setMagFilter(GlTexture.MagFilter.LINEAR);
 		this.colorTexture.setWrapMode(WrapMode.CLAMP_TO_BORDER);
@@ -166,6 +166,8 @@ public final class RenderTexture implements Disposable {
 		if (descriptor.depthFormat != null) {
 			this.framebuffer.createDepthTarget(descriptor.isDepthReadable, descriptor.depthFormat);
 			this.depthTexture = this.framebuffer.getDepthAttachment().asTexture2d();
+			this.framebuffer.getDepthAttachment().asGlObject()
+					.setDebugName("Temporary RenderTexture " + id + " Depth");
 			if (this.depthTexture != null) {
 				this.depthTexture.setMinFilter(GlTexture.MinFilter.NEAREST);
 				this.depthTexture.setMagFilter(GlTexture.MagFilter.NEAREST);
@@ -181,6 +183,10 @@ public final class RenderTexture implements Disposable {
 
 	public static void tick() {
 		POOL.tick();
+	}
+
+	public static void releaseAllTextures() {
+		POOL.close();
 	}
 
 	private static boolean isCompatible(RenderTexture texture, Vec2i size, StaticDescriptor descriptor) {
@@ -224,7 +230,6 @@ public final class RenderTexture implements Disposable {
 			this.id = nextPoolId++;
 		}
 
-		// FIXME: the main pool is never actually closed
 		@Override
 		public void close() {
 			this.freeTextures.clear();
@@ -249,7 +254,7 @@ public final class RenderTexture implements Disposable {
 				}
 			}
 			toRemove.forEach(tex -> {
-				HawkLib.LOGGER.trace("Released old RenderTexture {} in pool {} with size {} after {} frames",
+				HawkLib.LOGGER.info("Released old RenderTexture {} in pool {} with size {} after {} frames",
 						tex.framebuffer.toString(), this.id, tex.framebuffer.size(), tex.framesSinceLastUsed - 1);
 				tex.framebuffer.close();
 				this.freeTextures.remove(tex);
@@ -265,7 +270,7 @@ public final class RenderTexture implements Disposable {
 			RenderTexture tex = this.freeTextures.iter()
 					.findOrNull(texture -> isCompatible(texture, size, descriptor));
 			if (tex == null) {
-				HawkLib.LOGGER.trace("Created new RenderTexture in pool {} with size {}", size, this.id);
+				HawkLib.LOGGER.info("Created new RenderTexture in pool {} with size {}", size, this.id);
 				tex = new RenderTexture(this, size, descriptor);
 				this.allTextures.insert(tex);
 			}

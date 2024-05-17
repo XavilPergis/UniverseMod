@@ -35,6 +35,9 @@ public class UltravioletShaders extends HawkShaders {
 	public static final ResourceLocation SHADER_UI_POINTS_LOCATION = Mod.namespaced("main/ui/points_generic.glsl");
 	public static final ResourceLocation SHADER_UI_QUADS_LOCATION = Mod.namespaced("main/ui/quads_generic.glsl");
 
+	public static final ResourceLocation SHADER_COMPUTE_LUMINANCE_HISTOGRAM_LOCATION = Mod.namespaced("compute/luminance_histogram.glsl");
+	public static final ResourceLocation SHADER_COMPUTE_LUMINANCE_PREPROCESS_LOCATION = Mod.namespaced("compute/luminance_preprocess.glsl");
+
 	public static final Supplier<ShaderProgram> SHADER_CELESTIAL_NODE = () -> getShader(SHADER_CELESTIAL_NODE_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_RING = () -> getShader(SHADER_RING_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_STAR_BILLBOARD_REALISTIC = () -> getShader(SHADER_STAR_BILLBOARD_REALISTIC_LOCATION);
@@ -50,6 +53,8 @@ public class UltravioletShaders extends HawkShaders {
 	public static final Supplier<ShaderProgram> SHADER_UI_POINTS = () -> getShader(SHADER_UI_POINTS_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_UI_QUADS = () -> getShader(SHADER_UI_QUADS_LOCATION);
 	public static final Supplier<ShaderProgram> SHADER_UN_VANILLA = () -> getShader(SHADER_UN_VANILLA_LOCATION);
+	public static final Supplier<ShaderProgram> SHADER_COMPUTE_LUMINANCE_HISTOGRAM = () -> getShader(SHADER_COMPUTE_LUMINANCE_HISTOGRAM_LOCATION);
+	public static final Supplier<ShaderProgram> SHADER_COMPUTE_LUMINANCE_PREPROCESS = () -> getShader(SHADER_COMPUTE_LUMINANCE_PREPROCESS_LOCATION);
 	// @formatter:on
 
 	public static void registerShaders(HawkRendering.ShaderSink acceptor) {
@@ -72,6 +77,9 @@ public class UltravioletShaders extends HawkShaders {
 
 		acceptor.accept(SHADER_UI_POINTS_LOCATION, AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
 		acceptor.accept(SHADER_UI_QUADS_LOCATION,  AttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+
+		acceptor.accept(SHADER_COMPUTE_LUMINANCE_HISTOGRAM_LOCATION, AttributeSet.EMPTY, GlFragmentWrites.EMPTY);
+		acceptor.accept(SHADER_COMPUTE_LUMINANCE_PREPROCESS_LOCATION, AttributeSet.EMPTY, GlFragmentWrites.EMPTY);
 		// @formatter:on
 	}
 }

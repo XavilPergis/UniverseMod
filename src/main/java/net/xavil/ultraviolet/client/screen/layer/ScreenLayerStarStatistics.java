@@ -10,6 +10,7 @@ import net.minecraft.client.gui.font.glyphs.BakedGlyph;
 import net.minecraft.client.gui.font.glyphs.EmptyGlyph;
 import net.minecraft.client.renderer.RenderStateShard;
 import net.minecraft.client.renderer.RenderType;
+import net.minecraft.network.chat.FormattedText;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.FormattedCharSink;
@@ -37,6 +38,7 @@ import net.xavil.hawklib.math.Rect;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -53,13 +55,16 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 	private ScatterPlot xyPlot = null;
 	private Histogram xHistogram = null, yHistogram = null;
 
-	// private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.LUMINSOITY;
-	private Variable xVariable = Variable.DISTANCE, yVariable = Variable.TEMPERATURE;
+	private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.LUMINSOITY;
+	// private Variable xVariable = Variable.DISTANCE, yVariable =
+	// Variable.TEMPERATURE;
 	// private Variable xVariable = Variable.AGE, yVariable = Variable.LUMINSOITY;
 	// private Variable xVariable = Variable.MASS, yVariable = Variable.LUMINSOITY;
 	// private Variable xVariable = Variable.MASS, yVariable = Variable.TEMPERATURE;
 
-	private AxisMapping xMapping = new AxisMapping.Log(10, 1, 1e5);
+	// private AxisMapping xMapping = new AxisMapping.Log(10, 1, 1e5);
+	// private AxisMapping xMapping = new AxisMapping.Linear(0, 13000);
+	private AxisMapping xMapping = new AxisMapping.Log(10, this.xVariable.interval);
 	private AxisMapping yMapping = new AxisMapping.Log(10, this.yVariable.interval);
 
 	public MotionSmoother<Double> scale = new MotionSmoother<>(0.6, NumericOps.DOUBLE, 1.0);
@@ -84,7 +89,7 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 
 	private static enum Variable {
 		LUMINSOITY("Luminosity", "Lsol", 1e-4, 1e5),
-		TEMPERATURE("Temperature", "K", 1900, 60000),
+		TEMPERATURE("Temperature", "K", 1000, 60000),
 		MASS("Mass", "Msol", 0.08, 300),
 		AGE("Age", "Myr", 1e-6, 1e10),
 		DISTANCE("Distance", "pc", 1, 1e5);
@@ -192,7 +197,7 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 	private void renderHistogram(RenderContext ctx, AxisMapping mapping, Histogram plot, Rect bounds,
 			boolean transpose) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-				PrimitiveType.QUADS,
+				PrimitiveType.QUAD_DUPLICATED,
 				BufferLayout.POSITION_COLOR_TEX);
 
 		int max = 0;
@@ -234,7 +239,7 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 
 	private void renderScatterPlot(RenderContext ctx, ScatterPlot plot, Rect bounds) {
 		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-				PrimitiveType.LINES,
+				PrimitiveType.LINE_DUPLICATED,
 				BufferLayout.POSITION_COLOR_NORMAL);
 
 		// guides
@@ -272,7 +277,7 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 
 		// data
 		final var pointBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-				PrimitiveType.POINT_QUADS, BufferLayout.POSITION_COLOR_TEX);
+				PrimitiveType.POINT_DUPLICATED, BufferLayout.POSITION_COLOR_TEX);
 		for (int i = 0; i < this.xyPlot.size(); ++i) {
 			double x = this.xyPlot.getX(i), y = this.xyPlot.getY(i);
 			x = Mth.lerp(this.xMapping.remap(x), bounds.min().x, bounds.max().x);
@@ -284,28 +289,41 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 
 		// StringRenderOutput stringRenderOutput = new StringRenderOutput(bufferSource,
 		// x, y, color, dropShadow, pose, seeThrough, packedLightCoords);
-		// final var sink = new TestCharSink();
-		// StringDecomposer.iterateFormatted("among\nus", Style.EMPTY, sink);
-		// sink.draw(BufferRenderer.IMMEDIATE_BUILDER,
-		// HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
 		// return stringRenderOutput.finish(backgroundColor, x);
-
 		// client.font.draw(poseStack, text, 10, this.height, 0xffffffff);
+
+		// final var sink = new TestCharSink();
+		// sink.emit(Mat4.IDENTITY, FormattedText.of("among\nus"), TestCharSink.TextAlignment.NATIVE);
+		// sink.draw(BufferRenderer.IMMEDIATE_BUILDER, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
 	}
 
 	private static final class TestCharSink implements FormattedCharSink {
 
 		private final Font font = Minecraft.getInstance().font;
 		private double x = 0, y = 0;
+		private Matrix4f cachedMatrix;
 		private MutableMap<ResourceLocation, Vector<PositionedGlyph>> builtGlyphs = MutableMap.hashMap();
 
+		public enum TextAlignment {
+			NATIVE, CENTER, ANTI_NATIVE, LEFT, RIGHT
+		}
+
+		public enum TextOrigin {
+			NEG_NEG, CEN_NEG, POS_NEG,
+			NEG_CEN, CEN_CEN, POS_CEN,
+			NEG_POS, CEN_POS, POS_POS,
+		}
+
+		public TestCharSink() {
+		}
+
 		record PositionedGlyph(BakedGlyph glyph, float x, float y, Style style, float r, float g, float b, float a) {
-			public void draw(VertexConsumer builder) {
+			public void draw(Matrix4f matrix, VertexConsumer builder) {
 				// final var mat = new Matrix4f();
 				// mat.setIdentity();
-				final var scale = 0.0075f;
-				final var mat = Matrix4f.createScaleMatrix(scale, -scale, scale);
-				this.glyph.render(style.isItalic(), x, -y, mat, builder, r, g, b, a, 0xF000F0);
+				// final var scale = 0.0075f;
+				// final var mat = Matrix4f.createScaleMatrix(scale, -scale, scale);
+				this.glyph.render(style.isItalic(), x, -y, matrix, builder, r, g, b, a, 0xF000F0);
 			}
 		}
 
@@ -332,14 +350,14 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 		public boolean accept(int var1, Style style, int character) {
 			final var fontSet = FontAccessor.getFontSet(this.font, style.getFont());
 			final var glyphInfo = fontSet.getGlyphInfo(character);
-			final var bakedGlyph = style.isObfuscated() && Character.isSpaceChar(character)
+			final var bakedGlyph = style.isObfuscated() && !Character.isSpaceChar(character)
 					? fontSet.getRandomGlyph(glyphInfo)
 					: fontSet.getGlyph(character);
 
 			float r = 1f, g = 1f, b = 1f, a = 1f;
 			final var textColor = style.getColor();
 			if (textColor != null) {
-				int k = textColor.getValue();
+				final var k = textColor.getValue();
 				r = (float) (k >> 16 & 0xFF) / 255f;
 				g = (float) (k >> 8 & 0xFF) / 255f;
 				b = (float) (k & 0xFF) / 255f;
@@ -347,7 +365,6 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 
 			final var renderType = bakedGlyph.renderType(Font.DisplayMode.NORMAL);
 			final var texture = extractTextureFromRenderType(renderType);
-
 			if (!(bakedGlyph instanceof EmptyGlyph)) {
 				final var glyphs = this.builtGlyphs.entry(texture).orInsertWith(Vector::new);
 				glyphs.push(new PositionedGlyph(bakedGlyph, (float) this.x, (float) this.y, style, r, g, b, a));
@@ -355,6 +372,34 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 
 			this.x += glyphInfo.getAdvance(style.isBold());
 			return true;
+		}
+
+		public void emit(Mat4Access tfm, FormattedText text, TextAlignment align) {
+			tfm.storeMinecraft(this.cachedMatrix);
+			final var lines = this.font.split(text, Integer.MAX_VALUE);
+			final var height = this.font.lineHeight * lines.size();
+			this.y = 0;
+			for (final var cs : lines) {
+				final var width = this.font.width(cs);
+				this.x = 0;
+				// FIXME: right-to-left text?
+				switch (align) {
+					case NATIVE -> {
+					}
+					case ANTI_NATIVE -> {
+					}
+					case LEFT -> {
+					}
+					case CENTER -> {
+					}
+					case RIGHT -> {
+					}
+				}
+				// this.x =
+				cs.accept(this);
+				this.y += this.font.lineHeight;
+			}
+			// StringDecomposer.iterateFormatted(cs, style, this);
 		}
 
 		public void draw(VertexBuilder builder, DrawState drawState) {
@@ -369,11 +414,11 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 				shader.setUniformf("ColorModulator", ColorRgba.WHITE);
 				shader.setUniformSampler("Sampler0", fontTexture);
 
-				final var glyphBuilder = builder.beginGeneric(PrimitiveType.QUADS,
+				final var glyphBuilder = builder.beginGeneric(PrimitiveType.QUAD_DUPLICATED,
 						BufferLayout.POSITION_COLOR_TEX_LIGHTMAP);
 				final var consumer = glyphBuilder.asVanilla();
 				for (final var glyph : entry.getOrThrow().iterable()) {
-					glyph.draw(consumer);
+					glyph.draw(this.cachedMatrix, consumer);
 				}
 				glyphBuilder.end().draw(shader, drawState);
 			}

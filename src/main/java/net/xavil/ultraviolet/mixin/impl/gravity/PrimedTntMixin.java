@@ -13,7 +13,7 @@ public abstract class PrimedTntMixin {
 
 	@Redirect(method = "tick()V", at = @At(value = "INVOKE", target = "Lnet/minecraft/world/entity/item/PrimedTnt;setDeltaMovement(Lnet/minecraft/world/phys/Vec3;)V", ordinal = 0))
 	private void modifyDeltaMovement(PrimedTnt entity, net.minecraft.world.phys.Vec3 motion) {
-		EntityAccessor.applyGravity(entity, Vec3.from(motion));
+		EntityAccessor.applyGravity(entity, new Vec3(motion));
 	}
 
 }

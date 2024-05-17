@@ -10,21 +10,11 @@ public final class GlRenderbuffer extends GlObject {
 	private Vec2i size = Vec2i.ZERO;
 
 	public GlRenderbuffer(int id, boolean owned) {
-		super(id, owned);
+		super(ObjectType.RENDERBUFFER, id, owned);
 	}
 
 	public GlRenderbuffer() {
-		super(GL45C.glCreateRenderbuffers(), true);
-	}
-
-	@Override
-	protected void destroy() {
-		GL45C.glDeleteRenderbuffers(this.id);
-	}
-
-	@Override
-	public ObjectType objectType() {
-		return ObjectType.RENDERBUFFER;
+		super(ObjectType.RENDERBUFFER, GL45C.glCreateRenderbuffers(), true);
 	}
 
 	public Vec2i size() {

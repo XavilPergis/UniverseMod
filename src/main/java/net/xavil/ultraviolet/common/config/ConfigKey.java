@@ -117,7 +117,7 @@ public final class ConfigKey<T> {
 
 	// @formatter:off
 	public static final ConfigKey<Boolean> SHOW_SECTOR_BOUNDARIES             = booleanKey("debug.showSectorBoundaries",          false, Side.CLIENT);
-	public static final ConfigKey<Boolean> SECTOR_TICKET_AROUND_FOCUS         = booleanKey("debug.sectorTicketAroundFocus",       false, Side.CLIENT);
+	// public static final ConfigKey<Boolean> SECTOR_TICKET_AROUND_FOCUS         = booleanKey("debug.sectorTicketAroundFocus",       false, Side.CLIENT);
 	public static final ConfigKey<Boolean> SHOW_LINE_LODS                     = booleanKey("debug.showLineLods",                  false, Side.CLIENT);
 	public static final ConfigKey<Boolean> SHOW_ALL_LINE_LODS                 = booleanKey("debug.showAllLineLods",               false, Side.CLIENT);
 	public static final ConfigKey<Integer> GRID_LINE_SUBDIVISIONS             = intKey    ("debug.gridLineSubdivisions",          2,     Side.CLIENT);

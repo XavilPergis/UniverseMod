@@ -12,13 +12,17 @@ import com.mojang.blaze3d.platform.ScreenManager;
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.platform.WindowEventHandler;
 
+import net.xavil.hawklib.client.gl.GlManager;
+
 @Mixin(Window.class)
 public abstract class WindowMixin {
 
 	@Inject(method = "<init>", at = @At(value = "INVOKE", target = "Lorg/lwjgl/glfw/GLFW;glfwDefaultWindowHints()V", shift = At.Shift.AFTER, remap = false))
 	private void addWindowHints(WindowEventHandler windowEventHandler, ScreenManager screenManager,
 			DisplayData displayData, String string, String string2, CallbackInfo info) {
-		GLFW.glfwWindowHint(GLFW.GLFW_SAMPLES, 4);
+		// GLFW.glfwWindowHint(GLFW.GLFW_SAMPLES, 4);
+		if (GlManager.ENABLE_DEBUG)
+			GLFW.glfwWindowHint(GLFW.GLFW_OPENGL_DEBUG_CONTEXT, GLFW.GLFW_TRUE);
 	}
 
 	// opengl 4.5 is from 2014. i want to use it. support should be good except for

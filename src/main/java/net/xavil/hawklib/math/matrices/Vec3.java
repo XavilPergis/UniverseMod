@@ -1,9 +1,6 @@
 package net.xavil.hawklib.math.matrices;
 
-import com.mojang.blaze3d.vertex.PoseStack;
-import com.mojang.math.Matrix4f;
 import com.mojang.math.Vector3f;
-import com.mojang.math.Vector4f;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
@@ -14,7 +11,6 @@ import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
-import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public final class Vec3 implements Hashable, Vec3Access {
@@ -36,14 +32,26 @@ public final class Vec3 implements Hashable, Vec3Access {
 
 	public final double x, y, z;
 
-	public Vec3(Vec3Access other) {
-		this(other.x(), other.y(), other.z());
-	}
-
 	public Vec3(double x, double y, double z) {
 		this.x = x;
 		this.y = y;
 		this.z = z;
+	}
+
+	public Vec3(Vec3Access other) {
+		this(other.x(), other.y(), other.z());
+	}
+
+	public Vec3(net.minecraft.world.phys.Vec3 v) {
+		this(v.x, v.y, v.z);
+	}
+
+	public Vec3(Vector3f vec) {
+		this(vec.x(), vec.y(), vec.z());
+	}
+
+	public Vec3(Position vec) {
+		this(vec.x(), vec.y(), vec.z());
 	}
 
 	public static net.minecraft.world.phys.Vec3 toMinecraft(Vec3Access v) {
@@ -59,8 +67,6 @@ public final class Vec3 implements Hashable, Vec3Access {
 	public Vec3 withZ(double z) {return new Vec3(x, y, z);}
 	public Vec4 withW(double w) {return new Vec4(x, y, z, w);}
 	public static Vec3 broadcast(double n) {return new Vec3(n, n, n);}
-	public static Vec3 from(Vector3f vec)  {return new Vec3(vec.x(), vec.y(), vec.z());}
-	public static Vec3 from(Position vec)  {return new Vec3(vec.x(), vec.y(), vec.z());}
 	// @formatter:on
 
 	// @formatter:off
@@ -85,6 +91,7 @@ public final class Vec3 implements Hashable, Vec3Access {
 		out.z = Mth.floor(z);
 		return out;
 	}
+
 	public Vec3i.Mutable ceil(Vec3i.Mutable out, Vec3Access in) {
 		out.x = Mth.ceil(x);
 		out.y = Mth.ceil(y);
@@ -114,33 +121,6 @@ public final class Vec3 implements Hashable, Vec3Access {
 
 	public Vec3 normalize() {
 		return mul(1 / length());
-	}
-
-	public Vec3 projectOnto(Vec3 other) {
-		final var b = other.normalize();
-		return b.mul(this.dot(b));
-	}
-
-	public Vec3 transformBy(PoseStack.Pose pose) {
-		return transformBy(pose.pose());
-	}
-
-	public Vec3 transformBy(Matrix4f matrix) {
-		return transformBy(matrix, 1);
-	}
-
-	public Vec3 transformBy(Matrix4f matrix, double w) {
-		final var vec = new Vector4f((float) this.x, (float) this.y, (float) this.z, (float) w);
-		vec.transform(matrix);
-		return new Vec3(vec.x() / vec.w(), vec.y() / vec.w(), vec.z() / vec.w());
-	}
-
-	public Vec3 transformBy(Mat4Access matrix) {
-		return transformBy(matrix, 1);
-	}
-
-	public Vec3 transformBy(Mat4Access matrix, double w) {
-		return Mat4.mul(matrix, this, w);
 	}
 
 	public Vec3 rotateX(double angle) {
@@ -176,6 +156,13 @@ public final class Vec3 implements Hashable, Vec3Access {
 				Mth.lerp(delta, a.x(), b.x()),
 				Mth.lerp(delta, a.y(), b.y()),
 				Mth.lerp(delta, a.z(), b.z()));
+	}
+
+	public static Vec3.Mutable lerp(Vec3.Mutable out, double delta, Vec3Access a, Vec3Access b) {
+		out.x = Mth.lerp(delta, a.x(), b.x());
+		out.y = Mth.lerp(delta, a.y(), b.y());
+		out.z = Mth.lerp(delta, a.z(), b.z());
+		return out;
 	}
 
 	public static Vec3 inverseLerp(double delta, Vec3Access a, Vec3Access b) {

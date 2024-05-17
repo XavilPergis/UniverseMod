@@ -58,6 +58,7 @@ public final class WeightedList<T> implements MutableList<WeightedList.Entry<T>>
 		// this just happens to return the sentinel -1 when the list is empty.
 		return this.entries.size() - 1;
 	}
+
 	public T pick(double t) {
 		double inertia = t * this.totalWeight;
 		for (int i = 0; i < this.entries.size(); ++i) {
@@ -119,4 +120,3 @@ public final class WeightedList<T> implements MutableList<WeightedList.Entry<T>>
 		return res;
 	}
 }
-

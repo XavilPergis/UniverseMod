@@ -18,8 +18,9 @@ public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 
 	// i dont really like this
 	public enum Type {
-		BROWN_DWARF(false, Double.NaN),
-		GAS_GIANT(false, Double.NaN),
+		// idk what to use for rigidities here....... idk what rigidity is even measuring. (N m^-2)
+		BROWN_DWARF(false, 1e8),
+		GAS_GIANT(false, 1e8),
 		ICE_WORLD(true, 4e9),
 		ROCKY_WORLD(true, 3e10),
 		ROCKY_ICE_WORLD(true, 1e10),

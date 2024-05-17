@@ -124,13 +124,16 @@ public abstract class HawkScreen3d extends HawkScreen {
 
 	@Override
 	public boolean mouseScrolled(Vec2 mousePos, double scrollDelta) {
+		final var prevTarget = this.camera.scale.target;
+		final var currentZoomPercentage = Mth.inverseLerp(prevTarget, this.scrollMin, this.scrollMax);
+		final var scrollSpeed = Mth.lerp(currentZoomPercentage, 1.05, 1.2);
 		if (scrollDelta > 0) {
-			var prevTarget = this.camera.scale.target;
-			this.camera.scale.target = Math.max(prevTarget / scrollMultiplier, this.scrollMin);
+			// zoom out
+			this.camera.scale.target = Math.max(prevTarget / scrollSpeed, this.scrollMin);
 			return true;
 		} else if (scrollDelta < 0) {
-			var prevTarget = this.camera.scale.target;
-			this.camera.scale.target = Math.min(prevTarget * scrollMultiplier, this.scrollMax);
+			// zoom in
+			this.camera.scale.target = Math.min(prevTarget * scrollSpeed, this.scrollMax);
 			return true;
 		}
 		return false;
@@ -218,7 +221,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 			return;
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
-				.beginGeneric(PrimitiveType.LINES, BufferLayout.POSITION_COLOR_NORMAL);
+				.beginGeneric(PrimitiveType.LINE_DUPLICATED, BufferLayout.POSITION_COLOR_NORMAL);
 
 		// near
 		RenderHelper.addLine(builder, camera, frustum.nnn(), frustum.npn(), color);

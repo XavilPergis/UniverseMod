@@ -14,6 +14,7 @@ import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.VecMath;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector.ElementHolder;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector.PackedElements;
@@ -89,7 +90,7 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			temp.systemPosTm.z = Units.Tm_PER_pc * buf.getFloat();
 			// positions from the star catalog are in J2000 equatorial coordinate system (i
 			// think)
-			Mat4.mul(temp.systemPosTm, EQUATORIAL_TO_GALACTIC, temp.systemPosTm, 0);
+			VecMath.transform(temp.systemPosTm, EQUATORIAL_TO_GALACTIC, temp.systemPosTm, 0);
 			// coordinates are right-handed Z up, we need them in right handed Y up...
 			final var tmpY = temp.systemPosTm.y;
 			temp.systemPosTm.y = temp.systemPosTm.z;
@@ -153,7 +154,7 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		final var rootNode = node.generateSystem(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
 
 		// TODO: assign system name
-		return new StarSystem("idk", this.parentGalaxy, elem, rootNode);
+		return new StarSystem("idk", this.parentGalaxy, elem, rootNode, 1.42857e-02);
 	}
 
 }

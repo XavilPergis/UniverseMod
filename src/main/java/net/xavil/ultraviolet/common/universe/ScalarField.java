@@ -549,6 +549,27 @@ public interface ScalarField {
 		return uniform(0).sub(this);
 	}
 
+	default ScalarField abs() {
+		return (x, y, z) -> Math.abs(this.sample(x, y, z));
+	}
+
+	static double spokes(Vec3Access pos, double spokeCount, double spokeCurveExponent) {
+		final var angleFromCenter = Math.atan2(pos.x(), pos.z());
+		final var t = Math.abs(Math.cos(angleFromCenter * spokeCount));
+		return Math.pow(t, spokeCurveExponent);
+	}
+
+	static Vec3 spiralAboutY(Vec3Access pos, double spiralFactor, double radius) {
+		final var len = Math.sqrt(pos.x() * pos.x() + pos.z() * pos.z()) / radius;
+		final var angle = 2.0 * Math.PI * spiralFactor * Math.pow(1.0 - len, 2.0);
+
+		final double c = Math.cos(angle), s = Math.sin(angle);
+		final var nx = pos.x() * c + pos.z() * s;
+		final var nz = pos.z() * c - pos.x() * s;
+
+		return new Vec3(nx, pos.y(), nz);
+	}
+
 	static ScalarField spokes(double spokeCount, double spokeCurveExponent) {
 		return (x, y, z) -> {
 			final var pos = new Vec3(x, y, z);
@@ -585,67 +606,28 @@ public interface ScalarField {
 		};
 	}
 
-	// static DoubleField3 lineSegment(Vec3Access start, Vec3Access end, double
-	// radius) {
-	// return (x, y, z) -> {
-	// return 0;
-	// };
-	// }
-
-	static ScalarField sdfPoint(Vec3Access P) {
+	static ScalarField sdfSphere(Vec3Access P, double r) {
 		return (x, y, z) -> {
 			final var dx = Math.pow(P.x() - x, 2.0);
 			final var dy = Math.pow(P.y() - y, 2.0);
 			final var dz = Math.pow(P.z() - z, 2.0);
-			return Math.sqrt(dx + dy + dz);
+			return Math.sqrt(dx + dy + dz) - r;
 		};
 	}
 
-	// static DoubleField3 sdfLineSegment(Vec3Access A, Vec3Access B) {
-	// final var BsubA = new Vec3(B).sub(A);
-	// final var BsubAlen2 = BsubA.lengthSquared();
-	// return (x, y, z) -> {
-	// final double PsubAx = x - A.x(), PsubAy = y - A.y(), PsubAz = z - A.z();
-	// final var h = Mth.clamp((PsubAx * BsubA.x + PsubAy * BsubA.y + PsubAz *
-	// BsubA.z) / BsubAlen2, 0, 1);
-	// final var dx = PsubAx - BsubA.x * h;
-	// final var dy = PsubAy - BsubA.y * h;
-	// final var dz = PsubAz - BsubA.z * h;
-	// return Math.sqrt(dx * dx + dy * dy + dz * dz);
-	// };
-	// }
-
-	static ScalarField sdfLineSegment(final Vec3 a, final Vec3 b) {
+	static ScalarField sdfCapsule(final Vec3 a, final Vec3 b, double r) {
 		return (x, y, z) -> {
-			final var v = new Vec3(x, y, z);
-			final var ab = b.sub(a);
-			final var av = v.sub(a);
-
-			if (av.dot(ab) <= 0.0) // Point is lagging behind start of the segment, so perpendicular distance is
-									// not viable.
-				return av.length(); // Use distance to start of segment instead.
-
-			final var bv = v.sub(b);
-
-			if (bv.dot(ab) >= 0.0) // Point is advanced past the end of the segment, so perpendicular distance is
-									// not viable.
-				return bv.length(); // Use distance to end of the segment instead.
-
-			return (ab.cross(av)).length() / ab.length(); // Perpendicular distance of point to segment.
+			final var p = new Vec3(x, y, z);
+			final var ba = b.sub(a);
+			final var pa = p.sub(a);
+			final var h = Mth.clamp(pa.dot(ba) / ba.lengthSquared(), 0.0, 1.0);
+			return pa.sub(ba.mul(h)).length() - r;
 		};
 	}
 
-	// static DoubleField3 sdfLineSegment(Vec3Access A, Vec3Access B) {
-	// return (x, y, z) -> {
-	// final var P = new Vec3(x, y, z);
-	// final var BsubA = new Vec3(B).sub(A);
-	// // final var PsubA = P.sub(A);
-	// final var h = Mth.clamp(P.projectOnto(BsubA).length(), 0, 1);
-	// final var Q = Vec3.lerp(h, A, B);
-	// return P.distanceTo(Q);
-	// // return PsubA;
-	// };
-	// }
+	static ScalarField sdfPlane(Vec3Access N) {
+		return (x, y, z) -> x * N.x() + y * N.y() + z * N.z();
+	}
 
 	/**
 	 * This method turns an SDF into a "cloud". The surface and inside of the SDF is

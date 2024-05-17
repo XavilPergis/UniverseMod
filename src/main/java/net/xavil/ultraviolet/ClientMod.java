@@ -1,12 +1,12 @@
 package net.xavil.ultraviolet;
 
-
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.HawkTextureManager;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.ultraviolet.client.AverageLuminanceComputer;
 import net.xavil.ultraviolet.client.BloomEffect;
 import net.xavil.ultraviolet.client.PostProcessing;
 import net.xavil.ultraviolet.client.UltravioletShaders;
@@ -87,7 +87,7 @@ public class ClientMod implements ClientModInitializer {
 		// final var tfm = new TransformStack();
 		// SkyRenderer.INSTANCE.applyCelestialTransform(tfm, xz, loc, partialTick);
 		// for (final var node : system.rootNode.selfAndChildren().iterable()) {
-		// 	// TODO: calculate occlusion and stuff
+		// // TODO: calculate occlusion and stuff
 		// }
 	}
 

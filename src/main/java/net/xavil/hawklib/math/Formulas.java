@@ -13,7 +13,7 @@ public class Formulas {
 
 	/**
 	 * @param semiMajor (Tm) The semi-major axis
-	 * @param mu        (Yg) The standard gravitational pramater. For unary orbits,
+	 * @param mass      (Yg) The standard gravitational pramater. For unary orbits,
 	 *                  this is the mass of the larger body. For binary orbits, this
 	 *                  is the combined mass of each body.
 	 * @return (s) The orbital period.

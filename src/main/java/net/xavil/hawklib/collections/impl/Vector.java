@@ -160,40 +160,44 @@ public final class Vector<T> implements MutableList<T> {
 		}
 	}
 
-	public void shiftExtend(int index, IntoIterator<? extends T> elements) {
+	private interface InsertFunction<T> {
+		void insert(int index, T element);
+	}
+
+	private void extendPreamble(int index, IntoIterator<? extends T> elements, InsertFunction<T> func) {
 		ListUtil.checkBounds(index, this.size, false);
 
-		final var iter = elements.iter();
+		@SuppressWarnings("unchecked")
+		final var iter = (Iterator<T>) elements.iter();
 		final var minElementCount = iter.sizeHint().lowerBound();
 
 		// reserve enough space so we know we can do the arraycopy
 		reserve(minElementCount);
 
-		// batch shifts together for lower bound - we won't hit the slow path for simple
-		// copies from one collection to another, but will if we eg filter.
+		// if a lower bound is reported, we can fill at least that many elements
+		// directly, instead of inserting one-at-a-time. This is especially advantageous
+		// for order-preserving insertions, since each insertion must shift all elements
+		// after the insertion point. Since we use Iterator::fillArray, extending a
+		// vector from another boils down to a simple array copy.
 		if (minElementCount > 0) {
 			final var copyCount = Math.min(minElementCount, this.size - index);
 			System.arraycopy(this.elements, index, this.elements, index + minElementCount, copyCount);
-
-			for (int i = index; i < index + minElementCount; ++i) {
-				this.elements[i] = iter.next();
-			}
+			iter.fillArray(this.elements, index, index + minElementCount);
 			this.size += minElementCount;
 		}
 
-		// do it the slow way :(
+		// any stragglers are inserted the naive way, since we cant preallocate space
+		// for them.
 		for (int i = index + minElementCount; iter.hasNext(); ++i)
-			shiftInsert(i, iter.next());
+			func.insert(i, iter.next());
+	}
+
+	public void shiftExtend(int index, IntoIterator<? extends T> elements) {
+		extendPreamble(index, elements, this::shiftInsert);
 	}
 
 	public void swapExtend(int index, IntoIterator<? extends T> elements) {
-		ListUtil.checkBounds(index, this.size, false);
-
-		final var iter = elements.iter();
-		reserve(iter.sizeHint().lowerBound());
-
-		for (int i = index; iter.hasNext(); ++i)
-			swapInsert(i, iter.next());
+		extendPreamble(index, elements, this::swapInsert);
 	}
 
 	@Override
@@ -354,8 +358,8 @@ public final class Vector<T> implements MutableList<T> {
 		}
 
 		@Override
-		public boolean isFused() {
-			return true;
+		public int properties() {
+			return Iterator.PROPERTY_FUSED;
 		}
 
 		@Override

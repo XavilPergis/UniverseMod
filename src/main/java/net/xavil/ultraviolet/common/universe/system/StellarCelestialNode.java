@@ -90,167 +90,19 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 	private static final double SCHWARZSCHILD_FACTOR_Rsol_PER_Yg = Constants.SCHWARZSCHILD_FACTOR_m_PER_kg
 			* Units.ku_PER_Yu / Units.m_PER_Rsol;
 
-	public static final class Properties {
-		public double massYg;
-		public double ageMyr;
-
-		public Type type;
-		public double mainSequenceLifetimeMyr;
-		public double luminosityLsol;
-		public double radiusRsol;
-		public double temperatureK;
-
-		// TODO: redo this to be less bad lol
-		public void load(SplittableRng rng, double massYg, double ageMyr) {
-			this.massYg = massYg;
-			this.ageMyr = ageMyr;
-
-			// not a star lol
-			if (massYg < 0.08 * Units.Yg_PER_Msol) {
-				this.type = null;
-				return;
-			}
-
-			// final var massMsol = massYg / Units.Yg_PER_Msol;
-			// return Units.SOL_LIFETIME_MYA * (massMsol /
-			// mainSequenceLuminosityFromMass(massYg));
-
-			this.luminosityLsol = mainSequenceLuminosityFromMass(massYg);
-			double lumT = rng.weightedDouble("luminosity_offset", 2);
-			if (rng.chance("luminosity_negate", 0.5))
-				lumT *= -1;
-			this.luminosityLsol *= 1.0 + 0.1 * lumT;
-
-			this.mainSequenceLifetimeMyr = StellarCelestialNode.mainSequenceLifetimeFromMass(massYg);
-			double lifetimeT = rng.weightedDouble("lifetime_offset", 2);
-			if (rng.chance("lifetime_negate", 0.5))
-				lifetimeT *= -1;
-			this.mainSequenceLifetimeMyr *= 1.0 + 0.1 * lifetimeT;
-
-			this.radiusRsol = mainSequenceRadiusFromMass(massYg);
-			double radiusT = rng.weightedDouble("radius_offset", 2);
-			if (rng.chance("radius_negate", 0.5))
-				radiusT *= -1;
-			this.radiusRsol *= 1.0 + 0.1 * radiusT;
-
-			this.temperatureK = temperature(this.radiusRsol, this.luminosityLsol);
-			double tempT = rng.weightedDouble("temperature_offset", 2);
-			if (rng.chance("temperature_negate", 0.5))
-				tempT *= -1;
-			this.temperatureK *= 1.0 + 0.1 * tempT;
-
-			this.temperatureK = Mth.map(this.temperatureK, 2000, 10000, 2600, 7000);
-
-			rng.push("tracks");
-			if (ageMyr <= this.mainSequenceLifetimeMyr) {
-				doMainSequenceTrack(rng);
-			} else if (ageMyr <= this.mainSequenceLifetimeMyr * 1.4) {
-				doGiantTrack(rng);
-			} else {
-				if (massYg < NEUTRON_STAR_MIN_INITIAL_MASS_YG) {
-					doWhiteDwarfTrack(rng);
-				} else if (massYg < BLACK_HOLE_MIN_INITIAL_MASS_YG) {
-					doNeutronStarTrack(rng);
-				} else {
-					doBlackHoleTrack(rng);
-				}
-			}
-			rng.pop();
-
+	public static StellarCelestialNode fromInitialParameters(long seed, double massYg, double ageMyr, double metallicity) {
+		final var properties = new StellarProperties();
+		properties.load(new SplittableRng(seed), massYg, ageMyr, metallicity);
+		final var node = new StellarCelestialNode();
+		node.type = StellarCelestialNode.Type.STAR;
+		if (properties.luminosityLsol < 1e-8 && properties.temperatureK < 1e-8) {
+			node.type = StellarCelestialNode.Type.BLACK_HOLE;
 		}
-
-		private void doMainSequenceTrack(SplittableRng rng) {
-			this.type = Type.STAR;
-		}
-
-		private void doGiantTrack(SplittableRng rng) {
-			this.type = Type.STAR;
-
-			final var t = Mth.inverseLerp(this.ageMyr, this.mainSequenceLifetimeMyr,
-					this.mainSequenceLifetimeMyr * 1.4);
-
-			// TODO: figure out actual quantities here. tbh this whole thing should be
-			// rewritten.
-			this.radiusRsol *= Mth.lerp(t, 3.0,
-					rng.weightedDouble("radius1", 5, 30, 100) * rng.uniformDouble("radius2", 0.3, 1.0));
-			this.temperatureK *= Mth.lerp(t, 3.0, 0.4 + 0.1 * rng.weightedDouble("temperature", 5));
-			this.luminosityLsol *= Mth.lerp(t, 3.0, rng.weightedDouble("temperature", 3, 1.5, 3));
-		}
-
-		private void doWhiteDwarfTrack(SplittableRng rng) {
-			this.type = Type.WHITE_DWARF;
-			// TODO: conservation of angular momentum (fast spinny :3)
-			// white dwarf and neutron star cooling is apparently very complicated, and i
-			// have birdbrain, so im just completely winging (hehe) it. As far as i
-			// understand, at least for neutron stars, they have a period of very rapid
-			// cooling followed by a period of much slower cooling.
-
-			Assert.isTrue(this.ageMyr > this.mainSequenceLifetimeMyr);
-
-			final double coolingTime = ageMyr - this.mainSequenceLifetimeMyr;
-			final double fastCurve = Math.exp(-0.007 * coolingTime);
-			final double slowCurve = Math.exp(-0.0002 * coolingTime);
-			final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
-
-			this.temperatureK *= rng.uniformDouble("temperature", 5, 10);
-			this.temperatureK *= coolingCurve;
-			this.temperatureK *= 0.2;
-			this.radiusRsol *= 4e-3;
-
-			// treat the white dwarf as an ideal black body and apply the Stefan–Boltzmann
-			// law
-			final var radiantExitance = Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(this.temperatureK, 4.0);
-			final var radiusM = this.radiusRsol * Units.m_PER_Rsol;
-			final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
-			this.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
-		}
-
-		private void doNeutronStarTrack(SplittableRng rng) {
-			this.type = Type.NEUTRON_STAR;
-			Assert.isTrue(ageMyr > this.mainSequenceLifetimeMyr);
-
-			final double coolingTime = ageMyr - this.mainSequenceLifetimeMyr;
-			final double fastCurve = Math.exp(-0.007 * coolingTime);
-			final double slowCurve = Math.exp(-0.0002 * coolingTime);
-			final double coolingCurve = (fastCurve + 0.5 * slowCurve) / 1.5;
-
-			this.temperatureK *= 20;
-			this.temperatureK *= coolingCurve;
-			this.radiusRsol *= 1e-5;
-
-			final var radiantExitance = Constants.BOLTZMANN_CONSTANT_W_PER_m2_K4 * Math.pow(this.temperatureK, 4.0);
-			final var radiusM = this.radiusRsol * Units.m_PER_Rsol;
-			final var surfaceArea = 4.0 * Math.PI * radiusM * radiusM;
-			this.luminosityLsol = radiantExitance * surfaceArea / Units.W_PER_Lsol;
-		}
-
-		private void doBlackHoleTrack(SplittableRng rng) {
-			this.type = Type.BLACK_HOLE;
-			this.luminosityLsol = 0;
-			this.radiusRsol = this.massYg * SCHWARZSCHILD_FACTOR_Rsol_PER_Yg;
-			this.temperatureK = 0;
-		}
-	}
-
-	public static StellarCelestialNode fromProperties(Properties properties) {
-		final var node = StellarCelestialNode.fromMass(properties.type, properties.massYg);
+		node.massYg = properties.massYg;
 		node.luminosityLsol = properties.luminosityLsol;
 		node.radius = Units.km_PER_Rsol * properties.radiusRsol;
 		node.temperature = properties.temperatureK;
 		return node;
-	}
-
-	public static StellarCelestialNode fromMassAndAge(SplittableRng rng, double massYg, double ageMyr) {
-		final var properties = new Properties();
-		properties.load(rng, massYg, ageMyr);
-		return fromProperties(properties);
-	}
-
-	public static StellarCelestialNode fromMass(StellarCelestialNode.Type type, double massYg) {
-		var m = massYg;
-		var l = mainSequenceLuminosityFromMass(massYg);
-		var r = mainSequenceRadiusFromMass(massYg);
-		return new StellarCelestialNode(type, m, l, r, temperature(r, l));
 	}
 
 	private static record ClassificationInterval(

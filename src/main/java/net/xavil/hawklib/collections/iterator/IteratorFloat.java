@@ -1,11 +1,12 @@
 package net.xavil.hawklib.collections.iterator;
 
+import java.nio.FloatBuffer;
 import java.util.Arrays;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
-import org.jetbrains.annotations.NotNull;
+import javax.annotation.Nonnull;
 
 import it.unimi.dsi.fastutil.floats.FloatUnaryOperator;
 import it.unimi.dsi.fastutil.floats.Float2ObjectFunction;
@@ -83,28 +84,6 @@ public interface IteratorFloat extends IntoIteratorFloat {
 		return SizeHint.UNKNOWN;
 	}
 
-	/**
-	 * Returns whether this iterator is known to definitely be fused.
-	 * 
-	 * <p>
-	 * Subsequent calls to this method <i>must</i> return the same value as the
-	 * previous. i.e., if an iterator reports that it is fused, it must
-	 * <i>always</i> report that it is fused.
-	 * </p>
-	 * 
-	 * @return {@code true} if this iterator is definitely fused.
-	 */
-	default boolean isFused() {
-		return hasProperties(PROPERTY_FUSED);
-	}
-
-	static final int PROPERTY_FUSED = 1 << 0;
-	static final int PROPERTY_NONNULL = 1 << 1;
-
-	default boolean hasProperties(int propertyMask) {
-		return (properties() & propertyMask) == propertyMask;
-	}
-
 	default int properties() {
 		return 0;
 	}
@@ -129,7 +108,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 	 *                                  than than 0.
 	 * @throws NullPointerException     when the array is null.
 	 */
-	default int fillArray(@NotNull float[] array, int start, int end) {
+	default int fillArray(@Nonnull float[] array, int start, int end) {
 		if (end > array.length || start > end || start < 0 || end < 0)
 			throw new IllegalArgumentException(String.format(
 					"Invalid range bounds of [%d, %d) for array of length %d",
@@ -184,7 +163,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 	default MaybeFloat min(FloatComparator comparator) {
 		boolean foundAny = hasNext();
-		if (!foundAny) 
+		if (!foundAny)
 			return MaybeFloat.none();
 		float minValue = next();
 		while (hasNext()) {
@@ -198,7 +177,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 	default MaybeFloat max(FloatComparator comparator) {
 		boolean foundAny = hasNext();
-		if (!foundAny) 
+		if (!foundAny)
 			return MaybeFloat.none();
 		float maxValue = next();
 		while (hasNext()) {
@@ -245,7 +224,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 		@Override
 		public int properties() {
-			return PROPERTY_FUSED | PROPERTY_NONNULL;
+			return Iterator.PROPERTY_FUSED;
 		}
 
 		@Override
@@ -278,7 +257,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 		@Override
 		public int properties() {
-			return PROPERTY_FUSED;
+			return Iterator.PROPERTY_FUSED;
 		}
 
 		@Override
@@ -290,6 +269,133 @@ public interface IteratorFloat extends IntoIteratorFloat {
 		public float next() {
 			this.emitted = true;
 			return this.value;
+		}
+	}
+
+	static IteratorFloat repeat(float value) {
+		return new Repeat(value, -1);
+	}
+
+	static IteratorFloat repeat(float value, int limit) {
+		return new Repeat(value, limit);
+	}
+
+	final class Repeat implements IteratorFloat {
+		private final float value;
+		private int limit = -1;
+
+		private Repeat(float value, int limit) {
+			this.value = value;
+			this.limit = limit;
+		}
+
+		@Override
+		public int properties() {
+			int props = Iterator.PROPERTY_FUSED;
+			if (this.limit < 0)
+				props |= Iterator.PROPERTY_INFINITE;
+			return props;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return this.limit > 0;
+		}
+
+		@Override
+		public float next() {
+			this.limit -= 1;
+			return this.value;
+		}
+
+		@Override
+		public int fillArray(@Nonnull float[] array, int start, int end) {
+			if (end > array.length || start > end || start < 0 || end < 0)
+				throw new IllegalArgumentException(String.format(
+						"Invalid range bounds of [%d, %d) for array of length %d",
+						start, end, array.length));
+			if (this.limit < 0) {
+				Arrays.fill(array, start, end, this.value);
+				return end - start;
+			} else {
+				final var copyAmount = Math.min(end - start, this.limit);
+				Arrays.fill(array, start, start + copyAmount, this.value);
+				this.limit -= copyAmount;
+				return copyAmount;
+			}
+		}
+
+		@Override
+		public <U> Iterator<U> map(Float2ObjectFunction<? extends U> mapper) {
+			return Iterator.repeat(mapper.get(this.value), this.limit);
+		}
+
+		@Override
+		public IteratorFloat mapToFloat(FloatUnaryOperator mapper) {
+			return new Repeat(mapper.apply(this.value), this.limit);
+		}
+
+		@Override
+		public IteratorFloat skip(int amount) {
+			if (this.limit >= 0)
+				this.limit = Math.max(0, this.limit - amount);
+			return this;
+		}
+
+		@Override
+		public IteratorFloat limit(int limit) {
+			this.limit = Math.min(limit, this.limit);
+			return this;
+		}
+	}
+
+	static IteratorFloat fromBuffer(FloatBuffer buffer) {
+		return new FloatBufferIterator(buffer);
+	}
+
+	final class FloatBufferIterator implements IteratorFloat {
+		private final FloatBuffer buffer;
+
+		private FloatBufferIterator(FloatBuffer buffer) {
+			this.buffer = buffer.duplicate();
+		}
+
+		@Override
+		public boolean hasNext() {
+			return this.buffer.hasRemaining();
+		}
+
+		@Override
+		public float next() {
+			return this.buffer.get();
+		}
+
+		@Override
+		public SizeHint sizeHint() {
+			return SizeHint.exactly(this.buffer.remaining());
+		}
+
+		@Override
+		public int fillArray(@Nonnull float[] array, int start, int end) {
+			if (end > array.length || start > end || start < 0 || end < 0)
+				throw new IllegalArgumentException(String.format(
+						"Invalid range bounds of [%d, %d) for array of length %d",
+						start, end, array.length));
+			final var position = this.buffer.position();
+			this.buffer.get(array, start, Math.min(end - start, this.buffer.limit() - position));
+			return this.buffer.position() - position;
+		}
+
+		@Override
+		public IteratorFloat skip(int amount) {
+			this.buffer.position(Math.min(this.buffer.position() + amount, this.buffer.limit()));
+			return this;
+		}
+
+		@Override
+		public IteratorFloat limit(int limit) {
+			this.buffer.limit(Math.min(this.buffer.position() + limit, this.buffer.limit()));
+			return this;
 		}
 	}
 
@@ -410,8 +516,6 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 	// filter out NaNs
 	default IteratorFloat filterNan() {
-		if (hasProperties(PROPERTY_NONNULL))
-			return this;
 		return new Filter(this) {
 			@Override
 			protected boolean test(float value) {
@@ -420,15 +524,13 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 			@Override
 			public int properties() {
-				return super.properties() | PROPERTY_NONNULL;
+				return super.properties();
 			}
 		};
 	}
 
 	// filter out infinities
 	default IteratorFloat filterInfinity() {
-		if (hasProperties(PROPERTY_NONNULL))
-			return this;
 		return new Filter(this) {
 			@Override
 			protected boolean test(float value) {
@@ -437,15 +539,13 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 			@Override
 			public int properties() {
-				return super.properties() | PROPERTY_NONNULL;
+				return super.properties();
 			}
 		};
 	}
 
 	// filter out NaNs and infinities
 	default IteratorFloat filterNonFinite() {
-		if (hasProperties(PROPERTY_NONNULL))
-			return this;
 		return new Filter(this) {
 			@Override
 			protected boolean test(float value) {
@@ -454,7 +554,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 			@Override
 			public int properties() {
-				return super.properties() | PROPERTY_NONNULL;
+				return super.properties();
 			}
 		};
 	}
@@ -598,7 +698,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 		@Override
 		public int properties() {
-			return this.source.properties() & ~PROPERTY_NONNULL;
+			return this.source.properties();
 		}
 
 		@Override
@@ -770,11 +870,9 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 		@Override
 		public int properties() {
-			int props = PROPERTY_FUSED | PROPERTY_NONNULL;
+			int props = Iterator.PROPERTY_FUSED;
 			for (final var source : this.sources) {
-				final var childProps = source.properties();
-				if ((childProps & PROPERTY_NONNULL) == 0)
-					props = props & ~PROPERTY_NONNULL;
+				props |= source.properties() & Iterator.PROPERTY_INFINITE;
 			}
 			return props;
 		}
@@ -904,7 +1002,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 	}
 
 	default IteratorFloat fused() {
-		if (this.isFused())
+		if (Iterator.hasProperties(this, Iterator.PROPERTY_FUSED))
 			return this;
 		return new Fused(this);
 	}
@@ -941,7 +1039,7 @@ public interface IteratorFloat extends IntoIteratorFloat {
 
 		@Override
 		public int properties() {
-			return this.source.properties() | PROPERTY_FUSED;
+			return this.source.properties() | Iterator.PROPERTY_FUSED;
 		}
 
 		@Override

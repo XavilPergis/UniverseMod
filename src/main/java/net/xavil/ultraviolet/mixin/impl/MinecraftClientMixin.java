@@ -71,6 +71,11 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 		RenderTexture.tick();
 	}
 
+	@Inject(method = "close", at = @At("HEAD"))
+	private void releaseTemporaryTextures(CallbackInfo info) {
+		RenderTexture.releaseAllTextures();
+	}
+
 	@Inject(method = "clearLevel(Lnet/minecraft/client/gui/screens/Screen;)V", at = @At("TAIL"))
 	private void onClearLevel(Screen screen, CallbackInfo info) {
 		if (this.universe != null)

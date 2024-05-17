@@ -17,11 +17,12 @@ public class OrbitCamera {
 	// TODO: focus is in camera units, unlike everything else, which are in render
 	// units!
 	public final MotionSmoother<Vec3> focus = new MotionSmoother<>(0.6, NumericOps.VEC3);
-	public final MotionSmoother<Double> yaw = new MotionSmoother<>(0.6, NumericOps.DOUBLE);
-	public final MotionSmoother<Double> pitch = new MotionSmoother<>(0.6, NumericOps.DOUBLE);
-	public final MotionSmoother<Double> scale = new MotionSmoother<>(0.4, NumericOps.DOUBLE);
+	public final MotionSmoother<Double> yaw = new MotionSmoother<>(0.7, NumericOps.DOUBLE);
+	public final MotionSmoother<Double> pitch = new MotionSmoother<>(0.7, NumericOps.DOUBLE);
+	public final MotionSmoother<Double> scale = new MotionSmoother<>(0.5, NumericOps.DOUBLE);
 
 	private Vec3 velocity = Vec3.ZERO, prevVelocity = Vec3.ZERO;
+	private final MotionSmoother<Vec3> yoinkVelocity = new MotionSmoother<>(0.3, NumericOps.VEC3);
 
 	// projection properties
 	public double fovDeg = 90;
@@ -37,13 +38,15 @@ public class OrbitCamera {
 		// slightly laggy to use, since we're always a tick behind the current target.
 		// would be nice if there was a better way to do this.
 
+		this.prevVelocity = this.velocity;
+		this.velocity = getCurPos().sub(getPrevPos());
+		this.yoinkVelocity.target = Vec3.ZERO;
+
 		this.focus.tick();
 		this.yaw.tick();
 		this.pitch.tick();
 		this.scale.tick();
-
-		this.prevVelocity = this.velocity;
-		this.velocity = getCurPos().sub(getPrevPos());
+		this.yoinkVelocity.tick();
 	}
 
 	private Vec3 getPrevPos() {
@@ -88,11 +91,17 @@ public class OrbitCamera {
 	private Quat getOrientation(float partialTick) {
 		final var raw = getOrientationRaw(partialTick);
 
-		final var vel = Vec3.lerp(partialTick, this.prevVelocity, this.velocity);
-		if (vel.length() > 0.000000001) {
+		final var vel1 = Vec3.lerp(partialTick, this.prevVelocity, this.velocity);
+		if (vel1.lengthSquared() > this.yoinkVelocity.current.lengthSquared()) {
+			// this.yoinkVelocity.current = Vec3.lerp(0.99, vel1, this.yoinkVelocity.current);
+		}
+
+		final var vel = this.yoinkVelocity.get(partialTick);
+		if (vel.length() > 1e-8) {
 			final var vertYoinkAxis = vel.normalize().cross(Vec3.YP);
-			final var yoinkStrength = Mth.clamp(vel.length() / (15 * this.scale.get(partialTick)), -Math.PI / 8,
-					Math.PI / 8);
+			final var yoinkStrength = Mth.clamp(
+					vel.length() / (5 * this.scale.get(partialTick)),
+					-Math.PI / 8, Math.PI / 8);
 			return raw.hamiltonProduct(Quat.axisAngle(vertYoinkAxis, yoinkStrength));
 		}
 
@@ -116,7 +125,8 @@ public class OrbitCamera {
 
 		public Cached(Vec3 focus, Vec3 pos, Quat orientation, double scale,
 				double metersPerUnit, Mat4 projectionMatrix) {
-			// super(camera, pos, orientation, metersPerUnit, nearPlane, farPlane, projectionMatrix);
+			// super(camera, pos, orientation, metersPerUnit, nearPlane, farPlane,
+			// projectionMatrix);
 			this.focus = focus;
 			this.scale = scale;
 			load(pos, orientation, projectionMatrix, metersPerUnit);

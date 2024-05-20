@@ -83,7 +83,7 @@ public final class PostProcessing {
 	// reduces HDR information to SDR (can be thought of as transforming photometric quantities into colors)
 	public static void runTonemappingPass(RenderTexture output, GlTexture2d input) {
 		AverageLuminanceComputer.INSTANCE.compute(input);
-		final var averageLuminance = AverageLuminanceComputer.INSTANCE.currentAverageBrightness();
+		final var averageLuminance = AverageLuminanceComputer.INSTANCE.currentAverageLuminance();
 		output.framebuffer.bind();
 		final var postShader = UltravioletShaders.getShader(UltravioletShaders.SHADER_MAIN_POSTPROCESS_LOCATION);
 		// postShader.setUniformf("uExposure", ClientConfig.get(ConfigKey.POST_SHADER_EXPOSURE));

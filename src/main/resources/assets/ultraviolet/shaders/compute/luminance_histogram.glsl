@@ -12,10 +12,10 @@ shared uint sharedBins[HISTOGRAM_SIZE];
 
 uint computeBin(float luminance) {
 	// too small of a luminance value would cause the log2 luminance to shoot off to -inf, so we just put those values in the first bin
-	// if (luminance < exp2(uMinLogLuminance))
-	// 	return 0;
-	if (luminance < 1e-6)
+	if (luminance < exp2(uMinLogLuminance))
 		return 0;
+	// if (luminance < 1e-6)
+	// 	return 0;
 	float histogramT = saturate(invLerp(log2(luminance), uMinLogLuminance, uMaxLogLuminance));
 	// bin 0 is already used by out-of-range values
 	// return uint(histogramT * float(HISTOGRAM_SIZE - 1)) + 1;

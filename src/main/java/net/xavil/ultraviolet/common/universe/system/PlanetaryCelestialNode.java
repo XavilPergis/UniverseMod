@@ -16,6 +16,14 @@ import net.xavil.ultraviolet.common.level.ModChunkGenerator;
 
 public non-sealed class PlanetaryCelestialNode extends UnaryCelestialNode {
 
+	public static enum Modifier {
+		NONE,
+		ANOMALOUS,
+		QUIET,
+		VERDANT,
+		ERODED,
+	}
+
 	// i dont really like this
 	public enum Type {
 		// idk what to use for rigidities here....... idk what rigidity is even measuring. (N m^-2)

@@ -6,7 +6,6 @@ import java.util.function.Predicate;
 
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.collections.CollectionHint;
-import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
@@ -21,19 +20,14 @@ public final class Vector<T> implements MutableList<T> {
 	public Vector() {
 	}
 
-	public Vector(ImmutableList<T> elements) {
+	public Vector(IntoIterator<T> elements) {
 		try {
-			this.elements = ListUtil.makeTypedObjectArray(elements.size());
-			this.size = elements.size();
-			if (elements instanceof Vector<T> src) {
-				System.arraycopy(src.elements, 0, this.elements, 0, this.size);
-			} else {
-				final var iter = elements.iter();
-				int i = 0;
-				while (iter.hasNext())
-					this.elements[i++] = iter.next();
-				Assert.isEqual(i, elements.size());
-			}
+			final var iter = elements.iter();
+			final var sizeHint = iter.sizeHint();
+			this.elements = ListUtil.makeTypedObjectArray(sizeHint.lowerBound());
+			iter.fillArray(this.elements);
+			this.size = sizeHint.lowerBound();
+			extend(elements);
 		} catch (Throwable t) {
 			this.elements = ListUtil.makeTypedObjectArray(0);
 			this.size = 0;

@@ -14,8 +14,8 @@ struct Star {
 const float STAR_REFERENCE_BRIGHTNESS = 1.0;
 // const float STAR_MIN_BRIGHTNESS = 15.0;
 // const float STAR_MAX_BRIGHTNESS = 25.0;
-const float STAR_MIN_BRIGHTNESS = 150.0;
-const float STAR_MAX_BRIGHTNESS = 250.0;
+const float STAR_MIN_BRIGHTNESS = 5.0;
+const float STAR_MAX_BRIGHTNESS = 100.0;
 
 const float NOISE_DETAIL_RIDGE_OFFSET = 0.035;
 

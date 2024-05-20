@@ -118,7 +118,6 @@ public final class StellarProperties {
 				buf.position(trackPointers[i][j]);
 				final var track = new Track(buf.getShort());
 				tracks[i][j] = track;
-				Mod.LOGGER.error("track {}, {} -> len={}", i, j, track.length);
 				for (int k = 0; k < track.length; ++k) {
 					track.age[k] = buf.getFloat();
 					track.mass[k] = buf.getFloat();
@@ -321,7 +320,7 @@ def get_array_grids(self, recalc=False):
 		return Math.pow(Mth.lerp(ty, massN, massP), 5.0);
 	}
 
-	private void loadInner(SplittableRng rng, Grid grid, double age, double metallicity, double initialMass) {
+	private void loadInner(Grid grid, double age, double metallicity, double initialMass) {
 		final var findIndicesRes = new FindIndicesResult();
 		findIndices(findIndicesRes, metallicity, initialMass, grid.metallicities, grid.initialMasses);
 		if (!findIndicesRes.inBounds)
@@ -387,8 +386,8 @@ def get_array_grids(self, recalc=False):
 		this.temperatureK = temperature;
 	}
 
-	public void load(SplittableRng rng, double massYg, double ageMyr, double metallicity) {
-		loadInner(rng, GRID, 1e6 * ageMyr, metallicity, Units.Msol_PER_Yg * massYg);
+	public void load(double massYg, double ageMyr, double metallicity) {
+		loadInner(GRID, 1e6 * ageMyr, metallicity, Units.Msol_PER_Yg * massYg);
 	}
 
 }

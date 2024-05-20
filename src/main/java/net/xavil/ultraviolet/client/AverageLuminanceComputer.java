@@ -39,7 +39,7 @@ public final class AverageLuminanceComputer implements Disposable {
 	private final Histogram[] histograms;
 	private int currentFence = 0;
 
-	private double currentAverageBrightness = 1.0;
+	private double currentAverageLuminance = 1.0;
 	// private float minLogLuminance = -10, maxLogLuminance = 2;
 	private double minLuminance = 1e-2, maxLuminance = 1e4;
 
@@ -126,8 +126,6 @@ public final class AverageLuminanceComputer implements Disposable {
 	}
 
 	private Histogram getHistogram() {
-		// final var buf =
-		// this.readbackPointers[this.currentFence].order(ByteOrder.nativeOrder());
 		final var byteBuf = this.readbackPointer.slice(HISTOGRAM_SIZE_BYTES * this.currentFence, HISTOGRAM_SIZE_BYTES)
 				.order(ByteOrder.nativeOrder());
 		final var buf = byteBuf.asIntBuffer();
@@ -140,68 +138,25 @@ public final class AverageLuminanceComputer implements Disposable {
 	// assumes the current fence is already signalled and we wont run into sync
 	// issues
 	// TODO: i have no idea how this works
-	private double computeAverageBrightness() {
+	private double computeAverageLuminance() {
 		final var histogram = getHistogram();
 
-		// compute a convolved histogram. the average of the convolved histogram should
-		// be weighted more greatly towards more diffuse luminance peaks, hopefully
-		// reducing the contribution of very spikey bins.
-		final int convolutionRadius = 1;
-		final var convolvedBins = new int[histogram.size()];
+		float totalLuminance = 0.0f;
 		for (int i = 0; i < histogram.size(); ++i) {
-			final var boundLo = Math.max(0, i - convolutionRadius);
-			final var boundHi = Math.min(histogram.size(), i + convolutionRadius + 1);
-			final var sampleCount = boundHi - boundLo;
-			for (int j = boundLo; j < boundHi; ++j)
-				convolvedBins[i] += histogram.get(j);
-			convolvedBins[i] /= sampleCount;
+			// final var binLuminance = histogram.mapping.unmap((i + 0.5) / histogram.size());
+			// final var binLuminance = histogram.mapping.unmap((i + 0.2) / histogram.size());
+			final var binLuminance = histogram.mapping.unmap(i / histogram.size());
+			totalLuminance += histogram.get(i) * binLuminance;
 		}
 
-		final double brightnessThreshold = 0.025;
-		double total = 0.0;
-		double maxValue = 0.0;
-		int pixelsAboveThreshold = 0;
-		for (int i = 0; i < histogram.size(); ++i) {
-			// treat middle of bin as luminance for entire bin
-			final var binBrightness = histogram.mapping.unmap((i + 0.5) / histogram.size());
-			if (binBrightness < brightnessThreshold)
-				continue;
-			// // convolve bins
-			// pixelsAboveThreshold += histogram.get(i);
-			// total += histogram.get(i) * binBrightness;
-			pixelsAboveThreshold += convolvedBins[i];
-			total += convolvedBins[i] * binBrightness;
-			if (convolvedBins[i] * binBrightness > maxValue) {
-				maxValue = convolvedBins[i] * binBrightness;
-			}
-		}
+		final var minLogLuminance = Math.log(this.minLuminance) / Math.log(2.0);
+		final var maxLogLuminance = Math.log(this.maxLuminance) / Math.log(2.0);
 
-		// final var thresholdRatio = Math.pow(pixelsAboveThreshold / (double) histogram.total(), 0.5);
-		final var thresholdRatio = Math.pow(pixelsAboveThreshold / (double) histogram.total(), 1.0);
-		// return Mth.lerp(thresholdRatio, 1.0, total / Math.max(1, pixelsAboveThreshold));
-		// return Mth.lerp(thresholdRatio, 0.0001, total / Math.max(1, pixelsAboveThreshold));
-		// return total / Math.max(1, pixelsAboveThreshold);
-		return maxValue;
+		final var totalPixelCount = this.luminanceImage.size().texelCount();
+		final var weightedLogAverage = (totalLuminance / totalPixelCount) - 1.0;
+		final var weightedAvgLum = Math.pow(2.0, Mth.lerp(weightedLogAverage / 254.0, minLogLuminance, maxLogLuminance));
 
-		// what percentage of pixels are above the threshold?
-		// final var thresholdRatio = pixelsAboveThreshold / histogram.total();
-		// final var maxLuminance = histogram.mapping.domain.max;
-		// return Mth.lerp(thresholdRatio, 1.0, );
-
-		// final var blackPixelCount = histogram.get(0);
-
-		// // TODO: is this right? what if the window changed sizes between when the
-		// // histogram was taken and now?
-		// final var windowSize = getWindowSize();
-		// final var totalPixelCount = windowSize.x * windowSize.y;
-		// final var weightedLogAverage = weightedCount / Math.max(totalPixelCount -
-		// blackPixelCount, 1.0) - 1.0;
-		// // final var weightedLogAverage = weightedCount / totalPixelCount;
-		// final var weightedAvgLum = Math.pow(2.0, Mth.lerp(weightedLogAverage / 254.0,
-		// Math.log(this.minLuminance) / Math.log(2.0),
-		// Math.log(this.maxLuminance) / Math.log(2.0)));
-
-		// return weightedAvgLum;
+		return weightedAvgLum;
 	}
 
 	public void compute(GlTexture2d sceneTexture) {
@@ -209,16 +164,16 @@ public final class AverageLuminanceComputer implements Disposable {
 
 		if (this.fences[this.currentFence].clientWaitSync().isSignaled) {
 			// read data from histogram buffer
-			final var averageBrightness = computeAverageBrightness();
+			final var averageBrightness = computeAverageLuminance();
 			final double blendT;
-			if (averageBrightness > this.currentAverageBrightness) {
+			if (averageBrightness > this.currentAverageLuminance) {
 				blendT = 1 - Math.exp(-dt * 0.005);
 			} else {
 				blendT = 1 - Math.exp(-dt * 0.1);
 			}
 			// final var blendT = 1 - Math.exp(-dt);
-			// this.currentAverageBrightness = Mth.lerp(blendT, this.currentAverageBrightness, averageBrightness);
-			this.currentAverageBrightness = averageBrightness;
+			this.currentAverageLuminance = Mth.lerp(blendT, this.currentAverageLuminance, averageBrightness);
+			// this.currentAverageBrightness = averageBrightness;
 		}
 
 		// done using data - we can clobber the buffer now
@@ -226,8 +181,8 @@ public final class AverageLuminanceComputer implements Disposable {
 		this.currentFence = (this.currentFence + 1) % this.fences.length;
 	}
 
-	public double currentAverageBrightness() {
-		return this.currentAverageBrightness;
+	public double currentAverageLuminance() {
+		return this.currentAverageLuminance;
 	}
 
 }

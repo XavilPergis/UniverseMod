@@ -8,15 +8,15 @@ public class InterpolatedField implements ScalarField {
 
 	public final Vec3 min, max;
 	public final double invLerpFactorX, invLerpFactorY, invLerpFactorZ;
-	public final Cube[] cubes;
+	public final Cell[] cells;
 	public final int subdivisions;
 
-	private static final class Cube implements ScalarField {
+	private static final class Cell implements ScalarField {
 		public final Vec3 min, max;
 		public final double nnn, nnp, npn, npp, pnn, pnp, ppn, ppp;
 		public final double invLerpFactorX, invLerpFactorY, invLerpFactorZ;
 
-		public Cube(ScalarField field, Vec3 min, Vec3 max) {
+		public Cell(ScalarField field, Vec3 min, Vec3 max) {
 			this.min = min;
 			this.max = max;
 			this.nnn = field.sample(min.x, min.y, min.z);
@@ -32,7 +32,7 @@ public class InterpolatedField implements ScalarField {
 			this.invLerpFactorZ = 1.0 / (this.max.z - this.min.z);
 		}
 
-		public Cube(Vec3 min, Vec3 max,
+		public Cell(Vec3 min, Vec3 max,
 				double nnn, double nnp, double npn, double npp,
 				double pnn, double pnp, double ppn, double ppp) {
 			this.min = min;
@@ -76,26 +76,25 @@ public class InterpolatedField implements ScalarField {
 	}
 
 	public static ScalarField create(ScalarField field, Vec3 min, Vec3 max, int subdivisions) {
-		return subdivisions == 0 ? new Cube(field, min, max) : new InterpolatedField(field, min, max, subdivisions);
+		return subdivisions == 1 ? new Cell(field, min, max) : new InterpolatedField(field, min, max, subdivisions);
 	}
 
 	private InterpolatedField(ScalarField field, Vec3 min, Vec3 max, int subdivisions) {
-		final int sl = subdivisions + 1, gl = sl + 1;
+		final int sl = subdivisions, gl = sl + 1;
 
 		final var grid = new double[gl * gl * gl];
-		final var pos = new Vec3.Mutable();
 		for (int x = 0; x < gl; ++x) {
 			for (int y = 0; y < gl; ++y) {
 				for (int z = 0; z < gl; ++z) {
-					pos.x = Mth.lerp(x / (double) gl, min.x, max.x);
-					pos.y = Mth.lerp(y / (double) gl, min.y, max.y);
-					pos.z = Mth.lerp(z / (double) gl, min.z, max.z);
-					grid[idx(gl, x, y, z)] = field.sample(pos);
+					final var px = Mth.lerp(x / (gl - 1.0), min.x, max.x);
+					final var py = Mth.lerp(y / (gl - 1.0), min.y, max.y);
+					final var pz = Mth.lerp(z / (gl - 1.0), min.z, max.z);
+					grid[idx(gl, x, y, z)] = field.sample(px, py, pz);
 				}
 			}
 		}
 
-		this.cubes = new InterpolatedField.Cube[sl * sl * sl];
+		this.cells = new InterpolatedField.Cell[sl * sl * sl];
 		for (int x = 0; x < sl; ++x) {
 			for (int y = 0; y < sl; ++y) {
 				for (int z = 0; z < sl; ++z) {
@@ -114,7 +113,7 @@ public class InterpolatedField implements ScalarField {
 					final var xmax = Mth.lerp((x + 1) / (double) sl, min.x, max.x);
 					final var ymax = Mth.lerp((y + 1) / (double) sl, min.y, max.y);
 					final var zmax = Mth.lerp((z + 1) / (double) sl, min.z, max.z);
-					this.cubes[idx(sl, x, y, z)] = new Cube(
+					this.cells[idx(sl, x, y, z)] = new Cell(
 							new Vec3(xmin, ymin, zmin), new Vec3(xmax, ymax, zmax),
 							nnn, nnp, npn, npp, pnn, pnp, ppn, ppp);
 				}
@@ -130,12 +129,20 @@ public class InterpolatedField implements ScalarField {
 	}
 
 	public double interpolate(double tx, double ty, double tz) {
-		tx *= (this.subdivisions + 1);
-		ty *= (this.subdivisions + 1);
-		tz *= (this.subdivisions + 1);
-		final int ix = Mth.floor(tx), iy = Mth.floor(ty), iz = Mth.floor(tz);
-		return this.cubes[idx(this.subdivisions + 1, ix, iy, iz)]
-				.sample(tx - ix, ty - iy, tz - iz);
+		if (tx < 0 || tx > 1 || ty < 0 || ty > 1 || tz < 0 || tz > 1)
+			return 0;
+		tx *= this.subdivisions;
+		ty *= this.subdivisions;
+		tz *= this.subdivisions;
+		int ix = Mth.floor(tx), iy = Mth.floor(ty), iz = Mth.floor(tz);
+		if (ix == this.subdivisions)
+			ix -= 1;
+		if (iy == this.subdivisions)
+			iy -= 1;
+		if (iz == this.subdivisions)
+			iz -= 1;
+		return this.cells[idx(this.subdivisions + 1, ix, iy, iz)]
+				.interpolate(tx - ix, ty - iy, tz - iz);
 	}
 
 	@Override

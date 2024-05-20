@@ -389,16 +389,16 @@ public class SystemMapScreen extends HawkScreen {
 		final var up = new Vec3(1.0, 2.0, 0.0).normalize();
 
 		if (Vec3.ZERO.equals(system.pos)) {
-			Mat4.setLookAt(this.backgroundCamera.viewMatrix, Vec3.ZERO, Vec3.ZP, up);
+			Mat4.setLookAt(this.backgroundCamera.inverseViewMatrix, Vec3.ZERO, Vec3.ZP, up);
 		} else {
-			Mat4.setLookAt(this.backgroundCamera.viewMatrix, Vec3.ZERO, system.pos, up);
+			Mat4.setLookAt(this.backgroundCamera.inverseViewMatrix, Vec3.ZERO, system.pos, up);
 		}
 
 		this.backgroundCamera.metersPerUnit = 1e12;
 
 		final var interpolatedOffset = this.offset.get(ctx.partialTick);
 		final var offset = new Vec3(100 * interpolatedOffset.x, -100 * interpolatedOffset.y, 0);
-		Mat4.mulTranslation(this.backgroundCamera.viewMatrix, this.backgroundCamera.viewMatrix, offset);
+		Mat4.mulTranslation(this.backgroundCamera.inverseViewMatrix, this.backgroundCamera.inverseViewMatrix, offset);
 
 		final var window = Minecraft.getInstance().getWindow();
 		final var aspect = (float) window.getWidth() / (float) window.getHeight();
@@ -434,12 +434,12 @@ public class SystemMapScreen extends HawkScreen {
 		final var projTB = this.scale.get(partialTick);
 		Mat4.setOrthographicProjection(projMat, -projLR, projLR, -projTB, projTB, -frustumDepth, 0);
 
-		final var viewMat = new Mat4.Mutable();
-		viewMat.loadIdentity();
-		viewMat.appendTranslation(this.offset.get(partialTick).add(offset, 0).withZ(-0.5 * frustumDepth));
-		Mat4.invert(viewMat, viewMat);
+		final var inverseViewMat = new Mat4.Mutable();
+		inverseViewMat.loadIdentity();
+		inverseViewMat.appendTranslation(this.offset.get(partialTick).add(offset, 0).withZ(0.5 * frustumDepth));
+		// Mat4.invert(inverseViewMat, inverseViewMat);
 
-		camera.load(viewMat, projMat, 1);
+		camera.load(inverseViewMat, projMat, 1);
 	}
 
 	@Override
@@ -572,7 +572,7 @@ public class SystemMapScreen extends HawkScreen {
 		final var dy = delta.y * (sizeYu / sizeYp);
 
 		this.setDragging(true);
-		this.offset.target = this.offset.target.add(new Vec2(-dx, -dy));
+		this.offset.target = this.offset.target.add(new Vec2(dx, dy));
 		return true;
 	}
 

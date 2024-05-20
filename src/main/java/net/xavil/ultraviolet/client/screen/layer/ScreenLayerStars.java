@@ -4,11 +4,6 @@ import org.lwjgl.glfw.GLFW;
 
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
-import net.xavil.hawklib.client.screen.HawkScreen3d;
-import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
-import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
-import net.xavil.ultraviolet.client.StarRenderManager;
-import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CameraConfig;
@@ -17,11 +12,21 @@ import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.math.matrices.Mat4;
+import net.xavil.hawklib.math.matrices.Vec2;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.VecMath;
+import net.xavil.ultraviolet.client.StarRenderManager;
+import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
-import net.xavil.ultraviolet.client.screen.SystemMapScreen;
-import net.xavil.ultraviolet.client.screen.SystemExplorerScreen;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.client.screen.StarStatisticsScreen;
+import net.xavil.ultraviolet.client.screen.SystemExplorerScreen;
+import net.xavil.ultraviolet.client.screen.SystemMapScreen;
 import net.xavil.ultraviolet.common.config.ClientConfig;
 import net.xavil.ultraviolet.common.config.ConfigKey;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -30,13 +35,6 @@ import net.xavil.ultraviolet.common.universe.galaxy.SectorPos;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
-import net.xavil.hawklib.math.ColorRgba;
-import net.xavil.hawklib.math.Interval;
-import net.xavil.hawklib.math.Ray;
-import net.xavil.hawklib.math.matrices.Mat4;
-import net.xavil.hawklib.math.matrices.Vec2;
-import net.xavil.hawklib.math.matrices.Vec3;
-import net.xavil.hawklib.math.matrices.VecMath;
 
 public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	private final HawkScreen3d screen;
@@ -60,10 +58,10 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	}
 
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
-		return camera.focus;
-		// if (this.mapMode)
-		// 	return camera.focus;
-		// return camera.pos.sub(this.originOffset).mul(camera.metersPerUnit / 1e12);
+		// return camera.focus;
+		if (this.mapMode)
+			return camera.focus;
+		return camera.pos.sub(this.originOffset).mul(camera.metersPerUnit / 1e12);
 	}
 
 	@Override
@@ -136,22 +134,15 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		final var viewCenter = getStarViewCenterPos(camera);
 
 		final var mouseRay = camera.rayForPicking(window, mousePos);
-		// final var mouseRay = Ray.transform(new Ray(mousePosClip.xy0(), Vec3.ZN),
-		// 		Mat4.mul(camera.viewMatrix, camera.inverseProjectionMatrix));
-
-		// i swear to FUCK. WHY do i have to use the inverse view matrix here. this goes
-		// against everything i know to be true. crying. pissing. shitting. etc.
-		//
-		// like, i use the combined view-projection matrix as a shader uniform and it
-		// seems to work fine, and im doing the same sort of world pos -> clip pos that
-		// i do in those shaders, so why don't i get results that make sense?
-		final var viewProjMatrix = Mat4.mul(camera.projectionMatrix, camera.inverseViewMatrix);
+		final var viewProjMatrix = Mat4.mul(camera.projectionMatrix, camera.viewMatrix);
 
 		final var selectionRadius = 0.02;
 
 		final var ticket = this.starRenderer.getSectorTicket();
 		ticket.info.enumerateAffectedSectors(pos -> {
 			final var sector = ticket.attachedManager.getSector(pos).unwrapOrNull();
+			if (sector == null)
+				return SectorTicketInfo.EnumerationAction.CONTINUE;
 
 			// clip-space axis-aligned bounding rectangle containing the corners of the
 			// sector's world space bounding box, with a little bit of padding to account
@@ -162,40 +153,6 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			if (!mouseRay.intersectAabb(sectorMinWorld, sectorMaxWorld)) {
 				return SectorTicketInfo.EnumerationAction.SKIP_CHILDREN;
 			}
-
-			// final double nx = sectorMinWorld.x, ny = sectorMinWorld.y, nz =
-			// sectorMinWorld.z;
-			// final double px = sectorMaxWorld.x, py = sectorMaxWorld.y, pz =
-			// sectorMaxWorld.z;
-
-			// double minX = Double.POSITIVE_INFINITY, maxX = Double.NEGATIVE_INFINITY;
-			// double minY = Double.POSITIVE_INFINITY, maxY = Double.NEGATIVE_INFINITY;
-
-			// final var min = VecMath.transformPerspective(viewProjMatrix, sectorMinWorld,
-			// 1);
-			// final var max = VecMath.transformPerspective(viewProjMatrix, sectorMaxWorld,
-			// 1);
-			// final var sectorBoundsX = new Interval(Math.min(min.x, max.x),
-			// Math.max(min.x, max.x))
-			// .expand(selectionRadius);
-			// final var sectorBoundsY = new Interval(Math.min(min.y, max.y),
-			// Math.max(min.y, max.y))
-			// .expand(selectionRadius);
-
-			// if (camera.pos.x < sectorMinWorld.x || camera.pos.x >= sectorMaxWorld.x
-			// || camera.pos.y < sectorMinWorld.y || camera.pos.y >= sectorMaxWorld.y
-			// || camera.pos.z < sectorMinWorld.z || camera.pos.z >= sectorMaxWorld.z) {
-			// }
-			// if (Math.min(min.z, max.z) > 1
-			// || !sectorBoundsX.contains(mousePosClip.x)
-			// || !sectorBoundsY.contains(mousePosClip.y))
-			// return SectorTicketInfo.EnumerationAction.SKIP_CHILDREN;
-
-			// coarse grained filters, dont consider any subsectors or elements of a sector
-			// that the selection ray does not interact with.
-			// if (Math.min(min.z, max.z) > 1
-			// || !sectorBoundsX.contains(mousePosClip.x)
-			// || !sectorBoundsY.contains(mousePosClip.y))
 
 			final var levelSize = ticket.info.radiusForLevel(sector.pos().level());
 
@@ -244,6 +201,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		} else {
 			ticket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
 			ticket.info.scales = SectorTicketInfo.Multi.SCALES_EXP;
+			// this.starRenderer.setMode(StarRenderManager.Mode.MAP);
 			this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
 		}
 		this.starRenderer.draw(camera, viewCenter);
@@ -316,8 +274,6 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				RenderHelper.addLine(builder, camera, ppn, ppp, color);
 				RenderHelper.addLine(builder, camera, pnn, pnp, color);
 			});
-			// ticket.info.enumerateAffectedSectors(pos -> {
-			// });
 			builder.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(),
 					HawkDrawStates.DRAW_STATE_ADDITIVE_BLENDING);
 		}

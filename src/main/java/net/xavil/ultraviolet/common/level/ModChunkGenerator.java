@@ -24,24 +24,28 @@ import net.minecraft.world.level.biome.BiomeManager;
 import net.minecraft.world.level.biome.BiomeSource;
 import net.minecraft.world.level.biome.Biomes;
 import net.minecraft.world.level.biome.Climate;
-import net.minecraft.world.level.biome.FixedBiomeSource;
 import net.minecraft.world.level.biome.Climate.Sampler;
+import net.minecraft.world.level.biome.FixedBiomeSource;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.LevelChunkSection;
-import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.GenerationStep.Carving;
+import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.Heightmap.Types;
 import net.minecraft.world.level.levelgen.blending.Blender;
 import net.minecraft.world.level.levelgen.structure.StructureSet;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.ultraviolet.common.block.ModBlocks;
+import net.xavil.ultraviolet.common.universe.ScalarField;
+import net.xavil.ultraviolet.common.universe.ScalarField2;
+import net.xavil.ultraviolet.common.universe.galaxy.InterpolatedField2;
 import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
 
-public class ModChunkGenerator extends ChunkGenerator {
+public final class ModChunkGenerator extends ChunkGenerator {
 
 	public static final Codec<ModChunkGenerator> CODEC = RecordCodecBuilder
 			.create(instance -> ModChunkGenerator.commonCodec(instance)
@@ -83,7 +87,7 @@ public class ModChunkGenerator extends ChunkGenerator {
 	}
 
 	@Override
-	protected Codec<? extends ChunkGenerator> codec() {
+	protected Codec<ModChunkGenerator> codec() {
 		return CODEC;
 	}
 
@@ -136,15 +140,17 @@ public class ModChunkGenerator extends ChunkGenerator {
 	}
 
 	private final class SurfaceColumnInfo {
-		public final LevelParameters[] levelParameters;
-		public double surfaceHeight;
+		public final CraterLevelParameters[] craterLevelParameters;
+		public final ScalarField2 heightField;
+		// public double surfaceHeight;
 
-		public SurfaceColumnInfo(LevelParameters[] levelParameters) {
-			this.levelParameters = levelParameters;
+		public SurfaceColumnInfo(CraterLevelParameters[] craterLevelParameters, ScalarField2 heightField) {
+			this.craterLevelParameters = craterLevelParameters;
+			this.heightField = heightField;
 		}
 	}
 
-	private record LevelParameters(
+	private record CraterLevelParameters(
 			int maxAttempts,
 			double amplitude,
 			double scale,
@@ -154,37 +160,35 @@ public class ModChunkGenerator extends ChunkGenerator {
 			double rimRatio) {
 	}
 
-	private LevelParameters[] makeLevelParameters() {
-		return new LevelParameters[] {
+	private CraterLevelParameters[] makeLevelParameters() {
+		return new CraterLevelParameters[] {
 			// @formatter:off
-			new LevelParameters(5,   1.0,      6.0, 0.70,  2.0, 0.9, 0.9),
-			new LevelParameters(3,   3.0,     20.0, 0.50,  2.0, 0.1, 0.6),
-			new LevelParameters(2,   4.0,     40.0, 0.50,  4.0, 0.2, 0.5),
-			new LevelParameters(1,   7.0,     80.0, 0.50,  5.0, 0.4, 0.5),
-			new LevelParameters(1,  10.0,    160.0, 0.50,  5.0, 0.5, 0.5),
-			new LevelParameters(1,  14.0,    320.0, 0.50, 10.0, 0.6, 0.5),
-			new LevelParameters(1,  30.0,    640.0, 0.50, 10.0, 0.8, 0.5),
-			new LevelParameters(1,  50.0,   1280.0, 0.70, 20.0, 1.0, 0.5),
-			new LevelParameters(1, 100.0,   2560.0, 0.70, 20.0, 1.0, 0.5),
-			new LevelParameters(1, 100.0,   5120.0, 0.70, 30.0, 1.0, 0.5),
-			new LevelParameters(1, 100.0,  10240.0, 0.90, 30.0, 1.0, 0.5),
-			new LevelParameters(1, 100.0,  40960.0, 0.90, 40.0, 1.0, 0.5),
-			new LevelParameters(1, 100.0, 163840.0, 0.90, 80.0, 1.0, 0.4),
+			new CraterLevelParameters(5,   1.0,      6.0, 0.70,  2.0, 0.9, 0.9),
+			new CraterLevelParameters(3,   3.0,     20.0, 0.50,  2.0, 0.1, 0.6),
+			new CraterLevelParameters(2,   4.0,     40.0, 0.50,  4.0, 0.2, 0.5),
+			new CraterLevelParameters(1,   7.0,     80.0, 0.50,  5.0, 0.4, 0.5),
+			new CraterLevelParameters(1,  10.0,    160.0, 0.50,  5.0, 0.5, 0.5),
+			new CraterLevelParameters(1,  14.0,    320.0, 0.50, 10.0, 0.6, 0.5),
+			new CraterLevelParameters(1,  30.0,    640.0, 0.50, 10.0, 0.8, 0.5),
+			new CraterLevelParameters(1,  50.0,   1280.0, 0.70, 20.0, 1.0, 0.5),
+			new CraterLevelParameters(1, 100.0,   2560.0, 0.70, 20.0, 1.0, 0.5),
+			new CraterLevelParameters(1, 100.0,   5120.0, 0.70, 30.0, 1.0, 0.5),
+			new CraterLevelParameters(1, 100.0,  10240.0, 0.90, 30.0, 1.0, 0.5),
+			new CraterLevelParameters(1, 100.0,  40960.0, 0.90, 40.0, 1.0, 0.5),
+			new CraterLevelParameters(1, 100.0, 163840.0, 0.90, 80.0, 1.0, 0.4),
 			// @formatter:on
 		};
 	}
 
-	private void calculateSurfaceHeight(SurfaceColumnInfo out, SplittableRng rng, int bx, int bz) {
+	private double calculateCraterHeight(SurfaceColumnInfo info, SplittableRng rng, int bx, int bz) {
 		double height = 0.0;
 
-		for (int attempt = 0; attempt < 5; ++attempt) {
-			rng.push(attempt);
+		for (int level = 0; level < info.craterLevelParameters.length; ++level) {
+			rng.push(level);
+			final var params = info.craterLevelParameters[level];
 
-			for (int level = 0; level < out.levelParameters.length; ++level) {
-				final var params = out.levelParameters[level];
-				if (attempt >= params.maxAttempts)
-					continue;
-				rng.push(level);
+			for (int attempt = 0; attempt < params.maxAttempts; ++attempt) {
+				rng.push(attempt);
 
 				final double scale = this.cellMargin * params.scale;
 
@@ -201,7 +205,8 @@ public class ModChunkGenerator extends ChunkGenerator {
 					// even though it is!
 					final var maxOffset = this.cellMargin - 1.0;
 
-					// uv coords for this cell (scaled by margin so we can offset without overflowing the cell bounds)
+					// uv coords for this cell (scaled by margin so we can offset without
+					// overflowing the cell bounds)
 					double fx = this.cellMargin * (2.0 * (sx - cx) - 1.0);
 					double fz = this.cellMargin * (2.0 * (sz - cz) - 1.0);
 					fx -= rng.uniformDouble("offset_x", -maxOffset, maxOffset);
@@ -237,16 +242,31 @@ public class ModChunkGenerator extends ChunkGenerator {
 		}
 
 		final var gravityScale = this.gravity < 1 ? 2.0 - Math.pow(this.gravity, 2.0) : Math.pow(this.gravity, -2.0);
-		out.surfaceHeight += height * 0.5 * gravityScale;
+		// out.surfaceHeight += height * 0.5 * gravityScale;
+		return height * 0.5 * gravityScale;
+	}
+
+	private double calculateNormalTerrainHeight(SurfaceColumnInfo info, SplittableRng rng, int bx, int bz) {
+		double height = 0.0;
+		height += 50 * info.heightField.sample(bx, bz);
+		height = Math.max(0, height);
+		return height;
+	}
+
+	private double calculateSurfaceHeight(SurfaceColumnInfo out, SplittableRng rng, int bx, int bz) {
+		double height = 0.0;
+		height += calculateNormalTerrainHeight(out, rng, bx, bz);
+		// if (hasCraters)
+		// height += calculateCraterHeight(out, rng, bx, bz);
+		return height;
 	}
 
 	@Override
 	public int getBaseHeight(int x, int z, Types heightmapTypes, LevelHeightAccessor heightAccessor) {
-		final SurfaceColumnInfo info = new SurfaceColumnInfo(makeLevelParameters());
+		final SurfaceColumnInfo info = makeInfo(x, z);
 		final var rng = new SplittableRng(this.seed);
-		info.surfaceHeight = 0;
-		calculateSurfaceHeight(info, rng, x, z);
-		final var height = blockHeight(info.surfaceHeight, heightAccessor.getHeight());
+		final var fracHeight = calculateSurfaceHeight(info, rng, x, z);
+		final var height = blockHeight(fracHeight, heightAccessor.getHeight());
 
 		final var minY = heightAccessor.getMinBuildHeight();
 		final var maxY = heightAccessor.getMaxBuildHeight();
@@ -261,11 +281,11 @@ public class ModChunkGenerator extends ChunkGenerator {
 
 	@Override
 	public NoiseColumn getBaseColumn(int x, int z, LevelHeightAccessor heightAccessor) {
-		final SurfaceColumnInfo info = new SurfaceColumnInfo(makeLevelParameters());
+		final SurfaceColumnInfo info = makeInfo(x, z);
+
 		final var rng = new SplittableRng(this.seed);
-		info.surfaceHeight = 0;
-		calculateSurfaceHeight(info, rng, x, z);
-		final var height = blockHeight(info.surfaceHeight, heightAccessor.getHeight());
+		final var fracHeight = calculateSurfaceHeight(info, rng, x, z);
+		final var height = blockHeight(fracHeight, heightAccessor.getHeight());
 
 		final var minY = heightAccessor.getMinBuildHeight();
 		final var column = new BlockState[height - minY + 1];
@@ -299,6 +319,21 @@ public class ModChunkGenerator extends ChunkGenerator {
 				.whenCompleteAsync((c, t) -> lockedSections.forEach(LevelChunkSection::release), executor);
 	}
 
+	private SurfaceColumnInfo makeInfo(double x, double z) {
+
+		final double gs = 16;
+		final int subdiv = 4; // 4x4 cell grid
+		final double cxn = gs * Math.floor(x / gs), czn = gs * Math.floor(z / gs);
+		final double cxp = cxn + gs, czp = czn + gs;
+
+		// ScalarField2 noiseField = ScalarField2.fractalSimplexNoise(0, 1, 1.0 / 400, 3, 1, 0.5);
+		ScalarField2 noiseField = ScalarField2.fractalSimplexNoise(0, 5, 1.0 / 400, 3, 1, 0.5);
+		noiseField = InterpolatedField2.create(noiseField, new Vec2(cxn, czn), new Vec2(cxp, czp), subdiv);
+
+		final var levelParams = makeLevelParameters();
+		return new SurfaceColumnInfo(levelParams, noiseField);
+	}
+
 	private void buildChunk(ChunkAccess chunk, Blender blender, StructureFeatureManager structureFeatureManager) {
 		final var hm0 = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.OCEAN_FLOOR_WG);
 		final var hm1 = chunk.getOrCreateHeightmapUnprimed(Heightmap.Types.WORLD_SURFACE_WG);
@@ -307,16 +342,15 @@ public class ModChunkGenerator extends ChunkGenerator {
 		final var heights = new short[16 * 16];
 		final var chunkHeight = chunk.getHeight();
 
-		final SurfaceColumnInfo info = new SurfaceColumnInfo(makeLevelParameters());
+		final SurfaceColumnInfo info = makeInfo(chunk.getPos().getMinBlockX() + 2, chunk.getPos().getMinBlockZ() + 2);
 		final var rng = new SplittableRng(this.seed);
 		for (int x = 0; x < 16; ++x) {
 			for (int z = 0; z < 16; ++z) {
-				info.surfaceHeight = 0;
 				final var bx = chunk.getPos().getBlockX(x);
 				final var bz = chunk.getPos().getBlockZ(z);
-				calculateSurfaceHeight(info, rng, bx, bz);
+				final var fracHeight = calculateSurfaceHeight(info, rng, bx, bz);
 
-				final var height = blockHeight(info.surfaceHeight, chunkHeight);
+				final var height = blockHeight(fracHeight, chunkHeight);
 				// clamp just in case~
 				heights[(z << 4) | x] = (short) Mth.clamp(height, Short.MIN_VALUE, Short.MAX_VALUE);
 			}

@@ -185,13 +185,13 @@ public class ScreenLayerStarStatistics extends HawkScreen.Layer2d {
 		final var projTB = this.scale.get(ctx.partialTick);
 		Mat4.setOrthographicProjection(projMat, -projLR, projLR, projTB, -projTB, -frustumDepth, 0);
 
-		final var viewMat = new Mat4.Mutable();
-		viewMat.loadIdentity();
-		viewMat.appendScale(1.5);
-		viewMat.appendTranslation(this.offset.get(ctx.partialTick).withZ(-0.5 * frustumDepth));
-		Mat4.invert(viewMat, viewMat);
+		final var inverseViewMat = new Mat4.Mutable();
+		inverseViewMat.loadIdentity();
+		inverseViewMat.appendScale(0.67);
+		inverseViewMat.appendTranslation(this.offset.get(ctx.partialTick).withZ(0.5 * frustumDepth));
+		// Mat4.invert(inverseViewMat, inverseViewMat);
 
-		this.camera.load(viewMat, projMat, 1);
+		this.camera.load(inverseViewMat, projMat, 1);
 	}
 
 	private void renderHistogram(RenderContext ctx, AxisMapping mapping, Histogram plot, Rect bounds,

@@ -574,14 +574,16 @@ public final class PlanetRenderingContext implements Disposable {
 						.uv0((float) starNode.luminosityLsol, 0)
 						.endVertex();
 			} else {
-				builder2.vertex(nodePos)
+				// builder2.vertex(nodePos)
+				builder2.vertex(this.origin)
 						// TODO: determine color and luminosity from reflected light
 						.color(ColorRgba.WHITE)
-						.uv0(0.0000000018554f, 0)
+						// .uv0(0.0000000018554f, 0)
+						.uv0(100000f, 0)
 						.endVertex();
 			}
 			builder2.end().draw(pointShader, DRAW_STATE_ADDITIVE_BLENDING);
-			this.sphereMesh.draw(nodeShader, DRAW_STATE_OPAQUE);
+			// this.sphereMesh.draw(nodeShader, DRAW_STATE_OPAQUE);
 		}
 	}
 

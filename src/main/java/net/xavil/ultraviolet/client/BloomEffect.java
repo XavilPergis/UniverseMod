@@ -45,7 +45,7 @@ public final class BloomEffect {
 			public int minResolution = 4;
 
 			public double prefilterIntensity = 1.0;
-			public double prefilterMaxBrightness = 500.0;
+			public double prefilterMaxBrightness = 10.0;
 			public double blendIntensity = 0.05;
 			public double threshold = 1.0;
 			public double softThreshold = 0.1;

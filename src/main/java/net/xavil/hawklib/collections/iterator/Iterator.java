@@ -375,6 +375,61 @@ public interface Iterator<T> extends IntoIterator<T> {
 		}
 	}
 
+	static <T> Iterator<T> generate(Generate.Supplier<T> value) {
+		return new Generate<>(value, -1);
+	}
+
+	static <T> Iterator<T> generate(Generate.Supplier<T> value, int limit) {
+		return new Generate<>(value, limit);
+	}
+
+	final class Generate<T> implements Iterator<T> {
+
+		public interface Supplier<T> {
+			T generate(int index);
+		}
+
+		private final Supplier<T> generator;
+		private int limit = -1;
+		private int index = 0;
+
+		private Generate(Supplier<T> generator, int limit) {
+			this.generator = generator;
+			this.limit = limit;
+		}
+
+		@Override
+		public int properties() {
+			int props = PROPERTY_FUSED;
+			if (this.limit < 0)
+				props |= PROPERTY_INFINITE;
+			return props;
+		}
+
+		@Override
+		public boolean hasNext() {
+			return this.limit > 0;
+		}
+
+		@Override
+		public T next() {
+			return this.generator.generate(this.index++);
+		}
+
+		@Override
+		public Iterator<T> skip(int amount) {
+			if (this.limit >= 0)
+				this.limit = Math.max(0, this.limit - amount);
+			return this;
+		}
+
+		@Override
+		public Iterator<T> limit(int limit) {
+			this.limit = Math.min(limit, this.limit);
+			return this;
+		}
+	}
+
 	static <T> Iterator<T> repeat(T value) {
 		return new Repeat<>(value, -1);
 	}

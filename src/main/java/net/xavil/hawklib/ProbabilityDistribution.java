@@ -17,8 +17,15 @@ public interface ProbabilityDistribution {
 	 */
 	double pick(double t);
 
-	static ProbabilityDistribution UNIFORM_UNIPOLAR = t -> t;
-	static ProbabilityDistribution UNIFORM_BIPOLAR = t -> 2.0 * t - 1.0;
+	/**
+	 * Evaluate the probability distribution at the given point.
+	 * {@link #pick(double)} should be used if you have a uniformly distributed
+	 * value you want to map according to this distribution, as this is the raw pdf.
+	 * 
+	 * @param t
+	 * @return
+	 */
+	double evaluate(double t);
 
 	static ProbabilityDistribution uniform(double min, double max) {
 		return new Uniform(min, max);
@@ -46,13 +53,22 @@ public interface ProbabilityDistribution {
 		public double pick(double t) {
 			return Mth.lerp(t, this.min, this.max);
 		}
+
+		@Override
+		public double evaluate(double v) {
+			if (v < this.min || v > this.max)
+				return 0;
+			return 1.0 / (this.max - this.min);
+		}
 	}
 
 	// adapt an arbitrary pdf into a distribution that can be sampled from in
 	// constant time.
 	final class InterpolatedTable implements ProbabilityDistribution {
 
+		private final Interval domain;
 		private final double[] inverseCdf;
+		private final double[] pdf;
 		private final double invCdfMin, invCdfMax;
 
 		private static final class LineSegment {
@@ -93,10 +109,13 @@ public interface ProbabilityDistribution {
 
 			final var segments = new LineSegment[binCount];
 			this.inverseCdf = new double[binCount];
+			this.pdf = new double[binCount + 1];
 
 			final var iStep = (domain.max - domain.min) / binCount;
 			double currentI = domain.min, currentO = 0;
-			double currentPf = probabilityFunction.applyAsDouble(currentI);
+			double currentPf = probabilityFunction.applyAsDouble(currentI), cumPf = 0;
+			this.pdf[0] = currentPf;
+			cumPf += currentPf;
 			for (int i = 0; i < binCount; ++i) {
 				final var iMin = currentI;
 				final var iMax = iMin + iStep;
@@ -108,6 +127,11 @@ public interface ProbabilityDistribution {
 				// dividing.
 				final var pfAverage = 0.5 * (currentPf + nextPf);
 				currentPf = nextPf;
+
+				// squirrel away the probability function directly, for our evaluate(...)
+				// implementation.
+				this.pdf[i + 1] = currentPf;
+				cumPf += pfAverage * iStep;
 
 				final var oMin = currentO;
 				final var oMax = oMin + pfAverage;
@@ -128,6 +152,11 @@ public interface ProbabilityDistribution {
 				segment.invert();
 			}
 
+			final var pdfNormFactor = 1.0 / cumPf;
+			for (int i = 0; i < binCount + 1; ++i) {
+				this.pdf[i] *= pdfNormFactor;
+			}
+
 			final var tStep = 1.0 / (binCount + 1.0);
 			int currentSegmentIndex = 0;
 			double currentT = 0;
@@ -146,6 +175,8 @@ public interface ProbabilityDistribution {
 			// cdf inverse, so domain becomes range
 			this.invCdfMin = domain.min;
 			this.invCdfMax = domain.max;
+
+			this.domain = domain;
 		}
 
 		// constant time evaluation <3
@@ -170,6 +201,19 @@ public interface ProbabilityDistribution {
 			final var index = Mth.floor(fractionalIndex - 0.5);
 			final var fract = fractionalIndex - 0.5 - index;
 			return Mth.lerp(fract, this.inverseCdf[index], this.inverseCdf[index + 1]);
+		}
+
+		@Override
+		public double evaluate(double v) {
+			if (v < this.domain.min || v > this.domain.max)
+				return 0;
+			final var t = this.domain.inverseLerp(v);
+			if (t == 1)
+				return this.pdf[this.pdf.length - 1];
+			final var fractionalIndex = t * this.pdf.length;
+			final var index = Mth.floor(fractionalIndex);
+			final var fract = fractionalIndex - index;
+			return Mth.lerp(fract, this.pdf[index], this.pdf[index + 1]);
 		}
 
 	}

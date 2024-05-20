@@ -240,8 +240,8 @@ public final class StarRenderManager implements Disposable {
 		final var colorHolder = ctx.colorHolder;
 		final var toStar = ctx.toStar;
 
-		// final var actualOrigin = this.originOffset.add(this.floatingOrigin);
-		final var actualOrigin = this.floatingOrigin;
+		final var actualOrigin = this.originOffset.add(this.floatingOrigin);
+		// final var actualOrigin = this.floatingOrigin;
 
 		final var levelSize = this.sectorTicket.info.radiusForLevel(sector.level);
 		for (int i = 0; i < sector.elements.size(); ++i) {

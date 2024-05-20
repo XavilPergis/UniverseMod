@@ -8,15 +8,15 @@ public class InterpolatedMaskField implements GalaxyRegionWeights.Field {
 
 	public final Vec3 min, max;
 	public final double invLerpFactorX, invLerpFactorY, invLerpFactorZ;
-	public final Cube[] cubes;
+	public final Cell[] cells;
 	public final int subdivisions;
 
-	private static final class Cube implements GalaxyRegionWeights.Field {
+	private static final class Cell implements GalaxyRegionWeights.Field {
 		public final Vec3 min, max;
 		public final GalaxyRegionWeights nnn, nnp, npn, npp, pnn, pnp, ppn, ppp;
 		public final double invLerpFactorX, invLerpFactorY, invLerpFactorZ;
 
-		public Cube(GalaxyRegionWeights.Field field, Vec3 min, Vec3 max) {
+		public Cell(GalaxyRegionWeights.Field field, Vec3 min, Vec3 max) {
 			this.min = min;
 			this.max = max;
 			this.nnn = new GalaxyRegionWeights();
@@ -40,7 +40,7 @@ public class InterpolatedMaskField implements GalaxyRegionWeights.Field {
 			this.invLerpFactorZ = 1.0 / (this.max.z - this.min.z);
 		}
 
-		public Cube(Vec3 min, Vec3 max,
+		public Cell(Vec3 min, Vec3 max,
 				GalaxyRegionWeights nnn, GalaxyRegionWeights nnp,
 				GalaxyRegionWeights npn, GalaxyRegionWeights npp,
 				GalaxyRegionWeights pnn, GalaxyRegionWeights pnp,
@@ -110,20 +110,20 @@ public class InterpolatedMaskField implements GalaxyRegionWeights.Field {
 
 	public static GalaxyRegionWeights.Field create(GalaxyRegionWeights.Field field, Vec3 min, Vec3 max,
 			int subdivisions) {
-		return subdivisions == 0 ? new Cube(field, min, max) : new InterpolatedMaskField(field, min, max, subdivisions);
+		return subdivisions == 1 ? new Cell(field, min, max) : new InterpolatedMaskField(field, min, max, subdivisions);
 	}
 
 	private InterpolatedMaskField(GalaxyRegionWeights.Field field, Vec3 min, Vec3 max, int subdivisions) {
-		final int sl = subdivisions + 1, gl = sl + 1;
+		final int sl = subdivisions, gl = sl + 1;
 
 		final var grid = new GalaxyRegionWeights[gl * gl * gl];
 		final var pos = new Vec3.Mutable();
 		for (int x = 0; x < gl; ++x) {
 			for (int y = 0; y < gl; ++y) {
 				for (int z = 0; z < gl; ++z) {
-					pos.x = Mth.lerp(x / (double) gl, min.x, max.x);
-					pos.y = Mth.lerp(y / (double) gl, min.y, max.y);
-					pos.z = Mth.lerp(z / (double) gl, min.z, max.z);
+					pos.x = Mth.lerp(x / (gl - 1.0), min.x, max.x);
+					pos.y = Mth.lerp(y / (gl - 1.0), min.y, max.y);
+					pos.z = Mth.lerp(z / (gl - 1.0), min.z, max.z);
 					final var masks = new GalaxyRegionWeights();
 					field.evaluate(pos, masks);
 					grid[idx(gl, x, y, z)] = masks;
@@ -131,7 +131,7 @@ public class InterpolatedMaskField implements GalaxyRegionWeights.Field {
 			}
 		}
 
-		this.cubes = new Cube[sl * sl * sl];
+		this.cells = new Cell[sl * sl * sl];
 		for (int x = 0; x < sl; ++x) {
 			for (int y = 0; y < sl; ++y) {
 				for (int z = 0; z < sl; ++z) {
@@ -150,7 +150,7 @@ public class InterpolatedMaskField implements GalaxyRegionWeights.Field {
 					final var xmax = Mth.lerp((x + 1) / (double) sl, min.x, max.x);
 					final var ymax = Mth.lerp((y + 1) / (double) sl, min.y, max.y);
 					final var zmax = Mth.lerp((z + 1) / (double) sl, min.z, max.z);
-					this.cubes[idx(sl, x, y, z)] = new Cube(
+					this.cells[idx(sl, x, y, z)] = new Cell(
 							new Vec3(xmin, ymin, zmin), new Vec3(xmax, ymax, zmax),
 							nnn, nnp, npn, npp, pnn, pnp, ppn, ppp);
 				}
@@ -166,11 +166,19 @@ public class InterpolatedMaskField implements GalaxyRegionWeights.Field {
 	}
 
 	public void interpolate(double tx, double ty, double tz, GalaxyRegionWeights masks) {
-		tx *= (this.subdivisions + 1);
-		ty *= (this.subdivisions + 1);
-		tz *= (this.subdivisions + 1);
-		final int ix = Mth.floor(tx), iy = Mth.floor(ty), iz = Mth.floor(tz);
-		this.cubes[idx(this.subdivisions + 1, ix, iy, iz)]
+		if (tx < 0 || tx > 1 || ty < 0 || ty > 1 || tz < 0 || tz > 1)
+			masks.arms = masks.core = masks.disc = masks.halo = 0;
+		tx *= this.subdivisions;
+		ty *= this.subdivisions;
+		tz *= this.subdivisions;
+		int ix = Mth.floor(tx), iy = Mth.floor(ty), iz = Mth.floor(tz);
+		if (ix == this.subdivisions)
+			ix -= 1;
+		if (iy == this.subdivisions)
+			iy -= 1;
+		if (iz == this.subdivisions)
+			iz -= 1;
+		this.cells[idx(this.subdivisions, ix, iy, iz)]
 				.interpolate(tx - ix, ty - iy, tz - iz, masks);
 	}
 

@@ -205,17 +205,17 @@ public class SkyRenderer implements Disposable {
 				framebuffer.checkStatus();
 				framebuffer.bind();
 
-				final var viewMat = new Mat4.Mutable();
+				final var inverseViewMat = new Mat4.Mutable();
 				switch (face) {
-					case XN -> Mat4.setLookAt(viewMat, Vec3.XN, captureLocation, Vec3.YP);
-					case XP -> Mat4.setLookAt(viewMat, Vec3.XP, captureLocation, Vec3.YP);
-					case YN -> Mat4.setLookAt(viewMat, Vec3.YN, captureLocation, Vec3.ZN);
-					case YP -> Mat4.setLookAt(viewMat, Vec3.YP, captureLocation, Vec3.ZP);
-					case ZN -> Mat4.setLookAt(viewMat, Vec3.ZN, captureLocation, Vec3.YP);
-					case ZP -> Mat4.setLookAt(viewMat, Vec3.ZP, captureLocation, Vec3.YP);
+					case XN -> Mat4.setLookAt(inverseViewMat, Vec3.XN, captureLocation, Vec3.YP);
+					case XP -> Mat4.setLookAt(inverseViewMat, Vec3.XP, captureLocation, Vec3.YP);
+					case YN -> Mat4.setLookAt(inverseViewMat, Vec3.YN, captureLocation, Vec3.ZN);
+					case YP -> Mat4.setLookAt(inverseViewMat, Vec3.YP, captureLocation, Vec3.ZP);
+					case ZN -> Mat4.setLookAt(inverseViewMat, Vec3.ZN, captureLocation, Vec3.YP);
+					case ZP -> Mat4.setLookAt(inverseViewMat, Vec3.ZP, captureLocation, Vec3.YP);
 				};
 
-				cam.load(viewMat, projMat, 1e12);
+				cam.load(inverseViewMat, projMat, 1e12);
 
 				this.starRenderer.draw(cam, captureLocation);
 			}

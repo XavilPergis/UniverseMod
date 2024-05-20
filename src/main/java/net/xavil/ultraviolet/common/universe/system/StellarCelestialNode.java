@@ -23,6 +23,14 @@ import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 
 public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 
+	public static enum Modifier {
+		NONE,
+		ANOMALOUS, // weird system layouts, weird planets
+		QUIET, // nice and peaceful uvu
+		VERDANT,
+		IRIDESCENT,
+	}
+
 	public static enum Type {
 		STAR,
 		WHITE_DWARF,
@@ -281,7 +289,7 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			final var stream = StellarCelestialNode.class.getResourceAsStream("/black_body_lut.bin");
 			return ByteBuffer.wrap(stream.readAllBytes()).order(ByteOrder.BIG_ENDIAN);
 		} catch (IOException ex) {
-			Mod.LOGGER.error("Failed to load star catalog");
+			Mod.LOGGER.error("Failed to load blackbody LUT");
 			ex.printStackTrace();
 			return null;
 		}

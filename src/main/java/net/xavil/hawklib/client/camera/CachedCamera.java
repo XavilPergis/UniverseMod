@@ -22,38 +22,38 @@ public class CachedCamera {
 	public double nearPlane;
 	public double farPlane;
 
-	public final Mat4.Mutable viewMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable inverseViewMatrix = new Mat4.Mutable();
+	public final Mat4.Mutable viewMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable projectionMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable inverseProjectionMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable viewProjectionMatrix = new Mat4.Mutable();
 	public final Mat4.Mutable inverseViewProjectionMatrix = new Mat4.Mutable();
 
 	public void load(Vec3Access pos, Quat orientation, Mat4 projectionMatrix, double metersPerUnit) {
-		Mat4.setRotationTranslation(this.inverseViewMatrix, orientation, pos.neg());
-		Mat4.invert(this.viewMatrix, this.inverseViewMatrix);
-		load(this.viewMatrix, projectionMatrix, metersPerUnit);
+		Mat4.setRotationTranslation(this.viewMatrix, orientation, pos.neg());
+		Mat4.invert(this.inverseViewMatrix, this.viewMatrix);
+		load(this.inverseViewMatrix, projectionMatrix, metersPerUnit);
 	}
 
-	public void load(Mat4Access viewMatrix, Mat4Access projectionMatrix, double metersPerUnit) {
-		Mat4.set(this.viewMatrix, viewMatrix);
+	public void load(Mat4Access inverseViewMatrix, Mat4Access projectionMatrix, double metersPerUnit) {
+		Mat4.set(this.inverseViewMatrix, inverseViewMatrix);
 		Mat4.set(this.projectionMatrix, projectionMatrix);
 		this.metersPerUnit = metersPerUnit;
 		recalculateCached();
 	}
 
 	public void recalculateCached() {
-		Mat4.invert(this.inverseViewMatrix, this.viewMatrix);
+		Mat4.invert(this.viewMatrix, this.inverseViewMatrix);
 		Mat4.invert(this.inverseProjectionMatrix, this.projectionMatrix);
-		Mat4.mul(this.viewProjectionMatrix, this.projectionMatrix, viewMatrix);
+		Mat4.mul(this.viewProjectionMatrix, this.projectionMatrix, inverseViewMatrix);
 		Mat4.invert(this.inverseViewProjectionMatrix, this.viewProjectionMatrix);
 
-		Mat4.storeTranslation(this.pos, viewMatrix);
+		Mat4.storeTranslation(this.pos, inverseViewMatrix);
 		Vec3.mul(this.posTm, metersPerUnit / 1e12, this.pos);
 
-		Mat4.basisX(this.right, this.viewMatrix);
-		Mat4.basisY(this.up, this.viewMatrix);
-		Mat4.basisZ(this.forward, this.viewMatrix);
+		Mat4.basisX(this.right, this.inverseViewMatrix);
+		Mat4.basisY(this.up, this.inverseViewMatrix);
+		Mat4.basisZ(this.forward, this.inverseViewMatrix);
 		Vec3.neg(this.down, this.up);
 		Vec3.neg(this.left, this.right);
 		Vec3.neg(this.backward, this.forward);
@@ -61,7 +61,7 @@ public class CachedCamera {
 		this.nearPlane = VecMath.transformPerspective(this.inverseProjectionMatrix, Vec3.ZN, 1.0).z;
 		this.farPlane = VecMath.transformPerspective(this.inverseProjectionMatrix, Vec3.ZP, 1.0).z;
 
-		this.orientation = Quat.fromAffineMatrix(this.viewMatrix);
+		this.orientation = Quat.fromAffineMatrix(this.inverseViewMatrix);
 	}
 
 	public void applyProjection() {
@@ -69,7 +69,7 @@ public class CachedCamera {
 	}
 
 	public void applyView() {
-		applyView(this.viewMatrix);
+		applyView(this.inverseViewMatrix);
 	}
 
 	public static void applyView(Mat4Access viewMatrix) {

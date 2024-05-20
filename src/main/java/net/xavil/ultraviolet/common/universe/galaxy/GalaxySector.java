@@ -17,6 +17,7 @@ public final class GalaxySector {
 	// level 0 is the smallest (base) size.
 	// 0 -> 7, resulting in 8 total levels
 	public static final int ROOT_LEVEL = 7;
+	public static final int LEVEL_COUNT = 8;
 	// the total amount of subsectors contained within the space a single root
 	// sector occupies.
 	public static final int SUBSECTORS_PER_ROOT_SECTOR;

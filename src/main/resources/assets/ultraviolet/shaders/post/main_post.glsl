@@ -30,12 +30,14 @@ void main() {
 	// res.rgb *= min(1e6, lumRatio);
 	// res.rgb *= min(1.0, 1.0 / (1.0 * uAverageLuminance));
 	// res.rgb *= min(100.0, 1.0 / (1.0 * uAverageLuminance));
-	// res.rgb *= uExposure;
+	res.rgb /= max(9.6 * uAverageLuminance, 1.0);
+	res.rgb *= uExposure;
 
 	// tonemapping
-	// res.rgb = tonemapACESFull(res.rgb);
+	res.rgb = tonemapACESFull(res.rgb);
+	// res.rgb = saturate(res.rgb);
 
-	res.rgb = tonemapReinhard(res.rgb, uAverageLuminance);
+	// res.rgb = tonemapReinhard(res.rgb, max(1.0, uAverageLuminance));
 
 	// gamma correction
 	res.rgb = pow(res.rgb, vec3(1.0 / GAMMA));

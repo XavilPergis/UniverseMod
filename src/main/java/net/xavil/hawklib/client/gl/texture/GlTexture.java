@@ -354,6 +354,10 @@ public abstract class GlTexture extends GlObject {
 			}
 			return builder.toString();
 		}
+
+		public int texelCount() {
+			return this.width * this.height * this.depth * this.layers;
+		}
 	}
 
 	public static enum MinFilter {

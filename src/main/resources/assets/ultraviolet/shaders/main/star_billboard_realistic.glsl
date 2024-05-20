@@ -36,8 +36,11 @@ void main() {
 
 	brightnessFactor = min(uStarBrightnessScale * d, uStarBrightnessMax);
 
-	gl_Position = uProjectionMatrix * viewPos;
-	gl_PointSize = 2.0 * uStarSize;
+	vec4 projectedPos = uProjectionMatrix * viewPos;
+	projectedPos.x = round(projectedPos.x);
+	projectedPos.y = round(projectedPos.y);
+	gl_Position = projectedPos;
+	gl_PointSize = uStarSize;
 	billboardID = gl_VertexID;
 
 	vertexColor = vec4(aColor.rgb, 1.0);
@@ -69,7 +72,7 @@ vec2 scaleUv(vec2 uv, float scale) {
 }
 
 void main() {
-    vec4 s1 = vec4(vec3(pow(max(0.0, 1.0 - (2.0 * length(gl_PointCoord - 0.5))), 2.0)), 1.0);
+    vec4 s1 = vec4(vec3(pow(max(0.0, 1.0 - (2.0 * length(gl_PointCoord - 0.5))), 8.0)), 1.0);
 	s1.rgb *= vertexColor.rgb;
 	s1.a *= brightnessFactor;
 
@@ -77,6 +80,7 @@ void main() {
 	s1.a *= mix(0.95, 1.05, noiseSimplex(3.0 * uTime, float(billboardID)) * 0.5 + 0.5);
 
     fColor = s1 * vertexColor.a;
+    // fColor = vec4(1.0, 0.0, 1.0, 1.0);
 }
 
 #endif

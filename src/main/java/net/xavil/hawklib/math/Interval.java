@@ -9,6 +9,7 @@ import net.xavil.hawklib.hash.Hasher;
 public final class Interval implements Hashable {
 
 	public static final Interval ZERO = new Interval(0, 0);
+	public static final Interval ONE = new Interval(1, 1);
 	public static final Interval UNIPOLAR = new Interval(0, 1);
 	public static final Interval BIPOLAR = new Interval(-1, 1);
 
@@ -17,6 +18,10 @@ public final class Interval implements Hashable {
 	public Interval(double min, double max) {
 		this.min = min;
 		this.max = max;
+	}
+
+	public Interval(double n) {
+		this(n, n);
 	}
 
 	public static double size(double l, double h) {

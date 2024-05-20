@@ -54,7 +54,7 @@ public final class BufferRenderer {
 		shader.setUniformf("uCameraFar", camera.farPlane);
 		// shader.setUniform("uCameraFov", 0.0);
 		shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
-		shader.setUniformf("uViewMatrix", camera.viewMatrix);
+		shader.setUniformf("uViewMatrix", camera.inverseViewMatrix);
 		shader.setUniformf("uProjectionMatrix", camera.projectionMatrix);
 		shader.setUniformf("uViewProjectionMatrix", camera.viewProjectionMatrix);
 	}

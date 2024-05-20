@@ -27,4 +27,12 @@ public final class StarSystem {
 		info.loadCopyOf(this.systemInfo);
 	}
 
+	public void tick() {
+		final var time = this.parentGalaxy.parentUniverse.getCelestialTime();
+		this.rootNode.visit(node -> {
+			Vec3.set(node.lastPosition, node.position);
+		});
+		this.rootNode.updatePositions(time);
+	}
+
 }

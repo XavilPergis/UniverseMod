@@ -12,6 +12,7 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlBuffer;
 import net.xavil.hawklib.client.gl.GlFence;
 import net.xavil.hawklib.client.gl.GlManager;
+import net.xavil.hawklib.client.gl.GlPerf;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.iterator.IteratorInt;
@@ -55,7 +56,8 @@ public final class AverageLuminanceComputer implements Disposable {
 		// client-accessible buffer to copy the histogram into
 		this.readbackBuffer.allocateImmutableStorage(maxInFlight * HISTOGRAM_SIZE_BYTES,
 				GL45C.GL_MAP_READ_BIT | GL45C.GL_MAP_PERSISTENT_BIT | GL45C.GL_CLIENT_STORAGE_BIT);
-		this.readbackPointer = this.readbackBuffer.map(GL45C.GL_MAP_READ_BIT | GL45C.GL_MAP_PERSISTENT_BIT);
+		this.readbackPointer = this.readbackBuffer
+				.map(GL45C.GL_MAP_READ_BIT | GL45C.GL_MAP_PERSISTENT_BIT | GL45C.GL_MAP_UNSYNCHRONIZED_BIT);
 
 		for (int i = 0; i < maxInFlight; ++i) {
 			this.fences[i] = new GlFence();
@@ -93,6 +95,8 @@ public final class AverageLuminanceComputer implements Disposable {
 			this.luminanceImage.createStorage(GlTexture.Format.R16_FLOAT, desiredSize.x, desiredSize.y);
 		}
 
+		GlPerf.push("luminance_preprocess");
+
 		// // image unit 1 is shared between both compute passes, we dont need to rebind
 		// GL45C.glBindImageTexture(1, this.luminanceImage.id, 0, false, 0,
 		// GL45C.GL_READ_ONLY, GL45C.GL_R16F);
@@ -103,6 +107,8 @@ public final class AverageLuminanceComputer implements Disposable {
 		preprocessShader.bind();
 		GL45C.glDispatchCompute(windowSize.x / 16, windowSize.y / 16, 1);
 		GL45C.glMemoryBarrier(GL45C.GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		GlPerf.swap("luminance_histogram");
 
 		this.histogramBuffer.slice().clear(GL45C.GL_R8UI);
 		GL45C.glMemoryBarrier(GL45C.GL_SHADER_STORAGE_BARRIER_BIT);
@@ -116,6 +122,8 @@ public final class AverageLuminanceComputer implements Disposable {
 		GL45C.glDispatchCompute(windowSize.x / 16, windowSize.y / 16, 1);
 		// GL45C.glDispatchCompute(1, 1, 1);
 
+		GlPerf.swap("luminance_copy");
+
 		// copy to persistently mapped readback buffer (device -> host buffer hopefully)
 		final var readbackSlice = this.readbackBuffer.slice(HISTOGRAM_SIZE_BYTES * this.currentFence,
 				HISTOGRAM_SIZE_BYTES);
@@ -123,6 +131,8 @@ public final class AverageLuminanceComputer implements Disposable {
 		// TODO: do i even need a barrier here??? i think i do??????
 		GL45C.glMemoryBarrier(GL45C.GL_CLIENT_MAPPED_BUFFER_BARRIER_BIT);
 		this.fences[this.currentFence].signalFence();
+
+		GlPerf.pop();
 	}
 
 	private Histogram getHistogram() {
@@ -143,8 +153,10 @@ public final class AverageLuminanceComputer implements Disposable {
 
 		float totalLuminance = 0.0f;
 		for (int i = 0; i < histogram.size(); ++i) {
-			// final var binLuminance = histogram.mapping.unmap((i + 0.5) / histogram.size());
-			// final var binLuminance = histogram.mapping.unmap((i + 0.2) / histogram.size());
+			// final var binLuminance = histogram.mapping.unmap((i + 0.5) /
+			// histogram.size());
+			// final var binLuminance = histogram.mapping.unmap((i + 0.2) /
+			// histogram.size());
 			final var binLuminance = histogram.mapping.unmap(i / histogram.size());
 			totalLuminance += histogram.get(i) * binLuminance;
 		}
@@ -154,12 +166,15 @@ public final class AverageLuminanceComputer implements Disposable {
 
 		final var totalPixelCount = this.luminanceImage.size().texelCount();
 		final var weightedLogAverage = (totalLuminance / totalPixelCount) - 1.0;
-		final var weightedAvgLum = Math.pow(2.0, Mth.lerp(weightedLogAverage / 254.0, minLogLuminance, maxLogLuminance));
+		final var weightedAvgLum = Math.pow(2.0,
+				Mth.lerp(weightedLogAverage / 254.0, minLogLuminance, maxLogLuminance));
 
 		return weightedAvgLum;
 	}
 
 	public void compute(GlTexture2d sceneTexture) {
+		GlPerf.push("average_luminance");
+
 		final var dt = Minecraft.getInstance().getDeltaFrameTime();
 
 		if (this.fences[this.currentFence].clientWaitSync().isSignaled) {
@@ -179,6 +194,8 @@ public final class AverageLuminanceComputer implements Disposable {
 		// done using data - we can clobber the buffer now
 		dispatch(sceneTexture);
 		this.currentFence = (this.currentFence + 1) % this.fences.length;
+
+		GlPerf.pop();
 	}
 
 	public double currentAverageLuminance() {

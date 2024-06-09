@@ -1,122 +1,120 @@
 package net.xavil.hawklib;
 
+import net.minecraft.util.Mth;
 import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.impl.VectorInt;
 import net.xavil.hawklib.collections.interfaces.MutableList;
-import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
 
-public final class WeightedList<T> implements MutableList<WeightedList.Entry<T>> {
-	public static final class Entry<T> {
-		public final double weight;
-		public final T value;
+public final class WeightedList<T> {
 
-		public Entry(double weight, T value) {
-			this.weight = weight;
-			this.value = value;
+	public static final class Builder<T> implements MutableList<Builder.Entry<T>> {
+		public static final class Entry<T> {
+			public T value;
+			public float probability;
+
+			public Entry(T value, float probability) {
+				this.value = value;
+				this.probability = probability;
+			}
+
+			public Entry<T> copy() {
+				return new Entry<>(this.value, this.probability);
+			}
 		}
 
-		public Entry<T> withWeight(double weight) {
-			return new Entry<>(weight, value);
+		public Builder() {
 		}
 
-		public Entry<T> withValue(T value) {
-			return new Entry<>(weight, value);
+		private final Vector<Entry<T>> entries = new Vector<>();
+
+		public void push(double weight, T value) {
+			this.entries.push(new Entry<>(value, (float) weight));
+		}
+
+		@Override
+		public int size() {
+			return this.entries.size();
+		}
+
+		@Override
+		public Entry<T> get(int index) {
+			return this.entries.get(index);
+		}
+
+		@Override
+		public Iterator<Entry<T>> iter() {
+			return this.entries.iter();
+		}
+
+		@Override
+		public Entry<T> set(int index, Entry<T> value) {
+			return this.entries.set(index, value);
+		}
+
+		@Override
+		public void insert(int index, Entry<T> value) {
+			this.entries.insert(index, value);
+		}
+
+		@Override
+		public Entry<T> remove(int index) {
+			return this.entries.remove(index);
+		}
+
+		public WeightedList<T> build() {
+			final var res = new WeightedList<T>(this.entries.size());
+			this.entries.iter().map(entry -> entry.value).fillArray(res.values);
+
+			// final var probs = new float[this.entries.size()];
+			float totalWeight = 0f;
+			for (int i = 0; i < this.entries.size(); ++i) {
+				totalWeight += res.probabilities[i] = this.entries.get(i).probability;
+			}
+
+			final var normFactor = this.entries.size() / totalWeight;
+			final VectorInt small = new VectorInt(), large = new VectorInt();
+			for (int i = 0; i < this.entries.size(); ++i) {
+				((res.probabilities[i] *= normFactor) >= 1 ? large : small).push(i);
+			}
+
+			while (!large.isEmpty() && !small.isEmpty()) {
+				final int hi = large.popOrThrow(), lo = small.popOrThrow();
+				res.alias[lo] = hi;
+				res.probabilities[hi] += res.probabilities[lo] - 1;
+				(res.probabilities[hi] >= 1 ? large : small).push(hi);
+			}
+
+			while (!large.isEmpty())
+				res.probabilities[large.popOrThrow()] = 1f;
+			while (!small.isEmpty())
+				res.probabilities[small.popOrThrow()] = 1f;
+
+			return res;
 		}
 	}
 
-	private final Vector<Entry<T>> entries;
-	private double totalWeight;
+	private final T[] values;
+	private final int[] alias;
+	private final float[] probabilities;
 
-	public WeightedList() {
-		this(new Vector<>(), 0);
-	}
-
-	public WeightedList(IntoIterator<Entry<T>> entries) {
-		this(entries.iter().collectTo(Vector::new), 0);
-		this.entries.forEach(e -> this.totalWeight += e.weight);
-	}
-
-	private WeightedList(Vector<Entry<T>> entries, double totalWeight) {
-		this.entries = entries;
-		this.totalWeight = totalWeight;
-	}
-
-	public void push(double weight, T value) {
-		this.entries.push(new Entry<T>(weight, value));
-		this.totalWeight += weight;
-	}
-
-	// t in [0, 1)
-	public int pickIndex(double t) {
-		double inertia = t * this.totalWeight;
-		for (int i = 0; i < this.entries.size(); ++i) {
-			final var elem = this.entries.get(i);
-			if (elem.weight > inertia)
-				return i;
-			inertia -= elem.weight;
-		}
-		// this just happens to return the sentinel -1 when the list is empty.
-		return this.entries.size() - 1;
+	@SuppressWarnings("unchecked")
+	private WeightedList(int size) {
+		this.values = (T[]) new Object[size];
+		this.alias = new int[size];
+		this.probabilities = new float[size];
 	}
 
 	public T pick(double t) {
-		double inertia = t * this.totalWeight;
-		for (int i = 0; i < this.entries.size(); ++i) {
-			final var elem = this.entries.get(i);
-			if (elem.weight > inertia)
-				return elem.value;
-			inertia -= elem.weight;
-		}
-		return this.entries.last().map(e -> e.value).unwrapOrNull();
+		final var fi = t * this.values.length;
+		final var i = Mth.floor(fi);
+
+		final var useAlias = fi - i > this.probabilities[i];
+		return useAlias ? this.values[this.alias[i]] : this.values[i];
 	}
 
-	public void remove(T value) {
-		final int i = this.entries.indexOf(e -> e.value == value);
-		final var elem = this.entries.remove(i);
-		this.totalWeight -= elem.weight;
-	}
-
-	public double totalWeight() {
-		return this.totalWeight;
-	}
-
-	@Override
-	protected WeightedList<T> clone() {
-		return new WeightedList<>(new Vector<>(this.entries), this.totalWeight);
-	}
-
-	@Override
-	public Iterator<Entry<T>> iter() {
-		return this.entries.iter();
-	}
-
-	@Override
 	public int size() {
-		return this.entries.size();
+		return this.values.length;
 	}
 
-	@Override
-	public Entry<T> get(int index) {
-		return this.entries.get(index);
-	}
-
-	@Override
-	public Entry<T> set(int index, Entry<T> value) {
-		final var res = this.entries.set(index, value);
-		this.totalWeight += value.weight - res.weight;
-		return res;
-	}
-
-	@Override
-	public void insert(int index, Entry<T> value) {
-		this.entries.insert(index, value);
-		this.totalWeight += value.weight;
-	}
-
-	@Override
-	public Entry<T> remove(int index) {
-		final var res = this.entries.remove(index);
-		this.totalWeight -= res.weight;
-		return res;
-	}
 }

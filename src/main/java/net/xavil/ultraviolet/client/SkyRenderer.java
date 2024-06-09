@@ -14,6 +14,7 @@ import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
+import net.xavil.hawklib.client.gl.GlState;
 import net.xavil.hawklib.client.gl.texture.GlTextureCubemap;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
@@ -84,12 +85,6 @@ public class SkyRenderer implements Disposable {
 			double nearPlane, double farPlane,
 			float partialTick) {
 		tfm.push();
-		// double n = 0;
-		// var offset = Vec3.ZERO;
-		// // offset = new Vec3(0, 10000000, 0);
-		// tfm.appendTranslation(offset);
-		// n = ((System.nanoTime() / 1e8) % 100) / 100;
-		// tfm.appendTranslation(new Vec3(0, 100000.0 * n, 0));
 		tfm.prependRotation(orientationFromMinecraftCamera(camera).inverse());
 		final var invView = tfm.copyCurrent();
 		tfm.pop();
@@ -217,7 +212,13 @@ public class SkyRenderer implements Disposable {
 
 				cam.load(inverseViewMat, projMat, 1e12);
 
-				this.starRenderer.draw(cam, captureLocation);
+				cam.applyProjection();
+				CachedCamera.applyView(cam.orientation);
+				if (this.galaxyRenderingContext != null) {
+					this.galaxyRenderingContext.draw(cam, Vec3.ZERO);
+				}
+
+				// this.starRenderer.draw(cam, captureLocation);
 			}
 		}
 
@@ -361,8 +362,12 @@ public class SkyRenderer implements Disposable {
 		profiler.pop();
 	}
 
+	private final GlState.Cached cachedState = new GlState.Cached();
+
 	public boolean renderSky(PoseStack poseStack, Matrix4f projectionMatrix, float tickDelta,
 			Camera camera, boolean isSkyVisible) {
+
+		this.cachedState.capture();
 
 		final var worldType = EntityAccessor.getWorldType(this.client.player);
 		if (worldType == null)
@@ -371,7 +376,7 @@ public class SkyRenderer implements Disposable {
 		final var profiler = Minecraft.getInstance().getProfiler();
 
 		profiler.push("pushGlState");
-		GlManager.pushState();
+		GlManager.pushState(this.cachedState.get());
 		profiler.pop();
 
 		profiler.push("fboSetup");
@@ -392,6 +397,10 @@ public class SkyRenderer implements Disposable {
 		drawCelestialObjects(camera, this.mainSkyTarget, partialTick);
 		// drawCelestialObjects(camera, mainTarget, partialTick);
 		profiler.pop();
+
+		// make bottom hemisphere the same as the fog color.
+		final var tfm = new TransformStack();
+		final var cam2 = createCamera(camera, tfm, 1e2, 1e10, partialTick);
 
 		// profiler.push("postprocess");
 		// final var sceneTexture =

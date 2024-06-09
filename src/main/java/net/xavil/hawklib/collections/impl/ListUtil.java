@@ -2,6 +2,9 @@ package net.xavil.hawklib.collections.impl;
 
 import net.xavil.hawklib.collections.interfaces.ImmutableListFloat;
 import net.xavil.hawklib.collections.interfaces.ImmutableListInt;
+
+import java.util.Objects;
+
 import net.xavil.hawklib.collections.interfaces.ImmutableList;
 
 public final class ListUtil {
@@ -91,6 +94,18 @@ public final class ListUtil {
 		}
 		builder.append("]");
 		return builder.toString();
+	}
+
+	public static boolean genericEquals(ImmutableList<?> a, ImmutableList<?> b) {
+		if (a.size() != b.size())
+			return false;
+		final var aIt = a.iter();
+		final var bIt = b.iter();
+		while (aIt.hasNext() && bIt.hasNext()) {
+			if (!Objects.equals(aIt.next(), bIt.next()))
+				return false;
+		}
+		return true;
 	}
 
 }

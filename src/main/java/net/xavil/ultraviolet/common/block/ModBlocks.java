@@ -18,6 +18,8 @@ public final class ModBlocks {
 			FabricBlockSettings.of(Material.STONE).strength(1f, 4f).sound(SoundType.GRAVEL));
 	public static final Block SILICATE_ROCK = new Block(
 			FabricBlockSettings.of(Material.STONE).strength(1.5f, 6f).sound(SoundType.TUFF));
+	public static final Block SILICATE_GEYSER = new GeyserBlock(
+			FabricBlockSettings.of(Material.STONE).strength(1.5f, 6f).sound(SoundType.TUFF));
 
 	public static final Block METAL_RICH_FINE_REGOLITH = new Block(
 			FabricBlockSettings.of(Material.STONE).strength(0.4f).sound(SoundType.WOOL));
@@ -44,6 +46,7 @@ public final class ModBlocks {
 		registerBasicBlock("silicate_fine_regolith", SILICATE_FINE_REGOLITH);
 		registerBasicBlock("silicate_loose_regolith", SILICATE_LOOSE_REGOLITH);
 		registerBasicBlock("silicate_rock", SILICATE_ROCK);
+		registerBasicBlock("silicate_geyser", SILICATE_GEYSER);
 		registerBasicBlock("metal_rich_fine_regolith", METAL_RICH_FINE_REGOLITH);
 		registerBasicBlock("metal_rich_loose_regolith", METAL_RICH_LOOSE_REGOLITH);
 		registerBasicBlock("metal_rich_rock", METAL_RICH_ROCK);

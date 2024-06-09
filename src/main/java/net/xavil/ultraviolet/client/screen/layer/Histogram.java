@@ -13,11 +13,14 @@ public final class Histogram {
 	private final VectorInt bins;
 
 	public final AxisMapping mapping;
-	
+
 	private final VectorFloat outliersLo = new VectorFloat(), outliersHi = new VectorFloat();
 	private int outliersLoCount, outliersHiCount;
 
-	private int total = 0;
+	private boolean isMeanValid = true;
+	private double mean = 0;
+
+	private int totalCount = 0;
 
 	public Histogram(String inputLabel, int binCount, AxisMapping mapping) {
 		this.inputLabel = inputLabel;
@@ -43,12 +46,14 @@ public final class Histogram {
 	}
 
 	public void reset(int binCount) {
-		this.total = 0;
+		this.totalCount = 0;
 		this.bins.clear();
 		this.bins.extend(IteratorInt.repeat(0, binCount));
 		this.outliersLo.clear();
 		this.outliersHi.clear();
 		this.outliersLoCount = this.outliersHiCount = 0;
+		this.mean = 0;
+		this.isMeanValid = true;
 	}
 
 	public void reset() {
@@ -56,25 +61,37 @@ public final class Histogram {
 	}
 
 	public int total() {
-		return this.total;
+		return this.totalCount;
+	}
+
+	public boolean hasMean() {
+		return this.isMeanValid;
+	}
+
+	public double getMean() {
+		return this.mean;
 	}
 
 	public void setBins(IteratorInt binIterator) {
+		this.isMeanValid = false;
 		this.outliersLo.clear();
 		this.outliersHi.clear();
 		this.outliersLoCount = this.outliersHiCount = 0;
-		
+
 		final var binCount = this.bins.size();
 		this.bins.clear();
 		this.bins.extend(binIterator.limit(binCount));
 		this.bins.extend(IteratorInt.repeat(0, binCount - this.bins.size()));
 
-		this.total = 0;
-		this.bins.forEach(count -> this.total += count);
+		this.totalCount = 0;
+		this.bins.forEach(count -> this.totalCount += count);
 	}
 
 	public void insert(double value) {
-		this.total += 1;
+		this.mean *= this.totalCount / (this.totalCount + 1.0);
+		this.mean += value / (this.totalCount + 1.0);
+		this.totalCount += 1;
+
 		final var t = this.mapping.remap(value);
 		if (t < 0) {
 			if (this.outliersLoCount < 20)
@@ -130,7 +147,7 @@ public final class Histogram {
 		sb.append("+");
 		printer.accept(sb.toString());
 		for (int i = 0; i < this.bins.size(); ++i) {
-			final var binPercent = this.bins.get(i) / (double) this.total;
+			final var binPercent = this.bins.get(i) / (double) this.totalCount;
 			final var binLo = this.mapping.unmap(i / (double) this.bins.size());
 			final var binHi = this.mapping.unmap((i + 1) / (double) this.bins.size());
 			sb.setLength(0);
@@ -145,7 +162,7 @@ public final class Histogram {
 		printer.accept(sb.toString());
 		printer.accept(String.format("Outliers (Lo): %d, %s", this.outliersLoCount, this.outliersLo));
 		printer.accept(String.format("Outliers (Hi): %d, %s", this.outliersHiCount, this.outliersHi));
-		printer.accept(String.format("Total: %d", this.total));
+		printer.accept(String.format("Total: %d", this.totalCount));
 		sb.setLength(0);
 		makeBar(sb, null, '=', barLength + 2);
 		printer.accept(sb.toString());

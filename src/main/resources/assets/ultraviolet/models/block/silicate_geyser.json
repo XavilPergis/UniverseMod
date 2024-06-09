@@ -1,0 +1,9 @@
+{
+	"parent": "minecraft:block/cube_bottom_top",
+	"textures": {
+		"particle": "ultraviolet:block/silicate_rock",
+		"side": "ultraviolet:block/silicate_rock",
+		"bottom": "ultraviolet:block/silicate_rock",
+		"top": "ultraviolet:block/silicate_geyser"
+	}
+}

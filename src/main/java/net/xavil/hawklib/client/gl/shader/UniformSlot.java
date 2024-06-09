@@ -4,13 +4,15 @@ import java.lang.ref.WeakReference;
 
 import org.lwjgl.opengl.GL45C;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+
 import net.xavil.hawklib.HawkLib;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.ultraviolet.Mod;
 
 public final class UniformSlot {
 
-	public static enum ComponentType {
+	public static enum UniformComponentType {
 		INT(true, false),
 		UINT(true, false),
 		FLOAT(false, true),
@@ -21,7 +23,7 @@ public final class UniformSlot {
 		public final boolean isIntType;
 		public final boolean isFloatType;
 
-		private ComponentType(boolean isIntType, boolean isFloatType) {
+		private UniformComponentType(boolean isIntType, boolean isFloatType) {
 			this.isIntType = isIntType;
 			this.isFloatType = isFloatType;
 		}
@@ -30,37 +32,37 @@ public final class UniformSlot {
 	public static enum Type {
 		// @formatter:off
 		// ===== vectors =====
-		FLOAT1 (GL45C.GL_FLOAT,             "float",  1, ComponentType.FLOAT),
-		FLOAT2 (GL45C.GL_FLOAT_VEC2,        "vec2",   2, ComponentType.FLOAT),
-		FLOAT3 (GL45C.GL_FLOAT_VEC3,        "vec3",   3, ComponentType.FLOAT),
-		FLOAT4 (GL45C.GL_FLOAT_VEC4,        "vec4",   4, ComponentType.FLOAT),
+		FLOAT1 (GL45C.GL_FLOAT,             "float",  1, UniformComponentType.FLOAT),
+		FLOAT2 (GL45C.GL_FLOAT_VEC2,        "vec2",   2, UniformComponentType.FLOAT),
+		FLOAT3 (GL45C.GL_FLOAT_VEC3,        "vec3",   3, UniformComponentType.FLOAT),
+		FLOAT4 (GL45C.GL_FLOAT_VEC4,        "vec4",   4, UniformComponentType.FLOAT),
 		// weirdly enough, this can be returned by glGetActiveUniform, even though it is
 		// not actually possible to upload a uniform double!
-		DOUBLE1(GL45C.GL_DOUBLE,            "double", 1, ComponentType.INVALID),
-		INT1   (GL45C.GL_INT,               "int",    1, ComponentType.INT),
-		INT2   (GL45C.GL_INT_VEC2,          "ivec2",  2, ComponentType.INT),
-		INT3   (GL45C.GL_INT_VEC3,          "ivec3",  3, ComponentType.INT),
-		INT4   (GL45C.GL_INT_VEC4,          "ivec4",  4, ComponentType.INT),
-		UINT1  (GL45C.GL_UNSIGNED_INT,      "uint",   1, ComponentType.UINT),
-		UINT2  (GL45C.GL_UNSIGNED_INT_VEC2, "uvec2",  2, ComponentType.UINT),
-		UINT3  (GL45C.GL_UNSIGNED_INT_VEC3, "uvec3",  3, ComponentType.UINT),
-		UINT4  (GL45C.GL_UNSIGNED_INT_VEC4, "uvec4",  4, ComponentType.UINT),
+		DOUBLE1(GL45C.GL_DOUBLE,            "double", 1, UniformComponentType.INVALID),
+		INT1   (GL45C.GL_INT,               "int",    1, UniformComponentType.INT),
+		INT2   (GL45C.GL_INT_VEC2,          "ivec2",  2, UniformComponentType.INT),
+		INT3   (GL45C.GL_INT_VEC3,          "ivec3",  3, UniformComponentType.INT),
+		INT4   (GL45C.GL_INT_VEC4,          "ivec4",  4, UniformComponentType.INT),
+		UINT1  (GL45C.GL_UNSIGNED_INT,      "uint",   1, UniformComponentType.UINT),
+		UINT2  (GL45C.GL_UNSIGNED_INT_VEC2, "uvec2",  2, UniformComponentType.UINT),
+		UINT3  (GL45C.GL_UNSIGNED_INT_VEC3, "uvec3",  3, UniformComponentType.UINT),
+		UINT4  (GL45C.GL_UNSIGNED_INT_VEC4, "uvec4",  4, UniformComponentType.UINT),
 		// booleans are uploaded via glUniform*i
-		BOOL1  (GL45C.GL_BOOL,              "bool",   1, ComponentType.INT),
-		BOOL2  (GL45C.GL_BOOL_VEC2,         "bvec2",  2, ComponentType.INT),
-		BOOL3  (GL45C.GL_BOOL_VEC3,         "bvec3",  3, ComponentType.INT),
-		BOOL4  (GL45C.GL_BOOL_VEC4,         "bvec4",  4, ComponentType.INT),
+		BOOL1  (GL45C.GL_BOOL,              "bool",   1, UniformComponentType.INT),
+		BOOL2  (GL45C.GL_BOOL_VEC2,         "bvec2",  2, UniformComponentType.INT),
+		BOOL3  (GL45C.GL_BOOL_VEC3,         "bvec3",  3, UniformComponentType.INT),
+		BOOL4  (GL45C.GL_BOOL_VEC4,         "bvec4",  4, UniformComponentType.INT),
 
 		// ===== matrices =====
-		FLOAT_MAT2x2(GL45C.GL_FLOAT_MAT2,   "mat2",   4,  ComponentType.FLOAT),
-		FLOAT_MAT3x3(GL45C.GL_FLOAT_MAT3,   "mat3",   9,  ComponentType.FLOAT),
-		FLOAT_MAT4x4(GL45C.GL_FLOAT_MAT4,   "mat4",   16, ComponentType.FLOAT),
-		FLOAT_MAT2x3(GL45C.GL_FLOAT_MAT2x3, "mat2x3", 6,  ComponentType.FLOAT),
-		FLOAT_MAT2x4(GL45C.GL_FLOAT_MAT2x4, "mat2x4", 8,  ComponentType.FLOAT),
-		FLOAT_MAT3x2(GL45C.GL_FLOAT_MAT3x2, "mat3x2", 6,  ComponentType.FLOAT),
-		FLOAT_MAT3x4(GL45C.GL_FLOAT_MAT3x4, "mat3x4", 12, ComponentType.FLOAT),
-		FLOAT_MAT4x2(GL45C.GL_FLOAT_MAT4x2, "mat4x2", 8,  ComponentType.FLOAT),
-		FLOAT_MAT4x3(GL45C.GL_FLOAT_MAT4x3, "mat4x3", 12, ComponentType.FLOAT),
+		FLOAT_MAT2x2(GL45C.GL_FLOAT_MAT2,   "mat2",   4,  UniformComponentType.FLOAT),
+		FLOAT_MAT3x3(GL45C.GL_FLOAT_MAT3,   "mat3",   9,  UniformComponentType.FLOAT),
+		FLOAT_MAT4x4(GL45C.GL_FLOAT_MAT4,   "mat4",   16, UniformComponentType.FLOAT),
+		FLOAT_MAT2x3(GL45C.GL_FLOAT_MAT2x3, "mat2x3", 6,  UniformComponentType.FLOAT),
+		FLOAT_MAT2x4(GL45C.GL_FLOAT_MAT2x4, "mat2x4", 8,  UniformComponentType.FLOAT),
+		FLOAT_MAT3x2(GL45C.GL_FLOAT_MAT3x2, "mat3x2", 6,  UniformComponentType.FLOAT),
+		FLOAT_MAT3x4(GL45C.GL_FLOAT_MAT3x4, "mat3x4", 12, UniformComponentType.FLOAT),
+		FLOAT_MAT4x2(GL45C.GL_FLOAT_MAT4x2, "mat4x2", 8,  UniformComponentType.FLOAT),
+		FLOAT_MAT4x3(GL45C.GL_FLOAT_MAT4x3, "mat4x3", 12, UniformComponentType.FLOAT),
 
 		// ===== samplers =====
 		SAMPLER_1D                       (GL45C.GL_SAMPLER_1D,                                "sampler1D",              GlTexture.Type.D1,          GlTexture.SamplerType.FLOAT),
@@ -143,7 +145,7 @@ public final class UniformSlot {
 
 		public final int id;
 		public final String description;
-		public final ComponentType componentType;
+		public final UniformComponentType componentType;
 		public final int componentCount;
 
 		// texture sampler/image types
@@ -152,7 +154,7 @@ public final class UniformSlot {
 		// only samplers have this one
 		public final GlTexture.SamplerType samplerType;
 
-		private Type(int id, String description, int componentCount, ComponentType componentType) {
+		private Type(int id, String description, int componentCount, UniformComponentType componentType) {
 			this.id = id;
 			this.description = description;
 			this.componentCount = componentCount;
@@ -166,7 +168,7 @@ public final class UniformSlot {
 			this.id = id;
 			this.description = description;
 			this.componentCount = 1;
-			this.componentType = ComponentType.SAMPLER;
+			this.componentType = UniformComponentType.SAMPLER;
 			this.isTexture = true;
 			this.textureType = textureType;
 			this.samplerType = samplerType;
@@ -176,7 +178,7 @@ public final class UniformSlot {
 			this.id = id;
 			this.description = description;
 			this.componentCount = 1;
-			this.componentType = ComponentType.IMAGE;
+			this.componentType = UniformComponentType.IMAGE;
 			this.isTexture = true;
 			this.textureType = textureType;
 			this.samplerType = null;
@@ -242,7 +244,7 @@ public final class UniformSlot {
 			};
 		}
 
-		public static Type fromImage(GlTexture.ComponentType componentType, GlTexture.Type textureType) {
+		public static Type fromImage(GlTexture.ImageType componentType, GlTexture.Type textureType) {
 			return switch (componentType) {
 				case FLOAT -> switch (textureType) {
 					case D1 -> IMAGE_1D;
@@ -469,9 +471,9 @@ public final class UniformSlot {
 		this.size = size;
 		this.location = location;
 
-		if (this.type.componentType == ComponentType.SAMPLER) {
+		if (this.type.componentType == UniformComponentType.SAMPLER) {
 			this.samplerValues = new SamplerUniform[size];
-		} else if (this.type.componentType == ComponentType.IMAGE) {
+		} else if (this.type.componentType == UniformComponentType.IMAGE) {
 			this.imageValues = new ImageUniform[size];
 		} else if (this.type.componentType.isFloatType) {
 			this.floatValues = new float[size * this.type.componentCount];
@@ -553,7 +555,7 @@ public final class UniformSlot {
 	}
 
 	private void uploadImages(ShaderProgram program, UploadContext ctx) {
-		if (this.type.componentType != ComponentType.IMAGE)
+		if (this.type.componentType != UniformComponentType.IMAGE)
 			return;
 
 		for (int i = 0; i < this.imageValues.length; ++i) {
@@ -576,7 +578,7 @@ public final class UniformSlot {
 	}
 
 	private void uploadSamplers(ShaderProgram program, UploadContext ctx) {
-		if (this.type.componentType != ComponentType.SAMPLER)
+		if (this.type.componentType != UniformComponentType.SAMPLER)
 			return;
 
 		for (int i = 0; i < this.samplerValues.length; ++i) {
@@ -589,10 +591,12 @@ public final class UniformSlot {
 				this.samplerValues[i] = null;
 				continue;
 			}
-			// FIXME: we change texture unit bindings but don't tell GlStateManager about
-			// it, which means vanilla has the possibility of getting into a weird state.
-			// GlManager.activeTexture(GL45C.GL_TEXTURE0 + ctx.currentTextureUnit);
-			// GlManager.bindTexture(texture.type, texture.id);
+
+			// GlStateManager only tracks 2d textures
+			if (texture.type == GlTexture.Type.D2 && ctx.currentTextureUnit < GlStateManager.TEXTURES.length) {
+				GlStateManager.TEXTURES[ctx.currentTextureUnit].binding = texture.id;
+			}
+
 			GL45C.glBindTextureUnit(ctx.currentTextureUnit, texture.id);
 			GL45C.glProgramUniform1i(program.id, this.location, ctx.currentTextureUnit);
 			ctx.currentTextureUnit += 1;
@@ -627,16 +631,16 @@ public final class UniformSlot {
 
 	void upload(ShaderProgram program, UploadContext ctx) {
 		if (!this.isDirty
-				&& this.type.componentType != ComponentType.SAMPLER
-				&& this.type.componentType != ComponentType.IMAGE)
+				&& this.type.componentType != UniformComponentType.SAMPLER
+				&& this.type.componentType != UniformComponentType.IMAGE)
 			return;
 		this.isDirty = false;
 
 		if (uploadMatrix(program))
 			return;
-		if (this.type.componentType == ComponentType.SAMPLER) {
+		if (this.type.componentType == UniformComponentType.SAMPLER) {
 			uploadSamplers(program, ctx);
-		} else if (this.type.componentType == ComponentType.IMAGE) {
+		} else if (this.type.componentType == UniformComponentType.IMAGE) {
 			uploadImages(program, ctx);
 		} else if (this.type.componentType.isFloatType) {
 			uploadFloats(program);

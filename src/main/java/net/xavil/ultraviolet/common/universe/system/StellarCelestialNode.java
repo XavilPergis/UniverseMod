@@ -100,7 +100,7 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 
 	public static StellarCelestialNode fromInitialParameters(long seed, double massYg, double ageMyr, double metallicity) {
 		final var properties = new StellarProperties();
-		properties.load(new SplittableRng(seed), massYg, ageMyr, metallicity);
+		properties.load(massYg, ageMyr, metallicity);
 		final var node = new StellarCelestialNode();
 		node.type = StellarCelestialNode.Type.STAR;
 		if (properties.luminosityLsol < 1e-8 && properties.temperatureK < 1e-8) {
@@ -243,9 +243,9 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 					entry.storeColumn(column, buf.getFloat());
 
 					this.visualBrightnessMultiplier[i] = entry.bolometricRatio * entry.efficencyY;
-					this.colorRgb[3 * i + 0] = entry.r;
-					this.colorRgb[3 * i + 1] = entry.g;
-					this.colorRgb[3 * i + 2] = entry.b;
+					this.colorRgb[3 * i + 0] = (float) Math.pow(entry.r, 2.0);
+					this.colorRgb[3 * i + 1] = (float) Math.pow(entry.g, 2.0);
+					this.colorRgb[3 * i + 2] = (float) Math.pow(entry.b, 2.0);
 				}
 			}
 		}
@@ -267,19 +267,19 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			final int i = Mth.floor(fi);
 			final var frac = fi - i;
 			if (i >= this.rowCount - 1) {
-				out.x = this.colorRgb[this.colorRgb.length - 3];
-				out.y = this.colorRgb[this.colorRgb.length - 2];
-				out.z = this.colorRgb[this.colorRgb.length - 1];
+				out.x = Math.pow(this.colorRgb[this.colorRgb.length - 3], 1.0);
+				out.y = Math.pow(this.colorRgb[this.colorRgb.length - 2], 1.0);
+				out.z = Math.pow(this.colorRgb[this.colorRgb.length - 1], 1.0);
 				return;
 			} else if (i < 0) {
-				out.x = this.colorRgb[0];
-				out.y = this.colorRgb[1];
-				out.z = this.colorRgb[2];
+				out.x = Math.pow(this.colorRgb[0], 1.0);
+				out.y = Math.pow(this.colorRgb[1], 1.0);
+				out.z = Math.pow(this.colorRgb[2], 1.0);
 				return;
 			}
-			out.x = Mth.lerp(frac, this.colorRgb[3 * i + 0], this.colorRgb[3 * i + 3]);
-			out.y = Mth.lerp(frac, this.colorRgb[3 * i + 1], this.colorRgb[3 * i + 4]);
-			out.z = Mth.lerp(frac, this.colorRgb[3 * i + 2], this.colorRgb[3 * i + 5]);
+			out.x = Mth.lerp(frac, Math.pow(this.colorRgb[3 * i + 0], 1.0), Math.pow(this.colorRgb[3 * i + 3], 1.0));
+			out.y = Mth.lerp(frac, Math.pow(this.colorRgb[3 * i + 1], 1.0), Math.pow(this.colorRgb[3 * i + 4], 1.0));
+			out.z = Mth.lerp(frac, Math.pow(this.colorRgb[3 * i + 2], 1.0), Math.pow(this.colorRgb[3 * i + 5], 1.0));
 		}
 	}
 

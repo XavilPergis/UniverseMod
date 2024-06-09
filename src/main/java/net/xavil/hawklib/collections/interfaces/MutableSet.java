@@ -19,8 +19,20 @@ public interface MutableSet<T> extends MutableCollection, ImmutableSet<T> {
 
 	void extend(IntoIterator<T> elements);
 
+	/**
+	 * Insert an element into this set.
+	 * 
+	 * @param value The value to insert into the set.
+	 * @return {@code true} if the set changed as a result of this operation.
+	 */
 	boolean insert(T value);
 
+	/**
+	 * Remove an element from this set.
+	 * 
+	 * @param value The value to remove from the set.
+	 * @return {@code true} if the set changed as a result of this operation.
+	 */
 	boolean remove(T value);
 
 	default Iterator<T> difference(ImmutableSet<T> other) {

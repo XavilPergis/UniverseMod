@@ -7,6 +7,7 @@ import java.util.function.Predicate;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
+import net.xavil.hawklib.collections.iterator.Iterators;
 
 public class MutableSetProxy<T> implements MutableSet<T> {
 
@@ -67,7 +68,7 @@ public class MutableSetProxy<T> implements MutableSet<T> {
 
 	@Override
 	public Iterator<T> iter() {
-		return Iterator.fromJava(this.proxy.iterator());
+		return Iterators.fromJava(this.proxy.iterator());
 	}
 	
 }

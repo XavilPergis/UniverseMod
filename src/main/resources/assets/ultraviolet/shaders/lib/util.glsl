@@ -6,13 +6,13 @@ float luma(vec3 color) {
 }
 
 // The dot product of a and b, clamped between [0,inf)
-float pdot(vec3 a, vec3 b) {
+float dotClamped(vec3 a, vec3 b) {
 	return max(dot(a, b), 0.0);
 }
 
 // Schlick
 vec3 fresnelFactor(in vec3 dir, in vec3 normal) {
-	float cosTheta = pdot(normal, normalize(-dir));
+	float cosTheta = dotClamped(normal, normalize(-dir));
 	vec3 F0 = vec3(0.04);
     return F0 + (1.0 - F0) * pow(1.0 - cosTheta, 5.0);
 }

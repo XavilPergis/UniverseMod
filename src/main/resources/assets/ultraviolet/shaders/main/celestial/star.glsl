@@ -26,7 +26,7 @@ float curveStarBrightness(in float brightness) {
 }
 
 float limbDarkening(in vec3 dir, in vec3 normal, float exponent) {
-	float cosTheta = pdot(normal, normalize(-dir));
+	float cosTheta = dotClamped(normal, normalize(-dir));
     return pow(1.0 - cosTheta, exponent);
 }
 

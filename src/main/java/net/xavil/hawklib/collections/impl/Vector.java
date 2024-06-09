@@ -1,11 +1,13 @@
 package net.xavil.hawklib.collections.impl;
 
 import java.util.Arrays;
+import java.util.Objects;
 import java.util.function.Consumer;
 import java.util.function.Predicate;
 
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.collections.CollectionHint;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
@@ -85,16 +87,20 @@ public final class Vector<T> implements MutableList<T> {
 		System.arraycopy(oldElements, 0, newElements, 0, this.size);
 	}
 
-	public void reserve(int additional) {
-		if (this.elements.length >= this.size + additional)
+	public void reserveTotal(int elements) {
+		if (this.elements.length >= elements)
 			return;
 		int cap = this.elements.length;
-		while (cap < this.size + additional) {
+		while (cap < elements) {
 			final var prevCap = cap;
 			cap = nextCapacity(cap);
 			Assert.isTrue(cap > prevCap);
 		}
 		resizeStorage(cap);
+	}
+
+	public void reserve(int additional) {
+		reserveTotal(this.size + additional);
 	}
 
 	public void reserveExact(int additional) {
@@ -248,6 +254,7 @@ public final class Vector<T> implements MutableList<T> {
 		final var copyLen = this.size - index - 1;
 		System.arraycopy(this.elements, index + 1, this.elements, index, copyLen);
 		this.size -= 1;
+		this.elements[this.size] = null;
 		return old;
 	}
 
@@ -275,6 +282,20 @@ public final class Vector<T> implements MutableList<T> {
 		final T tmp = this.elements[indexA];
 		this.elements[indexA] = this.elements[indexB];
 		this.elements[indexB] = tmp;
+	}
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this)
+			return true;
+		if (obj instanceof Vector<?> other) {
+			return Arrays.equals(
+					this.elements, 0, this.size,
+					other.elements, 0, other.size);
+		} else if (obj instanceof ImmutableList<?> other) {
+			return ListUtil.genericEquals(this, other);
+		}
+		return false;
 	}
 
 	@Override

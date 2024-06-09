@@ -15,6 +15,9 @@ uniform vec4 uLightColor1;
 uniform vec4 uLightColor2;
 uniform vec4 uLightColor3;
 
+uniform vec3 uCenterPosW;
+uniform vec3 uCenterPosV;
+
 uniform int uNodeType;
 uniform int uRenderingSeed;
 
@@ -57,12 +60,13 @@ struct FragmentInfo {
 vec3 applyLighting(in Material material, in FragmentInfo frag) {
 	LightingContext ctx = makeLightingContext(material, uMetersPerUnit, frag.lightingPosV, frag.lightingNormalV);
 
-	vec3 res = vec3(0.0);
+	vec3 res = material.emission;
 	res += lightContribution(ctx, makePointLight((uViewMatrix * vec4(uLightPos0.xyz, 1.0)).xyz, uLightColor0.rgb * uLightColor0.a));
 	res += lightContribution(ctx, makePointLight((uViewMatrix * vec4(uLightPos1.xyz, 1.0)).xyz, uLightColor1.rgb * uLightColor1.a));
 	res += lightContribution(ctx, makePointLight((uViewMatrix * vec4(uLightPos2.xyz, 1.0)).xyz, uLightColor2.rgb * uLightColor2.a));
 	res += lightContribution(ctx, makePointLight((uViewMatrix * vec4(uLightPos3.xyz, 1.0)).xyz, uLightColor3.rgb * uLightColor3.a));
-	res += material.emissiveFlux;
+
+	res += 0.02 * material.albedo;
 
 	// if (length(res) > 30.0) {
 	// 	res /= length(res);

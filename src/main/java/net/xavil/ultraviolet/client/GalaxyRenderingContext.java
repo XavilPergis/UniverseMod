@@ -102,7 +102,7 @@ public class GalaxyRenderingContext implements Disposable {
 			}
 		}
 
-		this.pointsBuffer.upload(builder.end());
+		this.pointsBuffer.setupAndUpload(builder.end());
 
 		Mod.LOGGER.debug("Built galaxy particle buffer, {} particles", successfulPlacements);
 	}
@@ -148,7 +148,7 @@ public class GalaxyRenderingContext implements Disposable {
 		final var shader = UltravioletShaders.SHADER_GALAXY_PARTICLE.get();
 		shader.setUniformSampler("uBillboardTexture", GlTexture2d.importTexture(RenderHelper.GALAXY_GLOW_LOCATION));
 		shader.setupDefaultShaderUniforms();
-		this.pointsBuffer.draw(shader, HawkDrawStates.DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
+		// this.pointsBuffer.draw(shader, HawkDrawStates.DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
 
 		snapshot.restore();
 	}

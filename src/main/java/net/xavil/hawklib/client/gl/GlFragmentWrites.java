@@ -23,7 +23,7 @@ public final class GlFragmentWrites {
 		this.outputNames = outputNames;
 		final var indices = MutableMap.<String, Integer>hashMap();
 		for (int i = 0; i < outputNames.length; ++i) {
-			if (indices.insert(outputNames[i], i).isSome()) {
+			if (indices.insertAndGet(outputNames[i], i).isSome()) {
 				throw new IllegalArgumentException(String.format(
 						"For fragment write set '%s', fragment write '%s' was specified more than once!",
 						name, outputNames[i]));

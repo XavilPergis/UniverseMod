@@ -6,12 +6,14 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.HawkShaders;
+import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.gl.GlPerf;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
@@ -70,7 +72,8 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			return true;
 
 		if (button == 0) {
-			final var selected = pickElement(this.camera, mousePos);
+			final var viewCenter = getStarViewCenterPos(camera);
+			final var selected = pickElement(viewCenter, this.camera, mousePos);
 			insertBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM, selected.unwrapOrNull());
 			return true;
 		}
@@ -108,8 +111,13 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 				return true;
 			}
 		} else if (keypress.keyCode == GLFW.GLFW_KEY_H) {
-			this.client.setScreen(new StarStatisticsScreen(this.screen, this.starRenderer.getSectorTicket(),
-					this.camera.posTm.xyz()));
+			final var ticket = this.starRenderer.getSectorTicket();
+			// final var ticket = this.galaxy.sectorManager.createSectorTicketManual(new SectorTicketInfo.Multi(
+			// 		this.camera.posTm.xyz(), GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP));
+			// this.galaxy.sectorManager.forceLoad(ticket);
+			final var screen = new StarStatisticsScreen(this.screen, ticket, this.camera.posTm.xyz());
+			// screen.disposer.attach(ticket);
+			this.client.setScreen(screen);
 
 			return true;
 		}
@@ -117,7 +125,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		return false;
 	}
 
-	private Maybe<GalaxySectorId> pickElement(OrbitCamera.Cached camera, Vec2 mousePos) {
+	private Maybe<GalaxySectorId> pickElement(Vec3 viewCenter, CachedCamera camera, Vec2 mousePos) {
 		// @formatter:off
 		final var closest = new Object() {
 			double    depth       = Double.POSITIVE_INFINITY;
@@ -130,8 +138,6 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		final var mouseX = 2.0 * mousePos.x / window.getGuiScaledWidth() - 1.0;
 		final var mouseY = 1.0 - 2.0 * mousePos.y / window.getGuiScaledHeight();
 		final var mousePosClip = new Vec2(mouseX, mouseY);
-
-		final var viewCenter = getStarViewCenterPos(camera);
 
 		final var mouseRay = camera.rayForPicking(window, mousePos);
 		final var viewProjMatrix = Mat4.mul(camera.projectionMatrix, camera.viewMatrix);
@@ -190,6 +196,8 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 
 	@Override
 	public void render3d(Cached camera, RenderContext ctx) {
+		GlPerf.push("ScreenLayerStars");
+
 		final var cullingCamera = getCullingCamera();
 		final var viewCenter = getStarViewCenterPos(cullingCamera);
 		final var ticket = this.starRenderer.getSectorTicket();
@@ -204,8 +212,11 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			// this.starRenderer.setMode(StarRenderManager.Mode.MAP);
 			this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
 		}
+
+		GlPerf.push("stars");
 		this.starRenderer.draw(camera, viewCenter);
 
+		GlPerf.swap("selected");
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
 		final var selectedSystem = selectedId == null ? null
 				: this.galaxy.sectorManager.getSystem(selectedId).unwrapOrNull();
@@ -230,24 +241,17 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 
 			builder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(),
 					HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
-
 		}
 
 		// TODO: render things that are currently jumping between systems
 
 		if (ClientConfig.get(ConfigKey.SHOW_SECTOR_BOUNDARIES)) {
+			GlPerf.swap("sector_boundaries");
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER
 					.beginGeneric(PrimitiveType.LINE_DUPLICATED, BufferLayout.POSITION_COLOR_NORMAL);
 			ticket.attachedManager.enumerate(ticket, sector -> {
-				if (!this.galaxy.sectorManager.isComplete(sector.pos()))
-					;
-				// if (!this.galaxy.sectorManager.isComplete(sector.pos()))
-				// return;
-				// if (sector.elements.size() == 0)
-				// return;
-
 				final Vec3 s = sector.pos().minBound(), e = sector.pos().maxBound();
-				final var color = ClientConfig.getDebugColor(sector.pos().level()).withA(0.2f);
+				final var color = ClientConfig.getDebugColor(sector.pos().level()).withA(0.1f);
 
 				final var nnn = new Vec3(s.x, s.y, s.z);
 				final var nnp = new Vec3(s.x, s.y, e.z);
@@ -277,6 +281,9 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			builder.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(),
 					HawkDrawStates.DRAW_STATE_ADDITIVE_BLENDING);
 		}
+		GlPerf.pop();
+
+		GlPerf.pop();
 	}
 
 }

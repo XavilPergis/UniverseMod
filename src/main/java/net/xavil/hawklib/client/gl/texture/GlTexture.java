@@ -7,6 +7,7 @@ import javax.annotation.Nullable;
 import org.lwjgl.opengl.GL45C;
 
 import net.xavil.hawklib.HawkLib;
+import net.xavil.hawklib.client.gl.ComponentType;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.GlObject;
 import net.xavil.hawklib.math.matrices.Vec2i;
@@ -18,8 +19,44 @@ public abstract class GlTexture extends GlObject {
 		FLOAT, INT, UINT, SHADOW, NONE;
 	}
 
-	public static enum ComponentType {
+	public static enum ImageType {
 		FLOAT, INT, UINT, NONE;
+	}
+
+	public static enum Components {
+		// @formatter:off
+		R            (GL45C.GL_RED,             1, true,  false, false, false, false, false),
+		RG           (GL45C.GL_RG,              2, true,  true,  false, false, false, false),
+		RGB          (GL45C.GL_RGB,             3, true,  true,  true,  false, false, false),
+		RGBA         (GL45C.GL_RGBA,            4, true,  true,  true,  true,  false, false),
+		DEPTH        (GL45C.GL_DEPTH_COMPONENT, 1, false, false, false, false, true,  false),
+		STENCIL      (GL45C.GL_STENCIL_INDEX,   1, false, false, false, false, false, true ),
+		DEPTH_STENCIL(GL45C.GL_RGBA,            2, false, false, false, false, true,  true );
+		// @formatter:on
+
+		public final int gl;
+		public final int componentCount;
+		public final boolean hasR;
+		public final boolean hasG;
+		public final boolean hasB;
+		public final boolean hasA;
+		public final boolean hasColor;
+		public final boolean hasDepth;
+		public final boolean hasStencil;
+
+		private Components(int gl, int componentCount,
+				boolean hasR, boolean hasG, boolean hasB, boolean hasA,
+				boolean hasDepth, boolean hasStencil) {
+			this.gl = gl;
+			this.componentCount = componentCount;
+			this.hasColor = hasR || hasG || hasB || hasA;
+			this.hasR = hasR;
+			this.hasG = hasG;
+			this.hasB = hasB;
+			this.hasA = hasA;
+			this.hasDepth = hasDepth;
+			this.hasStencil = hasStencil;
+		}
 	}
 
 	private static final int COLOR_FORMAT = 1 << 0;
@@ -40,107 +77,108 @@ public abstract class GlTexture extends GlObject {
 	public static enum Format {
 		// @formatter:off
 		// unspecified formats (implementation chooses the data layout)
-		RGBA_UNSPECIFIED          (GL45C.GL_RGBA,               ComponentType.FLOAT, SamplerType.FLOAT,  4, SIZED_COLOR, "Implementation-Chosen RGBA"),
-		RGB_UNSPECIFIED           (GL45C.GL_RGB,                ComponentType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "Implementation-Chosen RGB"),
-		RG_UNSPECIFIED            (GL45C.GL_RG,                 ComponentType.FLOAT, SamplerType.FLOAT,  2, SIZED_COLOR, "Implementation-Chosen RG"),
-		R_UNSPECIFIED             (GL45C.GL_RED,                ComponentType.FLOAT, SamplerType.FLOAT,  1, SIZED_COLOR, "Implementation-Chosen R"),
-		DEPTH_UNSPECIFIED         (GL45C.GL_DEPTH_COMPONENT,    ComponentType.FLOAT, SamplerType.SHADOW, 1, SIZED_DEPTH,  "Implementation-Chosen Depth"),
-		STENCIL_UNSPECIFIED       (GL45C.GL_STENCIL_INDEX,      ComponentType.FLOAT, SamplerType.NONE,   1, SIZED_STENCIL, "Implementation-Chosen Stencil"),
-		DEPTH_STENCIL_UNSPECIFIED (GL45C.GL_DEPTH_STENCIL,      ComponentType.FLOAT, SamplerType.SHADOW, 2, SIZED_DEPTH | SIZED_STENCIL, "Implementation-Chosen Depth + Stencil"),
+		RGBA_UNSPECIFIED          (GL45C.GL_RGBA,               Components.RGBA,    ImageType.FLOAT, SamplerType.FLOAT,  4, SIZED_COLOR, "Implementation-Chosen RGBA"),
+		RGB_UNSPECIFIED           (GL45C.GL_RGB,                Components.RGB,     ImageType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "Implementation-Chosen RGB"),
+		RG_UNSPECIFIED            (GL45C.GL_RG,                 Components.RG,      ImageType.FLOAT, SamplerType.FLOAT,  2, SIZED_COLOR, "Implementation-Chosen RG"),
+		R_UNSPECIFIED             (GL45C.GL_RED,                Components.R,       ImageType.FLOAT, SamplerType.FLOAT,  1, SIZED_COLOR, "Implementation-Chosen R"),
+		DEPTH_UNSPECIFIED         (GL45C.GL_DEPTH_COMPONENT,    Components.DEPTH,   ImageType.FLOAT, SamplerType.SHADOW, 1, SIZED_DEPTH,  "Implementation-Chosen Depth"),
+		STENCIL_UNSPECIFIED       (GL45C.GL_STENCIL_INDEX,      Components.STENCIL, ImageType.FLOAT, SamplerType.NONE,   1, SIZED_STENCIL, "Implementation-Chosen Stencil"),
+		DEPTH_STENCIL_UNSPECIFIED (GL45C.GL_DEPTH_STENCIL,      Components.DEPTH_STENCIL, ImageType.FLOAT, SamplerType.SHADOW, 2, SIZED_DEPTH | SIZED_STENCIL, "Implementation-Chosen Depth + Stencil"),
 		// 32-bit color
-		RGBA32_FLOAT              (GL45C.GL_RGBA32F,            ComponentType.FLOAT, SamplerType.FLOAT,  4, SIZED_COLOR, "32-Bit RGBA Float"),
-		RGBA32_UINT               (GL45C.GL_RGBA32UI,           ComponentType.UINT,  SamplerType.UINT,   4, SIZED_COLOR, "32-Bit RGBA Unsigned Integer"),
-		RGBA32_INT                (GL45C.GL_RGBA32I,            ComponentType.INT,   SamplerType.INT,    4, SIZED_COLOR, "32-Bit RGBA Integer"),
-		RGB32_FLOAT               (GL45C.GL_RGB32F,             ComponentType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "32-Bit RGB Float"),
-		RGB32_UINT                (GL45C.GL_RGB32UI,            ComponentType.UINT,  SamplerType.UINT,   3, SIZED_COLOR, "32-Bit RGB Unsigned Integer"),
-		RGB32_INT                 (GL45C.GL_RGB32I,             ComponentType.INT,   SamplerType.INT,    3, SIZED_COLOR, "32-Bit RGB Integer"),
-		RG32_FLOAT                (GL45C.GL_RG32F,              ComponentType.FLOAT, SamplerType.FLOAT,  2, SIZED_COLOR, "32-Bit RG Float"),
-		RG32_UINT                 (GL45C.GL_RG32UI,             ComponentType.UINT,  SamplerType.UINT,   2, SIZED_COLOR, "32-Bit RG Unsigned Integer"),
-		RG32_INT                  (GL45C.GL_RG32I,              ComponentType.INT,   SamplerType.INT,    2, SIZED_COLOR, "32-Bit RG Integer"),
-		R32_FLOAT                 (GL45C.GL_R32F,               ComponentType.FLOAT, SamplerType.FLOAT,  1, SIZED_COLOR, "32-Bit R Float"),
-		R32_UINT                  (GL45C.GL_R32UI,              ComponentType.UINT,  SamplerType.UINT,   1, SIZED_COLOR, "32-Bit R Unsigned Integer"),
-		R32_INT                   (GL45C.GL_R32I,               ComponentType.INT,   SamplerType.INT,    1, SIZED_COLOR, "32-Bit R Integer"),
+		RGBA32_FLOAT              (GL45C.GL_RGBA32F,            Components.RGBA,    ImageType.FLOAT, SamplerType.FLOAT,  4, SIZED_COLOR, "32-Bit RGBA Float"),
+		RGBA32_UINT               (GL45C.GL_RGBA32UI,           Components.RGBA,    ImageType.UINT,  SamplerType.UINT,   4, SIZED_COLOR, "32-Bit RGBA Unsigned Integer"),
+		RGBA32_INT                (GL45C.GL_RGBA32I,            Components.RGBA,    ImageType.INT,   SamplerType.INT,    4, SIZED_COLOR, "32-Bit RGBA Integer"),
+		RGB32_FLOAT               (GL45C.GL_RGB32F,             Components.RGB,     ImageType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "32-Bit RGB Float"),
+		RGB32_UINT                (GL45C.GL_RGB32UI,            Components.RGB,     ImageType.UINT,  SamplerType.UINT,   3, SIZED_COLOR, "32-Bit RGB Unsigned Integer"),
+		RGB32_INT                 (GL45C.GL_RGB32I,             Components.RGB,     ImageType.INT,   SamplerType.INT,    3, SIZED_COLOR, "32-Bit RGB Integer"),
+		RG32_FLOAT                (GL45C.GL_RG32F,              Components.RG,      ImageType.FLOAT, SamplerType.FLOAT,  2, SIZED_COLOR, "32-Bit RG Float"),
+		RG32_UINT                 (GL45C.GL_RG32UI,             Components.RG,      ImageType.UINT,  SamplerType.UINT,   2, SIZED_COLOR, "32-Bit RG Unsigned Integer"),
+		RG32_INT                  (GL45C.GL_RG32I,              Components.RG,      ImageType.INT,   SamplerType.INT,    2, SIZED_COLOR, "32-Bit RG Integer"),
+		R32_FLOAT                 (GL45C.GL_R32F,               Components.R,       ImageType.FLOAT, SamplerType.FLOAT,  1, SIZED_COLOR, "32-Bit R Float"),
+		R32_UINT                  (GL45C.GL_R32UI,              Components.R,       ImageType.UINT,  SamplerType.UINT,   1, SIZED_COLOR, "32-Bit R Unsigned Integer"),
+		R32_INT                   (GL45C.GL_R32I,               Components.R,       ImageType.INT,   SamplerType.INT,    1, SIZED_COLOR, "32-Bit R Integer"),
 		// 16-bit color
-		RGBA16_FLOAT              (GL45C.GL_RGBA16F,            ComponentType.FLOAT, SamplerType.FLOAT,  4, SIZED_COLOR, "16-Bit RGBA Float"),
-		RGBA16_UINT               (GL45C.GL_RGBA16UI,           ComponentType.UINT,  SamplerType.UINT,   4, SIZED_COLOR, "16-Bit RGBA Unsigned Integer"),
-		RGBA16_INT                (GL45C.GL_RGBA16I,            ComponentType.INT,   SamplerType.INT,    4, SIZED_COLOR, "16-Bit RGBA Integer"),
-		RGB16_FLOAT               (GL45C.GL_RGB16F,             ComponentType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "16-Bit RGB Float"),
-		RGB16_UINT                (GL45C.GL_RGB16UI,            ComponentType.UINT,  SamplerType.UINT,   3, SIZED_COLOR, "16-Bit RGB Unsigned Integer"),
-		RGB16_INT                 (GL45C.GL_RGB16I,             ComponentType.INT,   SamplerType.INT,    3, SIZED_COLOR, "16-Bit RGB Integer"),
-		RG16_FLOAT                (GL45C.GL_RG16F,              ComponentType.FLOAT, SamplerType.FLOAT,  2, SIZED_COLOR, "16-Bit RG Float"),
-		RG16_UINT                 (GL45C.GL_RG16UI,             ComponentType.UINT,  SamplerType.UINT,   2, SIZED_COLOR, "16-Bit RG Unsigned Integer"),
-		RG16_INT                  (GL45C.GL_RG16I,              ComponentType.INT,   SamplerType.INT,    2, SIZED_COLOR, "16-Bit RG Integer"),
-		R16_FLOAT                 (GL45C.GL_R16F,               ComponentType.FLOAT, SamplerType.FLOAT,  1, SIZED_COLOR, "16-Bit R Float"),
-		R16_UINT                  (GL45C.GL_R16UI,              ComponentType.UINT,  SamplerType.UINT,   1, SIZED_COLOR, "16-Bit R Unsigned Integer"),
-		R16_INT                   (GL45C.GL_R16I,               ComponentType.INT,   SamplerType.INT,    1, SIZED_COLOR, "16-Bit R Integer"),
-		RGBA16_UINT_NORM          (GL45C.GL_RGBA16,             ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "16-Bit RGBA Normalized Unsigned Integer"),
-		RGBA16_INT_NORM           (GL45C.GL_RGBA16_SNORM,       ComponentType.INT,   SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "16-Bit RGBA Normalized Integer"),
-		RGB16_UINT_NORM           (GL45C.GL_RGB16,              ComponentType.UINT,  SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "16-Bit RGB Normalized Unsigned Integer"),
-		RGB16_INT_NORM            (GL45C.GL_RGB16_SNORM,        ComponentType.INT,   SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "16-Bit RGB Normalized Integer"),
-		RG16_UINT_NORM            (GL45C.GL_RG16,               ComponentType.UINT,  SamplerType.FLOAT,  2, SIZED_COLOR | NORMALIZED, "16-Bit RG Normalized Unsigned Integer"),
-		RG16_INT_NORM             (GL45C.GL_RG16_SNORM,         ComponentType.INT,   SamplerType.FLOAT,  2, SIZED_COLOR | NORMALIZED, "16-Bit RG Normalized Integer"),
-		R16_UINT_NORM             (GL45C.GL_R16,                ComponentType.UINT,  SamplerType.FLOAT,  1, SIZED_COLOR | NORMALIZED, "16-Bit R Normalized Unsigned Integer"),
-		R16_INT_NORM              (GL45C.GL_R16_SNORM,          ComponentType.INT,   SamplerType.FLOAT,  1, SIZED_COLOR | NORMALIZED, "16-Bit R Normalized Integer"),
+		RGBA16_FLOAT              (GL45C.GL_RGBA16F,            Components.RGBA,    ImageType.FLOAT, SamplerType.FLOAT,  4, SIZED_COLOR, "16-Bit RGBA Float"),
+		RGBA16_UINT               (GL45C.GL_RGBA16UI,           Components.RGBA,    ImageType.UINT,  SamplerType.UINT,   4, SIZED_COLOR, "16-Bit RGBA Unsigned Integer"),
+		RGBA16_INT                (GL45C.GL_RGBA16I,            Components.RGBA,    ImageType.INT,   SamplerType.INT,    4, SIZED_COLOR, "16-Bit RGBA Integer"),
+		RGB16_FLOAT               (GL45C.GL_RGB16F,             Components.RGB,     ImageType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "16-Bit RGB Float"),
+		RGB16_UINT                (GL45C.GL_RGB16UI,            Components.RGB,     ImageType.UINT,  SamplerType.UINT,   3, SIZED_COLOR, "16-Bit RGB Unsigned Integer"),
+		RGB16_INT                 (GL45C.GL_RGB16I,             Components.RGB,     ImageType.INT,   SamplerType.INT,    3, SIZED_COLOR, "16-Bit RGB Integer"),
+		RG16_FLOAT                (GL45C.GL_RG16F,              Components.RG,      ImageType.FLOAT, SamplerType.FLOAT,  2, SIZED_COLOR, "16-Bit RG Float"),
+		RG16_UINT                 (GL45C.GL_RG16UI,             Components.RG,      ImageType.UINT,  SamplerType.UINT,   2, SIZED_COLOR, "16-Bit RG Unsigned Integer"),
+		RG16_INT                  (GL45C.GL_RG16I,              Components.RG,      ImageType.INT,   SamplerType.INT,    2, SIZED_COLOR, "16-Bit RG Integer"),
+		R16_FLOAT                 (GL45C.GL_R16F,               Components.R,       ImageType.FLOAT, SamplerType.FLOAT,  1, SIZED_COLOR, "16-Bit R Float"),
+		R16_UINT                  (GL45C.GL_R16UI,              Components.R,       ImageType.UINT,  SamplerType.UINT,   1, SIZED_COLOR, "16-Bit R Unsigned Integer"),
+		R16_INT                   (GL45C.GL_R16I,               Components.R,       ImageType.INT,   SamplerType.INT,    1, SIZED_COLOR, "16-Bit R Integer"),
+		RGBA16_UINT_NORM          (GL45C.GL_RGBA16,             Components.RGBA,    ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "16-Bit RGBA Normalized Unsigned Integer"),
+		RGBA16_INT_NORM           (GL45C.GL_RGBA16_SNORM,       Components.RGBA,    ImageType.INT,   SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "16-Bit RGBA Normalized Integer"),
+		RGB16_UINT_NORM           (GL45C.GL_RGB16,              Components.RGB,     ImageType.UINT,  SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "16-Bit RGB Normalized Unsigned Integer"),
+		RGB16_INT_NORM            (GL45C.GL_RGB16_SNORM,        Components.RGB,     ImageType.INT,   SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "16-Bit RGB Normalized Integer"),
+		RG16_UINT_NORM            (GL45C.GL_RG16,               Components.RG,      ImageType.UINT,  SamplerType.FLOAT,  2, SIZED_COLOR | NORMALIZED, "16-Bit RG Normalized Unsigned Integer"),
+		RG16_INT_NORM             (GL45C.GL_RG16_SNORM,         Components.RG,      ImageType.INT,   SamplerType.FLOAT,  2, SIZED_COLOR | NORMALIZED, "16-Bit RG Normalized Integer"),
+		R16_UINT_NORM             (GL45C.GL_R16,                Components.R,       ImageType.UINT,  SamplerType.FLOAT,  1, SIZED_COLOR | NORMALIZED, "16-Bit R Normalized Unsigned Integer"),
+		R16_INT_NORM              (GL45C.GL_R16_SNORM,          Components.R,       ImageType.INT,   SamplerType.FLOAT,  1, SIZED_COLOR | NORMALIZED, "16-Bit R Normalized Integer"),
 		// 8-bit color
-		RGBA8_UINT                (GL45C.GL_RGBA8UI,            ComponentType.UINT,  SamplerType.UINT,   4, SIZED_COLOR, "8-Bit RGBA Usnigned Integer"),
-		RGBA8_INT                 (GL45C.GL_RGBA8I,             ComponentType.INT,   SamplerType.INT,    4, SIZED_COLOR, "8-Bit RGBA Integer"),
-		RGB8_UINT                 (GL45C.GL_RGB8UI,             ComponentType.UINT,  SamplerType.UINT,   3, SIZED_COLOR, "8-Bit RGB Usnigned Integer"),
-		RGB8_INT                  (GL45C.GL_RGB8I,              ComponentType.INT,   SamplerType.INT,    3, SIZED_COLOR, "8-Bit RGB Integer"),
-		RG8_UINT                  (GL45C.GL_RG8UI,              ComponentType.UINT,  SamplerType.UINT,   2, SIZED_COLOR, "8-Bit RG Usnigned Integer"),
-		RG8_INT                   (GL45C.GL_RG8I,               ComponentType.INT,   SamplerType.INT,    2, SIZED_COLOR, "8-Bit RG Integer"),
-		R8_UINT                   (GL45C.GL_R8UI,               ComponentType.UINT,  SamplerType.UINT,   1, SIZED_COLOR, "8-Bit R Usnigned Integer"),
-		R8_INT                    (GL45C.GL_R8I,                ComponentType.INT,   SamplerType.INT,    1, SIZED_COLOR, "8-Bit R Integer"),
-		RGBA8_UINT_NORM           (GL45C.GL_RGBA8,              ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "8-Bit RGBA Normalized Unsigned Integer"),
-		RGBA8_INT_NORM            (GL45C.GL_RGBA8_SNORM,        ComponentType.INT,   SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "8-Bit RGBA Normalized Integer"),
-		RGB8_UINT_NORM            (GL45C.GL_RGB8,               ComponentType.UINT,  SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "8-Bit RGB Normalized Unsigned Integer"),
-		RGB8_INT_NORM             (GL45C.GL_RGB8_SNORM,         ComponentType.INT,   SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "8-Bit RGB Normalized Integer"),
-		RG8_UINT_NORM             (GL45C.GL_RG8,                ComponentType.UINT,  SamplerType.FLOAT,  2, SIZED_COLOR | NORMALIZED, "8-Bit RG Normalized Unsigned Integer"),
-		RG8_INT_NORM              (GL45C.GL_RG8_SNORM,          ComponentType.INT,   SamplerType.FLOAT,  2, SIZED_COLOR | NORMALIZED, "8-Bit RG Normalized Integer"),
-		R8_UINT_NORM              (GL45C.GL_R8,                 ComponentType.UINT,  SamplerType.FLOAT,  1, SIZED_COLOR | NORMALIZED, "8-Bit R Normalized Unsigned Integer"),
-		R8_INT_NORM               (GL45C.GL_R8_SNORM,           ComponentType.INT,   SamplerType.FLOAT,  1, SIZED_COLOR | NORMALIZED, "8-Bit R Normalized Integer"),
-		RGBA8_UINT_NORM_SRGB      (GL45C.GL_SRGB8_ALPHA8,       ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "8-Bit RGBA Normalized Unsigned Integer (sRGB-Encoded)"),
-		RGB8_UINT_NORM_SRGB       (GL45C.GL_SRGB8,              ComponentType.UINT,  SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "8-Bit RGB Normalized Unsigned Integer (sRGB-Encoded)"),
+		RGBA8_UINT                (GL45C.GL_RGBA8UI,            Components.RGBA,    ImageType.UINT,  SamplerType.UINT,   4, SIZED_COLOR, "8-Bit RGBA Usnigned Integer"),
+		RGBA8_INT                 (GL45C.GL_RGBA8I,             Components.RGBA,    ImageType.INT,   SamplerType.INT,    4, SIZED_COLOR, "8-Bit RGBA Integer"),
+		RGB8_UINT                 (GL45C.GL_RGB8UI,             Components.RGB,     ImageType.UINT,  SamplerType.UINT,   3, SIZED_COLOR, "8-Bit RGB Usnigned Integer"),
+		RGB8_INT                  (GL45C.GL_RGB8I,              Components.RGB,     ImageType.INT,   SamplerType.INT,    3, SIZED_COLOR, "8-Bit RGB Integer"),
+		RG8_UINT                  (GL45C.GL_RG8UI,              Components.RG,      ImageType.UINT,  SamplerType.UINT,   2, SIZED_COLOR, "8-Bit RG Usnigned Integer"),
+		RG8_INT                   (GL45C.GL_RG8I,               Components.RG,      ImageType.INT,   SamplerType.INT,    2, SIZED_COLOR, "8-Bit RG Integer"),
+		R8_UINT                   (GL45C.GL_R8UI,               Components.R,       ImageType.UINT,  SamplerType.UINT,   1, SIZED_COLOR, "8-Bit R Usnigned Integer"),
+		R8_INT                    (GL45C.GL_R8I,                Components.R,       ImageType.INT,   SamplerType.INT,    1, SIZED_COLOR, "8-Bit R Integer"),
+		RGBA8_UINT_NORM           (GL45C.GL_RGBA8,              Components.RGBA,    ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "8-Bit RGBA Normalized Unsigned Integer"),
+		RGBA8_INT_NORM            (GL45C.GL_RGBA8_SNORM,        Components.RGBA,    ImageType.INT,   SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "8-Bit RGBA Normalized Integer"),
+		RGB8_UINT_NORM            (GL45C.GL_RGB8,               Components.RGB,     ImageType.UINT,  SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "8-Bit RGB Normalized Unsigned Integer"),
+		RGB8_INT_NORM             (GL45C.GL_RGB8_SNORM,         Components.RGB,     ImageType.INT,   SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "8-Bit RGB Normalized Integer"),
+		RG8_UINT_NORM             (GL45C.GL_RG8,                Components.RG,      ImageType.UINT,  SamplerType.FLOAT,  2, SIZED_COLOR | NORMALIZED, "8-Bit RG Normalized Unsigned Integer"),
+		RG8_INT_NORM              (GL45C.GL_RG8_SNORM,          Components.RG,      ImageType.INT,   SamplerType.FLOAT,  2, SIZED_COLOR | NORMALIZED, "8-Bit RG Normalized Integer"),
+		R8_UINT_NORM              (GL45C.GL_R8,                 Components.R,       ImageType.UINT,  SamplerType.FLOAT,  1, SIZED_COLOR | NORMALIZED, "8-Bit R Normalized Unsigned Integer"),
+		R8_INT_NORM               (GL45C.GL_R8_SNORM,           Components.R,       ImageType.INT,   SamplerType.FLOAT,  1, SIZED_COLOR | NORMALIZED, "8-Bit R Normalized Integer"),
+		RGBA8_UINT_NORM_SRGB      (GL45C.GL_SRGB8_ALPHA8,       Components.RGBA,    ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "8-Bit RGBA Normalized Unsigned Integer (sRGB-Encoded)"),
+		RGB8_UINT_NORM_SRGB       (GL45C.GL_SRGB8,              Components.RGB,     ImageType.UINT,  SamplerType.FLOAT,  3, SIZED_COLOR | NORMALIZED, "8-Bit RGB Normalized Unsigned Integer (sRGB-Encoded)"),
 		// other color
-		R3G3B2_UINT_NORM          (GL45C.GL_R3_G3_B2,           ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "3-Bit RG + 2-Bit B Normalized Unsigned Integer"),
-		RGB4_UINT_NORM            (GL45C.GL_RGB4,               ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "4-Bit RGB Normalized Unsigned Integer"),
-		RGB5_UINT_NORM            (GL45C.GL_RGB5,               ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "5-Bit RGB Normalized Unsigned Integer"),
-		RGB10_UINT_NORM           (GL45C.GL_RGB10,              ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "10-Bit RGB Normalized Unsigned Integer"),
-		RGB12_UINT_NORM           (GL45C.GL_RGB12,              ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "12-Bit RGB Normalized Unsigned Integer"),
-		RGB10A2_UINT_NORM         (GL45C.GL_RGB10_A2,           ComponentType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "10-Bit RGB + 2-Bit A Normalized Unsigned Integer"),
-		R11G11B10_FLOAT           (GL45C.GL_R11F_G11F_B10F,     ComponentType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "11-Bit RG + 10-Bit B Float"),
-		RGB9E5_FLOAT              (GL45C.GL_RGB9_E5,            ComponentType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "9-Bit RGB Mantissa + 5-Bit Shared Exponent Float"),
+		R3G3B2_UINT_NORM          (GL45C.GL_R3_G3_B2,           Components.RGB,     ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "3-Bit RG + 2-Bit B Normalized Unsigned Integer"),
+		RGB4_UINT_NORM            (GL45C.GL_RGB4,               Components.RGB,     ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "4-Bit RGB Normalized Unsigned Integer"),
+		RGB5_UINT_NORM            (GL45C.GL_RGB5,               Components.RGB,     ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "5-Bit RGB Normalized Unsigned Integer"),
+		RGB10_UINT_NORM           (GL45C.GL_RGB10,              Components.RGB,     ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "10-Bit RGB Normalized Unsigned Integer"),
+		RGB12_UINT_NORM           (GL45C.GL_RGB12,              Components.RGB,     ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "12-Bit RGB Normalized Unsigned Integer"),
+		RGB10A2_UINT_NORM         (GL45C.GL_RGB10_A2,           Components.RGBA,    ImageType.UINT,  SamplerType.FLOAT,  4, SIZED_COLOR | NORMALIZED, "10-Bit RGB + 2-Bit A Normalized Unsigned Integer"),
+		R11G11B10_FLOAT           (GL45C.GL_R11F_G11F_B10F,     Components.RGB,     ImageType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "11-Bit RG + 10-Bit B Float"),
+		RGB9E5_FLOAT              (GL45C.GL_RGB9_E5,            Components.RGB,     ImageType.FLOAT, SamplerType.FLOAT,  3, SIZED_COLOR, "9-Bit RGB Mantissa + 5-Bit Shared Exponent Float"),
 		// depth/stencil
-		DEPTH32_FLOAT             (GL45C.GL_DEPTH_COMPONENT32F, ComponentType.FLOAT, SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth32 Float"),
-		DEPTH32_UINT_NORM         (GL45C.GL_DEPTH_COMPONENT32,  ComponentType.UINT,  SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth32 Unsigned Integer"),
-		DEPTH24_UINT_NORM         (GL45C.GL_DEPTH_COMPONENT24,  ComponentType.UINT,  SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth24 Unsigned Integer"),
-		DEPTH16_UINT_NORM         (GL45C.GL_DEPTH_COMPONENT16,  ComponentType.UINT,  SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth16 Unsigned Integer"),
-		STENCIL1                  (GL45C.GL_STENCIL_INDEX1,     ComponentType.UINT,  SamplerType.NONE,   1, SIZED_STENCIL, "Stencil1 Unsigned Integer"),
-		STENCIL4                  (GL45C.GL_STENCIL_INDEX4,     ComponentType.UINT,  SamplerType.NONE,   1, SIZED_STENCIL, "Stencil4 Unsigned Integer"),
-		STENCIL8                  (GL45C.GL_STENCIL_INDEX8,     ComponentType.UINT,  SamplerType.NONE,   1, SIZED_STENCIL, "Stencil8 Unsigned Integer"),
-		STENCIL16                 (GL45C.GL_STENCIL_INDEX16,    ComponentType.UINT,  SamplerType.NONE,   1, SIZED_STENCIL, "Stencil16 Unsigned Integer"),
+		DEPTH32_FLOAT             (GL45C.GL_DEPTH_COMPONENT32F, Components.DEPTH,   ImageType.FLOAT, SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth32 Float"),
+		DEPTH32_UINT_NORM         (GL45C.GL_DEPTH_COMPONENT32,  Components.DEPTH,   ImageType.UINT,  SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth32 Unsigned Integer"),
+		DEPTH24_UINT_NORM         (GL45C.GL_DEPTH_COMPONENT24,  Components.DEPTH,   ImageType.UINT,  SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth24 Unsigned Integer"),
+		DEPTH16_UINT_NORM         (GL45C.GL_DEPTH_COMPONENT16,  Components.DEPTH,   ImageType.UINT,  SamplerType.SHADOW, 1, SIZED_DEPTH, "Depth16 Unsigned Integer"),
+		STENCIL1                  (GL45C.GL_STENCIL_INDEX1,     Components.STENCIL, ImageType.UINT,  SamplerType.NONE,   1, SIZED_STENCIL, "Stencil1 Unsigned Integer"),
+		STENCIL4                  (GL45C.GL_STENCIL_INDEX4,     Components.STENCIL, ImageType.UINT,  SamplerType.NONE,   1, SIZED_STENCIL, "Stencil4 Unsigned Integer"),
+		STENCIL8                  (GL45C.GL_STENCIL_INDEX8,     Components.STENCIL, ImageType.UINT,  SamplerType.NONE,   1, SIZED_STENCIL, "Stencil8 Unsigned Integer"),
+		STENCIL16                 (GL45C.GL_STENCIL_INDEX16,    Components.STENCIL, ImageType.UINT,  SamplerType.NONE,   1, SIZED_STENCIL, "Stencil16 Unsigned Integer"),
 		// oh god uhhhhhhh these are two different component types!!!!
-		DEPTH32_FLOAT_STENCIL8    (GL45C.GL_DEPTH32F_STENCIL8,  ComponentType.FLOAT, SamplerType.SHADOW, 2, SIZED_DEPTH | SIZED_STENCIL, "Depth32 Float + Stencil8 Unsigned Integer"),
-		DEPTH24_UINT_NORM_STENCIL8(GL45C.GL_DEPTH24_STENCIL8,   ComponentType.FLOAT, SamplerType.SHADOW, 2, SIZED_DEPTH | SIZED_STENCIL, "Depth32 Unsigned Integer + Stencil8 Unsigned Integer"),
+		DEPTH32_FLOAT_STENCIL8    (GL45C.GL_DEPTH32F_STENCIL8,  Components.DEPTH_STENCIL, ImageType.FLOAT, SamplerType.SHADOW, 2, SIZED_DEPTH | SIZED_STENCIL, "Depth32 Float + Stencil8 Unsigned Integer"),
+		DEPTH24_UINT_NORM_STENCIL8(GL45C.GL_DEPTH24_STENCIL8,   Components.DEPTH_STENCIL, ImageType.FLOAT, SamplerType.SHADOW, 2, SIZED_DEPTH | SIZED_STENCIL, "Depth32 Unsigned Integer + Stencil8 Unsigned Integer"),
 		// compressed color
 		// i am just guessing that these are used with floating point samplers
-		R_COMPRESSED_UNSPECIFIED        (GL45C.GL_COMPRESSED_RED,              ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "R Compressed"),
-		RG_COMPRESSED_UNSPECIFIED       (GL45C.GL_COMPRESSED_RG,               ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RG Compressed"),
-		RGB_COMPRESSED_UNSPECIFIED      (GL45C.GL_COMPRESSED_RGB,              ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RGB Compressed"),
-		RGBA_COMPRESSED_UNSPECIFIED     (GL45C.GL_COMPRESSED_RGBA,             ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RGBA Compressed"),
-		RGB_COMPRESSED_UNSPECIFIED_SRGB (GL45C.GL_COMPRESSED_SRGB,             ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR | SRGB_ENCODED, "RGB Compressed (sRGB-Encoded)"),
-		RGBA_COMPRESSED_UNSPECIFIED_SRGB(GL45C.GL_COMPRESSED_SRGB_ALPHA,       ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR | SRGB_ENCODED, "RGBA Compressed (sRGB-Encoded)"),
-		R_COMPRESSED_RGTC1              (GL45C.GL_COMPRESSED_RED_RGTC1,        ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "R Compressed RGTC1"),
-		R_SIGNED_COMPRESSED_RGTC1       (GL45C.GL_COMPRESSED_SIGNED_RED_RGTC1, ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "R Signed Compressed RGTC1"),
-		RG_COMPRESSED_RGTC2             (GL45C.GL_COMPRESSED_RG_RGTC2,         ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RG Compressed RGTC2"),
-		RG_SIGNED_COMPRESSED_RGTC2      (GL45C.GL_COMPRESSED_SIGNED_RG_RGTC2,  ComponentType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RG Signed Compressed RGTC2"),
+		R_COMPRESSED_UNSPECIFIED        (GL45C.GL_COMPRESSED_RED,              Components.R,       ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "R Compressed"),
+		RG_COMPRESSED_UNSPECIFIED       (GL45C.GL_COMPRESSED_RG,               Components.RG,      ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RG Compressed"),
+		RGB_COMPRESSED_UNSPECIFIED      (GL45C.GL_COMPRESSED_RGB,              Components.RGB,     ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RGB Compressed"),
+		RGBA_COMPRESSED_UNSPECIFIED     (GL45C.GL_COMPRESSED_RGBA,             Components.RGBA,    ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RGBA Compressed"),
+		RGB_COMPRESSED_UNSPECIFIED_SRGB (GL45C.GL_COMPRESSED_SRGB,             Components.RGB,     ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR | SRGB_ENCODED, "RGB Compressed (sRGB-Encoded)"),
+		RGBA_COMPRESSED_UNSPECIFIED_SRGB(GL45C.GL_COMPRESSED_SRGB_ALPHA,       Components.RGBA,    ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR | SRGB_ENCODED, "RGBA Compressed (sRGB-Encoded)"),
+		R_COMPRESSED_RGTC1              (GL45C.GL_COMPRESSED_RED_RGTC1,        Components.R,       ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "R Compressed RGTC1"),
+		R_SIGNED_COMPRESSED_RGTC1       (GL45C.GL_COMPRESSED_SIGNED_RED_RGTC1, Components.R,       ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "R Signed Compressed RGTC1"),
+		RG_COMPRESSED_RGTC2             (GL45C.GL_COMPRESSED_RG_RGTC2,         Components.RG,      ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RG Compressed RGTC2"),
+		RG_SIGNED_COMPRESSED_RGTC2      (GL45C.GL_COMPRESSED_SIGNED_RG_RGTC2,  Components.RG,      ImageType.NONE, SamplerType.FLOAT, 2, COMPRESSED_COLOR, "RG Signed Compressed RGTC2"),
 		// unknown sentinel
-		UNKNOWN(0, ComponentType.NONE, SamplerType.NONE, 0, 0, "Unknown");
+		UNKNOWN(0, null, ImageType.NONE, SamplerType.NONE, 0, 0, "Unknown");
 		// @formatter:on
 
 		public final int id;
 		public final String description;
 		public final SamplerType samplerType;
-		public final ComponentType componentType;
+		public final ImageType imageType;
+		public final Components components;
 		public final int channelCount;
 		public final boolean isColorFormat;
 		public final boolean isDepthFormat;
@@ -151,12 +189,13 @@ public abstract class GlTexture extends GlObject {
 		public final boolean isDepthRenderable;
 		public final boolean isStencilRenderable;
 
-		private Format(int id, ComponentType componentType, SamplerType samplerType, int channelCount, int flags,
-				String description) {
+		private Format(int id, Components components, ImageType componentType, SamplerType samplerType,
+				int channelCount, int flags, String description) {
 			this.id = id;
 			this.description = description;
+			this.components = components;
+			this.imageType = componentType;
 			this.samplerType = samplerType;
-			this.componentType = componentType;
 			this.channelCount = channelCount;
 			this.isColorFormat = (flags & COLOR_FORMAT) != 0;
 			this.isDepthFormat = (flags & DEPTH_FORMAT) != 0;
@@ -802,7 +841,7 @@ public abstract class GlTexture extends GlObject {
 					this.sizeX, this.sizeY, this.sizeZ);
 		}
 
-		public void uploadImage(int dataFormat, int dataType, ByteBuffer data) {
+		public void uploadImage(Components components, ComponentType type, ByteBuffer data) {
 			// slice covers no texels! avoid even calling opengl in this case.
 			if (this.layerCount == 0 || this.sizeX == 0 || this.sizeY == 0 || this.sizeZ == 0)
 				return;
@@ -810,27 +849,27 @@ public abstract class GlTexture extends GlObject {
 			if (this.dimension == SliceDimension.D1 && this.texture.type.sliceDimension == SliceDimension.D1) {
 				GL45C.glTextureSubImage1D(this.texture.id, this.lodLevel,
 						this.offsetX, this.sizeX,
-						dataFormat, dataType, data);
+						components.gl, type.gl, data);
 			} else if (this.dimension == SliceDimension.D2 && this.texture.type.sliceDimension == SliceDimension.D2) {
 				GL45C.glTextureSubImage2D(this.texture.id, this.lodLevel,
 						this.offsetX, this.offsetY, this.sizeX, this.sizeY,
-						dataFormat, dataType, data);
+						components.gl, type.gl, data);
 			} else if (this.dimension == SliceDimension.D3 && this.texture.type.sliceDimension == SliceDimension.D3) {
 				GL45C.glTextureSubImage3D(this.texture.id, this.lodLevel,
 						this.offsetX, this.offsetY, this.offsetZ, this.sizeX, this.sizeY, this.sizeZ,
-						dataFormat, dataType, data);
+						components.gl, type.gl, data);
 			} else if ((this.dimension == SliceDimension.D1 || this.dimension == SliceDimension.D1_ARRAY)
 					&& this.texture.type.sliceDimension == SliceDimension.D1_ARRAY) {
 				// single slice of a texture array
 				GL45C.glTextureSubImage2D(this.texture.id, this.lodLevel,
 						this.offsetX, this.layerOffset, this.sizeX, this.layerCount,
-						dataFormat, dataType, data);
+						components.gl, type.gl, data);
 			} else if ((this.dimension == SliceDimension.D2 || this.dimension == SliceDimension.D2_ARRAY)
 					&& this.texture.type.sliceDimension == SliceDimension.D2_ARRAY) {
 				// single slice of a texture array
 				GL45C.glTextureSubImage3D(this.texture.id, this.lodLevel,
 						this.offsetX, this.offsetY, this.layerOffset, this.sizeX, this.sizeY, this.layerCount,
-						dataFormat, dataType, data);
+						components.gl, type.gl, data);
 			}
 
 		}

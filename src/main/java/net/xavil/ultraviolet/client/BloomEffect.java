@@ -4,6 +4,7 @@ import javax.annotation.Nullable;
 
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
+import net.xavil.hawklib.client.gl.GlPerf;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -104,6 +105,8 @@ public final class BloomEffect {
 			return;
 		}
 
+		GlPerf.push("bloom");
+
 		final var downsampleShader = UltravioletShaders.SHADER_BLOOM_DOWNSAMPLE.get();
 		final var upsampleShader = UltravioletShaders.SHADER_BLOOM_UPSAMPLE.get();
 		downsampleShader.setUniformi("uQuality", 1);
@@ -131,6 +134,8 @@ public final class BloomEffect {
 		try (final var disposer = Disposable.scope()) {
 			final var downsampleStack = new Vector<GlTexture2d>();
 
+			GlPerf.push("downsample");
+
 			var currentSize = input.size().d2();
 			var previous = input;
 			while (downsampleStack.size() < settings.maxPasses) {
@@ -145,6 +150,8 @@ public final class BloomEffect {
 				previous = target.colorTexture;
 			}
 
+			GlPerf.swap("upsample");
+
 			previous = downsampleStack.pop().unwrap();
 			while (!downsampleStack.isEmpty()) {
 				final var level = downsampleStack.size();
@@ -154,6 +161,8 @@ public final class BloomEffect {
 				previous = target.colorTexture;
 			}
 
+			GlPerf.pop();
+
 			if (!output.writesTo(input)) {
 				drawUpsample(output, previous, input, 0);
 			} else {
@@ -162,5 +171,7 @@ public final class BloomEffect {
 				drawUpsample(output, previous, inputCopy.colorTexture, 0);
 			}
 		}
+
+		GlPerf.pop();
 	}
 }

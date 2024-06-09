@@ -2,8 +2,8 @@ package net.xavil.hawklib.client.gl;
 
 import java.lang.ref.Cleaner;
 import java.time.Duration;
-import java.time.Instant;
 import java.util.Objects;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 
 import javax.annotation.Nullable;
@@ -17,26 +17,54 @@ import net.xavil.hawklib.Box;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.ErrorRatelimiter;
 import net.xavil.hawklib.HawkLib;
+import net.xavil.hawklib.collections.impl.VectorInt;
+import net.xavil.hawklib.collections.iterator.IntoIterator;
 
 public abstract class GlObject implements Disposable {
 
 	protected static final Cleaner CLEANER = Cleaner.create();
 
+	public static final class Deleter {
+		public final Consumer<int[]> bulk;
+		public final IntConsumer single;
+
+		public Deleter(Consumer<int[]> bulk, IntConsumer single) {
+			this.bulk = bulk;
+			this.single = single;
+		}
+
+		public Deleter(IntConsumer single) {
+			this(ids -> {
+				for (final int id : ids)
+					single.accept(id);
+			}, single);
+		}
+	}
+
 	public static enum ObjectType {
 		// why is GL_TEXTURE not in core profile but everything else is ??????
-		TEXTURE(GL45.GL_TEXTURE, "Texture", GL45C::glDeleteTextures),
-		BUFFER(GL45C.GL_BUFFER, "Buffer", GL45C::glDeleteBuffers),
-		VERTEX_ARRAY(GL45C.GL_VERTEX_ARRAY, "Vertex Array", GL45C::glDeleteVertexArrays),
-		FRAMEBUFFER(GL45C.GL_FRAMEBUFFER, "Framebuffer", GL45C::glDeleteFramebuffers),
-		RENDERBUFFER(GL45C.GL_RENDERBUFFER, "Renderbuffer", GL45C::glDeleteRenderbuffers),
-		SHADER(GL45C.GL_SHADER, "Shader Stage", GL45C::glDeleteShader),
-		PROGRAM(GL45C.GL_PROGRAM, "Shader", GL45C::glDeleteProgram);
+		TEXTURE(GL45.GL_TEXTURE, "Texture",
+				new Deleter(GL45C::glDeleteTextures, GL45C::glDeleteTextures)),
+		BUFFER(GL45C.GL_BUFFER, "Buffer",
+				new Deleter(GL45C::glDeleteBuffers, GL45C::glDeleteBuffers)),
+		VERTEX_ARRAY(GL45C.GL_VERTEX_ARRAY, "Vertex Array",
+				new Deleter(GL45C::glDeleteVertexArrays, GL45C::glDeleteVertexArrays)),
+		FRAMEBUFFER(GL45C.GL_FRAMEBUFFER, "Framebuffer",
+				new Deleter(GL45C::glDeleteFramebuffers, GL45C::glDeleteFramebuffers)),
+		RENDERBUFFER(GL45C.GL_RENDERBUFFER, "Renderbuffer",
+				new Deleter(GL45C::glDeleteRenderbuffers, GL45C::glDeleteRenderbuffers)),
+		SHADER(GL45C.GL_SHADER, "Shader Stage",
+				new Deleter(GL45C::glDeleteShader)),
+		PROGRAM(GL45C.GL_PROGRAM, "Shader",
+				new Deleter(GL45C::glDeleteProgram)),
+		QUERY(GL45C.GL_QUERY, "Query",
+				new Deleter(GL45C::glDeleteQueries, GL45C::glDeleteQueries));
 
 		public final int glId;
 		public final String description;
-		public final IntConsumer releaser;
+		public final Deleter releaser;
 
-		private ObjectType(int glId, String description, IntConsumer releaser) {
+		private ObjectType(int glId, String description, Deleter releaser) {
 			this.glId = glId;
 			this.description = description;
 			this.releaser = releaser;
@@ -101,6 +129,8 @@ public abstract class GlObject implements Disposable {
 
 		if (this.debugInfo != null)
 			this.debugInfo.cachedDebugDescription.set(debugDescription());
+
+		GlPerf.objectCreated(type);
 	}
 
 	@Override
@@ -110,10 +140,28 @@ public abstract class GlObject implements Disposable {
 			HawkLib.LOGGER.error("Tried to destroy {} more than once!", this);
 			return;
 		}
+		GlPerf.objectDestroyed(this.objectType);
 		if (this.owned)
-			this.objectType.releaser.accept(this.id);
+			this.objectType.releaser.single.accept(this.id);
 		if (this.debugInfo != null)
 			this.debugInfo.cleanable.clean();
+	}
+
+	public static <T extends GlObject> void closeBulk(ObjectType objectType, IntoIterator<T> objects) {
+		final var iter = objects.iter().filterCast(GlObject.class);
+		final var ids = new VectorInt(iter.sizeHint().lowerBound());
+		try {
+			iter.forEach(object -> {
+				if (object.objectType != objectType)
+					throw new IllegalArgumentException();
+				if (object.owned)
+					ids.push(object.id);
+				if (object.debugInfo != null)
+					object.debugInfo.cleanable.clean();
+			});
+		} finally {
+			objectType.releaser.bulk.accept(ids.backingStorage());
+		}
 	}
 
 	public String getDebugName() {

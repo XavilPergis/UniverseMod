@@ -9,7 +9,6 @@ public class MotionSmoother<T> {
 
 	public T target;
 	public T current;
-	public T previous;
 
 	public MotionSmoother(double smoothingFactor, NumericOps<T> ops) {
 		this(smoothingFactor, ops, ops.zero());
@@ -18,20 +17,15 @@ public class MotionSmoother<T> {
 	public MotionSmoother(double smoothingFactor, NumericOps<T> ops, T defaultValue) {
 		this.smoothingFactor = smoothingFactor;
 		this.ops = ops;
-		this.target = this.current = this.previous = defaultValue;
+		this.target = this.current = defaultValue;
 	}
 
 	public void set(T value) {
-		this.current = this.previous = this.target = value;
+		this.current = this.target = value;
 	}
 
-	public T get(float partialTick) {
-		return this.ops.lerp(partialTick, this.previous, this.current);
-	}
-
-	public void tick() {
-		this.previous = this.current;
-		this.current = this.ops.lerp(this.smoothingFactor, this.current, this.target);
+	public void tick(double dt) {
+		this.current = this.ops.lerp(1 - Math.pow(this.smoothingFactor, dt), this.current, this.target);
 	}
 
 	@Override

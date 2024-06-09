@@ -139,11 +139,11 @@ public final class GlFramebuffer extends GlObject {
 		if (target != null) {
 			if (this.owned)
 				target.attach(this, GL45C.GL_COLOR_ATTACHMENT0 + index);
-			this.colorAttachments.insert(index, target);
+			this.colorAttachments.insertAndGet(index, target);
 		} else {
 			if (this.owned)
 				GlFramebufferAttachment.detach(this, GL45C.GL_COLOR_ATTACHMENT0 + index);
-			this.colorAttachments.remove(index);
+			this.colorAttachments.removeAndGet(index);
 		}
 		if (oldTarget != null)
 			oldTarget.close();
@@ -294,10 +294,12 @@ public final class GlFramebuffer extends GlObject {
 		GlManager.setViewport(this.viewport.pos.x, this.viewport.pos.y,
 				this.viewport.size.x, this.viewport.size.y);
 		syncDrawBuffers();
+		GlPerf.framebufferChanged();
 	}
 
 	public static void unbind() {
 		GlManager.bindFramebuffer(GL45C.GL_FRAMEBUFFER, 0);
+		GlPerf.framebufferChanged();
 	}
 
 	private void syncDrawBuffers() {

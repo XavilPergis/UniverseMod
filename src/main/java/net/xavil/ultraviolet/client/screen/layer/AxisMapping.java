@@ -66,4 +66,28 @@ public abstract sealed class AxisMapping {
 		}
 	}
 
+	public static final class Power extends AxisMapping {
+		public final double power, invPower;
+
+		public Power(double power, Interval domain) {
+			super(domain);
+			this.power = power;
+			this.invPower = 1.0 / power;
+		}
+
+		public Power(double power, double min, double max) {
+			this(power, new Interval(min, max));
+		}
+
+		@Override
+		public double remap(double v) {
+			return Math.pow(this.domain.inverseLerp(v), this.invPower);
+		}
+
+		@Override
+		public double unmap(double t) {
+			return this.domain.lerp(Math.pow(t, this.power));
+		}
+	}
+
 }

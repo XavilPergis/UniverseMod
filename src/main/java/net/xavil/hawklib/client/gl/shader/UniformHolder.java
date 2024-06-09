@@ -47,7 +47,7 @@ public interface UniformHolder {
 		if (texture == null)
 			return;
 		Assert.isTrue(texture.isValid());
-		final var uniformType = UniformSlot.Type.fromImage(texture.format().componentType, texture.type);
+		final var uniformType = UniformSlot.Type.fromImage(texture.format().imageType, texture.type);
 		final var slot = getSlot(uniformName, uniformType);
 		if (slot != null) {
 			boolean d = false;

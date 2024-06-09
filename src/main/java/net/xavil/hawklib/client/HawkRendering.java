@@ -6,7 +6,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
-import net.xavil.hawklib.client.gl.shader.AttributeSet;
+import net.xavil.hawklib.client.gl.shader.ShaderAttributeSet;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -35,11 +35,11 @@ public final class HawkRendering {
 	}
 
 	public interface ShaderSink {
-		default void accept(ResourceLocation name, AttributeSet attributeSet, GlFragmentWrites fragmentWrites) {
+		default void accept(ResourceLocation name, ShaderAttributeSet attributeSet, GlFragmentWrites fragmentWrites) {
 			accept(name, attributeSet, fragmentWrites, Iterator.empty());
 		}
 
-		void accept(ResourceLocation name, AttributeSet attributeSet, GlFragmentWrites fragmentWrites,
+		void accept(ResourceLocation name, ShaderAttributeSet attributeSet, GlFragmentWrites fragmentWrites,
 				Iterator<String> shaderDefines);
 	}
 

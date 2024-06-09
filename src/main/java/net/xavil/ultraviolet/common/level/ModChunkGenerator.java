@@ -31,6 +31,7 @@ import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.ChunkGenerator;
 import net.minecraft.world.level.chunk.LevelChunkSection;
+import net.minecraft.world.level.chunk.ProtoChunk;
 import net.minecraft.world.level.levelgen.GenerationStep.Carving;
 import net.minecraft.world.level.levelgen.Heightmap;
 import net.minecraft.world.level.levelgen.Heightmap.Types;
@@ -58,6 +59,7 @@ public final class ModChunkGenerator extends ChunkGenerator {
 	private final Registry<Biome> biomes;
 	public final long seed;
 	public final double gravity;
+	private final int baseHeight = 128;
 
 	private static BiomeSource defaultBiomeSource(Registry<Biome> biomes, long seed) {
 		// TODO: custom biome/biome source?
@@ -163,17 +165,17 @@ public final class ModChunkGenerator extends ChunkGenerator {
 	private CraterLevelParameters[] makeLevelParameters() {
 		return new CraterLevelParameters[] {
 			// @formatter:off
-			new CraterLevelParameters(5,   1.0,      6.0, 0.70,  2.0, 0.9, 0.9),
-			new CraterLevelParameters(3,   3.0,     20.0, 0.50,  2.0, 0.1, 0.6),
-			new CraterLevelParameters(2,   4.0,     40.0, 0.50,  4.0, 0.2, 0.5),
-			new CraterLevelParameters(1,   7.0,     80.0, 0.50,  5.0, 0.4, 0.5),
-			new CraterLevelParameters(1,  10.0,    160.0, 0.50,  5.0, 0.5, 0.5),
-			new CraterLevelParameters(1,  14.0,    320.0, 0.50, 10.0, 0.6, 0.5),
-			new CraterLevelParameters(1,  30.0,    640.0, 0.50, 10.0, 0.8, 0.5),
-			new CraterLevelParameters(1,  50.0,   1280.0, 0.70, 20.0, 1.0, 0.5),
-			new CraterLevelParameters(1, 100.0,   2560.0, 0.70, 20.0, 1.0, 0.5),
-			new CraterLevelParameters(1, 100.0,   5120.0, 0.70, 30.0, 1.0, 0.5),
-			new CraterLevelParameters(1, 100.0,  10240.0, 0.90, 30.0, 1.0, 0.5),
+			// new CraterLevelParameters(5,   1.0,      6.0, 0.70,  2.0, 0.9, 0.9),
+			// new CraterLevelParameters(3,   3.0,     20.0, 0.50,  2.0, 0.1, 0.6),
+			new CraterLevelParameters(2,   1.0,     40.0, 0.50,  4.0, 0.2, 0.5),
+			new CraterLevelParameters(1,   3.0,     80.0, 0.50,  5.0, 0.4, 0.5),
+			new CraterLevelParameters(1,   5.0,    160.0, 0.50,  5.0, 0.5, 0.5),
+			new CraterLevelParameters(1,   7.0,    320.0, 0.50, 10.0, 0.6, 0.5),
+			new CraterLevelParameters(1,  15.0,    640.0, 0.50, 10.0, 0.8, 0.5),
+			new CraterLevelParameters(1,  25.0,   1280.0, 0.70, 20.0, 1.0, 0.5),
+			new CraterLevelParameters(1,  40.0,   2560.0, 0.70, 20.0, 1.0, 0.5),
+			new CraterLevelParameters(1,  60.0,   5120.0, 0.70, 30.0, 1.0, 0.5),
+			new CraterLevelParameters(1,  80.0,  10240.0, 0.90, 30.0, 1.0, 0.5),
 			new CraterLevelParameters(1, 100.0,  40960.0, 0.90, 40.0, 1.0, 0.5),
 			new CraterLevelParameters(1, 100.0, 163840.0, 0.90, 80.0, 1.0, 0.4),
 			// @formatter:on
@@ -249,7 +251,7 @@ public final class ModChunkGenerator extends ChunkGenerator {
 	private double calculateNormalTerrainHeight(SurfaceColumnInfo info, SplittableRng rng, int bx, int bz) {
 		double height = 0.0;
 		height += 50 * info.heightField.sample(bx, bz);
-		height = Math.max(0, height);
+		// height = Math.max(0, height);
 		return height;
 	}
 
@@ -271,7 +273,7 @@ public final class ModChunkGenerator extends ChunkGenerator {
 		final var minY = heightAccessor.getMinBuildHeight();
 		final var maxY = heightAccessor.getMaxBuildHeight();
 		for (int y = maxY - 1; y >= minY; --y) {
-			final var state = stateForDepth(height - y);
+			final var state = stateForDepth(y, height);
 			if (heightmapTypes.isOpaque().test(state))
 				return y + 1;
 		}
@@ -290,7 +292,7 @@ public final class ModChunkGenerator extends ChunkGenerator {
 		final var minY = heightAccessor.getMinBuildHeight();
 		final var column = new BlockState[height - minY + 1];
 		for (int i = 0; i < column.length; ++i) {
-			final var state = stateForDepth(height - (i + minY));
+			final var state = stateForDepth(i + minY, height);
 			column[i] = state;
 		}
 
@@ -342,7 +344,10 @@ public final class ModChunkGenerator extends ChunkGenerator {
 		final var heights = new short[16 * 16];
 		final var chunkHeight = chunk.getHeight();
 
-		final SurfaceColumnInfo info = makeInfo(chunk.getPos().getMinBlockX() + 2, chunk.getPos().getMinBlockZ() + 2);
+		final var minAbsX = chunk.getPos().getMinBlockX();
+		final var minAbsZ = chunk.getPos().getMinBlockZ();
+
+		final SurfaceColumnInfo info = makeInfo(chunk.getPos().getMinBlockX(), chunk.getPos().getMinBlockZ());
 		final var rng = new SplittableRng(this.seed);
 		for (int x = 0; x < 16; ++x) {
 			for (int z = 0; z < 16; ++z) {
@@ -356,38 +361,42 @@ public final class ModChunkGenerator extends ChunkGenerator {
 			}
 		}
 
+		final var blockPos = new BlockPos.MutableBlockPos();
 		for (int i = 0; i < chunk.getMaxSection() - chunk.getMinSection(); ++i) {
 			final var section = chunk.getSection(i);
 			final var minY = section.bottomBlockY();
 			for (int y = 0; y < 16; ++y) {
+				blockPos.setY(minY + y);
 				for (int z = 0; z < 16; ++z) {
+					blockPos.setZ(minAbsZ + z);
 					for (int x = 0; x < 16; ++x) {
+						blockPos.setX(minAbsX + x);
 						final var height = (int) heights[(z << 4) | x];
-						final var state = stateForDepth(height - (minY + y));
+						final var state = stateForDepth(blockPos.getY(), height);
 						section.setBlockState(x, y, z, state, false);
+						hm0.update(x, height, z, state);
+						hm1.update(x, height, z, state);
+						if (state.getLightEmission() != 0 && chunk instanceof ProtoChunk protoChunk) {
+							protoChunk.addLight(blockPos);
+						}
 					}
 				}
 			}
 		}
-
-		final var state = stateForDepth(0);
-		for (int x = 0; x < 16; ++x) {
-			for (int z = 0; z < 16; ++z) {
-				final var height = heights[(z << 4) | x];
-				hm0.update(x, height, z, state);
-				hm1.update(x, height, z, state);
-			}
-		}
-
 	}
 
 	private int blockHeight(double height, int buildHeight) {
-		return Mth.clamp(128 + Mth.floor(height), 10, buildHeight - 10);
+		return Mth.clamp(this.baseHeight + Mth.floor(height), 10, buildHeight - 10);
 	}
 
-	private BlockState stateForDepth(int depth) {
-		if (depth < 0)
-			return Blocks.AIR.defaultBlockState();
+	private BlockState stateForDepth(int y, int surfaceY) {
+		if (y >= surfaceY) {
+			if (y >= this.baseHeight) {
+				return Blocks.AIR.defaultBlockState();
+			} else {
+				return Blocks.LAVA.defaultBlockState();
+			}
+		}
 		return ModBlocks.SILICATE_ROCK.defaultBlockState();
 		// return Blocks.STONE.defaultBlockState();
 	}

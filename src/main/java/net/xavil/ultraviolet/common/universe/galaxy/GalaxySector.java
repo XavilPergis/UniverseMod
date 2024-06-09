@@ -351,6 +351,7 @@ public final class GalaxySector {
 		// primary star info
 		public double systemAgeMyr;
 		public double massYg;
+		public double metallicity;
 		// these are essentially cached versions of the information you can derive from
 		// the seed, age, and mass.
 		public double luminosityLsol;
@@ -365,6 +366,7 @@ public final class GalaxySector {
 			this.generationLayer = other.generationLayer;
 			this.systemAgeMyr = other.systemAgeMyr;
 			this.massYg = other.massYg;
+			this.metallicity = other.metallicity;
 			this.luminosityLsol = other.luminosityLsol;
 			this.temperatureK = other.temperatureK;
 			this.name = other.name;
@@ -372,13 +374,13 @@ public final class GalaxySector {
 	}
 
 	public static final class PackedElements {
-		public static final int FLOAT_ELEMENT_COUNT = 7;
+		public static final int FLOAT_ELEMENT_COUNT = 8;
 		public static final int INT_ELEMENT_COUNT = 3;
 
 		public final Vec3 sectorOrigin;
 
 		// NOTE: position is stored relative to `sectorOrigin`
-		// x y z age mass luminosity temperature
+		// x y z age mass metallicity luminosity temperature
 		private float[] floatBuffer = null;
 		// generationlayer systemseed:systemseed
 		private int[] intBuffer = null;
@@ -409,6 +411,7 @@ public final class GalaxySector {
 			out.systemPosTm.z = this.floatBuffer[fi++] + this.sectorOrigin.z;
 			out.systemAgeMyr = this.floatBuffer[fi++];
 			out.massYg = this.floatBuffer[fi++];
+			out.metallicity = this.floatBuffer[fi++];
 			out.luminosityLsol = this.floatBuffer[fi++];
 			out.temperatureK = this.floatBuffer[fi++];
 			int li = i * INT_ELEMENT_COUNT;
@@ -428,6 +431,7 @@ public final class GalaxySector {
 			this.floatBuffer[fi++] = (float) (in.systemPosTm.z - this.sectorOrigin.z);
 			this.floatBuffer[fi++] = (float) in.systemAgeMyr;
 			this.floatBuffer[fi++] = (float) in.massYg;
+			this.floatBuffer[fi++] = (float) in.metallicity;
 			this.floatBuffer[fi++] = (float) in.luminosityLsol;
 			this.floatBuffer[fi++] = (float) in.temperatureK;
 			int li = i * INT_ELEMENT_COUNT;
@@ -448,8 +452,12 @@ public final class GalaxySector {
 		public void storeSequence(PackedElements other, int i) {
 			Assert.isLesserOrEqual(other.size + i, this.capacity);
 
-			System.arraycopy(other.floatBuffer, 0, this.floatBuffer, i, FLOAT_ELEMENT_COUNT * other.size);
-			System.arraycopy(other.intBuffer, 0, this.intBuffer, i, INT_ELEMENT_COUNT * other.size);
+			System.arraycopy(other.floatBuffer, 0,
+					this.floatBuffer, FLOAT_ELEMENT_COUNT * i,
+					FLOAT_ELEMENT_COUNT * other.size);
+			System.arraycopy(other.intBuffer, 0,
+					this.intBuffer, INT_ELEMENT_COUNT * i,
+					INT_ELEMENT_COUNT * other.size);
 			if (this.hasNames && other.hasNames) {
 				System.arraycopy(other.names, 0, this.names, i, other.size);
 			}

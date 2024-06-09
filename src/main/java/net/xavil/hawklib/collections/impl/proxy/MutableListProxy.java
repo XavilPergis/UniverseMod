@@ -1,11 +1,15 @@
 package net.xavil.hawklib.collections.impl.proxy;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.function.Predicate;
 
+import net.xavil.hawklib.collections.impl.ListUtil;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
+import net.xavil.hawklib.collections.iterator.Iterators;
 
 public final class MutableListProxy<T> implements MutableList<T> {
 
@@ -37,7 +41,7 @@ public final class MutableListProxy<T> implements MutableList<T> {
 
 	@Override
 	public Iterator<T> iter() {
-		return Iterator.fromJava(this.wrapped.iterator());
+		return Iterators.fromJava(this.wrapped.iterator());
 	}
 
 	@Override
@@ -64,6 +68,20 @@ public final class MutableListProxy<T> implements MutableList<T> {
 	public T set(int index, T value) {
 		return this.wrapped.set(index, value);
 	}
+
+
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this)
+			return true;
+		if (obj instanceof MutableListProxy<?> other) {
+			return Objects.equals(this.wrapped, other.wrapped);
+		} else if (obj instanceof ImmutableList<?> other) {
+			return ListUtil.genericEquals(this, other);
+		}
+		return false;
+	}
+
 
 	// @Override
 	// public void sort(Comparator<? super T> comparator) {

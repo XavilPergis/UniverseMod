@@ -109,12 +109,11 @@ void main() {
 	Material material = Material(vec3(0.0), vec3(1.0), 0.5, 0.0, true);
 
 	// LightingContext ctx = makeLightingContext(material, uMetersPerUnit, vVertexPosV.xyz, normWorld);
-	vec3 res = vec3(0.0);
+	vec3 res = material.emission;
 	res += contrib(material, uLightPos0.xyz, uLightColor0, uLightRadius0);
 	res += contrib(material, uLightPos1.xyz, uLightColor1, uLightRadius1);
 	res += contrib(material, uLightPos2.xyz, uLightColor2, uLightRadius2);
 	res += contrib(material, uLightPos3.xyz, uLightColor3, uLightRadius3);
-	res += material.emissiveFlux;
 
 
 	// float parentRadius_u = uParentRadius * 1000.0 / uMetersPerUnit;

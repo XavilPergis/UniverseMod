@@ -16,10 +16,10 @@ import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
+import net.xavil.hawklib.client.flexible.vertex.VertexBuilder;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.RenderTexture;
-import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
@@ -333,6 +333,9 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 				final var newTexture = RenderTexture.HDR_COLOR_DEPTH.acquireTemporary();
 				newTexture.framebuffer.bind();
 				newTexture.framebuffer.clear();
+
+				BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.TRIANGLE, null);
+
 				BufferRenderer.drawFullscreen(shader);
 
 				ctx.replaceCurrentTexture(newTexture);
@@ -358,7 +361,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		// }
 	}
 
-	private static void addEllipseArc(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,
+	private static void addEllipseArc(VertexAttributeConsumer.Generic builder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, double endpointAngleL,
 			double endpointAngleH, int maxDepth, double phase, boolean fadeOut) {
 
@@ -420,7 +423,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 	}
 
-	private static void addEllipse(FlexibleVertexConsumer builder, OrbitCamera.Cached camera,
+	private static void addEllipse(VertexAttributeConsumer.Generic builder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, double phase, boolean fadeOut) {
 		var basePathSegments = 32;
 		var maxDepth = 4;

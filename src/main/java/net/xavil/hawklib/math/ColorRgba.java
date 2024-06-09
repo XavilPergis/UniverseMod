@@ -146,6 +146,10 @@ public final class ColorRgba implements ColorAccess, Hashable {
 		return new ColorRgba(this.r - b.r, this.g - b.g, this.b - b.b, this.a - b.a);
 	}
 
+	public ColorRgba invertRgb() {
+		return new ColorRgba(1f - this.r, 1f - this.g, 1f - this.b, this.a);
+	}
+
 	public static ColorRgba min(ColorRgba a, ColorRgba b) {
 		return new ColorRgba(
 				Math.min(a.r, b.r),

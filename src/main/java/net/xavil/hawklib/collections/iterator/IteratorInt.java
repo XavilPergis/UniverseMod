@@ -30,9 +30,9 @@ public interface IteratorInt extends IntoIteratorInt {
 	 * method is called. Subsequent calls to this method must not return
 	 * {@code false} if they previously returned {@code true}, unless
 	 * {@link #next()} was called in between. If an iterator is fused (i.e., if
-	 * {@link #isFused()} returns {@code true}), then this method cannot ever return
-	 * anything other than {@code false} after a {@code false} was previously
-	 * yielded.
+	 * {@link #hasProperty()} returns {@code true} when called with
+	 * {@link #PROPERTY_FUSED}), then this method cannot ever return anything other
+	 * than {@code false} after a {@code false} was previously yielded.
 	 * </p>
 	 * 
 	 * @return {@code true} if the iterator has more elements to yield.
@@ -83,24 +83,6 @@ public interface IteratorInt extends IntoIteratorInt {
 	default SizeHint sizeHint() {
 		return SizeHint.UNKNOWN;
 	}
-
-	/**
-	 * Returns whether this iterator is known to definitely be fused.
-	 * 
-	 * <p>
-	 * Subsequent calls to this method <i>must</i> return the same value as the
-	 * previous. i.e., if an iterator reports that it is fused, it must
-	 * <i>always</i> report that it is fused.
-	 * </p>
-	 * 
-	 * @return {@code true} if this iterator is definitely fused.
-	 */
-	default boolean isFused() {
-		return hasProperties(PROPERTY_FUSED);
-	}
-
-	static final int PROPERTY_FUSED = 1 << 0;
-	static final int PROPERTY_INFINITE = 1 << 2;
 
 	default boolean hasProperties(int propertyMask) {
 		return (properties() & propertyMask) == propertyMask;
@@ -246,7 +228,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			return PROPERTY_FUSED;
+			return Iterator.PROPERTY_FUSED;
 		}
 
 		@Override
@@ -279,7 +261,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			return PROPERTY_FUSED;
+			return Iterator.PROPERTY_FUSED;
 		}
 
 		@Override
@@ -979,7 +961,7 @@ public interface IteratorInt extends IntoIteratorInt {
 	}
 
 	default IteratorInt fused() {
-		if (this.isFused())
+		if (Iterator.hasProperties(this, Iterator.PROPERTY_FUSED))
 			return this;
 		return new Fused(this);
 	}
@@ -1016,7 +998,7 @@ public interface IteratorInt extends IntoIteratorInt {
 
 		@Override
 		public int properties() {
-			return this.source.properties() | PROPERTY_FUSED;
+			return this.source.properties() | Iterator.PROPERTY_FUSED;
 		}
 
 		@Override

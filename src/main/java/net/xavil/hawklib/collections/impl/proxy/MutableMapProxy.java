@@ -8,6 +8,7 @@ import javax.annotation.Nullable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.iterator.Iterator;
+import net.xavil.hawklib.collections.iterator.Iterators;
 
 public final class MutableMapProxy<K, V> implements MutableMap<K, V> {
 
@@ -40,18 +41,32 @@ public final class MutableMapProxy<K, V> implements MutableMap<K, V> {
 
 	@Override
 	public Iterator<K> keys() {
-		return Iterator.fromJava(this.wrapped.keySet().iterator());
+		return Iterators.fromJava(this.wrapped.keySet().iterator());
 	}
 
 	@Override
-	public Maybe<V> insert(K key, V value) {
+	public boolean insert(K key, V value) {
+		final var res = this.wrapped.containsKey(key);
+		this.wrapped.put(key, value);
+		return !res;
+	}
+
+	@Override
+	public boolean remove(K key) {
+		final var res = this.wrapped.containsKey(key);
+		this.wrapped.remove(key);
+		return res;
+	}
+
+	@Override
+	public Maybe<V> insertAndGet(K key, V value) {
 		final Maybe<V> res = this.wrapped.containsKey(key) ? Maybe.some(this.wrapped.get(key)) : Maybe.none();
 		this.wrapped.put(key, value);
 		return res;
 	}
 
 	@Override
-	public Maybe<V> remove(K key) {
+	public Maybe<V> removeAndGet(K key) {
 		final Maybe<V> res = this.wrapped.containsKey(key) ? Maybe.some(this.wrapped.get(key)) : Maybe.none();
 		this.wrapped.remove(key);
 		return res;

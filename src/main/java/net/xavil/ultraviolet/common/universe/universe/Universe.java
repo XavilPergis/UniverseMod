@@ -89,7 +89,7 @@ public abstract class Universe implements Disposable {
 
 		final var level = createLevelForStation(name, id);
 		final var station = new SpaceStation(this, level, name, location);
-		this.spaceStations.insert(id, station);
+		this.spaceStations.insertAndGet(id, station);
 		return Maybe.some(id);
 	}
 

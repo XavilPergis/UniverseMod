@@ -392,8 +392,8 @@ public final class ServerUniverse extends Universe {
 
 			this.startingGenerator = new StartingSystemGalaxyGenerationLayer(galaxy, startingSystem.systemAgeMya,
 					startingSystem.name, startingSystem.rootNode, startingNodeId);
-			// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
 			galaxy.addGenerationLayer(this.startingGenerator);
+			// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
 			final var startingId = this.startingGenerator.getStartingSystemId();
 
 			Mod.LOGGER.info("placing starting system at {}", startingId);

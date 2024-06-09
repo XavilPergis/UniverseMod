@@ -12,6 +12,7 @@ import net.xavil.hawklib.collections.interfaces.ImmutableListInt;
 import net.xavil.hawklib.collections.interfaces.MutableListInt;
 import net.xavil.hawklib.collections.iterator.IteratorInt;
 import net.xavil.hawklib.collections.iterator.IntoIteratorInt;
+import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.collections.iterator.SizeHint;
 
 public final class VectorInt implements MutableListInt {
@@ -360,8 +361,8 @@ public final class VectorInt implements MutableListInt {
 		}
 
 		@Override
-		public boolean isFused() {
-			return true;
+		public int properties() {
+			return Iterator.PROPERTY_FUSED;
 		}
 
 		@Override

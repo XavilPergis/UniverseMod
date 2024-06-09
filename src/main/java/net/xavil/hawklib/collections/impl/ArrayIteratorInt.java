@@ -3,6 +3,7 @@ package net.xavil.hawklib.collections.impl;
 import org.jetbrains.annotations.NotNull;
 
 import it.unimi.dsi.fastutil.ints.IntConsumer;
+import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.collections.iterator.IteratorInt;
 import net.xavil.hawklib.collections.iterator.SizeHint;
 
@@ -63,7 +64,7 @@ public final class ArrayIteratorInt implements IteratorInt {
 
 	@Override
 	public int properties() {
-		return PROPERTY_FUSED;
+		return Iterator.PROPERTY_FUSED;
 	}
 
 	@Override

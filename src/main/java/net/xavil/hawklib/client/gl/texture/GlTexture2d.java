@@ -90,7 +90,7 @@ public final class GlTexture2d extends GlTexture {
 		if (!IMPORT_CACHE.containsKey(location) || IMPORT_CACHE.getOrThrow(location).id != currentTexture.getId()) {
 			final var res = new GlTexture2d(false, currentTexture.getId(), false);
 			res.storageAllocated = true;
-			IMPORT_CACHE.insert(location, res);
+			IMPORT_CACHE.insertAndGet(location, res);
 		}
 
 		return IMPORT_CACHE.getOrThrow(location);

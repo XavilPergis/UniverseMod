@@ -16,7 +16,6 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
-import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.flexible.RenderTexture;
 import net.xavil.hawklib.collections.Blackboard;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -25,24 +24,31 @@ import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.ultraviolet.client.BloomEffect;
 import net.xavil.ultraviolet.client.PostProcessing;
+import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGpuTimers;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 
 public abstract class HawkScreen extends Screen {
 
 	protected final Minecraft client = Minecraft.getInstance();
 	protected final @Nullable Screen previousScreen;
-	protected final Disposable.Multi disposer = new Disposable.Multi();
+	public final Disposable.Multi disposer = new Disposable.Multi();
 	public final Blackboard<String> blackboard = new Blackboard<>();
 
 	protected final MutableList<Layer2d> layers = new Vector<>();
+	protected final MutableList<Layer2d> overlays = new Vector<>();
 
 	public static abstract class Layer2d implements Disposable {
 		protected final Minecraft client = Minecraft.getInstance();
 		public final HawkScreen attachedScreen;
 		public final Disposable.Multi disposer = new Disposable.Multi();
+		private boolean markedForRemoval = false;
 
 		public Layer2d(HawkScreen attachedScreen) {
 			this.attachedScreen = attachedScreen;
+		}
+
+		public void remove() {
+			this.markedForRemoval = true;
 		}
 
 		@Override
@@ -178,6 +184,14 @@ public abstract class HawkScreen extends Screen {
 			} else if (keypress.keyCode == GLFW.GLFW_KEY_F3) {
 				this.client.reloadResourcePacks();
 				return true;
+			} else if (keypress.keyCode == GLFW.GLFW_KEY_Q) {
+				final var overlayIndex = this.overlays.indexOf(layer -> layer instanceof ScreenLayerGpuTimers);
+				if (overlayIndex >= 0) {
+					this.overlays.remove(overlayIndex);
+				} else {
+					this.overlays.push(new ScreenLayerGpuTimers(this));
+				}
+				return true;
 			}
 		}
 
@@ -221,9 +235,10 @@ public abstract class HawkScreen extends Screen {
 		final var windowSize = new Vec2i(window.getWidth(), window.getHeight());
 
 		final var partialTick = this.client.getFrameTime();
+		final var deltaTime = this.client.getDeltaFrameTime();
 
 		final var mousePos = new Vec2(mouseX, mouseY);
-		final var ctx = new RenderContext(poseStack, windowSize, mousePos, partialTick);
+		final var ctx = new RenderContext(poseStack, windowSize, mousePos, partialTick, deltaTime);
 
 		final var disposer = Disposable.scope();
 		try {
@@ -235,6 +250,10 @@ public abstract class HawkScreen extends Screen {
 				layer.render(ctx);
 			}
 			renderScreenPostLayers(ctx);
+			for (final var layer : this.overlays.iterable()) {
+				ctx.currentTexture.framebuffer.bind();
+				layer.render(ctx);
+			}
 
 			final var sceneTexture = disposer.attach(RenderTexture.HDR_COLOR_DEPTH.acquireTemporary());
 			ctx.currentTexture.framebuffer.copyTo(sceneTexture.framebuffer);
@@ -249,39 +268,33 @@ public abstract class HawkScreen extends Screen {
 
 			PostProcessing.runTonemappingPass(new RenderTexture(GlFramebuffer.getMainFramebuffer()),
 					hdrPost.colorTexture);
-			// HawkRendering.applyPostProcessing(GlFramebuffer.getMainFramebuffer(),
-			// ctx.currentTexture.colorTexture);
-			// ctx.currentTexture.framebuffer.copyTo(GlFramebuffer.getMainFramebuffer());
 		} finally {
 			disposer.close();
 			ctx.currentTexture.close();
 		}
 
+		this.layers.retain(layer -> !layer.markedForRemoval);
+		this.overlays.retain(layer -> !layer.markedForRemoval);
+
 		GlManager.popState();
 		super.render(poseStack, mouseX, mouseY, tickDelta);
 	}
-
-	// public void renderScreenPreLayers(PoseStack poseStack, Vec2i mousePos, float
-	// partialTick) {
-	// }
-
-	// public void renderScreenPostLayers(PoseStack poseStack, Vec2i mousePos, float
-	// partialTick) {
-	// }
 
 	public static final class RenderContext {
 		public final PoseStack poseStack;
 		public final Vec2i windowSize;
 		public final Vec2 mousePos;
 		public final float partialTick;
+		public final float deltaTime;
 
 		public RenderTexture currentTexture;
 
-		public RenderContext(PoseStack poseStack, Vec2i windowSize, Vec2 mousePos, float partialTick) {
+		public RenderContext(PoseStack poseStack, Vec2i windowSize, Vec2 mousePos, float partialTick, float deltaTime) {
 			this.poseStack = poseStack;
 			this.windowSize = windowSize;
 			this.mousePos = mousePos;
 			this.partialTick = partialTick;
+			this.deltaTime = deltaTime;
 		}
 
 		public void replaceCurrentTexture(RenderTexture newTexture) {
@@ -301,7 +314,8 @@ public abstract class HawkScreen extends Screen {
 	 * Controls whether the client will render the world while this screen is.
 	 */
 	public boolean shouldRenderWorld() {
-		return this.layers.iter().all(layer -> !layer.clobbersScreen());
+		return this.layers.iter().all(layer -> !layer.clobbersScreen())
+				&& this.overlays.iter().all(layer -> !layer.clobbersScreen());
 	}
 
 	@Override
@@ -310,6 +324,7 @@ public abstract class HawkScreen extends Screen {
 		// screen to the previous screen instead of always setting it to null.
 		this.client.setScreen(previousScreen);
 		this.layers.forEach(layer -> layer.close());
+		this.overlays.forEach(layer -> layer.close());
 		this.disposer.close();
 	}
 

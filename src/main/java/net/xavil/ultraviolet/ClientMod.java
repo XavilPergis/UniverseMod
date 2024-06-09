@@ -6,13 +6,14 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.HawkTextureManager;
 import net.xavil.hawklib.math.matrices.Vec3;
-import net.xavil.ultraviolet.client.AverageLuminanceComputer;
 import net.xavil.ultraviolet.client.BloomEffect;
 import net.xavil.ultraviolet.client.PostProcessing;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.GalaxyMapScreen;
 import net.xavil.ultraviolet.client.screen.SystemMapScreen;
 import net.xavil.ultraviolet.common.config.ClientConfig;
+import net.xavil.ultraviolet.common.entity.ModEntities;
+import net.xavil.ultraviolet.common.particle.ModParticles;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
@@ -34,6 +35,12 @@ public class ClientMod implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
+
+		// hey fucker
+		Mod.LOGGER.info("LD_PRELOAD = {}", System.getenv("LD_PRELOAD"));
+		Mod.LOGGER.info("LD_LIBRARY_PATH = {}", System.getenv("LD_LIBRARY_PATH"));
+		Mod.LOGGER.info("PATH = {}", System.getenv("PATH"));
+
 		ModNetworking.addClientboundHandler(ClientboundOpenStarmapPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundUniverseSyncPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundChangeSystemPacket.class, CLIENT, ClientMod::handlePacket);
@@ -41,6 +48,9 @@ public class ClientMod implements ClientModInitializer {
 		ModNetworking.addClientboundHandler(ClientboundSpaceStationInfoPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundStationJumpBeginPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundDebugValueSetPacket.class, CLIENT, ClientConfig::applyPacket);
+
+		ModEntities.registerClient();
+		ModParticles.registerClient();
 
 		HawkRendering.LOAD_SHADERS_EVENT.register(acceptor -> {
 			UltravioletShaders.registerShaders(acceptor);

@@ -109,12 +109,11 @@ public abstract class HawkScreen3d extends HawkScreen {
 	}
 
 	public void moveCamera(Vec2 horiz, double vert, boolean invert) {
-		final var partialTick = this.client.getFrameTime();
-		final var dragScale = this.camera.scale.get(partialTick) * (this.camera.metersPerUnit / 1e12) * 0.0035;
+		final var dragScale = this.camera.scale.current * (this.camera.metersPerUnit / 1e12) * 0.0035;
 
-		horiz = invert && this.camera.pitch.get(partialTick) < 0 ? horiz.withY(-horiz.y) : horiz;
+		horiz = invert && this.camera.pitch.current < 0 ? horiz.withY(-horiz.y) : horiz;
 		final var offset = new Vec3(horiz.x, 0, horiz.y)
-				.rotateY(-this.camera.yaw.get(partialTick))
+				.rotateY(-this.camera.yaw.current)
 				.add(0, vert, 0).mul(dragScale);
 		if (offset.length() > 0) {
 			this.camera.focus.target = this.camera.focus.target.add(offset);
@@ -296,8 +295,6 @@ public abstract class HawkScreen3d extends HawkScreen {
 		rotate += this.isRotateCWPressed ? rotateSpeed : 0;
 		rotate += this.isRotateCCWPressed ? -rotateSpeed : 0;
 		rotateCamera(Vec2.from(rotate, 0));
-
-		this.camera.tick();
 	}
 
 	public abstract OrbitCamera.Cached setupCamera(CameraConfig config, float partialTick);
@@ -312,6 +309,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 
 	@Override
 	public void renderScreenPreLayers(RenderContext ctx) {
+		this.camera.tick(ctx.deltaTime);
 		forEach3dLayer(layer -> {
 			layer.setup3d(this.camera, ctx.partialTick);
 			layer.lastCamera = layer.camera;

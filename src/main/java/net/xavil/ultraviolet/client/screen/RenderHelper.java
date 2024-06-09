@@ -4,7 +4,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.client.camera.CachedCamera;
-import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
 
@@ -16,21 +16,21 @@ public final class RenderHelper {
 	public static final ResourceLocation SELECTION_CIRCLE_ICON_LOCATION = Mod
 			.namespaced("textures/misc/selection_circle.png");
 
-	public static void addLine(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 start, Vec3 end,
+	public static void addLine(VertexAttributeConsumer.Generic builder, CachedCamera camera, Vec3 start, Vec3 end,
 			ColorRgba color) {
 		addLine(builder, camera, start, end, color, color);
 	}
 
-	public static void addLine(FlexibleVertexConsumer builder, Vec3 start, Vec3 end, ColorRgba color) {
+	public static void addLine(VertexAttributeConsumer.Generic builder, Vec3 start, Vec3 end, ColorRgba color) {
 		addLine(builder, start, end, color, color);
 	}
 
-	public static void addLine(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 start, Vec3 end,
+	public static void addLine(VertexAttributeConsumer.Generic builder, CachedCamera camera, Vec3 start, Vec3 end,
 			ColorRgba startColor, ColorRgba endColor) {
 		addLine(builder, camera.toCameraSpace(start), camera.toCameraSpace(end), startColor, endColor);
 	}
 
-	public static void addLine(FlexibleVertexConsumer builder, Vec3 start, Vec3 end, ColorRgba startColor,
+	public static void addLine(VertexAttributeConsumer.Generic builder, Vec3 start, Vec3 end, ColorRgba startColor,
 			ColorRgba endColor) {
 		var normal = end.sub(start).normalize();
 		builder.vertex(start.x, start.y, start.z)
@@ -43,7 +43,8 @@ public final class RenderHelper {
 				.endVertex();
 	}
 
-	public static void addCubeSphere(FlexibleVertexConsumer builder, Vec3 center, double radius, int subdivisions) {
+	public static void addCubeSphere(VertexAttributeConsumer.Generic builder, Vec3 center, double radius,
+			int subdivisions) {
 
 		// -X
 		double nxlu = 0.00f, nxlv = 0.5f, nxhu = 0.25f, nxhv = 0.25f;
@@ -184,7 +185,7 @@ public final class RenderHelper {
 		}
 	}
 
-	private static void normSphereVertex(FlexibleVertexConsumer builder,
+	private static void normSphereVertex(VertexAttributeConsumer.Generic builder,
 			Vec3 center, double radius, double x, double y, double z,
 			float u, float v) {
 		final var pos = new Vec3(x, y, z);

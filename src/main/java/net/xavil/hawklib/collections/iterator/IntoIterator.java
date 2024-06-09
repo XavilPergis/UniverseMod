@@ -36,7 +36,7 @@ public interface IntoIterator<T> {
 		return new Iterable<T>() {
 			@Override
 			public java.util.Iterator<T> iterator() {
-				return Iterator.asJava(IntoIterator.this.iter());
+				return Iterators.asJava(IntoIterator.this.iter());
 			}
 
 			@Override

@@ -8,11 +8,11 @@ import java.util.function.Supplier;
 
 import javax.annotation.Nonnull;
 
-import it.unimi.dsi.fastutil.floats.FloatUnaryOperator;
 import it.unimi.dsi.fastutil.floats.Float2ObjectFunction;
 import it.unimi.dsi.fastutil.floats.FloatComparator;
 import it.unimi.dsi.fastutil.floats.FloatConsumer;
 import it.unimi.dsi.fastutil.floats.FloatPredicate;
+import it.unimi.dsi.fastutil.floats.FloatUnaryOperator;
 import net.xavil.hawklib.MaybeFloat;
 import net.xavil.hawklib.collections.interfaces.MutableListFloat;
 
@@ -30,9 +30,9 @@ public interface IteratorFloat extends IntoIteratorFloat {
 	 * method is called. Subsequent calls to this method must not return
 	 * {@code false} if they previously returned {@code true}, unless
 	 * {@link #next()} was called in between. If an iterator is fused (i.e., if
-	 * {@link #isFused()} returns {@code true}), then this method cannot ever return
-	 * anything other than {@code false} after a {@code false} was previously
-	 * yielded.
+	 * {@link #hasProperty()} returns {@code true} when called with
+	 * {@link #PROPERTY_FUSED}), then this method cannot ever return anything other
+	 * than {@code false} after a {@code false} was previously yielded.
 	 * </p>
 	 * 
 	 * @return {@code true} if the iterator has more elements to yield.

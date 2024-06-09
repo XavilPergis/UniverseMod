@@ -1,13 +1,18 @@
 package net.xavil.hawklib.collections.interfaces;
 
+import java.util.Map;
+import java.util.Objects;
+
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.collections.impl.proxy.ImmutableMapProxy;
 import net.xavil.hawklib.collections.iterator.Iterator;
 
 public interface ImmutableMap<K, V> extends ImmutableCollection {
 
+	@Nonnull
 	Maybe<V> get(K key);
 
 	@Nullable
@@ -15,14 +20,13 @@ public interface ImmutableMap<K, V> extends ImmutableCollection {
 		return get(key).unwrapOrNull();
 	}
 
-	@Nonnull
 	default V getOrThrow(K key) {
-		final V res = getOrNull(key);
-		if (res == null)
+		final var res = get(key);
+		if (res.isNone())
 			throw new IllegalArgumentException(String.format(
-					"Key '{}' does not exist in map",
+					"Key '%s' does not exist in map",
 					key));
-		return res;
+		return res.unwrap();
 	}
 
 	Iterator<K> keys();
@@ -41,6 +45,20 @@ public interface ImmutableMap<K, V> extends ImmutableCollection {
 
 	default Iterator<V> values() {
 		return this.keys().map(key -> this.get(key).unwrap());
+	}
+
+	static <K, V> ImmutableMapProxy<K, V> proxy(Map<K, V> map) {
+		return new ImmutableMapProxy<>(map);
+	}
+
+	static <K, V> boolean mapsEqual(ImmutableMap<K, V> a, ImmutableMap<K, V> b) {
+		for (final var key : a.keys().iterable()) {
+			if (!b.containsKey(key))
+				return false;
+			if (!Objects.equals(a.getOrThrow(key), b.getOrThrow(key)))
+				return false;
+		}
+		return true;
 	}
 
 	abstract class Entry<K, V> {

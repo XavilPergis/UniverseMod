@@ -63,10 +63,8 @@ public final class BasicStarSystemGenerator implements StarSystemGenerator {
 				continue;
 
 			this.rng.push("star");
-			rng.push("star_properties");
 			final var starProps = new StellarProperties();
-			starProps.load(rng, idealStarMass, ctx.info.systemAgeMyr, 1.42857e-02);
-			rng.pop();
+			starProps.load(idealStarMass, ctx.info.systemAgeMyr, 1.42857e-02);
 			final var starNode = new StellarCelestialNode();
 			starNode.type = StellarCelestialNode.Type.STAR;
 			starNode.massYg = starProps.massYg;

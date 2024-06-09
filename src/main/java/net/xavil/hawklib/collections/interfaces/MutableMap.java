@@ -17,13 +17,36 @@ import net.xavil.hawklib.collections.iterator.Iterator;
 
 public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> {
 
-	Maybe<V> insert(K key, V value);
+	/**
+	 * Insert an entry into this map.
+	 * 
+	 * @param key   The key of the entry that will be inserted.
+	 * @param value The value of the entry that will be inserted.
+	 * @return {@code true} if the set of keys changed as a result of this operation.
+	 */
+	boolean insert(K key, V value);
 
-	Maybe<V> remove(K key);
+	default Maybe<V> insertAndGet(K key, V value) {
+		final var old = get(key);
+		insert(key, value);
+		return old;
+	}
+
+	/**
+	 * Remove an entry from this map.
+	 * 
+	 * @param key The key of the entry that will be removed.
+	 * @return {@code true} if the set of keys changed as a result of this operation.
+	 */
+	boolean remove(K key);
+
+	default Maybe<V> removeAndGet(K key) {
+		final var old = get(key);
+		remove(key);
+		return old;
+	}
 
 	void retain(BiPredicate<K, V> predicate);
-
-	// void extend(IntoIterator<T> elements);
 
 	default EntryMut<K, V> entry(K key) {
 		return new EntryMut.Impl<>(this, key);
@@ -66,7 +89,7 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 
 		private static final class Impl<K, V> extends EntryMut<K, V> {
 			private final MutableMap<K, V> map;
-			
+
 			public Impl(MutableMap<K, V> map, K key) {
 				super(key);
 				this.map = map;
@@ -74,12 +97,12 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 
 			@Override
 			public Maybe<V> insert(V value) {
-				return this.map.insert(this.key, value);
+				return this.map.insertAndGet(this.key, value);
 			}
 
 			@Override
 			public Maybe<V> remove() {
-				return this.map.remove(this.key);
+				return this.map.removeAndGet(this.key);
 			}
 
 			@Override
@@ -108,7 +131,7 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 			public V orInsertWith(Supplier<V> supplier) {
 				return this.map.get(this.key).unwrapOrElse(() -> {
 					final var value = supplier.get();
-					this.map.insert(this.key, value);
+					this.map.insertAndGet(this.key, value);
 					return value;
 				});
 			}

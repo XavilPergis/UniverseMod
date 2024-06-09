@@ -6,7 +6,10 @@ import java.util.function.Consumer;
 import org.lwjgl.opengl.GL45C;
 import org.lwjgl.system.MemoryUtil;
 
+import com.mojang.blaze3d.platform.GlStateManager;
+
 import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.client.gl.ComponentType;
 
 /**
  * This class holds a native image buffer (rgba8 unorm)
@@ -19,61 +22,56 @@ public final class GlClientTexture implements Disposable {
 	private ClientFormat format;
 	private int sizeX, sizeY, sizeZ;
 
-	@FunctionalInterface
-	public interface SubpixelWriter {
-		void write(ByteBuffer data, int index, float c);
-	}
-
-	// @formatter:off
-	private static final float   BYTE_MAX =      (float)  Byte.MAX_VALUE;
-	private static final float  SHORT_MAX =      (float) Short.MAX_VALUE;
-	private static final float  UBYTE_MAX = 2f * (float)  Byte.MAX_VALUE;
-	private static final float USHORT_MAX = 2f * (float) Short.MAX_VALUE;
-	// @formatter:on
-
 	public static enum ClientFormat {
 		// @formatter:off
-		RGBA8_INT_NORM  (4,  1, GlTexture.Format.RGBA8_INT_NORM,   GL45C.GL_BYTE,           (data, i, x) -> data.put     (i,  (byte) (  BYTE_MAX * x))),
-		RGBA8_UINT_NORM (4,  1, GlTexture.Format.RGBA8_UINT_NORM,  GL45C.GL_UNSIGNED_BYTE,  (data, i, x) -> data.put     (i,  (byte) ( UBYTE_MAX * x))),
-		RGBA8_INT       (4,  1, GlTexture.Format.RGBA8_INT,        GL45C.GL_BYTE,           (data, i, x) -> data.put     (i,  (byte) (             x))),
-		RGBA8_UINT      (4,  1, GlTexture.Format.RGBA8_UINT,       GL45C.GL_UNSIGNED_BYTE,  (data, i, x) -> data.put     (i,  (byte) (             x))),
-		RGBA16_INT_NORM (8,  2, GlTexture.Format.RGBA16_INT_NORM,  GL45C.GL_SHORT,          (data, i, x) -> data.putShort(i, (short) ( SHORT_MAX * x))),
-		RGBA16_UINT_NORM(8,  2, GlTexture.Format.RGBA16_UINT_NORM, GL45C.GL_UNSIGNED_SHORT, (data, i, x) -> data.putShort(i, (short) (USHORT_MAX * x))),
-		RGBA16_INT      (8,  2, GlTexture.Format.RGBA16_INT,       GL45C.GL_SHORT,          (data, i, x) -> data.putShort(i, (short) (             x))),
-		RGBA16_UINT     (8,  2, GlTexture.Format.RGBA16_UINT,      GL45C.GL_UNSIGNED_SHORT, (data, i, x) -> data.putShort(i, (short) (             x))),
-		RGBA32_INT      (16, 4, GlTexture.Format.RGBA32_INT,       GL45C.GL_INT,            (data, i, x) -> data.putInt  (i,   (int) (             x))),
-		RGBA32_UINT     (16, 4, GlTexture.Format.RGBA32_UINT,      GL45C.GL_UNSIGNED_INT,   (data, i, x) -> data.putInt  (i,   (int) (             x))),
-		RGBA32_FLOAT    (16, 4, GlTexture.Format.RGBA32_FLOAT,     GL45C.GL_FLOAT,          (data, i, x) -> data.putFloat(i,         (             x))),
+		RGBA8_INT_NORM  (GlTexture.Format.RGBA8_INT_NORM,   ComponentType.BYTE_NORM  ),
+		RGBA8_UINT_NORM (GlTexture.Format.RGBA8_UINT_NORM,  ComponentType.UBYTE_NORM ),
+		RGBA16_INT_NORM (GlTexture.Format.RGBA16_INT_NORM,  ComponentType.SHORT_NORM ),
+		RGBA16_UINT_NORM(GlTexture.Format.RGBA16_UINT_NORM, ComponentType.USHORT_NORM),
+		RGBA32_FLOAT    (GlTexture.Format.RGBA32_FLOAT,     ComponentType.FLOAT      ),
+		RGB8_INT_NORM   (GlTexture.Format.RGB8_INT_NORM,    ComponentType.BYTE_NORM  ),
+		RGB8_UINT_NORM  (GlTexture.Format.RGB8_UINT_NORM,   ComponentType.UBYTE_NORM ),
+		RGB16_INT_NORM  (GlTexture.Format.RGB16_INT_NORM,   ComponentType.SHORT_NORM ),
+		RGB16_UINT_NORM (GlTexture.Format.RGB16_UINT_NORM,  ComponentType.USHORT_NORM),
+		RGB32_FLOAT     (GlTexture.Format.RGB32_FLOAT,      ComponentType.FLOAT      ),
+		RG8_INT_NORM    (GlTexture.Format.RG8_INT_NORM,     ComponentType.BYTE_NORM  ),
+		RG8_UINT_NORM   (GlTexture.Format.RG8_UINT_NORM,    ComponentType.UBYTE_NORM ),
+		RG16_INT_NORM   (GlTexture.Format.RG16_INT_NORM,    ComponentType.SHORT_NORM ),
+		RG16_UINT_NORM  (GlTexture.Format.RG16_UINT_NORM,   ComponentType.USHORT_NORM),
+		RG32_FLOAT      (GlTexture.Format.RG32_FLOAT,       ComponentType.FLOAT      ),
+		R8_INT_NORM     (GlTexture.Format.R8_INT_NORM,      ComponentType.BYTE_NORM  ),
+		R8_UINT_NORM    (GlTexture.Format.R8_UINT_NORM,     ComponentType.UBYTE_NORM ),
+		R16_INT_NORM    (GlTexture.Format.R16_INT_NORM,     ComponentType.SHORT_NORM ),
+		R16_UINT_NORM   (GlTexture.Format.R16_UINT_NORM,    ComponentType.USHORT_NORM),
+		R32_FLOAT       (GlTexture.Format.R32_FLOAT,        ComponentType.FLOAT      ),
 		// @formatter:on
 		;
 
 		public final int pixelStride;
 		public final int subpixelStride;
 		public final GlTexture.Format glFormat;
-		public final int glType;
-		public final SubpixelWriter writer;
+		public final ComponentType type;
 
-		private ClientFormat(int pixelStride, int subpixelStride, GlTexture.Format glFormat, int glType,
-				SubpixelWriter writer) {
-			this.pixelStride = pixelStride;
-			this.subpixelStride = subpixelStride;
+		private ClientFormat(GlTexture.Format glFormat, ComponentType type) {
+			this.pixelStride = type.byteSize * glFormat.components.componentCount;
+			this.subpixelStride = type.byteSize;
 			this.glFormat = glFormat;
-			this.glType = glType;
-			this.writer = writer;
+			this.type = type;
 		}
 
 		public void putPixel(ByteBuffer buf, int i, float r, float g, float b, float a) {
-			this.writer.write(buf, i + this.subpixelStride * 0, r);
-			this.writer.write(buf, i + this.subpixelStride * 1, g);
-			this.writer.write(buf, i + this.subpixelStride * 2, b);
-			this.writer.write(buf, i + this.subpixelStride * 3, a);
+			this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 0, r);
+			this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 1, r);
+			this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 2, r);
+			this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 3, r);
 		}
 	}
 
 	@Override
 	public void close() {
-		if (this.data != null)
-			MemoryUtil.memFree(this.data);
+		// if (this.data != null)
+		// 	MemoryUtil.memFree(this.data);
+		// this.data = null;
 	}
 
 	public ByteBuffer imageData() {
@@ -102,7 +100,8 @@ public final class GlClientTexture implements Disposable {
 
 		if (this.data != null)
 			this.close();
-		this.data = MemoryUtil.memCalloc(bufferSize);
+		this.data = ByteBuffer.allocateDirect(bufferSize);
+		// this.data = MemoryUtil.memCalloc(bufferSize);
 		this.format = format;
 		this.sizeX = sizeX;
 		this.sizeY = sizeY;
@@ -149,14 +148,22 @@ public final class GlClientTexture implements Disposable {
 	public void uploadTo(GlTexture.Slice dst) {
 		// TODO: assert that the current buffer format is convertible to the gl texture
 		// format
-		dst.uploadImage(GL45C.GL_RGBA, this.format.glType, data);
+		// GlStateManager._pixelStore(3314, 0);
+        // GlStateManager._pixelStore(3316, 0);
+        // GlStateManager._pixelStore(3315, 0);
+
+		GL45C.glTextureSubImage1D(dst.texture.id, 0,
+				0, dst.texture.size().width,
+				this.format.glFormat.components.gl, this.format.type.gl, this.data);
+
+		// dst.uploadImage(this.format.glFormat.components, this.format.type, data);
 	}
 
 	private <T extends GlTexture> T makeTexture(T value, Consumer<T> setup) {
 		try {
 			setup.accept(value);
 			uploadTo(value.slice());
-			value.generateMipmaps();
+			// value.generateMipmaps();
 			return value;
 		} catch (Throwable t) {
 			value.close();

@@ -22,16 +22,12 @@ public class FastHasher implements Hasher {
 		return (x << r) | (x >>> (64 - r));
 	}
 
-	private FastHasher(long seed) {
+	public FastHasher(long seed) {
 		this.currentHash = seed;
 	}
 
-	public static FastHasher create() {
-		return withSeed(0);
-	}
-
-	public static FastHasher withSeed(long seed) {
-		return new FastHasher(seed);
+	public FastHasher() {
+		this(0);
 	}
 
 	@Override

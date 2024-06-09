@@ -396,8 +396,7 @@ public class SystemMapScreen extends HawkScreen {
 
 		this.backgroundCamera.metersPerUnit = 1e12;
 
-		final var interpolatedOffset = this.offset.get(ctx.partialTick);
-		final var offset = new Vec3(100 * interpolatedOffset.x, -100 * interpolatedOffset.y, 0);
+		final var offset = new Vec3(100 * this.offset.current.x, -100 * this.offset.current.y, 0);
 		Mat4.mulTranslation(this.backgroundCamera.inverseViewMatrix, this.backgroundCamera.inverseViewMatrix, offset);
 
 		final var window = Minecraft.getInstance().getWindow();
@@ -416,7 +415,10 @@ public class SystemMapScreen extends HawkScreen {
 		// or like, do some sort of post processing effect
 	}
 
-	private void setupUiCamera(CachedCamera camera, LayoutNode rootLayout, float partialTick) {
+	private void setupUiCamera(CachedCamera camera, LayoutNode rootLayout, float deltaTime) {
+
+		this.scale.tick(deltaTime);
+		this.offset.tick(deltaTime);
 
 		// TODO: only apply offset when first loading this screen, instead of
 		// calculating it every time (might look weird if layout changes)
@@ -430,13 +432,13 @@ public class SystemMapScreen extends HawkScreen {
 		final double frustumDepth = 400;
 
 		final var projMat = new Mat4.Mutable();
-		final var projLR = aspectRatio * this.scale.get(partialTick);
-		final var projTB = this.scale.get(partialTick);
+		final var projLR = aspectRatio * this.scale.current;
+		final var projTB = this.scale.current;
 		Mat4.setOrthographicProjection(projMat, -projLR, projLR, -projTB, projTB, -frustumDepth, 0);
 
 		final var inverseViewMat = new Mat4.Mutable();
 		inverseViewMat.loadIdentity();
-		inverseViewMat.appendTranslation(this.offset.get(partialTick).add(offset, 0).withZ(0.5 * frustumDepth));
+		inverseViewMat.appendTranslation(this.offset.current.add(offset, 0).withZ(0.5 * frustumDepth));
 		// Mat4.invert(inverseViewMat, inverseViewMat);
 
 		camera.load(inverseViewMat, projMat, 1);
@@ -456,7 +458,7 @@ public class SystemMapScreen extends HawkScreen {
 		rootNode = rootNode == null ? system.rootNode : rootNode;
 		final var rootLayout = layout(rootNode);
 
-		setupUiCamera(this.uiCamera, rootLayout, ctx.partialTick);
+		setupUiCamera(this.uiCamera, rootLayout, ctx.deltaTime);
 
 		// draw
 		ctx.currentTexture.framebuffer.bind();
@@ -471,13 +473,6 @@ public class SystemMapScreen extends HawkScreen {
 		snapshot.restore();
 	}
 
-	@Override
-	public void tick() {
-		super.tick();
-		this.scale.tick();
-		this.offset.tick();
-	}
-
 	private static final class LayoutPositions {
 		// node ID to rect
 		public final MutableMap<Integer, Rect> nodeRects = MutableMap.hashMap();
@@ -488,7 +483,7 @@ public class SystemMapScreen extends HawkScreen {
 		final var max = pos.add(Vec2.broadcast(layout.nodeSize));
 		final var rect = Rect.fromCorners(min, max);
 
-		output.nodeRects.insert(layout.getCelestialNode().id, rect);
+		output.nodeRects.insertAndGet(layout.getCelestialNode().id, rect);
 
 		for (final var elem : layout.elements.iterable()) {
 			final var offsetUV = new Vec2(elem.nodeOffset, 0);

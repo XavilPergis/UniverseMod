@@ -8,7 +8,7 @@ import static net.xavil.ultraviolet.client.UltravioletShaders.*;
 
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
@@ -45,7 +45,7 @@ public class ScreenLayerBackground extends HawkScreen.Layer2d {
 		builder.end().draw(shader, DRAW_STATE_DIRECT_ALPHA_BLENDING);
 	}
 
-	private static void fillGradient(Matrix4f matrix, FlexibleVertexConsumer builder, int x1, int y1, int x2, int y2,
+	private static void fillGradient(Matrix4f matrix, VertexAttributeConsumer.Generic builder, int x1, int y1, int x2, int y2,
 			int z, ColorRgba colorA, ColorRgba colorB) {
 		final var mat = Mat4Access.from(matrix);
 		final var nn = VecMath.transformPerspective(mat, new Vec3(x1, y1, z), 1);

@@ -66,7 +66,7 @@ public final class MutableMultiMapProxy<K, V> implements MutableMultiMap<K, V> {
 		return this.proxy.get(key).map(set -> {
 			final var removed = set.remove(value);
 			if (set.isEmpty()) {
-				this.proxy.remove(key);
+				this.proxy.removeAndGet(key);
 			}
 			return removed;
 		}).unwrapOr(false);
@@ -74,7 +74,7 @@ public final class MutableMultiMapProxy<K, V> implements MutableMultiMap<K, V> {
 
 	@Override
 	public Maybe<MutableSet<V>> remove(K key) {
-		return this.proxy.remove(key);
+		return this.proxy.removeAndGet(key);
 	}
 
 }

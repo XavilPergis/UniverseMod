@@ -46,6 +46,18 @@ public final class ImmutableListArray<T> implements ImmutableList<T> {
 		return ListUtil.asString(this);
 	}
 
+	@Override
+	public boolean equals(Object obj) {
+		if (obj == this)
+			return true;
+		if (obj instanceof ImmutableListArray<?> other) {
+			return Arrays.equals(this.elements, other.elements);
+		} else if (obj instanceof ImmutableList<?> other) {
+			return ListUtil.genericEquals(this, other);
+		}
+		return false;
+	}
+
 	public static class Iter<T> implements Iterator<T> {
 		private final ImmutableListArray<T> list;
 		private int cur;

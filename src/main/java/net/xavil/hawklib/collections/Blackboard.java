@@ -49,7 +49,7 @@ public final class Blackboard<K> {
 
 	@SuppressWarnings("unchecked")
 	public <T> Maybe<T> insert(Key<K, T> key, T value) {
-		final var prev = this.values.insert((Key<K, Object>) key, value);
+		final var prev = this.values.insertAndGet((Key<K, Object>) key, value);
 		return prev.map(obj -> (T) obj);
 	}
 	
@@ -60,7 +60,7 @@ public final class Blackboard<K> {
 
 	@SuppressWarnings("unchecked")
 	public <T> Maybe<T> remove(Key<K, T> key) {
-		return this.values.remove((Key<K, Object>) key).map(obj -> (T) obj);
+		return this.values.removeAndGet((Key<K, Object>) key).map(obj -> (T) obj);
 	}
 
 }

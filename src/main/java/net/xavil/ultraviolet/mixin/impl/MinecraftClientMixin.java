@@ -19,6 +19,7 @@ import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.ultraviolet.client.SkyRenderer;
 import net.xavil.hawklib.client.HawkTextureManager;
 import net.xavil.hawklib.client.flexible.RenderTexture;
+import net.xavil.hawklib.client.gl.GlPerf;
 import net.xavil.ultraviolet.common.universe.universe.ClientUniverse;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 
@@ -67,8 +68,19 @@ public abstract class MinecraftClientMixin implements MinecraftClientAccessor {
 	}
 
 	@Inject(method = "runTick", at = @At(value = "INVOKE_STRING", target = "Lnet/minecraft/util/profiling/ProfilerFiller;push(Ljava/lang/String;)V", args = "ldc=blit"))
-	private void updateTemporaryTextures(boolean renderLevel, CallbackInfo info) {
+	private void globalTick(boolean renderLevel, CallbackInfo info) {
 		RenderTexture.tick();
+		GlPerf.tick();
+	}
+
+	@Inject(method = "runTick", at = @At("HEAD"))
+	private void beforeRendering(boolean renderLevel, CallbackInfo info) {
+		GlPerf.beforeRender();
+	}
+
+	@Inject(method = "runTick", at = @At(value = "INVOKE_STRING", target = "Lnet/minecraft/util/profiling/ProfilerFiller;popPush(Ljava/lang/String;)V", args = "ldc=updateDisplay", shift = At.Shift.BEFORE))
+	private void afterRendering(boolean renderLevel, CallbackInfo info) {
+		GlPerf.afterRender();
 	}
 
 	@Inject(method = "close", at = @At("HEAD"))

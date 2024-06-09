@@ -71,3 +71,13 @@ accessible	class	net/minecraft/client/renderer/RenderStateShard$TextureStateShar
 accessible	field	net/minecraft/client/renderer/RenderStateShard$TextureStateShard	texture	Ljava/util/Optional;
 accessible	field	net/minecraft/client/renderer/RenderStateShard$TextureStateShard	blur	Z
 accessible	field	net/minecraft/client/renderer/RenderStateShard$TextureStateShard	mipmap	Z
+
+# Direct access to BakedGlyph internals, so we can do whatever we want with its uvs n stuff
+accessible  field   net/minecraft/client/gui/font/glyphs/BakedGlyph u0 F
+accessible  field   net/minecraft/client/gui/font/glyphs/BakedGlyph u1 F
+accessible  field   net/minecraft/client/gui/font/glyphs/BakedGlyph v0 F
+accessible  field   net/minecraft/client/gui/font/glyphs/BakedGlyph v1 F
+accessible  field   net/minecraft/client/gui/font/glyphs/BakedGlyph left F
+accessible  field   net/minecraft/client/gui/font/glyphs/BakedGlyph right F
+accessible  field   net/minecraft/client/gui/font/glyphs/BakedGlyph up F
+accessible  field   net/minecraft/client/gui/font/glyphs/BakedGlyph down F

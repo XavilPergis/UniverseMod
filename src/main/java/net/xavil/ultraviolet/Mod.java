@@ -33,9 +33,11 @@ import net.xavil.ultraviolet.common.PerLevelData;
 import net.xavil.ultraviolet.common.block.ModBlocks;
 import net.xavil.ultraviolet.common.config.ModDebugCommand;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
+import net.xavil.ultraviolet.common.entity.ModEntities;
 import net.xavil.ultraviolet.common.item.StarmapItem;
 import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
 import net.xavil.ultraviolet.common.level.ModChunkGenerator;
+import net.xavil.ultraviolet.common.particle.ModParticles;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
@@ -73,6 +75,8 @@ public class Mod implements ModInitializer {
 	@Override
 	public void onInitialize() {
 		ModBlocks.register();
+		ModEntities.register();
+		ModParticles.register();
 
 		Registry.register(Registry.CHUNK_GENERATOR, namespaced("empty"), EmptyChunkGenerator.CODEC);
 		Registry.register(Registry.CHUNK_GENERATOR, namespaced("planet"), ModChunkGenerator.CODEC);

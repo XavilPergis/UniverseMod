@@ -38,7 +38,7 @@ public class SystemExplorerScreen extends HawkScreen3d {
 
 	@Override
 	public Cached setupCamera(CameraConfig config, float partialTick) {
-		return this.camera.cached(config, partialTick);
+		return this.camera.cached(config);
 	}
 
 }

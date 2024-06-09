@@ -507,7 +507,7 @@ public final class ShaderLoader {
 	}
 
 	public static final ShaderProgram load(ResourceProvider provider, ResourceLocation location,
-			AttributeSet attributeSet, GlFragmentWrites fragmentWrites, Iterator<String> shaderDefines)
+			ShaderAttributeSet attributeSet, GlFragmentWrites fragmentWrites, Iterator<String> shaderDefines)
 			throws ShaderLoadException {
 		final var source = loadSource(provider, location, shaderDefines);
 

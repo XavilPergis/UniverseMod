@@ -77,7 +77,7 @@ public class ModNetworking {
 	public static <T extends ModPacket<ClientGamePacketListener>> void addClientboundHandlerRaw(Class<T> clazz,
 			Consumer<T> packetHandler) {
 		if (!CLIENTBOUND_PLAY_HANDLERS.containsKey(clazz)) {
-			CLIENTBOUND_PLAY_HANDLERS.insert(clazz, new ClientboundHandler<>(clazz));
+			CLIENTBOUND_PLAY_HANDLERS.insertAndGet(clazz, new ClientboundHandler<>(clazz));
 		}
 		@SuppressWarnings("unchecked")
 		final var handlers = (ClientboundHandler<T>) CLIENTBOUND_PLAY_HANDLERS.get(clazz).unwrap();
@@ -87,7 +87,7 @@ public class ModNetworking {
 	public static <T extends ModPacket<ServerGamePacketListener>> void addServerboundHandlerRaw(Class<T> clazz,
 			BiConsumer<ServerPlayer, T> packetHandler) {
 		if (!SERVERBOUND_PLAY_HANDLERS.containsKey(clazz)) {
-			SERVERBOUND_PLAY_HANDLERS.insert(clazz, new ServerboundHandler<>(clazz));
+			SERVERBOUND_PLAY_HANDLERS.insertAndGet(clazz, new ServerboundHandler<>(clazz));
 		}
 		@SuppressWarnings("unchecked")
 		final var handlers = (ServerboundHandler<T>) SERVERBOUND_PLAY_HANDLERS.get(clazz).unwrap();

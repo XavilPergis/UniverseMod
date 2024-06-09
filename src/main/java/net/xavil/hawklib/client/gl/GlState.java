@@ -304,6 +304,34 @@ public final class GlState implements GlStateSink {
 		}
 	}
 
+	public static final class Cached {
+		private GlState capturedState = null;
+
+		public void reset() {
+			this.capturedState = null;
+		}
+
+		/**
+		 * Query and capture the current OpenGL state if it was not already cached. If
+		 * it was, this function does nothing.
+		 */
+		public void capture() {
+			if (this.capturedState != null)
+				return;
+			this.capturedState = new GlState();
+			if (GlManager.isManaged()) {
+				// don't query opengl state if we already know it.
+				this.capturedState.copyStateFrom(GlManager.currentState(), null);
+			} else {
+				this.capturedState.capture();
+			}
+		}
+
+		public GlState get() {
+			return this.capturedState;
+		}
+	}
+
 	private static final UnmanagedStateSink UNMANAGED = UnmanagedStateSink.INSTANCE;
 
 	public static final int MAX_TEXTURE_UNITS = Math.min(32, GlLimits.MAX_TEXTURE_IMAGE_UNITS);
@@ -371,16 +399,15 @@ public final class GlState implements GlStateSink {
 	public void reset(@Nullable GlState parent) {
 		// clear the state if it's the root!
 		if (parent == null) {
-			copyStateFrom(EMPTY_STATE);
+			copyStateFrom(EMPTY_STATE, null);
 			return;
 		}
 
-		copyStateFrom(parent);
-		this.parentState = parent;
+		copyStateFrom(parent, parent);
 	}
 
-	private void copyStateFrom(GlState src) {
-		this.parentState = src.parentState;
+	public void copyStateFrom(GlState src, @Nullable GlState parentState) {
+		this.parentState = parentState;
 		this.polygonMode = src.polygonMode;
 		this.cullingEnabled = src.cullingEnabled;
 		this.cullFace = src.cullFace;

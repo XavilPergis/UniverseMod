@@ -1,7 +1,7 @@
 package net.xavil.ultraviolet.client;
 
 import net.xavil.hawklib.client.camera.CachedCamera;
-import net.xavil.hawklib.client.flexible.VertexBuilder;
+import net.xavil.hawklib.client.flexible.vertex.VertexBuilder;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;

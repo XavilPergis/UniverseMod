@@ -1,14 +1,14 @@
 package net.xavil.hawklib.client.gl;
 
 import java.nio.ByteBuffer;
-import java.nio.ByteOrder;
+
+import javax.annotation.Nullable;
 
 import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.xavil.hawklib.Assert;
-import net.xavil.hawklib.client.gl.texture.GlTexture;
 
 public class GlBuffer extends GlObject {
 
@@ -93,7 +93,7 @@ public class GlBuffer extends GlObject {
 
 	// for both mutable and immutable buffers
 	private StorageMutability storageMutability;
-	private long size = -1;
+	private long size = 0;
 
 	private ByteBuffer mapping;
 	// the flags the current mapping was created with
@@ -105,6 +105,7 @@ public class GlBuffer extends GlObject {
 
 	public GlBuffer(int id, boolean owned) {
 		super(ObjectType.BUFFER, id, owned);
+		this.size = GL45C.glGetNamedBufferParameteri64(this.id, GL45C.GL_BUFFER_SIZE);
 	}
 
 	public GlBuffer() {
@@ -161,8 +162,17 @@ public class GlBuffer extends GlObject {
 		}
 
 		// this operation does not automatically issue a memory barrier
-		public void copyTo(Slice other, int size) {
+		public void copyTo(Slice other, long size) {
+			if (size > this.size || size > other.size)
+				throw new IllegalArgumentException(String.format(
+						"%s: buffer slice bounds error: copy size is %d, but source slice size is %d and destination slice size is %d",
+						this.buffer.debugDescription(), size, this.size, other.size));
+
 			GL45C.glCopyNamedBufferSubData(this.buffer.id, other.buffer.id, this.offset, other.offset, size);
+		}
+
+		public void copyTo(Slice other) {
+			copyTo(other, this.size);
 		}
 
 		public void flush() {
@@ -177,6 +187,14 @@ public class GlBuffer extends GlObject {
 			GL45C.glClearNamedBufferSubData(this.buffer.id, internalFormat, this.offset, this.size, GL45C.GL_RED,
 					GL45C.GL_UNSIGNED_BYTE, (ByteBuffer) null);
 		}
+
+		@Nullable
+		public ByteBuffer mappedPointer() {
+			if (this.buffer.mapping == null)
+				return null;
+			// FIXME: integer overflow
+			return this.buffer.mapping.slice((int) this.offset, (int) this.size);
+		}
 	}
 
 	public Slice slice(long offset, long length) {
@@ -185,6 +203,10 @@ public class GlBuffer extends GlObject {
 
 	public Slice slice() {
 		return new Slice(this, 0, this.size);
+	}
+
+	public long size() {
+		return this.size;
 	}
 
 	public ByteBuffer map(int flags) {

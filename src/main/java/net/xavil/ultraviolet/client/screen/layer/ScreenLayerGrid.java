@@ -13,9 +13,9 @@ import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
+import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
+import net.xavil.hawklib.client.flexible.vertex.VertexBuilder;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
-import net.xavil.hawklib.client.flexible.VertexBuilder;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlState;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
@@ -66,7 +66,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		dispatch.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(), GRID_STATE);
 	}
 
-	private static void addGridSegment(FlexibleVertexConsumer builder,
+	private static void addGridSegment(VertexAttributeConsumer.Generic builder,
 			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
 			int maxDepth, ColorRgba color,
 			Vec3 startPos, Vec3 endPos) {
@@ -99,13 +99,13 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		}
 	}
 
-	private static void addSubdividedLine(FlexibleVertexConsumer builder,
+	private static void addSubdividedLine(VertexAttributeConsumer.Generic builder,
 			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
 			ColorRgba color, Vec3 startPos, Vec3 endPos) {
 		addGridSegment(builder, camera, cullingCamera, 20, color, startPos, endPos);
 	}
 
-	public static void addGrid(FlexibleVertexConsumer builder,
+	public static void addGrid(VertexAttributeConsumer.Generic builder,
 			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
 			Vec3 focusPos,
 			double gridDiameter, int subcellsPerCell, int gridLineCount) {

@@ -1,10 +1,11 @@
 package net.xavil.ultraviolet.client;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-
-import static net.xavil.hawklib.client.HawkDrawStates.*;
+import static net.xavil.hawklib.client.HawkDrawStates.DRAW_STATE_ADDITIVE_BLENDING;
+import static net.xavil.hawklib.client.HawkDrawStates.DRAW_STATE_OPAQUE;
 
 import java.time.Instant;
+
+import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
 import net.xavil.hawklib.Disposable;
@@ -12,9 +13,9 @@ import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.Mesh;
-import net.xavil.hawklib.client.flexible.FlexibleVertexConsumer;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
-import net.xavil.hawklib.client.gl.GlBuffer;
+import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
+import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.common.config.ClientConfig;
 import net.xavil.ultraviolet.common.config.ConfigKey;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
@@ -24,7 +25,6 @@ import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
 import net.xavil.ultraviolet.common.universe.universe.GalaxyTicket;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
-import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class StarRenderManager implements Disposable {
 	private GalaxyTicket galaxyTicket;
@@ -136,14 +136,14 @@ public final class StarRenderManager implements Disposable {
 		}
 
 		if (ClientConfig.get(ConfigKey.FORCE_STAR_RENDERER_IMMEDIATE_MODE)) {
-			drawStarsImmediate(camera, centerPos);
+			// drawStarsImmediate(camera, centerPos);
 			this.starSnapshotPosition = null;
 		} else {
-			buildStarsIfNeeded(camera, centerPos);
+			// buildStarsIfNeeded(camera, centerPos);
 			if (this.drawImmediate) {
-				drawStarsImmediate(camera, centerPos);
+				// drawStarsImmediate(camera, centerPos);
 			} else {
-				drawStarsFromBuffer(camera, centerPos);
+				// drawStars(camera, this.starsMesh);
 			}
 		}
 	}
@@ -176,7 +176,8 @@ public final class StarRenderManager implements Disposable {
 		this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
 			drawSectorStars(ctx, sector);
 		});
-		this.starsMesh.upload(builder.end());
+
+		this.starsMesh.setupAndUpload(builder.end());
 		this.drawImmediate = false;
 		this.isDirty = false;
 	}
@@ -191,7 +192,7 @@ public final class StarRenderManager implements Disposable {
 			drawSectorStars(ctx, sector);
 		});
 
-		BufferRenderer.IMMEDIATE_BUFFER.upload(builder.end(), GlBuffer.UsageHint.STREAM_DRAW);
+		BufferRenderer.IMMEDIATE_BUFFER.setupAndUpload(builder.end());
 		drawStars(camera, BufferRenderer.IMMEDIATE_BUFFER);
 	}
 
@@ -204,12 +205,12 @@ public final class StarRenderManager implements Disposable {
 		final GalaxySector.ElementHolder elem = new GalaxySector.ElementHolder();
 		final Vec3.Mutable toStar = new Vec3.Mutable();
 
-		final FlexibleVertexConsumer builder;
+		final VertexAttributeConsumer.Generic builder;
 		final CachedCamera camera;
 		final Vec3 centerPos;
 		final boolean isImmediateMode;
 
-		public StarBuildingContext(FlexibleVertexConsumer builder, CachedCamera camera, Vec3 centerPos,
+		public StarBuildingContext(VertexAttributeConsumer.Generic builder, CachedCamera camera, Vec3 centerPos,
 				boolean isImmediateMode) {
 			this.builder = builder;
 			this.camera = camera;
@@ -283,34 +284,6 @@ public final class StarRenderManager implements Disposable {
 		}
 	}
 
-	// private void drawStars(FlexibleVertexConsumer builder, CachedCamera
-	// camera, Vec3 centerPos,
-	// boolean isImmediateMode) {
-
-	// var to = this.originOffset;
-	// if (isImmediateMode) {
-	// to = to.sub(camera.posTm);
-	// }
-
-	// // java moment - can't capture a variable you mutate :(
-	// final var totalOffset = to;
-
-	// final var ctx = new StarBuildingContext(builder, camera, centerPos,
-	// isImmediateMode);
-	// this.sectorTicket.attachedManager.enumerate(this.sectorTicket, sector -> {
-	// drawSectorStars(ctx, sector);
-	// });
-	// }
-
-	private void drawStarsFromBuffer(CachedCamera camera, Vec3 centerPos) {
-		// FIXME: floating point precision issues
-		// it would be better to build the geometry buffer relative to a point close to
-		// the camera, instead of building it in world space and translating back to the
-		// origin.
-
-		drawStars(camera, this.starsMesh);
-	}
-
 	private void drawStars(CachedCamera camera, Mesh starsMesh) {
 		final var snapshot = RenderMatricesSnapshot.capture();
 		camera.applyProjection();
@@ -346,7 +319,7 @@ public final class StarRenderManager implements Disposable {
 			shader.setUniformf("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
 			shader.setUniformf("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
 			shader.setUniformf("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
-			shader.setUniformf("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));	
+			shader.setUniformf("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));
 			starsMesh.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 		} else if (this.mode == Mode.MAP) {
 			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_UI.get();

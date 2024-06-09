@@ -3,6 +3,9 @@ package net.xavil.hawklib;
 import java.util.Comparator;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.client.gl.texture.GlClientTexture;
+import net.xavil.hawklib.client.gl.texture.GlTexture1d;
+import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.math.ColorOklab;
@@ -100,6 +103,15 @@ public final class ColorSpline {
 				ColorOklab.toLinearSrgb(rgba, l, a, b, alpha);
 			}
 			colorConsumer.accept(i, rgba.r, rgba.g, rgba.b, rgba.a);
+		}
+	}
+
+	public static GlTexture1d createGradientTextureFromSpline(ColorSpline spline, int size, GlTexture.Format format) {
+		try (final var disposer = Disposable.scope()) {
+			final var tex = disposer.attach(new GlClientTexture());
+			tex.createStorage(GlClientTexture.ClientFormat.RGBA8_UINT_NORM, size, 1, 1);
+			spline.sample(0, 1, tex.sizeX(), tex::setPixel);
+			return tex.create1d(format);
 		}
 	}
 

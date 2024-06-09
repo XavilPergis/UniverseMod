@@ -14,7 +14,7 @@ public abstract class RenderSystemMixin {
 	
 	@Inject(method = "flipFrame(J)V", at = @At(value = "INVOKE", target = "Lorg/lwjgl/glfw/GLFW;glfwSwapBuffers(J)V"), remap = false)
 	private static void resetFlexibleBuilder(long i, CallbackInfo info) {
-		BufferRenderer.IMMEDIATE_BUILDER.reset();
+		BufferRenderer.IMMEDIATE_BUILDER.advanceFrame();
 	}
 
 }

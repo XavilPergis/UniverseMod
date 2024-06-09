@@ -45,7 +45,7 @@ public final class GlManager {
 		}
 	}
 
-	private void push() {
+	private void push(@Nullable GlState capturedState) {
 		if (this.current == null) {
 			// vanilla tracks some state in random places so that it can deduplicate binds,
 			// which need to be reset to make them always re-bind after we do stuff.
@@ -56,8 +56,9 @@ public final class GlManager {
 			ShaderInstance.lastProgramId = -1;
 
 			this.rootState = fetchNewState();
-			this.rootState.reset(null);
-			this.rootState.capture();
+			this.rootState.reset(capturedState);
+			if (capturedState == null)
+				this.rootState.capture();
 		}
 
 		final var newState = fetchNewState();
@@ -93,8 +94,21 @@ public final class GlManager {
 		return INSTANCE.current != null;
 	}
 
+	/**
+	 * Push a GL state onto the state stack, using the provided state as a ground
+	 * truth if no state was already on the stack. This should be preferred to
+	 * {@link #pushState()} if possible, since that will query the actual OpenGL
+	 * state, which is a really expensive operation.
+	 * 
+	 * @param capturedState The ground-truth OpenGL state.
+	 * @see GlState.Cached
+	 */
+	public static void pushState(GlState capturedState) {
+		INSTANCE.push(capturedState);
+	}
+
 	public static void pushState() {
-		INSTANCE.push();
+		INSTANCE.push(null);
 	}
 
 	public static void popState() {
@@ -288,7 +302,7 @@ public final class GlManager {
 			int ratelimitCount) {
 		debugMessageControl(source, type, id, true);
 		final var filter = new DebugMessageFilter(source, type, id);
-		ERROR_RATELIMITERS.insert(filter, new ErrorRatelimiter(ratelimitDuration, ratelimitCount));
+		ERROR_RATELIMITERS.insertAndGet(filter, new ErrorRatelimiter(ratelimitDuration, ratelimitCount));
 	}
 
 	private static final class DebugMessageFilter implements Hashable {

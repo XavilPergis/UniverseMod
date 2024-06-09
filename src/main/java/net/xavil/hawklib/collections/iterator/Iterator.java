@@ -31,9 +31,9 @@ public interface Iterator<T> extends IntoIterator<T> {
 	 * method is called. Subsequent calls to this method must not return
 	 * {@code false} if they previously returned {@code true}, unless
 	 * {@link #next()} was called in between. If an iterator is fused (i.e., if
-	 * {@link #isFused()} returns {@code true}), then this method cannot ever return
-	 * anything other than {@code false} after a {@code false} was previously
-	 * yielded.
+	 * {@link #hasProperty()} returns {@code true} when called with
+	 * {@link #PROPERTY_FUSED}), then this method cannot ever return anything other
+	 * than {@code false} after a {@code false} was previously yielded.
 	 * </p>
 	 * 
 	 * @return {@code true} if the iterator has more elements to yield.
@@ -121,33 +121,6 @@ public interface Iterator<T> extends IntoIterator<T> {
 
 	static <T> boolean hasProperties(IteratorInt iter, int propertyMask) {
 		return (iter.properties() & propertyMask) == propertyMask;
-	}
-
-	/**
-	 * Adapts an iterator to a Java standard library iterator.
-	 * 
-	 * @param <T>  The type that the iterator yields.
-	 * @param iter The source iterator.
-	 * @return The adapted iterator.
-	 */
-	static <T> java.util.Iterator<T> asJava(Iterator<T> iter) {
-		// @formatter:off
-		return new java.util.Iterator<T>() {
-			@Override public boolean hasNext() { return iter.hasNext(); }
-			@Override public T next()          { return iter.next(); }
-			@Override public void forEachRemaining(Consumer<? super T> consumer) { iter.forEach(consumer); }
-		};
-		// @formatter:on
-	}
-
-	static <T> Iterator<T> fromJava(java.util.Iterator<T> iter) {
-		// @formatter:off
-		return new Iterator<T>() {
-			@Override public boolean hasNext() { return iter.hasNext(); }
-			@Override public T next()          { return iter.next(); }
-			@Override public void forEach(Consumer<? super T> consumer) { iter.forEachRemaining(consumer); }
-		};
-		// @formatter:on
 	}
 
 	default int fillArray(T[] array) {
@@ -413,6 +386,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 
 		@Override
 		public T next() {
+			this.limit -= 1;
 			return this.generator.generate(this.index++);
 		}
 
@@ -464,6 +438,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 
 		@Override
 		public T next() {
+			this.limit -= 1;
 			return this.value;
 		}
 
@@ -798,7 +773,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 
 		@Override
 		public int properties() {
-			return this.source.properties() & ~PROPERTY_NONNULL;
+			return this.source.properties() & ~(PROPERTY_NONNULL | PROPERTY_FUSED);
 		}
 
 		@Override
@@ -963,7 +938,7 @@ public interface Iterator<T> extends IntoIterator<T> {
 
 		@Override
 		public int properties() {
-			return this.source.properties();
+			return this.source.properties() & ~PROPERTY_INFINITE;
 		}
 	}
 

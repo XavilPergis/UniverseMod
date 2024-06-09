@@ -157,12 +157,12 @@ public final class SectorManager {
 				return;
 			}
 
-			final var prev = sectorFutures.insert(pos, new SectorFutures(galaxy, sector));
+			final var prev = sectorFutures.insertAndGet(pos, new SectorFutures(galaxy, sector));
 			Assert.isTrue(prev.isNone());
 		}
 
 		public boolean unload(SectorPos pos) {
-			final var futures = this.sectorFutures.remove(pos).unwrapOrNull();
+			final var futures = this.sectorFutures.removeAndGet(pos).unwrapOrNull();
 			if (futures != null)
 				futures.elementFuture.cancel(false);
 
@@ -360,7 +360,7 @@ public final class SectorManager {
 			final var slot = this.systemMap.get(id).unwrapOrNull();
 			if (slot != null) {
 				if (slot.unload())
-					this.systemMap.remove(id);
+					this.systemMap.removeAndGet(id);
 			} else {
 				Mod.LOGGER.error("tried to unload system that did not have a system slot. ({})", id);
 			}
@@ -369,7 +369,7 @@ public final class SectorManager {
 			final var slot = this.sectorMap.get(pos.rootCoords()).unwrapOrNull();
 			if (slot != null) {
 				if (slot.unload(pos))
-					this.sectorMap.remove(pos.rootCoords());
+					this.sectorMap.removeAndGet(pos.rootCoords());
 			} else {
 				Mod.LOGGER.error("tried to unload sector that did not have a sector slot. ({}, root {})",
 						pos, pos.rootCoords());

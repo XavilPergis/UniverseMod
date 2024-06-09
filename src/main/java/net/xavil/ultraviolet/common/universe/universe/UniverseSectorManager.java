@@ -88,7 +88,7 @@ public final class UniverseSectorManager {
 					synchronized (this.sector) {
 						this.waitingFuture.cancel(true);
 					}
-				sectorMap.remove(this.sector.pos);
+				sectorMap.removeAndGet(this.sector.pos);
 			}
 		}
 	}
@@ -123,7 +123,7 @@ public final class UniverseSectorManager {
 					this.waitingFuture.cancel(false);
 			}
 			if (!isLive()) {
-				galaxyMap.remove(this.id);
+				galaxyMap.removeAndGet(this.id);
 				sectorMap.get(this.id.sectorPos()).unwrap().unload();
 			}
 		}

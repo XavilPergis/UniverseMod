@@ -2,7 +2,6 @@ package net.xavil.ultraviolet.common.universe.galaxy;
 
 import java.util.function.Consumer;
 
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 import net.xavil.hawklib.math.matrices.Vec3;
@@ -47,7 +46,7 @@ public record SectorPos(int level, Vec3i levelCoords) implements Hashable {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override

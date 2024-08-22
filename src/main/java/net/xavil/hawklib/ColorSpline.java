@@ -102,6 +102,7 @@ public final class ColorSpline {
 				final var alpha = Mth.lerp(st, lo.color.alpha, hi.color.alpha);
 				ColorOklab.toLinearSrgb(rgba, l, a, b, alpha);
 			}
+
 			colorConsumer.accept(i, rgba.r, rgba.g, rgba.b, rgba.a);
 		}
 	}

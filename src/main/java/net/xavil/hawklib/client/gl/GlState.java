@@ -885,4 +885,46 @@ public final class GlState implements GlStateSink {
 		}
 	}
 
+	public String dump() {
+		String res = "";
+		res += String.format("parentState=%s", parentState);
+		res += String.format("\ncullingEnabled=%s", cullingEnabled);
+		res += String.format("\ncullFace=%s", cullFace);
+		res += String.format("\nfrontFace=%s", frontFace);
+		res += String.format("\ndepthMask=%s", depthMask);
+		res += String.format("\ndepthTestEnabled=%s", depthTestEnabled);
+		res += String.format("\ndepthFunc=%s", depthFunc);
+		res += String.format("\nblendingEnabled=%s", blendingEnabled);
+		res += String.format("\nblendEquationRgb=%s", blendEquationRgb);
+		res += String.format("\nblendEquationAlpha=%s", blendEquationAlpha);
+		res += String.format("\nblendFactorSrcRgb=%s", blendFactorSrcRgb);
+		res += String.format("\nblendFactorDstRgb=%s", blendFactorDstRgb);
+		res += String.format("\nblendFactorSrcAlpha=%s", blendFactorSrcAlpha);
+		res += String.format("\nblendFactorDstAlpha=%s", blendFactorDstAlpha);
+		res += String.format("\ncolorMaskR=%s", colorMaskR);
+		res += String.format("\ncolorMaskG=%s", colorMaskG);
+		res += String.format("\ncolorMaskB=%s", colorMaskB);
+		res += String.format("\ncolorMaskA=%s", colorMaskA);
+		res += String.format("\nlogicOpEnabled=%s", logicOpEnabled);
+		res += String.format("\nlogicOp=%s", logicOp);
+		res += String.format("\npolygonMode=%s", polygonMode);
+		res += String.format("\nprogramPointSizeEnabled=%s", programPointSizeEnabled);
+		res += String.format("\nviewportX=%d", viewportX);
+		res += String.format("\nviewportY=%d", viewportY);
+		res += String.format("\nviewportWidth=%d", viewportWidth);
+		res += String.format("\nviewportHeight=%d", viewportHeight);
+		final var bufferTypes = GlBuffer.Type.values();
+		for (int i = 0; i < BUFFER_TARGET_COUNT; ++i) {
+			res += String.format("\nboundBuffers[%s]=%d", bufferTypes[i], boundBuffers[i]);
+		}
+		res += String.format("\nboundVertexArray=%d", boundVertexArray);
+		res += String.format("\nboundProgram=%d", boundProgram);
+		res += String.format("\nboundDrawFramebuffer=%d", boundDrawFramebuffer);
+		res += String.format("\nboundReadFramebuffer=%d", boundReadFramebuffer);
+		res += String.format("\nboundRenderbuffer=%d", boundRenderbuffer);
+		res += String.format("\nboundTextureUnit=%d", boundTextureUnit);
+
+		return res;
+	}
+
 }

@@ -3,7 +3,6 @@ package net.xavil.ultraviolet.common.universe.universe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Disposable;
-import net.xavil.ultraviolet.common.universe.galaxy.StarCatalogGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
@@ -26,6 +25,7 @@ public final class ClientUniverse extends Universe {
 	protected SystemTicket startingSystemTicket = null;
 
 	public ClientUniverse() {
+		super(Side.CLIENT);
 		this.client = Minecraft.getInstance();
 	}
 
@@ -63,8 +63,7 @@ public final class ClientUniverse extends Universe {
 					packet.startingSystemAge,
 					packet.startingSystemName,
 					node, packet.startingId.nodeId());
-			galaxy.addGenerationLayer(this.startingGenerator);
-			// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, this.startingGenerator));
+			addStartingGenerationLayers(galaxy);
 			final var startingId = this.startingGenerator.getStartingSystemId();
 
 			this.startingSystemTicket = galaxy.sectorManager.createSystemTicket(this.disposer,

@@ -29,7 +29,8 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 	public StarCatalogGalaxyGenerationLayer(Galaxy parentGalaxy,
 			StartingSystemGalaxyGenerationLayer startingGenerator) {
-		super(parentGalaxy);
+		// TODO: this should probably be reloadable :P
+		super(parentGalaxy, false);
 		this.startingGenerator = startingGenerator;
 
 		loadSectorMap();
@@ -151,10 +152,10 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		node.type = StellarCelestialNode.Type.STAR;
 
 		final var rng = new SplittableRng(elem.systemSeed);
-		final var rootNode = node.generateSystem(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
+		final var rootNode = node.generateSystem(rng.uniformLong("seed"), this.galaxy, sector, id, elem);
 
 		// TODO: assign system name
-		return new StarSystem("idk", this.parentGalaxy, elem, rootNode, 1.42857e-02);
+		return new StarSystem("idk", this.galaxy, elem, rootNode, 1.42857e-02);
 	}
 
 }

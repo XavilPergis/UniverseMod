@@ -8,7 +8,6 @@ import it.unimi.dsi.fastutil.floats.FloatConsumer;
 import it.unimi.dsi.fastutil.floats.FloatPredicate;
 import net.xavil.hawklib.collections.iterator.IntoIteratorFloat;
 import net.xavil.hawklib.collections.iterator.IteratorFloat;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
@@ -130,7 +129,7 @@ public abstract sealed class MaybeFloat implements IntoIteratorFloat, Hashable {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override
@@ -222,7 +221,7 @@ public abstract sealed class MaybeFloat implements IntoIteratorFloat, Hashable {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override

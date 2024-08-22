@@ -6,28 +6,59 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.iterator.Iterator;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3iAccess;
 
 public final class Vec3i implements Hashable, Vec3iAccess {
 
-	public static final Vec3i ZERO = new Vec3i(0, 0, 0);
-	public static final Vec3i XN = new Vec3i(-1, 0, 0);
-	public static final Vec3i XP = new Vec3i(1, 0, 0);
-	public static final Vec3i YN = new Vec3i(0, -1, 0);
-	public static final Vec3i YP = new Vec3i(0, 1, 0);
-	public static final Vec3i ZN = new Vec3i(0, 0, -1);
-	public static final Vec3i ZP = new Vec3i(0, 0, 1);
-
-	@SuppressWarnings("null")
 	public static final Codec<Vec3i> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.INT.fieldOf("x").forGetter(v -> v.x),
 			Codec.INT.fieldOf("y").forGetter(v -> v.y),
 			Codec.INT.fieldOf("z").forGetter(v -> v.z))
 			.apply(inst, Vec3i::new));
+
+	// @formatter:off
+	public static final Vec3i NNN = new Vec3i(-1, -1, -1);
+	public static final Vec3i NNC = new Vec3i(-1, -1,  0);
+	public static final Vec3i NNP = new Vec3i(-1, -1,  1);
+	public static final Vec3i NCN = new Vec3i(-1,  0, -1);
+	public static final Vec3i NCC = new Vec3i(-1,  0,  0);
+	public static final Vec3i NCP = new Vec3i(-1,  0,  1);
+	public static final Vec3i NPN = new Vec3i(-1,  1, -1);
+	public static final Vec3i NPC = new Vec3i(-1,  1,  0);
+	public static final Vec3i NPP = new Vec3i(-1,  1,  1);
+	public static final Vec3i CNN = new Vec3i( 0, -1, -1);
+	public static final Vec3i CNC = new Vec3i( 0, -1,  0);
+	public static final Vec3i CNP = new Vec3i( 0, -1,  1);
+	public static final Vec3i CCN = new Vec3i( 0,  0, -1);
+	public static final Vec3i CCC = new Vec3i( 0,  0,  0);
+	public static final Vec3i CCP = new Vec3i( 0,  0,  1);
+	public static final Vec3i CPN = new Vec3i( 0,  1, -1);
+	public static final Vec3i CPC = new Vec3i( 0,  1,  0);
+	public static final Vec3i CPP = new Vec3i( 0,  1,  1);
+	public static final Vec3i PNN = new Vec3i( 1, -1, -1);
+	public static final Vec3i PNC = new Vec3i( 1, -1,  0);
+	public static final Vec3i PNP = new Vec3i( 1, -1,  1);
+	public static final Vec3i PCN = new Vec3i( 1,  0, -1);
+	public static final Vec3i PCC = new Vec3i( 1,  0,  0);
+	public static final Vec3i PCP = new Vec3i( 1,  0,  1);
+	public static final Vec3i PPN = new Vec3i( 1,  1, -1);
+	public static final Vec3i PPC = new Vec3i( 1,  1,  0);
+	public static final Vec3i PPP = new Vec3i( 1,  1,  1);
+	public static final Vec3i ZERO = CCC;
+	public static final Vec3i XN = NCC, XP = PCC;
+	public static final Vec3i YN = CNC, YP = CPC;
+	public static final Vec3i ZN = CCN, ZP = CCP;
+
+	public static final ImmutableList<Vec3i> VERTICES = ImmutableList.of(NNN, NNP, NPN, NPP, PNN, PNP, PPN, PPP);
+	public static final ImmutableList<Vec3i> EDGES = ImmutableList.of(NNC, NCN, NCP, NPC, CNN, CNP, CPN, CPP, PNC, PCN, PCP, PPC);
+	public static final ImmutableList<Vec3i> FACES = ImmutableList.of(NCC, CNC, CCN, CCP, CPC, PCC);
+	public static final ImmutableList<Vec3i> SURFACE = ImmutableList.of(NNN, NNC, NNP, NCN, NCC, NCP, NPN, NPC, NPP, CNN, CNC, CNP, CCN, CCP, CPN, CPC, CPP, PNN, PNC, PNP, PCN, PCC, PCP, PPN, PPC, PPP);
+	public static final ImmutableList<Vec3i> ALL = ImmutableList.of(NNN, NNC, NNP, NCN, NCC, NCP, NPN, NPC, NPP, CNN, CNC, CNP, CCN, CCC, CCP, CPN, CPC, CPP, PNN, PNC, PNP, PCN, PCC, PCP, PPN, PPC, PPP);
+	// @formatter:on
 
 	public final int x, y, z;
 
@@ -143,7 +174,7 @@ public final class Vec3i implements Hashable, Vec3iAccess {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override
@@ -167,7 +198,7 @@ public final class Vec3i implements Hashable, Vec3iAccess {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override

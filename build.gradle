@@ -57,7 +57,7 @@ processResources {
 
 tasks.withType(JavaCompile).configureEach {
 	// Minecraft 1.18 (1.18-pre2) upwards uses Java 17.
-	it.options.release = 17
+	// it.options.release = 17
 }
 
 java {
@@ -65,6 +65,48 @@ java {
 	// if it is present.
 	// If you remove this line, sources will not be generated.
 	withSourcesJar()
+}
+
+import net.fabricmc.loom.configuration.ide.RunConfigSettings
+import net.fabricmc.loom.configuration.ide.RunConfig
+import net.fabricmc.loom.util.Constants
+
+tasks.register('debugClientRenderDoc', Exec) {
+	dependsOn compileJava
+	dependsOn configureClientLaunch
+
+	// slightly cursed. duplicates some of the work that loom's RunGameTask does, but not all of it.
+	// i think theres some things that it handles that i dont, but it works on my machine soooooo :P
+	var settings = new RunConfigSettings(project, "clientRenderDoc")
+	settings.environment "client"
+	settings.defaultMainClass Constants.Knot.KNOT_CLIENT
+	var runConfig = RunConfig.runConfig(project, settings)
+
+	var args = []
+	args += ["renderdoccmd", "capture", "--opt-hook-children", "--opt-api-validation", "--opt-verify-buffer-access", "--opt-ref-all-resources", "-w", "-d", "$projectDir/${runConfig.runDir}"]
+
+	var javaHome = System.properties['java.home']
+	args += "$javaHome/bin/java"
+
+	// allow ourselves to attach a debugger
+	var debuggerPort = System.properties['net.xavil.debug.port']
+	if (debuggerPort != null) {
+		args += ["-agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=$debuggerPort"]
+	}
+
+	var enhancedClassRedef = System.properties['net.xavil.debug.enhanced_class_redefinition']
+	if (enhancedClassRedef != null) {
+		// use enhanced class redefinition if the jvm supports it! this makes hot reloading significantly more powerful.
+		args += ["-XX:+AllowEnhancedClassRedefinition", "-XX:HotswapAgent=core"]
+	}
+
+	// core arguments
+	var classpath = runConfig.sourceSet.runtimeClasspath.filter { it.exists() }.each { it.absolutePath }.join ':'
+	args += runConfig.vmArgs
+	args += ["-cp", "$classpath", "${runConfig.mainClass}"]
+	args += runConfig.programArgs
+
+	commandLine = args
 }
 
 jar {

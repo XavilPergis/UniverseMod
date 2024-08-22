@@ -6,11 +6,11 @@ import net.xavil.hawklib.math.OrbitalShape;
 
 public class CelestialNodeChild<T extends CelestialNode> {
 	public final CelestialNode parentNode;
-	public final T node;
-	public final OrbitalShape orbitalShape;
+	public T node;
+	public OrbitalShape orbitalShape;
 	// FIXME: this needs to be mutable for StarSystemGenerator
 	public OrbitalPlane orbitalPlane;
-	public final double phase;
+	public double phase;
 
 	public CelestialNodeChild(CelestialNode parentNode, T node, OrbitalShape orbitalShape,
 			OrbitalPlane orbitalPlane, double phase) {

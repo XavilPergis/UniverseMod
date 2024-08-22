@@ -1,8 +1,105 @@
 package net.xavil.hawklib;
 
+import java.util.function.DoubleUnaryOperator;
+
+import javax.annotation.Nullable;
+
+import net.minecraft.util.Mth;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
+
 public class Units {
 
 	protected Units() {
+	}
+
+	public static final class Unit {
+		public final String type;
+		public final String name;
+		public final DoubleUnaryOperator toBaseUnits;
+		public final DoubleUnaryOperator fromBaseUnits;
+
+		private static final MutableMap<String, Unit> UNITS_BY_NAME = MutableMap.hashMap();
+
+		public Unit(String type, String name, DoubleUnaryOperator toBaseUnits, DoubleUnaryOperator fromBaseUnits) {
+			this.type = type;
+			this.name = name;
+			this.toBaseUnits = toBaseUnits;
+			this.fromBaseUnits = fromBaseUnits;
+		}
+
+		private static final String[] METRIC_PREFIXES = {
+				"n", "u", "µ", "m", "c", "d", "k", "M", "G", "T", "P", "E", "Z", "Y" };
+		private static final double[] METRIC_FACTORS = {
+				1e-9, 1e-6, 1e-6, 1e-3, 1e-2, 1e-1, 1e3, 1e6, 1e9, 1e12, 1e15, 1e18, 1e21, 1e24 };
+
+		private static void register(String type, String name,
+				DoubleUnaryOperator toBaseUnits, DoubleUnaryOperator fromBaseUnits) {
+			final var unit = new Unit(type, name, toBaseUnits, fromBaseUnits);
+			if (!UNITS_BY_NAME.insert(name, unit))
+				throw new IllegalArgumentException(String.format(
+						"unit '%s' already exists!",
+						name));
+		}
+
+		private static void register(String type, String name, double toBaseFactor) {
+			register(type, name, x -> toBaseFactor * x, x -> x / toBaseFactor);
+		}
+
+		private static void registerMetric(String type, String baseName, double toBaseFactor) {
+			for (int i = 0; i < METRIC_PREFIXES.length; ++i) {
+				final var unitName = METRIC_PREFIXES[i] + baseName;
+				final var factor = METRIC_FACTORS[i] * toBaseFactor;
+				register(type, unitName, factor);
+			}
+		}
+
+		static {
+			registerMetric("mass", "g", Units.Yu_PER_u);
+			registerMetric("length", "m", Units.Tu_PER_u);
+			registerMetric("time", "s", 1);
+
+			register("mass", "Msol", Units.Yg_PER_Msol);
+			register("mass", "Mjupiter", Units.Yg_PER_Mjupiter);
+			register("mass", "Mearth", Units.Yg_PER_Mearth);
+			register("length", "Rsol", Units.Tm_PER_Rsol);
+			register("length", "Rjupiter", Units.Tm_PER_Rjupiter);
+			register("length", "Rearth", Units.Tm_PER_Rearth);
+			register("length", "au", Units.Tm_PER_au);
+			register("length", "pc", Units.Tm_PER_pc);
+			register("length", "ly", Units.Tm_PER_ly);
+			register("radiant_flux", "Lsol", 1);
+			register("angle", "deg", Units.rad_PER_deg);
+			register("angle", "rad", 1);
+			register("temperature", "F", x -> (x - 32) * (5.0 / 9.0) + 273.15, x -> (x - 273.15) * (9.0 / 5.0) + 32);
+			register("temperature", "C", x -> x + 273.15, x -> Math.max(0, x - 273.15));
+			register("temperature", "K", 1);
+			register("time", "min", 60);
+			register("time", "hr", 3600);
+			register("time", "day", 86400);
+			register("time", "yr", 3.154e7);
+			register("time", "cy", 3.154e9);
+		}
+	}
+
+	public static Maybe<Unit> lookup(String name) {
+		return Unit.UNITS_BY_NAME.get(name);
+	}
+
+	@Nullable
+	public static Unit lookupOrNull(String name) {
+		return Unit.UNITS_BY_NAME.getOrNull(name);
+	}
+
+	public static double convert(double value, Unit src, Unit dst) {
+		Assert.isEqual(src.type, dst.type);
+		return dst.fromBaseUnits.applyAsDouble(src.toBaseUnits.applyAsDouble(value));
+	}
+
+	public static double convert(double value, String src, String dst) {
+		final var srcUnit = lookupOrNull(src);
+		final var dstUnit = lookupOrNull(dst);
+		Assert.isEqual(srcUnit.type, dstUnit.type);
+		return dstUnit.fromBaseUnits.applyAsDouble(srcUnit.toBaseUnits.applyAsDouble(value));
 	}
 
 	// ----- metric prefixes -----
@@ -267,7 +364,7 @@ public class Units {
 	Yg_PER_Mjupiter = kg_PER_Mjupiter * Yu_PER_ku, Mjupiter_PER_Yg = 1 / Yg_PER_Mjupiter,
 	Yg_PER_Mearth   = kg_PER_Mearth * Yu_PER_ku,   Mearth_PER_Yg   = 1 / Yg_PER_Mearth;
 	// @formatter:on
-	
+
 	// @formatter:off
 	// temperature
 	public static final double
@@ -275,5 +372,8 @@ public class Units {
 	// @formatter:on
 
 	public static final double SOL_LIFETIME_MYA = 10e4;
+
+	public static final double deg_PER_rad = Mth.RAD_TO_DEG;
+	public static final double rad_PER_deg = Mth.DEG_TO_RAD;
 
 }

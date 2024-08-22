@@ -14,6 +14,7 @@ import net.xavil.hawklib.client.camera.MotionSmoother;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.vertex.VertexDispatcher;
@@ -48,11 +49,18 @@ public class StarStatisticsScreen extends HawkScreen {
 	private ScatterPlot xyPlot = null;
 	private Histogram xHistogram = null, yHistogram = null;
 
-	private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.LUMINSOITY;
+	// private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.ILLUMINANCE;
+	private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.LUMINOUS_FLUX;
+	// private Variable xVariable = Variable.LUMINOUS_FLUX, yVariable = Variable.ILLUMINANCE;
+	// private AxisMapping xMapping = new AxisMapping.Log(10, 1e3, 1e9);
+	// private AxisMapping yMapping = new AxisMapping.Log(10, 1e-10, 1e0);
+
+	// private Variable xVariable = Variable.TEMPERATURE, yVariable =
+	// Variable.RADIANT_FLUX;
 	// private Variable xVariable = Variable.DISTANCE, yVariable =
 	// Variable.TEMPERATURE;
-	// private Variable xVariable = Variable.AGE, yVariable = Variable.LUMINSOITY;
-	// private Variable xVariable = Variable.MASS, yVariable = Variable.LUMINSOITY;
+	// private Variable xVariable = Variable.AGE, yVariable = Variable.RADIANT_FLUX;
+	// private Variable xVariable = Variable.MASS, yVariable = Variable.RADIANT_FLUX;
 	// private Variable xVariable = Variable.MASS, yVariable = Variable.TEMPERATURE;
 
 	// private AxisMapping xMapping = new AxisMapping.Log(10, 1, 1e5);
@@ -88,7 +96,10 @@ public class StarStatisticsScreen extends HawkScreen {
 	}
 
 	private static enum Variable {
-		LUMINSOITY("Luminosity", "Lsol", 1e-4, 1e5),
+		RADIANT_FLUX("Radiant Flux", "Lsol", 1e-4, 1e5),
+		LUMINOUS_FLUX("Luminous Flux", "Ylm", 1e-2, 1e7),
+		IRRADIANCE("Irradiance", "W/m^2", 1e-10, 1e0),
+		ILLUMINANCE("Illuminance", "lx", 1e-10, 1e0),
 		TEMPERATURE("Temperature", "K", 1000, 60000),
 		MASS("Mass", "Msol", 0.08, 300),
 		AGE("Age", "Myr", 1e-6, 1e10),
@@ -105,12 +116,38 @@ public class StarStatisticsScreen extends HawkScreen {
 		}
 	}
 
+	// conversion factor from `Lsol pc^-2` to `W m^-2`
+	private static final double IRRADIANCE_FACTOR = Units.W_PER_Lsol * 1e-24 * Units.pc_PER_Tm * Units.pc_PER_Tm;
+	public static final double LUMENS_PER_WATT = 683.002;
+
 	private double selectVariable(GalaxySector.ElementHolder elem, Variable variable) {
 		return switch (variable) {
-			case LUMINSOITY -> elem.luminosityLsol;
 			case TEMPERATURE -> elem.temperatureK;
 			case MASS -> elem.massYg * Units.Msol_PER_Yg;
 			case AGE -> elem.systemAgeMyr;
+			case RADIANT_FLUX -> elem.luminosityLsol;
+			case LUMINOUS_FLUX -> {
+				final var brightnessMult = StellarCelestialNode.BLACK_BODY_COLOR_TABLE
+						.lookupBrightnessMultiplier(elem.temperatureK);
+				// i mean, were really converting `W/m^2` to `lm/m^2` here, but it should have
+				// the same effect. :p
+				yield LUMENS_PER_WATT * brightnessMult * (Units.W_PER_Lsol * Units.Yu_PER_u) * elem.luminosityLsol;
+			}
+			case IRRADIANCE -> {
+				final var distance = elem.systemPosTm.distanceTo(this.center) * Units.pc_PER_Tm;
+				final var irradiance = IRRADIANCE_FACTOR * elem.luminosityLsol / (4 * Math.PI * distance * distance);
+				yield irradiance;
+			}
+			case ILLUMINANCE -> {
+				final var distance = elem.systemPosTm.distanceTo(this.center) * Units.pc_PER_Tm;
+				final var irradiance = IRRADIANCE_FACTOR * elem.luminosityLsol / (4 * Math.PI * distance * distance);
+
+				final var brightnessMult = StellarCelestialNode.BLACK_BODY_COLOR_TABLE
+						.lookupBrightnessMultiplier(elem.temperatureK);
+				// i mean, were really converting `W/m^2` to `lm/m^2` here, but it should have
+				// the same effect. :p
+				yield LUMENS_PER_WATT * brightnessMult * irradiance;
+			}
 			case DISTANCE -> elem.systemPosTm.distanceTo(this.center) * Units.pc_PER_Tm;
 		};
 	}
@@ -252,8 +289,7 @@ public class StarStatisticsScreen extends HawkScreen {
 	private void renderHistogram(RenderContext ctx, AxisMapping mapping, Histogram plot, Rect bounds,
 			boolean transpose) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-				PrimitiveType.QUAD_DUPLICATED,
-				BufferLayout.POSITION_COLOR_TEX);
+				IndexPattern.QUADS, BufferLayout.POSITION_COLOR_TEX);
 
 		int max = 0;
 		final var maxIndices = new VectorInt();
@@ -300,7 +336,7 @@ public class StarStatisticsScreen extends HawkScreen {
 
 		if (plot.hasMean()) {
 			final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					PrimitiveType.LINE_DUPLICATED,
+					IndexPattern.VANILLA_LINES,
 					BufferLayout.POSITION_COLOR_NORMAL);
 
 			for (int i = 0; i < maxIndices.size(); ++i) {
@@ -321,8 +357,8 @@ public class StarStatisticsScreen extends HawkScreen {
 			x = bounds.min().y;
 			// if (transpose) {
 			// } else {
-			// 	x = bounds.min().x;
-			// 	y = bounds.min().y;
+			// x = bounds.min().x;
+			// y = bounds.min().y;
 			// }
 
 			final var sink = new TextBuilder();
@@ -339,7 +375,7 @@ public class StarStatisticsScreen extends HawkScreen {
 
 	private void renderScatterPlot(RenderContext ctx, ScatterPlot plot, Rect bounds) {
 		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-				PrimitiveType.LINE_DUPLICATED,
+				IndexPattern.VANILLA_LINES,
 				BufferLayout.POSITION_COLOR_NORMAL);
 
 		// guides
@@ -396,14 +432,16 @@ public class StarStatisticsScreen extends HawkScreen {
 		renderScatterPlot(ctx, this.xyPlot, Rect.BIPOLAR);
 		renderHistogram(ctx, this.xMapping, this.xHistogram, new Rect(-1, -1.3, 1, -1.05), false);
 		renderHistogram(ctx, this.yMapping, this.yHistogram, new Rect(-1.3, -1, -1.05, 1), true);
-		
+
 		final var sink = new TextBuilder();
 		final var tfm = new TransformStack();
 		tfm.appendScale(0.005f);
 		tfm.appendTranslation(new Vec3(1.02, 0.98, 0));
 		sink.emitNewline(tfm.current(), FormattedText.of(String.format("n=%d", this.xyPlot.size())));
-		sink.emitNewline(tfm.current(), FormattedText.of(String.format("avg(X)=%.2f %s", this.xHistogram.getMean(), this.xVariable.units)));
-		sink.emitNewline(tfm.current(), FormattedText.of(String.format("avg(Y)=%.2f %s", this.yHistogram.getMean(), this.yVariable.units)));
+		sink.emitNewline(tfm.current(),
+				FormattedText.of(String.format("avg(X)=%.2f %s", this.xHistogram.getMean(), this.xVariable.units)));
+		sink.emitNewline(tfm.current(),
+				FormattedText.of(String.format("avg(Y)=%.2f %s", this.yHistogram.getMean(), this.yVariable.units)));
 		sink.draw(BufferRenderer.IMMEDIATE_BUILDER, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING, 1f);
 
 		snapshot.restore();

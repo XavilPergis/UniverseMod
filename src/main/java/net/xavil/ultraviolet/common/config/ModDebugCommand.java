@@ -15,9 +15,11 @@ import com.mojang.brigadier.exceptions.CommandSyntaxException;
 
 import net.minecraft.commands.CommandSourceStack;
 import net.minecraft.commands.arguments.EntityArgument;
+import net.minecraft.commands.arguments.NbtTagArgument;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
@@ -25,58 +27,69 @@ import net.xavil.ultraviolet.common.universe.station.StationLocation.OrbitingCel
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
-import net.xavil.hawklib.math.matrices.Vec3;
 
 public final class ModDebugCommand {
 
 	public static void register(CommandDispatcher<CommandSourceStack> dispatcher, boolean dedicated) {
-		dispatcher.register(literal("ultraviolet")
-				.requires(src -> src.hasPermission(2))
-				.then(createConfigSubcommand())
-				.then(literal("station")
-						.then(literal("add")
+		final var baseCommand = literal("ultraviolet").requires(src -> src.hasPermission(2));
+
+		baseCommand.then(createConfigSubcommand());
+
+		baseCommand.then(literal("debug")
+				.then(argument("action", StringArgumentType.string())
+						.executes(ctx -> executeDebugAction(ctx, false))
+						.then(argument("payload", NbtTagArgument.nbtTag())
+								.executes(ctx -> executeDebugAction(ctx, true)))));
+
+		baseCommand.then(literal("station")
+				.then(literal("add")
+						.then(argument("name", StringArgumentType.string())
+								.executes(ModDebugCommand::executeStationAdd)))
+				.then(literal("remove")
+						.then(argument("name", StringArgumentType.string())
+								.executes(ModDebugCommand::executeStationRemove)))
+				.then(literal("tp")
+						.then(argument("name", StringArgumentType.string())
+								.executes(ModDebugCommand::executeStationTpImplicit))
+						.then(argument("entities", EntityArgument.entities())
 								.then(argument("name", StringArgumentType.string())
-										.executes(ModDebugCommand::executeStationAdd)))
-						.then(literal("remove")
-								.then(argument("name", StringArgumentType.string())
-										.executes(ModDebugCommand::executeStationRemove)))
-						.then(literal("tp")
-								.then(argument("name", StringArgumentType.string())
-										.executes(ModDebugCommand::executeStationTpImplicit))
-								.then(argument("entities", EntityArgument.entities())
-										.then(argument("name", StringArgumentType.string())
-												.executes(ModDebugCommand::executeStationTpExplicit))))
-						.then(literal("move")
-								.then(argument("name", StringArgumentType.string())
-										.executes(ModDebugCommand::executeStationMove))))
-				.then(literal("time")
-						.then(literal("scale").then(argument("seconds_per_second", DoubleArgumentType.doubleArg())
-								.executes(ModDebugCommand::executeTimeScale)))
-						.then(literal("set").then(argument("seconds", DoubleArgumentType.doubleArg())
-								.executes(ModDebugCommand::executeTimeSet)))
-						.then(literal("add").then(argument("seconds", DoubleArgumentType.doubleArg())
-								.executes(ModDebugCommand::executeTimeAdd)))));
+										.executes(ModDebugCommand::executeStationTpExplicit))))
+				.then(literal("move")
+						.then(argument("name", StringArgumentType.string())
+								.executes(ModDebugCommand::executeStationMove))));
+
+		baseCommand.then(literal("time")
+				.then(literal("scale").then(argument("seconds_per_second", DoubleArgumentType.doubleArg())
+						.executes(ModDebugCommand::executeTimeScale)))
+				.then(literal("set").then(argument("seconds", DoubleArgumentType.doubleArg())
+						.executes(ModDebugCommand::executeTimeSet)))
+				.then(literal("add").then(argument("seconds", DoubleArgumentType.doubleArg())
+						.executes(ModDebugCommand::executeTimeAdd))));
+
+		dispatcher.register(baseCommand);
 	}
 
 	private static CommonConfig getCommonDebug(CommandContext<CommandSourceStack> ctx) {
 		return ((MinecraftServerAccessor) ctx.getSource().getServer()).ultraviolet_getCommonDebug();
 	}
 
+	private static int executeDebugAction(CommandContext<CommandSourceStack> ctx, boolean hasPayload)
+			throws CommandSyntaxException {
+		final var action = StringArgumentType.getString(ctx, "action");
+		final var payload = hasPayload ? NbtTagArgument.getNbtTag(ctx, "payload") : null;
+		Mod.dispatchDebugAction(ctx.getSource().getPlayerOrException(), action, payload, true);
+		return 1;
+	}
+
 	private static <T> void executeConfigSetCommand(ConfigKey<T> key, CommandContext<CommandSourceStack> ctx)
 			throws CommandSyntaxException {
 		final T value = ctx.getArgument("value", key.type.containedClass);
-		final var oldValue = getCommonDebug(ctx).setPlayer(key, ctx.getSource().getPlayerOrException(), value);
-		if (oldValue.isSome()) {
-			final var message = String.format(
-					"config value '%s' changed from '%s' to '%s'",
-					key.keyId, oldValue.unwrap(), value);
-			ctx.getSource().sendSuccess(new TextComponent(message), true);
-		} else {
-			final var message = String.format(
-					"config value '%s' changed to '%s'",
-					key.keyId, value);
-			ctx.getSource().sendSuccess(new TextComponent(message), true);
-		}
+		final var oldValue = getCommonDebug(ctx).get(key, ctx.getSource().getPlayerOrException());
+		getCommonDebug(ctx).setPlayer(key, ctx.getSource().getPlayerOrException(), value);
+		final var message = String.format(
+				"config value '%s' changed from '%s' to '%s'",
+				key.keyId, oldValue, value);
+		ctx.getSource().sendSuccess(new TextComponent(message), true);
 	}
 
 	private static <T> void executeConfigGetCommand(ConfigKey<T> key, CommandContext<CommandSourceStack> ctx)

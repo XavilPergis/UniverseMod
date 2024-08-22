@@ -3,7 +3,6 @@ package net.xavil.hawklib.client.flexible;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CachedCamera;
-import net.xavil.hawklib.client.flexible.vertex.FilledBuffer;
 import net.xavil.hawklib.client.flexible.vertex.VertexBuilder;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlManager;
@@ -15,13 +14,6 @@ public final class BufferRenderer {
 	// FIXME: memory usage here is pretty fucking hefty,, about 60 MB if we assume 3
 	// in flight frames.
 	public static final VertexBuilder IMMEDIATE_BUILDER = new VertexBuilder(20 * 1000 * 1000);
-	public static final Mesh IMMEDIATE_BUFFER = new Mesh();
-
-	public static void draw(ShaderProgram shader, FilledBuffer buffer, DrawState drawState) {
-		IMMEDIATE_BUFFER.setupAndUpload(buffer);
-		shader.setupDefaultShaderUniforms();
-		IMMEDIATE_BUFFER.draw(shader, drawState);
-	}
 
 	public static void drawFullscreen(GlTexture2d texture) {
 		drawFullscreen(texture, HawkDrawStates.DRAW_STATE_DIRECT);
@@ -39,7 +31,7 @@ public final class BufferRenderer {
 
 	public static void drawFullscreen(ShaderProgram shader, DrawState drawState) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
-				.beginGeneric(PrimitiveType.QUAD_DUPLICATED, BufferLayout.POSITION_TEX);
+				.beginGeneric(IndexPattern.QUADS, BufferLayout.POSITION_TEX);
 		builder.vertex(-1, 1, 0).uv0(0, 1).endVertex();
 		builder.vertex(1, 1, 0).uv0(1, 1).endVertex();
 		builder.vertex(1, -1, 0).uv0(1, 0).endVertex();

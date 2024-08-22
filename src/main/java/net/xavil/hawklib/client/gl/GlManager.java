@@ -18,7 +18,6 @@ import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
@@ -318,12 +317,12 @@ public final class GlManager {
 
 		@Override
 		public void appendHash(Hasher hasher) {
-			hasher.appendEnum(source).appendEnum(type).appendInt(id);
+			hasher.append(source).append(type).appendInt(id);
 		}
 
 		@Override
 		public final int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 	}
 
@@ -347,7 +346,7 @@ public final class GlManager {
 	public static void setupDebugMessageCallback() {
 		if (!ENABLE_DEBUG)
 			return;
-		GL45C.glEnable(GL45C.GL_DEBUG_OUTPUT_SYNCHRONOUS);
+		// GL45C.glEnable(GL45C.GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		GL45C.glEnable(GL45C.GL_DEBUG_OUTPUT);
 		GL45C.glDebugMessageCallback(GlManager::debugMessageCallback, 0);
 		// enable all messages

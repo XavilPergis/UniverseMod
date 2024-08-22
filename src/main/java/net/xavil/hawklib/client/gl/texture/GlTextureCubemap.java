@@ -39,7 +39,7 @@ public final class GlTextureCubemap extends GlTexture {
 	}
 
 	public Slice slice(int lodLevel, Face face) {
-		return new Slice(this, SliceDimension.D2, lodLevel, face.ordinal(), 1, 0, 0, 0, this.size.width, this.size.height, 1);
+		return new Slice(this, SliceDimension.D2, lodLevel, face.ordinal(), 1, 0, 0, 0, this.size.x, this.size.y, 1);
 	}
 
 	public Slice slice(Face face) {

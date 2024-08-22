@@ -14,6 +14,7 @@ import net.xavil.hawklib.WeightedList;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
@@ -56,14 +57,10 @@ public final class PlanetRenderingContext implements Disposable {
 	}
 
 	public PlanetRenderingContext() {
-		final var builder1 = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.QUAD_DUPLICATED,
-				BufferLayout.POSITION_TEX_COLOR_NORMAL);
-		RenderHelper.addCubeSphere(builder1, Vec3.ZERO, 1, 16);
-		this.sphereMesh.setupAndUpload(builder1.end());
-		final var builder2 = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.QUAD_DUPLICATED,
-				BufferLayout.POSITION_TEX_COLOR_NORMAL);
-		RenderHelper.addCubeSphere(builder2, Vec3.ZERO, 1, 16);
-		this.sphereMesh.setupAndUpload(builder2.end());
+		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
+				IndexPattern.QUADS, BufferLayout.POSITION_TEX_COLOR_NORMAL);
+		RenderHelper.addCubeSphere(builder, Vec3.ZERO, 1, 16);
+		this.sphereMesh.setupAndUpload(builder.end());
 	}
 
 	@Override
@@ -534,35 +531,6 @@ public final class PlanetRenderingContext implements Disposable {
 		}
 	}
 
-	private GlTexture1d generateGasGiantGradientTexture(PlanetaryCelestialNode node) {
-		final var rng = new SplittableRng(node.seed);
-
-		// final var palette = getColorTable();
-
-		final var colorSpline = new ColorSpline();
-
-		colorSpline.addControlPoint(0, ColorRgba.BLACK);
-		colorSpline.addControlPoint(1, ColorRgba.WHITE);
-
-		// final var pickingRng = rng.rng("picking");
-		// ColorRgba endColor = palette.pick(pickingRng);
-		// endColor = endColor == null ? ColorRgba.MAGENTA : endColor;
-
-		// float t = 0;
-		// rng.push("spline");
-		// while (t < 1) {
-		// final var color = palette.pick(pickingRng);
-		// if (color == null)
-		// break;
-		// colorSpline.addControlPoint(t, color);
-		// t += rng.weightedDouble("t", 4.0, 0.6, 0.3);
-		// }
-		// rng.pop();
-		// colorSpline.addControlPoint(1f, endColor);
-
-		return createGradientTextureFromSpline(colorSpline);
-	}
-
 	private ClientNodeInfo makeClientInfoIfNeeded(UnaryCelestialNode node) {
 		if (this.clientInfos.containsKey(node))
 			return this.clientInfos.getOrNull(node);
@@ -662,17 +630,14 @@ public final class PlanetRenderingContext implements Disposable {
 		pointShader.setUniformf("uStarLuminosityMax", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_MAX));
 		pointShader.setUniformf("uStarBrightnessScale", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_SCALE));
 		pointShader.setUniformf("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
-		pointShader.setUniformf("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
-		pointShader.setUniformf("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
-		pointShader.setUniformf("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));
 
 		// StarRenderManager.setupStarShader(pointShader, camera);
 
 		if (!skip && !(node instanceof StellarCelestialNode starNode
 				&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE)) {
 
-			// final var builder2 = builder.beginGeneric(PrimitiveType.POINT,
-			// 		UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_REALISTIC);
+			final var builder2 = builder.beginGeneric(PrimitiveType.POINT,
+					UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_REALISTIC);
 
 			// final var actualOrigin = this.floatingOrigin;
 
@@ -718,22 +683,22 @@ public final class PlanetRenderingContext implements Disposable {
 
 			// final var nodePos = node.position.div(1e12 / camera.metersPerUnit);
 
-			// if (node instanceof StellarCelestialNode starNode) {
-			// 	builder2.vertex(nodePos)
-			// 			.color(starNode.getColor())
-			// 			.uv0((float) starNode.luminosityLsol, 0)
-			// 			.endVertex();
-			// } else {
-			// 	// builder2.vertex(nodePos)
-			// 	builder2.vertex(this.origin)
-			// 			// TODO: determine color and luminosity from reflected light
-			// 			.color(ColorRgba.WHITE)
-			// 			// .uv0(0.0000000018554f, 0)
-			// 			.uv0(100000f, 0)
-			// 			.endVertex();
-			// }
-			// builder2.end().draw(pointShader, DRAW_STATE_ADDITIVE_BLENDING);
-			// this.sphereMesh.draw(nodeShader, DRAW_STATE_OPAQUE);
+			if (node instanceof StellarCelestialNode starNode) {
+				builder2.vertex(nodePos)
+						.color(starNode.getColor())
+						.uv0((float) starNode.luminosityLsol, 0)
+						.endVertex();
+			} else {
+				// builder2.vertex(nodePos)
+				builder2.vertex(this.origin)
+						// TODO: determine color and luminosity from reflected light
+						.color(ColorRgba.WHITE)
+						// .uv0(0.0000000018554f, 0)
+						.uv0(100000f, 0)
+						.endVertex();
+			}
+			builder2.end().draw(pointShader, DRAW_STATE_ADDITIVE_BLENDING);
+			this.sphereMesh.draw(nodeShader, DRAW_STATE_OPAQUE);
 		}
 	}
 

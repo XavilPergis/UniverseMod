@@ -44,11 +44,10 @@ public interface NumericOps<T> {
 		// @formatter:on
 	};
 
-	static NumericOps<Vec2> VEC2 = new NumericOps<Vec2>() {		
+	static NumericOps<Vec2> VEC2 = new NumericOps<Vec2>() {
 		// @formatter:off
-		private static final Vec2 ONE = Vec2.broadcast(1.0);
-		@Override public Vec2 zero() { return Vec2.ZERO; }
-		@Override public Vec2 one() { return ONE; }
+		@Override public Vec2 zero() { return Vec2.CC; }
+		@Override public Vec2 one() { return Vec2.PP; }
 		@Override public Vec2 add(  Vec2 a, Vec2 b) { return a.add(b); }
 		@Override public Vec2 sub(  Vec2 a, Vec2 b) { return a.sub(b); }
 		@Override public Vec2 mul(  Vec2 a, Vec2 b) { return a.mul(b); }
@@ -59,9 +58,8 @@ public interface NumericOps<T> {
 
 	static NumericOps<Vec3> VEC3 = new NumericOps<Vec3>() {
 		// @formatter:off
-		private static final Vec3 ONE = Vec3.broadcast(1.0);
-		@Override public Vec3 zero() { return Vec3.ZERO; }
-		@Override public Vec3 one() { return ONE; }
+		@Override public Vec3 zero() { return Vec3.CCC; }
+		@Override public Vec3 one() { return Vec3.PPP; }
 		@Override public Vec3 add(  Vec3 a, Vec3 b) { return a.add(b); }
 		@Override public Vec3 sub(  Vec3 a, Vec3 b) { return a.sub(b); }
 		@Override public Vec3 mul(  Vec3 a, Vec3 b) { return a.mul(b); }
@@ -72,10 +70,8 @@ public interface NumericOps<T> {
 
 	static NumericOps<Vec4> VEC4 = new NumericOps<Vec4>() {
 		// @formatter:off
-		private static final Vec4 ZERO = Vec4.broadcast(0.0);
-		private static final Vec4 ONE = Vec4.broadcast(1.0);
-		@Override public Vec4 zero() { return ZERO; }
-		@Override public Vec4 one() { return ONE; }
+		@Override public Vec4 zero() { return Vec4.CCCC; }
+		@Override public Vec4 one() { return Vec4.PPPP; }
 		@Override public Vec4 add(  Vec4 a, Vec4 b) { return a.add(b); }
 		@Override public Vec4 sub(  Vec4 a, Vec4 b) { return a.sub(b); }
 		@Override public Vec4 mul(  Vec4 a, Vec4 b) { return a.mul(b); }

@@ -72,6 +72,20 @@ public class CachedCamera {
 		applyView(this.inverseViewMatrix);
 	}
 
+	public void applyView(Vec3Access offset) {
+		final var poseStack = RenderSystem.getModelViewStack();
+		poseStack.setIdentity();
+
+ 		poseStack.mulPose(this.orientation.asMinecraft());
+		poseStack.translate(offset.x(), offset.y(), offset.z());
+		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
+		if (inverseViewRotationMatrix.invert()) {
+			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
+		}
+
+		RenderSystem.applyModelViewMatrix();
+	}
+
 	public static void applyView(Mat4Access viewMatrix) {
 		final var poseStack = RenderSystem.getModelViewStack();
 		poseStack.setIdentity();

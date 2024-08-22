@@ -3,7 +3,6 @@ package net.xavil.hawklib.math.matrices;
 import com.mojang.math.Matrix4f;
 
 import net.xavil.hawklib.Maybe;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 import net.xavil.hawklib.math.Quat;
@@ -62,6 +61,14 @@ public final class Mat4 implements Hashable, Mat4Access {
 		return fromColumns(x.xyz0(), y.xyz0(), z.xyz0(), pos.xyz1());
 	}
 
+	public static Mat4 diagonal(Vec3Access diag) {
+		return new Mat4(
+				diag.x(), 0.0, 0.0, 0.0,
+				0.0, diag.y(), 0.0, 0.0,
+				0.0, 0.0, diag.z(), 0.0,
+				0.0, 0.0, 0.0, 1.0);
+	}
+
 	public static Mat4 diagonal(Vec4Access diag) {
 		return new Mat4(
 				diag.x(), 0.0, 0.0, 0.0,
@@ -71,7 +78,7 @@ public final class Mat4 implements Hashable, Mat4Access {
 	}
 
 	public static Mat4 scale(double n) {
-		return diagonal(Vec3.broadcast(n).xyz1());
+		return diagonal(Vec3.broadcast(n));
 	}
 
 	public static Mat4 perspectiveProjection(double fovRad, double aspectRatio, double near, double far) {
@@ -663,14 +670,6 @@ public final class Mat4 implements Hashable, Mat4Access {
 				m.m30, m.m31, m.m32, m.m33);
 	}
 
-	public static Mat4 from(Mutable m) {
-		return new Mat4(
-				m.r0c0, m.r0c1, m.r0c2, m.r0c3,
-				m.r1c0, m.r1c1, m.r1c2, m.r1c3,
-				m.r2c0, m.r2c1, m.r2c2, m.r2c3,
-				m.r3c0, m.r3c1, m.r3c2, m.r3c3);
-	}
-
 	@Override
 	public boolean equals(Object obj) {
 		if (obj instanceof Mat4Access other) {
@@ -698,7 +697,7 @@ public final class Mat4 implements Hashable, Mat4Access {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override
@@ -868,7 +867,7 @@ public final class Mat4 implements Hashable, Mat4Access {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override

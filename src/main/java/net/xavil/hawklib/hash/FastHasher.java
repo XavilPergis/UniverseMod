@@ -14,10 +14,6 @@ public class FastHasher implements Hasher {
 		return new FastHasher(0).append(hashable).currentHashInt();
 	}
 
-	public static long hashInt(int value) {
-		return new FastHasher(0).appendInt(value).currentHash();
-	}
-
 	private static long rol(long x, long r) {
 		return (x << r) | (x >>> (64 - r));
 	}

@@ -1,7 +1,6 @@
 package net.xavil.hawklib.math;
 
 import net.minecraft.util.Mth;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
@@ -176,7 +175,7 @@ public final class ColorRgba implements ColorAccess, Hashable {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override

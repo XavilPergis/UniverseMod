@@ -2,7 +2,6 @@ package net.xavil.hawklib.tuple;
 
 import java.util.Objects;
 
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
@@ -34,7 +33,7 @@ public final class Tuple3<A, B, C> implements Hashable {
 
     @Override
     public int hashCode() {
-        return FastHasher.hashToInt(this);
+        return hashToInt();
     }
 
     @Override

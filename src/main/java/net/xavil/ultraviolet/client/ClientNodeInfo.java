@@ -10,10 +10,14 @@ import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
 import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
 
 public final class ClientNodeInfo implements Disposable {
+
+	// the node this client info is associated with.
 	public final UnaryCelestialNode node;
 
 	public boolean wasUsedThisFrame = false;
 	public GlTexture1d gasGiantGradient;
+
+	// TODO: billboard texture + tracking info like billboard orientation
 
 	public ClientNodeInfo(UnaryCelestialNode node) {
 		this.node = node;
@@ -38,11 +42,11 @@ public final class ClientNodeInfo implements Disposable {
 
 		final var colorSpline = new ColorSpline();
 
-		// colorSpline.addControlPoint(0, ColorRgba.BLACK);
-		colorSpline.addControlPoint(0, ColorRgba.RED);
-		// colorSpline.addControlPoint(0.7f, ColorRgba.RED);
-		// colorSpline.addControlPoint(0, ColorRgba.WHITE);
-		colorSpline.addControlPoint(1, ColorRgba.WHITE);
+		colorSpline.addControlPoint(0, ColorRgba.BLACK.withA(0));
+		// colorSpline.addControlPoint(0, ColorRgba.RED.withA(0));
+		colorSpline.addControlPoint(0.7f, ColorRgba.RED.withA(0));
+		// colorSpline.addControlPoint(0, ColorRgba.WHITE.withA(0));
+		colorSpline.addControlPoint(1, ColorRgba.WHITE.withA(0));
 
 		// final var pickingRng = rng.rng("picking");
 		// ColorRgba endColor = palette.pick(pickingRng);

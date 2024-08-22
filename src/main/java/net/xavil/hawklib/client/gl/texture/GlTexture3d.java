@@ -33,9 +33,9 @@ public final class GlTexture3d extends GlTexture {
 	public void createStorage(GlTexture.Format textureFormat, int width, int height, int depth) {
 		GlLimits.validateTextureSize(width);
 		if (this.textureFormat == textureFormat
-				&& this.size.width == width
-				&& this.size.height == height
-				&& this.size.depth == depth)
+				&& this.size.x == width
+				&& this.size.y == height
+				&& this.size.z == depth)
 			return;
 
 		GL45C.glTextureStorage3D(this.id, 1, textureFormat.id, width, height, depth);

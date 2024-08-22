@@ -10,7 +10,7 @@ import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.gl.GlPerf;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
@@ -169,7 +169,7 @@ public final class ScreenLayerGpuTimers extends HawkScreen.Layer2d {
         renderPerfNode(info, GlPerf.ROOT, rootCpu, rootGpu);
         sink.draw(BufferRenderer.IMMEDIATE_BUILDER, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING, 1f);
 
-        final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(PrimitiveType.LINE_DUPLICATED,
+        final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(IndexPattern.VANILLA_LINES,
                 BufferLayout.POSITION_COLOR_NORMAL);
         for (int i = 0; i < info.linePositions.size() - 1;) {
             final var start = info.linePositions.get(i++);

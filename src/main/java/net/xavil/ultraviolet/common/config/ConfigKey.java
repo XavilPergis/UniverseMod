@@ -116,33 +116,36 @@ public final class ConfigKey<T> {
 	}
 
 	// @formatter:off
-	public static final ConfigKey<Boolean> SHOW_SECTOR_BOUNDARIES             = booleanKey("debug.showSectorBoundaries",          false, Side.CLIENT);
-	// public static final ConfigKey<Boolean> SECTOR_TICKET_AROUND_FOCUS         = booleanKey("debug.sectorTicketAroundFocus",       false, Side.CLIENT);
-	public static final ConfigKey<Boolean> SHOW_LINE_LODS                     = booleanKey("debug.showLineLods",                  false, Side.CLIENT);
-	public static final ConfigKey<Boolean> SHOW_ALL_LINE_LODS                 = booleanKey("debug.showAllLineLods",               false, Side.CLIENT);
-	public static final ConfigKey<Integer> GRID_LINE_SUBDIVISIONS             = intKey    ("debug.gridLineSubdivisions",          2,     Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_SECTOR_BOUNDARIES = booleanKey("debug.showSectorBoundaries", false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_LINE_LODS = booleanKey("debug.showLineLods", false, Side.CLIENT);
+	public static final ConfigKey<Boolean> SHOW_ALL_LINE_LODS = booleanKey("debug.showAllLineLods", false, Side.CLIENT);
+	public static final ConfigKey<Integer> GRID_LINE_SUBDIVISIONS = intKey("debug.gridLineSubdivisions", 2, Side.CLIENT);
 	public static final ConfigKey<Boolean> FORCE_STAR_RENDERER_IMMEDIATE_MODE = booleanKey("debug.forceStarRendererImediateMode", false, Side.CLIENT);
 
 	public static final ConfigKey<Integer> GALAXY_PARTILE_ATTEMPT_COUNT = intKey("galaxy.particle.attemptCount", 1000000, Side.CLIENT);
-	public static final ConfigKey<Integer> GALAXY_PARTILE_MAX_PARTICLES = intKey("galaxy.particle.maxParticles", 2500,    Side.CLIENT);
+	public static final ConfigKey<Integer> GALAXY_PARTILE_MAX_PARTICLES = intKey("galaxy.particle.maxParticles", 10000, Side.CLIENT);
 
-	public static final ConfigKey<Double>  PLANET_EXAGGERATION_FACTOR   = doubleKey("planetExaggerationFactor", 1.0, Side.CLIENT);
+	public static final ConfigKey<Double>  PLANET_EXAGGERATION_FACTOR = doubleKey("planetExaggerationFactor", 1.0, Side.CLIENT);
 
-	public static final ConfigKey<Float> STAR_SHADER_STAR_SIZE           = floatKey("shader.star.starSize",           3f,    Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_LUMINOSITY_SCALE    = floatKey("shader.star.luminosityScale",    1f,    Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_LUMINOSITY_MAX      = floatKey("shader.star.luminosityMax",      1e12f, Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_BRIGHTNESS_SCALE    = floatKey("shader.star.brightnessScale",    1f,    Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_BRIGHTNESS_MAX      = floatKey("shader.star.brightnessMax",      100f,  Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_REFERENCE_MAGNITUDE = floatKey("shader.star.referenceMagnitude", 6f,    Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_MAGNITUDE_BASE      = floatKey("shader.star.magnitudeBase",      10f,   Side.CLIENT);
-	public static final ConfigKey<Float> STAR_SHADER_MAGNITUDE_POWER     = floatKey("shader.star.magnitudePower",     10f,   Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_STAR_SIZE = floatKey("shader.starBillboardRealistic.starSize", 3f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_LUMINOSITY_SCALE = floatKey("shader.starBillboardRealistic.luminosityScale", 1f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_LUMINOSITY_MAX = floatKey("shader.starBillboardRealistic.luminosityMax", 1e12f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_BRIGHTNESS_SCALE = floatKey("shader.starBillboardRealistic.brightnessScale", 10f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_BRIGHTNESS_MAX = floatKey("shader.starBillboardRealistic.brightnessMax", 100f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_UI_MIN_DISTANCE = floatKey("shader.starBillboardUi.minDistance", 0f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_UI_MAX_DISTANCE = floatKey("shader.starBillboardUi.maxDistance", 100000f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_UI_FADEOUT_DISTANCE = floatKey("shader.starBillboardUi.fadeoutDistance", 5000000f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_UI_MIN_SIZE = floatKey("shader.starBillboardUi.minSize", 3f, Side.CLIENT);
+	public static final ConfigKey<Float> STAR_SHADER_UI_MAX_SIZE = floatKey("shader.starBillboardUi.maxSize", 15f, Side.CLIENT);
 
-	public static final ConfigKey<Float> POST_SHADER_EXPOSURE            = floatKey("shader.post.exposure",           1f,    Side.CLIENT);
+	public static final ConfigKey<Float> GALAXY_SHADER_PARTICLE_BRIGHTNESS = floatKey("shader.galaxy_particle.particleBrigthness", 0.02f, Side.CLIENT);
 
-	public static final ConfigKey<Double>  MIN_GRAVITY       = doubleKey ("gravity.min",      0.2,   Side.SERVER);
-	public static final ConfigKey<Double>  MAX_GRAVITY       = doubleKey ("gravity.max",      1.2,   Side.SERVER);
+	public static final ConfigKey<Float> POST_SHADER_EXPOSURE = floatKey("shader.post.exposure", 1f, Side.CLIENT);
+
+	public static final ConfigKey<Double>  MIN_GRAVITY = doubleKey ("gravity.min", 0.2, Side.SERVER);
+	public static final ConfigKey<Double>  MAX_GRAVITY = doubleKey ("gravity.max", 1.2, Side.SERVER);
 	public static final ConfigKey<Boolean> USE_FIXED_GRAVITY = booleanKey("gravity.useFixed", false, Side.SERVER);
-	public static final ConfigKey<Double>  FIXED_GRAVITY     = doubleKey ("gravity.fixed",    1.0,   Side.SERVER);
+	public static final ConfigKey<Double>  FIXED_GRAVITY = doubleKey ("gravity.fixed", 1.0, Side.SERVER);
 	// @formatter:on
 
 }

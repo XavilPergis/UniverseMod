@@ -8,20 +8,24 @@ import com.mojang.math.Matrix4f;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
-
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.camera.CachedCamera;
+import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
+import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.GlState;
-import net.xavil.hawklib.client.gl.texture.GlTextureCubemap;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
+import net.xavil.hawklib.client.gl.texture.GlTextureCubemap;
+import net.xavil.hawklib.math.Quat;
+import net.xavil.hawklib.math.TransformStack;
+import net.xavil.hawklib.math.matrices.Mat4;
+import net.xavil.hawklib.math.matrices.Vec2;
+import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.Mod;
-import net.xavil.hawklib.client.camera.CachedCamera;
-import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
-import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.ultraviolet.common.config.ClientConfig;
 import net.xavil.ultraviolet.common.config.ConfigKey;
 import net.xavil.ultraviolet.common.universe.WorldType;
@@ -39,11 +43,6 @@ import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
-import net.xavil.hawklib.math.Quat;
-import net.xavil.hawklib.math.TransformStack;
-import net.xavil.hawklib.math.matrices.Mat4;
-import net.xavil.hawklib.math.matrices.Vec2;
-import net.xavil.hawklib.math.matrices.Vec3;
 
 public class SkyRenderer implements Disposable {
 
@@ -383,6 +382,7 @@ public class SkyRenderer implements Disposable {
 		if (this.mainSkyTarget == null) {
 			Mod.LOGGER.info("creating SkyRenderer framebuffer");
 			this.mainSkyTarget = new GlFramebuffer(GlFragmentWrites.COLOR_ONLY);
+			this.mainSkyTarget.setDebugName("MainSkyTarget");
 			this.mainSkyTarget.createColorTarget(GlFragmentWrites.COLOR, GlTexture.Format.RGBA16_FLOAT);
 			this.mainSkyTarget.createDepthTarget(false, GlTexture.Format.DEPTH_UNSPECIFIED);
 			this.mainSkyTarget.enableAllColorAttachments();
@@ -397,10 +397,6 @@ public class SkyRenderer implements Disposable {
 		drawCelestialObjects(camera, this.mainSkyTarget, partialTick);
 		// drawCelestialObjects(camera, mainTarget, partialTick);
 		profiler.pop();
-
-		// make bottom hemisphere the same as the fog color.
-		final var tfm = new TransformStack();
-		final var cam2 = createCamera(camera, tfm, 1e2, 1e10, partialTick);
 
 		// profiler.push("postprocess");
 		// final var sceneTexture =

@@ -12,7 +12,7 @@ import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.gl.GlPerf;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
@@ -55,15 +55,16 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		// scales = SectorTicketInfo.Multi.SCALES_UNIFORM;
 		// scales = new double[] { 1, 2, 5, 12, 20, 40, 80, 512 };
 		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
-				new SectorTicketInfo.Multi(Vec3.ZERO, GalaxySector.BASE_SIZE_Tm, scales)));
+				new SectorTicketInfo.Multi(originOffset, GalaxySector.BASE_SIZE_Tm, scales)));
 		this.starRenderer.setOriginOffset(this.originOffset);
 	}
 
 	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
 		// return camera.focus;
 		if (this.mapMode)
+			// return camera.focus.sub(this.originOffset);
 			return camera.focus;
-		return camera.pos.sub(this.originOffset).mul(camera.metersPerUnit / 1e12);
+		return camera.posTm.xyz();
 	}
 
 	@Override
@@ -224,7 +225,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			final var shader = UltravioletShaders.SHADER_UI_QUADS.get();
 			shader.setupDefaultShaderUniforms();
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					PrimitiveType.QUAD_DUPLICATED, BufferLayout.POSITION_COLOR_TEX);
+					IndexPattern.QUADS, BufferLayout.POSITION_COLOR_TEX);
 
 			final var distance = camera.pos.distanceTo(selectedSystem.pos);
 			final Vec3 xo = camera.right.mul(0.05 * distance), yo = camera.up.mul(0.05 * distance);
@@ -248,7 +249,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		if (ClientConfig.get(ConfigKey.SHOW_SECTOR_BOUNDARIES)) {
 			GlPerf.swap("sector_boundaries");
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER
-					.beginGeneric(PrimitiveType.LINE_DUPLICATED, BufferLayout.POSITION_COLOR_NORMAL);
+					.beginGeneric(IndexPattern.VANILLA_LINES, BufferLayout.POSITION_COLOR_NORMAL);
 			ticket.attachedManager.enumerate(ticket, sector -> {
 				final Vec3 s = sector.pos().minBound(), e = sector.pos().maxBound();
 				final var color = ClientConfig.getDebugColor(sector.pos().level()).withA(0.1f);

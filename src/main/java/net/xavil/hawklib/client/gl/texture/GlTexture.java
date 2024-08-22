@@ -315,7 +315,9 @@ public abstract class GlTexture extends GlObject {
 		D2_MS(GL45C.GL_TEXTURE_2D_MULTISAMPLE, GL45C.GL_TEXTURE_BINDING_2D_MULTISAMPLE, null, "2D Multisampled"),
 		D2_MS_ARRAY(GL45C.GL_TEXTURE_2D_MULTISAMPLE_ARRAY, GL45C.GL_TEXTURE_BINDING_2D_MULTISAMPLE_ARRAY, null,
 				"2D Multisampled Array"),
-		BUFFER(GL45C.GL_TEXTURE_BUFFER, GL45C.GL_TEXTURE_BINDING_BUFFER, null, "Buffer-Backed"),
+		// usecases for this seem to be superseded by SSBOs
+		BUFFER(GL45C.GL_TEXTURE_BUFFER, GL45C.GL_TEXTURE_BINDING_BUFFER, SliceDimension.D1, "Buffer-Backed"),
+		// this seems to be legacy opengl cruft.
 		RECTANGLE(GL45C.GL_TEXTURE_RECTANGLE, GL45C.GL_TEXTURE_BINDING_RECTANGLE, SliceDimension.D2, "Rectangle");
 
 		public final int id;
@@ -355,37 +357,37 @@ public abstract class GlTexture extends GlObject {
 	}
 
 	public static final class Size {
-		public final int width;
-		public final int height;
-		public final int depth;
+		public final int x;
+		public final int y;
+		public final int z;
 		public final int layers;
 
 		public static final Size ZERO = new Size(0, 0, 0, 0);
 
-		public Size(int width, int height, int depth, int layers) {
-			this.width = width;
-			this.height = height;
-			this.depth = depth;
+		public Size(int x, int y, int z, int layers) {
+			this.x = x;
+			this.y = y;
+			this.z = z;
 			this.layers = layers;
 		}
 
 		public Vec2i d2() {
-			return new Vec2i(this.width, this.height);
+			return new Vec2i(this.x, this.y);
 		}
 
 		public Vec3i d3() {
-			return new Vec3i(this.width, this.height, this.depth);
+			return new Vec3i(this.x, this.y, this.z);
 		}
 
 		@Override
 		public String toString() {
 			final var builder = new StringBuilder();
-			builder.append(this.width);
+			builder.append(this.x);
 			builder.append('x');
-			builder.append(this.height);
-			if (this.depth > 1) {
+			builder.append(this.y);
+			if (this.z > 1) {
 				builder.append('x');
-				builder.append(this.depth);
+				builder.append(this.z);
 			}
 			if (this.layers > 1) {
 				builder.append('x');
@@ -395,7 +397,7 @@ public abstract class GlTexture extends GlObject {
 		}
 
 		public int texelCount() {
-			return this.width * this.height * this.depth * this.layers;
+			return this.x * this.y * this.z * this.layers;
 		}
 	}
 
@@ -658,7 +660,7 @@ public abstract class GlTexture extends GlObject {
 					"%s: texture is not sliceable",
 					this.debugDescription()));
 		return new Slice(this, this.type.sliceDimension, lodLevel, 0, this.size.layers,
-				0, 0, 0, this.size.width, this.size.height, this.size.depth);
+				0, 0, 0, this.size.x, this.size.y, this.size.z);
 	}
 
 	/**
@@ -704,13 +706,13 @@ public abstract class GlTexture extends GlObject {
 						texture.debugDescription(), texture.type, dimension));
 			}
 
-			if (offsetX + sizeX > texture.size.width
-					|| offsetY + sizeY > texture.size.height
-					|| offsetZ + sizeZ > texture.size.depth) {
+			if (offsetX + sizeX > texture.size.x
+					|| offsetY + sizeY > texture.size.y
+					|| offsetZ + sizeZ > texture.size.z) {
 				throw new IllegalArgumentException(String.format(
 						"%s: texture slice bounds error: texture size is (%d,%d,%d), but slice covers (%d,%d,%d) to (%d,%d,%d)",
 						texture.debugDescription(),
-						texture.size.width, texture.size.height, texture.size.depth,
+						texture.size.x, texture.size.y, texture.size.z,
 						offsetX, offsetY, offsetZ,
 						offsetX + sizeX, offsetY + sizeY, offsetZ + sizeZ));
 			}

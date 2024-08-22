@@ -11,7 +11,6 @@ import net.minecraft.util.Mth;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.GlBuffer;
 import net.xavil.hawklib.client.gl.GlFence;
-import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.GlPerf;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.gl.texture.GlTexture2d;
@@ -26,7 +25,6 @@ public final class AverageLuminanceComputer implements Disposable {
 
 	public static final int HISTOGRAM_SIZE = 256;
 	public static final int HISTOGRAM_SIZE_BYTES = 4 * HISTOGRAM_SIZE;
-	private static final double TEMPORAL_FACTOR = 0.05;
 
 	private final GlBuffer histogramBuffer;
 	private final GlBuffer readbackBuffer;
@@ -56,8 +54,7 @@ public final class AverageLuminanceComputer implements Disposable {
 		// client-accessible buffer to copy the histogram into
 		this.readbackBuffer.allocateImmutableStorage(maxInFlight * HISTOGRAM_SIZE_BYTES,
 				GL45C.GL_MAP_READ_BIT | GL45C.GL_MAP_PERSISTENT_BIT | GL45C.GL_CLIENT_STORAGE_BIT);
-		this.readbackPointer = this.readbackBuffer
-				.map(GL45C.GL_MAP_READ_BIT | GL45C.GL_MAP_PERSISTENT_BIT | GL45C.GL_MAP_UNSYNCHRONIZED_BIT);
+		this.readbackPointer = this.readbackBuffer.map(GL45C.GL_MAP_READ_BIT | GL45C.GL_MAP_PERSISTENT_BIT);
 
 		for (int i = 0; i < maxInFlight; ++i) {
 			this.fences[i] = new GlFence();

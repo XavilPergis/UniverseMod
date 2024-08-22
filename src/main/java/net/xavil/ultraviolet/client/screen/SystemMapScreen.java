@@ -18,8 +18,10 @@ import net.xavil.hawklib.client.camera.MotionSmoother;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.gl.DrawState;
+import net.xavil.hawklib.client.gl.GlState;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
@@ -229,22 +231,22 @@ public class SystemMapScreen extends HawkScreen {
 	private void renderNode(RenderContext ctx, LayoutNode layout, Vec2 pos, boolean isVertical) {
 		double currentLineStart = 0;
 		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-				PrimitiveType.LINE_DUPLICATED,
+				IndexPattern.VANILLA_LINES,
 				BufferLayout.POSITION_COLOR_NORMAL);
 		for (final var elem : layout.elements.iterable()) {
 			if (elem.node instanceof LayoutNodeBinary) {
 				final var startU = new Vec2(currentLineStart, 0);
 				final var endU = new Vec2(elem.nodeOffset - elem.node.rectOffsetVN, 0);
 				currentLineStart = elem.nodeOffset + elem.node.rectOffsetVP;
-				final var start = pos.add(transpose(startU, !isVertical)).withZ(-9);
-				final var end = pos.add(transpose(endU, !isVertical)).withZ(-9);
+				final var start = pos.add(transpose(startU, !isVertical)).withZ(-10);
+				final var end = pos.add(transpose(endU, !isVertical)).withZ(-10);
 				RenderHelper.addLine(lineBuilder, start, end, ColorRgba.WHITE);
 			} else {
 				final var startU = new Vec2(currentLineStart, 0);
 				final var endU = new Vec2(elem.nodeOffset, 0);
 				currentLineStart = elem.nodeOffset;
-				final var start = pos.add(transpose(startU, !isVertical)).withZ(-9);
-				final var end = pos.add(transpose(endU, !isVertical)).withZ(-9);
+				final var start = pos.add(transpose(startU, !isVertical)).withZ(-10);
+				final var end = pos.add(transpose(endU, !isVertical)).withZ(-10);
 				RenderHelper.addLine(lineBuilder, start, end, ColorRgba.WHITE);
 			}
 		}
@@ -275,8 +277,7 @@ public class SystemMapScreen extends HawkScreen {
 			modelTfm.appendTranslation(pos.xy0());
 
 			final var quadBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					PrimitiveType.QUAD_DUPLICATED,
-					BufferLayout.POSITION_COLOR_TEX);
+					IndexPattern.QUADS, BufferLayout.POSITION_COLOR_TEX);
 
 			final var s = 1.0 * layout.nodeSize;
 			final var sNN = pos.add(transpose(new Vec2(-s, -s), !isVertical)).withZ(-0.2);
@@ -321,7 +322,7 @@ public class SystemMapScreen extends HawkScreen {
 			renderNode(ctx, bnode.nodeB, elemPosB, isVertical);
 
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					PrimitiveType.LINE_DUPLICATED,
+					IndexPattern.VANILLA_LINES,
 					BufferLayout.POSITION_COLOR_NORMAL);
 			final var da = layout.rectOffsetUN - bnode.nodeA.rectOffsetUN;
 			final var db = layout.rectOffsetUN - bnode.nodeB.rectOffsetUN;
@@ -352,7 +353,7 @@ public class SystemMapScreen extends HawkScreen {
 
 		if (shouldRenderDebugInfo()) {
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					PrimitiveType.LINE_DUPLICATED,
+					IndexPattern.VANILLA_LINES,
 					BufferLayout.POSITION_COLOR_NORMAL);
 			final var s = layout.nodeSize;
 			// @formatter:off

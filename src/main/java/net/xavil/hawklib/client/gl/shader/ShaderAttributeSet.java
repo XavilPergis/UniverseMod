@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.DefaultVertexFormat;
 import com.mojang.blaze3d.vertex.VertexFormat;
 
 import net.xavil.hawklib.client.flexible.BufferLayout;
+import net.xavil.hawklib.client.gl.ComponentType;
 import net.xavil.hawklib.client.gl.GlLimits;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.ImmutableList;
@@ -21,17 +22,17 @@ public final class ShaderAttributeSet implements Hashable {
 
 	// @formatter:off
 	public static final AttributeType
-			FLOAT1 = new AttributeType(BufferLayout.AttributeType.FLOAT, 1, 1),
-			FLOAT2 = new AttributeType(BufferLayout.AttributeType.FLOAT, 2, 1),
-			FLOAT3 = new AttributeType(BufferLayout.AttributeType.FLOAT, 3, 1),
-			FLOAT4 = new AttributeType(BufferLayout.AttributeType.FLOAT, 4, 1),
-			MAT2 = new AttributeType(BufferLayout.AttributeType.FLOAT, 2, 2),
-			MAT3 = new AttributeType(BufferLayout.AttributeType.FLOAT, 3, 3),
-			MAT4 = new AttributeType(BufferLayout.AttributeType.FLOAT, 4, 4),
-			INT1 = new AttributeType(BufferLayout.AttributeType.INT, 1, 1),
-			INT2 = new AttributeType(BufferLayout.AttributeType.INT, 2, 1),
-			INT3 = new AttributeType(BufferLayout.AttributeType.INT, 3, 1),
-			INT4 = new AttributeType(BufferLayout.AttributeType.INT, 4, 1);
+			FLOAT1 = new AttributeType(ComponentType.InterpretAs.FLOAT, 1, 1),
+			FLOAT2 = new AttributeType(ComponentType.InterpretAs.FLOAT, 2, 1),
+			FLOAT3 = new AttributeType(ComponentType.InterpretAs.FLOAT, 3, 1),
+			FLOAT4 = new AttributeType(ComponentType.InterpretAs.FLOAT, 4, 1),
+			MAT2 = new AttributeType(ComponentType.InterpretAs.FLOAT, 2, 2),
+			MAT3 = new AttributeType(ComponentType.InterpretAs.FLOAT, 3, 3),
+			MAT4 = new AttributeType(ComponentType.InterpretAs.FLOAT, 4, 4),
+			INT1 = new AttributeType(ComponentType.InterpretAs.INT, 1, 1),
+			INT2 = new AttributeType(ComponentType.InterpretAs.INT, 2, 1),
+			INT3 = new AttributeType(ComponentType.InterpretAs.INT, 3, 1),
+			INT4 = new AttributeType(ComponentType.InterpretAs.INT, 4, 1);
 	// @formatter:on
 
 	public static final ShaderAttributeSet EMPTY = builder().build();
@@ -95,7 +96,7 @@ public final class ShaderAttributeSet implements Hashable {
 		final var hasher = new FastHasher();
 		hasher.appendInt(this.attributes.size());
 		for (final var attrib : this.attributes.iterable()) {
-			hasher.appendString(attrib.name);
+			hasher.append(attrib.name);
 			hasher.append(attrib.attribType);
 			hasher.appendInt(attrib.attrib.hashCode());
 		}
@@ -120,7 +121,7 @@ public final class ShaderAttributeSet implements Hashable {
 		int i = 0;
 		for (final var attribName : elementMapping.keys().iterable()) {
 			final var elem = elementMapping.getOrThrow(attribName);
-			// count up the slots even if we don't add the attribut to the output! This is
+			// count up the slots even if we don't add the attribute to the output! This is
 			// what vanilla does in ShaderInstance's constructor!
 			final var attribIndex = i++;
 
@@ -164,7 +165,7 @@ public final class ShaderAttributeSet implements Hashable {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override
@@ -178,6 +179,20 @@ public final class ShaderAttributeSet implements Hashable {
 			return other.computedHash == this.computedHash;
 		}
 		return false;
+	}
+
+	public String debugDescription() {
+		String res = "";
+		for (final var attrib : this.attributes.iterable()) {
+			res += String.format("\n- '%s': %dx%d %s (%s) %s",
+					attrib.name,
+					attrib.attribType.componentCount,
+					attrib.attribType.attribSlotCount,
+					attrib.attribType.interpretAs.name,
+					attrib.attrib,
+					attrib.instanceRate);
+		}
+		return res.toString();
 	}
 
 	public static enum InstanceRate {
@@ -202,19 +217,19 @@ public final class ShaderAttributeSet implements Hashable {
 	}
 
 	public static final class AttributeType implements Hashable {
-		public final BufferLayout.AttributeType attribType;
+		public final ComponentType.InterpretAs interpretAs;
 		public final int componentCount;
 		public final int attribSlotCount;
 
 		private final long computedHash;
 
-		public AttributeType(BufferLayout.AttributeType attribType, int componentCount, int attribSlotCount) {
-			this.attribType = attribType;
+		public AttributeType(ComponentType.InterpretAs attribType, int componentCount, int attribSlotCount) {
+			this.interpretAs = attribType;
 			this.componentCount = componentCount;
 			this.attribSlotCount = attribSlotCount;
 
 			final var hasher = new FastHasher();
-			hasher.appendInt(this.attribType.ordinal());
+			hasher.appendInt(this.interpretAs.ordinal());
 			hasher.appendInt(this.componentCount);
 			hasher.appendInt(this.attribSlotCount);
 			this.computedHash = hasher.currentHash();
@@ -222,7 +237,7 @@ public final class ShaderAttributeSet implements Hashable {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override

@@ -5,23 +5,36 @@ import java.util.function.Consumer;
 import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
-import net.xavil.hawklib.hash.FastHasher;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
 public class Vec2i implements Hashable {
 
-	public static final Vec2i ZERO = new Vec2i(0, 0);
-	public static final Vec2i XN = new Vec2i(-1, 0);
-	public static final Vec2i XP = new Vec2i(1, 0);
-	public static final Vec2i YN = new Vec2i(0, -1);
-	public static final Vec2i YP = new Vec2i(0, 1);
-
-	@SuppressWarnings("null")
 	public static final Codec<Vec2i> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.INT.fieldOf("x").forGetter(v -> v.x),
 			Codec.INT.fieldOf("y").forGetter(v -> v.y))
 			.apply(inst, Vec2i::new));
+
+	// @formatter:off
+	public static final Vec2i NN = new Vec2i(-1, -1);
+	public static final Vec2i NC = new Vec2i(-1,  0);
+	public static final Vec2i NP = new Vec2i(-1,  1);
+	public static final Vec2i CN = new Vec2i( 0, -1);
+	public static final Vec2i CC = new Vec2i( 0,  0);
+	public static final Vec2i CP = new Vec2i( 0,  1);
+	public static final Vec2i PN = new Vec2i( 1, -1);
+	public static final Vec2i PC = new Vec2i( 1,  0);
+	public static final Vec2i PP = new Vec2i( 1,  1);
+	public static final Vec2i ZERO = CC;
+	public static final Vec2i XN = NC, XP = PC;
+	public static final Vec2i YN = CN, YP = CP;
+
+	public static final ImmutableList<Vec2i> VERTICES = ImmutableList.of(NN, NP, PN, PP);
+	public static final ImmutableList<Vec2i> EDGES = ImmutableList.of(NC, CN, CP, PC);
+	public static final ImmutableList<Vec2i> SURFACE = ImmutableList.of(NN, NC, NP, CN, CP, PN, PC, PP);
+	public static final ImmutableList<Vec2i> ALL = ImmutableList.of(NN, NC, NP, CN, CC, CP, PN, PC, PP);
+	// @formatter:on
 
 	public final int x, y;
 
@@ -103,7 +116,7 @@ public class Vec2i implements Hashable {
 
 	@Override
 	public String toString() {
-		return "Vec2i[" + x + ", " + y + "]";
+		return String.format("(%d, %d)", x, y);
 	}
 
 	@Override
@@ -116,7 +129,7 @@ public class Vec2i implements Hashable {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override

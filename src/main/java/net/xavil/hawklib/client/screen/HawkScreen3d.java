@@ -19,7 +19,7 @@ import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec2;
@@ -220,7 +220,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 			return;
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
-				.beginGeneric(PrimitiveType.LINE_DUPLICATED, BufferLayout.POSITION_COLOR_NORMAL);
+				.beginGeneric(IndexPattern.VANILLA_LINES, BufferLayout.POSITION_COLOR_NORMAL);
 
 		// near
 		RenderHelper.addLine(builder, camera, frustum.nnn(), frustum.npn(), color);

@@ -10,7 +10,6 @@ import javax.annotation.Nullable;
 
 import net.xavil.hawklib.collections.iterator.IntoIterator;
 import net.xavil.hawklib.collections.iterator.Iterator;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
@@ -140,11 +139,12 @@ public abstract sealed class Maybe<T> implements IntoIterator<T>, Hashable {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override
 		public void appendHash(Hasher hasher) {
+			hasher.appendInt(0);
 		}
 
 		@Override
@@ -237,7 +237,7 @@ public abstract sealed class Maybe<T> implements IntoIterator<T>, Hashable {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override

@@ -82,18 +82,6 @@ public final class BufferLayoutSet implements Hashable {
 		return this.layouts.get(bufferIndex);
 	}
 
-	/*
-	 * final var mesh = new Mesh();
-	 * mesh.setLayout(INSTANCED_ASTEROID_LAYOUT);
-	 * 
-	 * // setting a buffer should be relatively fast... so that we can use it for
-	 * // immediate mode rendering.
-	 * mesh.uploadBuffer(0, asteroidVertices);
-	 * mesh.uploadBuffer(1, asteroidMatrice);
-	 * 
-	 * mesh.draw(1);
-	 */
-
 	@Override
 	public void appendHash(Hasher hasher) {
 		hasher.appendLong(this.computedHash);
@@ -101,7 +89,7 @@ public final class BufferLayoutSet implements Hashable {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override
@@ -114,6 +102,34 @@ public final class BufferLayoutSet implements Hashable {
 					&& ImmutableMap.mapsEqual(this.attributeSources, other.attributeSources);
 		}
 		return false;
+	}
+
+	public String debugDescription() {
+		String res = "";
+		for (int i = 0; i < this.layouts.size(); ++i) {
+			final var layout = this.layouts.get(i);
+			res += String.format("\n- Buffer %d stride=%d", i, layout.byteStride);
+			for (int j = 0; j < layout.elements.size(); ++j) {
+				// find the vertex attributes provided by this element, if any. Our
+				// representation (and probably OpenGL itself) allow multiple attributes to
+				// refer to the same buffer elements, so we have to use a list here.
+				final var associatedAttribs = new Vector<BufferLayout.Attribute>();
+				for (final var attrib : this.attributeSources.keys().iterable()) {
+					final var srcRef = this.attributeSources.getOrThrow(attrib);
+					if (srcRef.bufferIndex == i && srcRef.elementIndex == j)
+						associatedAttribs.push(attrib);
+				}
+
+				final var element = layout.elements.get(j);
+				res += String.format("\n\t- %dx%d %s size=%d offset=%d",
+						element.componentCount, element.attribSlotCount,
+						element.type,
+						element.byteSize, element.byteOffset);
+				for (int k = 0; k < associatedAttribs.size(); ++k)
+					res += String.format(" [%s]", associatedAttribs.get(k));
+			}
+		}
+		return res;
 	}
 
 	public static final class AttributeSourceRef {

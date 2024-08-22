@@ -1,7 +1,8 @@
 package net.xavil.ultraviolet.common.universe.universe;
 
-import java.util.Random;
+import java.lang.ref.WeakReference;
 
+import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
 import net.minecraft.util.profiling.ProfilerFiller;
 import net.minecraft.world.level.Level;
@@ -9,8 +10,15 @@ import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec3i;
+import net.xavil.ultraviolet.common.universe.galaxy.BaseGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxyType;
+import net.xavil.ultraviolet.common.universe.galaxy.StarCatalogGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
@@ -19,13 +27,12 @@ import net.xavil.ultraviolet.common.universe.station.SpaceStation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.CelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.hawklib.collections.impl.Vector;
-import net.xavil.hawklib.collections.interfaces.ImmutableList;
-import net.xavil.hawklib.collections.interfaces.MutableMap;
-import net.xavil.hawklib.math.matrices.Vec3;
-import net.xavil.hawklib.math.matrices.Vec3i;
 
 public abstract class Universe implements Disposable {
+
+	public enum Side {
+		CLIENT, SERVER;
+	}
 
 	// ~388 galaxies per 100 Zm^3
 	public static final double VOLUME_LENGTH_ZM = 10;
@@ -39,6 +46,11 @@ public abstract class Universe implements Disposable {
 	public final Disposable.Multi disposer = new Disposable.Multi();
 	protected final MutableMap<Integer, SpaceStation> spaceStations = MutableMap.hashMap();
 	private int nextStationId = 0;
+	public final Side side;
+
+	protected Universe(Side side) {
+		this.side = side;
+	}
 
 	@Override
 	public void close() {
@@ -139,6 +151,16 @@ public abstract class Universe implements Disposable {
 				.flatMap(galaxy -> galaxy.getSystemNode(id.system().galaxySector(), id.nodeId()));
 	}
 
+	public void addStartingGenerationLayers(Galaxy galaxy) {
+		final var startingGenerator = getStartingSystemGenerator();
+		galaxy.addGenerationLayer(startingGenerator);
+		// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, startingGenerator));
+	}
+
+	public void addBaseGenerationLayers(Galaxy galaxy) {
+		galaxy.addGenerationLayer(new BaseGalaxyGenerationLayer(galaxy));
+	}
+
 	// galaxies per Zm^3
 	private static double sampleDensity(Vec3 volumeOffsetZm) {
 		// TODO: use a noise field or something
@@ -188,6 +210,33 @@ public abstract class Universe implements Disposable {
 		rng.advanceWith(galaxyId.sectorPos().z);
 		rng.advanceWith(galaxyId.id());
 		return new Galaxy(this, galaxyId, info, info.createGalaxyParameters(rng));
+	}
+
+	private final Vector<WeakReference<DebugActionListener>> debugActionListeners = new Vector<>();
+
+	public interface DebugActionListener {
+		void handleDebugAction(String action, Tag payload);
+	}
+
+	public void registerDebugActionListener(DebugActionListener listener) {
+		registerDebugActionListener(listener, null);
+	}
+
+	public void registerDebugActionListener(DebugActionListener listener, Side side) {
+		if (side == null || this.side == side)
+			this.debugActionListeners.push(new WeakReference<Universe.DebugActionListener>(listener));
+	}
+
+	public void handleDebugAction(String action, Tag payload) {
+		for (int i = 0; i < this.debugActionListeners.size();) {
+			final var listener = this.debugActionListeners.get(i).get();
+			if (listener == null) {
+				this.debugActionListeners.swapRemove(i);
+			} else {
+				listener.handleDebugAction(action, payload);
+				i += 1;
+			}
+		}
 	}
 
 }

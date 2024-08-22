@@ -9,7 +9,6 @@ import it.unimi.dsi.fastutil.ints.IntPredicate;
 import it.unimi.dsi.fastutil.ints.IntUnaryOperator;
 import net.xavil.hawklib.collections.iterator.IntoIteratorInt;
 import net.xavil.hawklib.collections.iterator.IteratorInt;
-import net.xavil.hawklib.hash.FastHasher;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 
@@ -134,7 +133,7 @@ public abstract sealed class MaybeInt implements IntoIteratorInt, Hashable {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override
@@ -231,7 +230,7 @@ public abstract sealed class MaybeInt implements IntoIteratorInt, Hashable {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override

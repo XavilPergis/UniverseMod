@@ -16,10 +16,11 @@ import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
-import net.xavil.hawklib.client.flexible.vertex.VertexBuilder;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.RenderTexture;
+import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
+import net.xavil.hawklib.client.flexible.vertex.VertexBuilder;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.client.screen.HawkScreen.Keypress;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
@@ -451,7 +452,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 	private void showBinaryGuides(VertexBuilder vertexBuilder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, BinaryCelestialNode node, double celestialTime) {
-		final var builder = vertexBuilder.beginGeneric(PrimitiveType.LINE_DUPLICATED,
+		final var builder = vertexBuilder.beginGeneric(IndexPattern.VANILLA_LINES,
 				BufferLayout.POSITION_COLOR_NORMAL);
 
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);
@@ -485,7 +486,7 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 	private void showUnaryGuides(VertexBuilder vertexBuilder, OrbitCamera.Cached camera,
 			OrbitCamera.Cached cullingCamera, CelestialNodeChild<?> orbiter, double celestialTime) {
-		final var builder = vertexBuilder.beginGeneric(PrimitiveType.LINE_DUPLICATED,
+		final var builder = vertexBuilder.beginGeneric(IndexPattern.VANILLA_LINES,
 				BufferLayout.POSITION_COLOR_NORMAL);
 
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM_NODE).unwrapOr(-1);

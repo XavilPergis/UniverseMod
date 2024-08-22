@@ -8,27 +8,58 @@ import net.minecraft.core.Position;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.SplittableRng;
-import net.xavil.hawklib.hash.FastHasher;
+import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
 public final class Vec3 implements Hashable, Vec3Access {
 
-	public static final Vec3 ZERO = new Vec3(0, 0, 0);
-	public static final Vec3 XN = new Vec3(-1, 0, 0);
-	public static final Vec3 XP = new Vec3(1, 0, 0);
-	public static final Vec3 YN = new Vec3(0, -1, 0);
-	public static final Vec3 YP = new Vec3(0, 1, 0);
-	public static final Vec3 ZN = new Vec3(0, 0, -1);
-	public static final Vec3 ZP = new Vec3(0, 0, 1);
-
-	@SuppressWarnings("null")
 	public static final Codec<Vec3> CODEC = RecordCodecBuilder.create(inst -> inst.group(
 			Codec.DOUBLE.fieldOf("x").forGetter(v -> v.x),
 			Codec.DOUBLE.fieldOf("y").forGetter(v -> v.y),
 			Codec.DOUBLE.fieldOf("z").forGetter(v -> v.z))
 			.apply(inst, Vec3::new));
+
+	// @formatter:off
+	public static final Vec3 NNN = new Vec3(-1, -1, -1);
+	public static final Vec3 NNC = new Vec3(-1, -1,  0);
+	public static final Vec3 NNP = new Vec3(-1, -1,  1);
+	public static final Vec3 NCN = new Vec3(-1,  0, -1);
+	public static final Vec3 NCC = new Vec3(-1,  0,  0);
+	public static final Vec3 NCP = new Vec3(-1,  0,  1);
+	public static final Vec3 NPN = new Vec3(-1,  1, -1);
+	public static final Vec3 NPC = new Vec3(-1,  1,  0);
+	public static final Vec3 NPP = new Vec3(-1,  1,  1);
+	public static final Vec3 CNN = new Vec3( 0, -1, -1);
+	public static final Vec3 CNC = new Vec3( 0, -1,  0);
+	public static final Vec3 CNP = new Vec3( 0, -1,  1);
+	public static final Vec3 CCN = new Vec3( 0,  0, -1);
+	public static final Vec3 CCC = new Vec3( 0,  0,  0);
+	public static final Vec3 CCP = new Vec3( 0,  0,  1);
+	public static final Vec3 CPN = new Vec3( 0,  1, -1);
+	public static final Vec3 CPC = new Vec3( 0,  1,  0);
+	public static final Vec3 CPP = new Vec3( 0,  1,  1);
+	public static final Vec3 PNN = new Vec3( 1, -1, -1);
+	public static final Vec3 PNC = new Vec3( 1, -1,  0);
+	public static final Vec3 PNP = new Vec3( 1, -1,  1);
+	public static final Vec3 PCN = new Vec3( 1,  0, -1);
+	public static final Vec3 PCC = new Vec3( 1,  0,  0);
+	public static final Vec3 PCP = new Vec3( 1,  0,  1);
+	public static final Vec3 PPN = new Vec3( 1,  1, -1);
+	public static final Vec3 PPC = new Vec3( 1,  1,  0);
+	public static final Vec3 PPP = new Vec3( 1,  1,  1);
+	public static final Vec3 ZERO = CCC;
+	public static final Vec3 XN = NCC, XP = PCC;
+	public static final Vec3 YN = CNC, YP = CPC;
+	public static final Vec3 ZN = CCN, ZP = CCP;
+
+	public static final ImmutableList<Vec3> VERTICES = ImmutableList.of(NNN, NNP, NPN, NPP, PNN, PNP, PPN, PPP);
+	public static final ImmutableList<Vec3> EDGES = ImmutableList.of(NNC, NCN, NCP, NPC, CNN, CNP, CPN, CPP, PNC, PCN, PCP, PPC);
+	public static final ImmutableList<Vec3> FACES = ImmutableList.of(NCC, CNC, CCN, CCP, CPC, PCC);
+	public static final ImmutableList<Vec3> SURFACE = ImmutableList.of(NNN, NNC, NNP, NCN, NCC, NCP, NPN, NPC, NPP, CNN, CNC, CNP, CCN, CCP, CPN, CPC, CPP, PNN, PNC, PNP, PCN, PCC, PCP, PPN, PPC, PPP);
+	public static final ImmutableList<Vec3> ALL = ImmutableList.of(NNN, NNC, NNP, NCN, NCC, NCP, NPN, NPC, NPP, CNN, CNC, CNP, CCN, CCC, CCP, CPN, CPC, CPP, PNN, PNC, PNP, PCN, PCC, PCP, PPN, PPC, PPP);
+	// @formatter:on
 
 	public final double x, y, z;
 
@@ -221,7 +252,7 @@ public final class Vec3 implements Hashable, Vec3Access {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override
@@ -268,7 +299,7 @@ public final class Vec3 implements Hashable, Vec3Access {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override

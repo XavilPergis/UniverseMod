@@ -98,7 +98,8 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 	private static final double SCHWARZSCHILD_FACTOR_Rsol_PER_Yg = Constants.SCHWARZSCHILD_FACTOR_m_PER_kg
 			* Units.ku_PER_Yu / Units.m_PER_Rsol;
 
-	public static StellarCelestialNode fromInitialParameters(long seed, double massYg, double ageMyr, double metallicity) {
+	public static StellarCelestialNode fromInitialParameters(long seed, double massYg, double ageMyr,
+			double metallicity) {
 		final var properties = new StellarProperties();
 		properties.load(massYg, ageMyr, metallicity);
 		final var node = new StellarCelestialNode();
@@ -192,10 +193,18 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 
 		private static final class Entry {
 			public float temperature;
+			// bolometric radiance is related to the total energy output in all frequencies
+			// of the star. this value is the ratio between the radiance in the visible
+			// frequencies using an allpass filter.
 			public float bolometricRatio;
+			// the ratio between the visible radiance using the CIE luminosity function and
+			// the allpassed visible radiance.
 			public float efficencyY;
 			public float x, y, Y;
 			public float r, g, b;
+
+			// the product of `bolometricRatio` and `efficencyY` is a factor that can be
+			// used to obtain the visual brightness of a blackbody radiator.
 
 			private void storeColumn(String column, float value) {
 				switch (column) {
@@ -250,6 +259,7 @@ public non-sealed class StellarCelestialNode extends UnaryCelestialNode {
 			}
 		}
 
+		// a factor for converting watts to lumens
 		public float lookupBrightnessMultiplier(double temperatureK) {
 			final var fi = this.rowCount * Mth.inverseLerp(temperatureK, this.temperatureMin, this.temperatureMax);
 			final int i = Mth.floor(fi);

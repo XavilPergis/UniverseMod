@@ -30,7 +30,7 @@ vec3 offsetViewAligned(vec2 vertexOffset) {
 
 vec3 offsetFacingCamera(vec3 posView, vec2 vertexOffset) {
 	vec3 facing = normalize(posView);
-	vec3 up = normalize(cross(facing, vec3(1.0, 0.0, 0.0)));
+	vec3 up = normalize(cross(facing, vec3(0.0, 1.0, 0.0)));
 	vec3 right = normalize(cross(facing, up));
 	return billboardSize() * (vertexOffset.x * right + vertexOffset.y * up);
 }
@@ -48,7 +48,8 @@ void main() {
 	vec2 off = vec2(2.0 * uv - 1.0);
 
 #if defined(BILLBOARD_RANDOM_ORIENTATION)
-	off = rotate(off, rand(float(gl_VertexID)));
+	int rngState = gl_VertexID / 4;
+	off = rotate(off, 2.0 * PI * nextFloat(rngState));
 #endif
 
 #if defined(BILLBOARD_KIND_VIEW_ALIGNED)

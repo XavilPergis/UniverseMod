@@ -13,9 +13,8 @@ public abstract class ElementInfo {
 
 	public ElementInfo(BufferLayout.BuiltElement element) {
 		this.element = element;
-		final var componentCount = element.attribSlotCount * element.componentCount;
-		this.offsets = new int[componentCount];
-		for (int i = 0; i < componentCount; ++i) {
+		this.offsets = new int[element.elementCount];
+		for (int i = 0; i < element.elementCount; ++i) {
 			this.offsets[i] = (i * element.type.byteSize) + element.byteOffset;
 		}
 	}

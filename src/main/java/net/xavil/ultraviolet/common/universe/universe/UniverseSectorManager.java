@@ -16,6 +16,7 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
+import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.matrices.Vec3i;
 
 public final class UniverseSectorManager {
@@ -324,6 +325,10 @@ public final class UniverseSectorManager {
 
 	public Maybe<Galaxy> getGalaxy(UniverseSectorId id) {
 		return this.galaxyMap.get(id).flatMap(slot -> Maybe.fromNullable(slot.galaxy));
+	}
+
+	public Iterator<Galaxy> getLoadedGalaxies() {
+		return this.galaxyMap.values().map(slot -> slot.galaxy).filterNull();
 	}
 
 	public void enumerate(SectorTicket<?> ticket, Consumer<UniverseSector> sectorConsumer) {

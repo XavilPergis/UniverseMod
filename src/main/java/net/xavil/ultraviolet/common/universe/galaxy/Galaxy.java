@@ -51,13 +51,13 @@ public class Galaxy {
 
 	public final SectorManager sectorManager = new SectorManager(this);
 
-	public Galaxy(Universe parentUniverse, UniverseSectorId galaxyId, Info info, GalaxyParameters densityFields) {
+	public Galaxy(Universe parentUniverse, UniverseSectorId galaxyId, Info info, GalaxyParameters parameters) {
 		this.parentUniverse = parentUniverse;
 		this.galaxyId = galaxyId;
 		this.info = info;
-		this.parameters = densityFields;
+		this.parameters = parameters;
 
-		addGenerationLayer(new BaseGalaxyGenerationLayer(this, densityFields));
+		this.parentUniverse.addBaseGenerationLayers(this);
 	}
 
 	public void addGenerationLayer(GalaxyGenerationLayer layer) {

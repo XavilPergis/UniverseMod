@@ -21,6 +21,7 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
+import net.xavil.ultraviolet.Mod;
 
 public final class ShaderProgram extends GlObject implements UniformHolder {
 
@@ -44,19 +45,13 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 		this.attributeSet = ShaderAttributeSet.fromVanilla(imported.getVertexFormat());
 		queryUniforms();
 		setupFragLocations(GlFragmentWrites.VANILLA);
+		setDebugName(String.format("imported %s", imported.getName()));
 	}
 
 	public ShaderProgram(@Nullable ResourceLocation loadedFrom) {
 		super(ObjectType.PROGRAM, GL45C.glCreateProgram(), true);
 		this.loadedFrom = loadedFrom;
-	}
-
-	@Override
-	public String debugDescription() {
-		var desc = super.debugDescription();
-		if (this.loadedFrom != null)
-			desc += " (" + this.loadedFrom.toString() + ")";
-		return desc;
+		setDebugName(String.format("%s", loadedFrom));
 	}
 
 	@Override
@@ -117,6 +112,8 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 			final Param bufferBinding = addQueryParam(GL45C.GL_BUFFER_BINDING);
 		};
 
+		Mod.LOGGER.debug("Discovering program interface of {}", debugDescription());
+
 		final var activeUniformCount = GL45C.glGetProgramInterfacei(this.id, GL45C.GL_UNIFORM,
 				GL45C.GL_ACTIVE_RESOURCES);
 		for (int i = 0; i < activeUniformCount; ++i) {
@@ -131,6 +128,7 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 
 			this.uniforms.insertAndGet(name, new UniformSlot(type, name, arraySize, location));
 			this.hasTextureUniforms |= type.isTexture;
+			Mod.LOGGER.debug("- uniform {} '{}': type={}, location={}", i, name, type, location);
 		}
 
 		final var activeStorageBufferCount = GL45C.glGetProgramInterfacei(this.id, GL45C.GL_SHADER_STORAGE_BLOCK,
@@ -140,8 +138,7 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 			final var name = GL45C.glGetProgramResourceName(this.id, GL45C.GL_SHADER_STORAGE_BLOCK, i);
 			final var bufferBinding = storageProperties.bufferBinding.get();
 			this.storageBuffers.insertAndGet(name, new StorageBufferSlot(name, bufferBinding));
-			// Mod.LOGGER.error("shader storage block {} '{}': binding={}", i, name,
-			// bufferBinding);
+			Mod.LOGGER.debug("- shader storage block {} '{}': bindingIndex={}", i, name, bufferBinding);
 		}
 
 	}

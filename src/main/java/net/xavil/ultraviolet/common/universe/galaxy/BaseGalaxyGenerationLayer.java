@@ -6,6 +6,7 @@ import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import net.minecraft.nbt.Tag;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Constants;
@@ -28,8 +29,9 @@ import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StellarProperties;
+import net.xavil.ultraviolet.common.universe.universe.Universe;
 
-public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
+public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements Universe.DebugActionListener {
 
 	public static final Logger LOGGER = LoggerFactory.getLogger(Mod.MOD_ID + "/GalaxyGen");
 
@@ -47,17 +49,21 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	private final LuminosityFunctionTable luminosityTableHalo;
 	private final double[] levelWeights;
 
-	public BaseGalaxyGenerationLayer(Galaxy parentGalaxy, GalaxyParameters galaxyParams) {
-		super(parentGalaxy);
+	public BaseGalaxyGenerationLayer(Galaxy galaxy) {
+		super(galaxy, true);
+
+		galaxy.parentUniverse.registerDebugActionListener(this, Universe.Side.CLIENT);
 
 		final var imf = ProbabilityDistribution.interpolate(mass -> {
+			if (mass < 1)
+				return Math.pow(1, -2.35);
 			return Math.pow(mass, -2.35);
 		}, LuminosityFunctionTable.MASS_INTERVAL.domain, 4096);
 
-		this.luminosityTableCore = new LuminosityFunctionTable(imf, galaxyParams.coreSfh);
-		this.luminosityTableArms = new LuminosityFunctionTable(imf, galaxyParams.armsSfh);
-		this.luminosityTableDisc = new LuminosityFunctionTable(imf, galaxyParams.discSfh);
-		this.luminosityTableHalo = new LuminosityFunctionTable(imf, galaxyParams.haloSfh);
+		this.luminosityTableCore = new LuminosityFunctionTable(imf, galaxy.parameters.coreSfh);
+		this.luminosityTableArms = new LuminosityFunctionTable(imf, galaxy.parameters.armsSfh);
+		this.luminosityTableDisc = new LuminosityFunctionTable(imf, galaxy.parameters.discSfh);
+		this.luminosityTableHalo = new LuminosityFunctionTable(imf, galaxy.parameters.haloSfh);
 
 		// level weights for selecting how many stars should be placed in each level.
 		this.levelWeights = new double[GalaxySector.LEVEL_COUNT];
@@ -68,6 +74,20 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			final var w3 = this.luminosityTableHalo.levelWeights[i];
 			this.levelWeights[i] = (w0 + w1 + w2 + w3) / 4;
 		}
+	}
+
+	@Override
+	public void handleDebugAction(String action, Tag payload) {
+		if (action.equals("say_fuck")) {
+			Mod.LOGGER.error("FUCK");
+		} else if (action.equals("dump_base_generation_layer_lum_table")) {
+		}
+		// if (action == "reload_base_generation_layer") {
+		// this.sectorManager.getLoadedGalaxies().forEach(galaxy -> {
+		// Mod.LOGGER.info("reloading base generation layer");
+		// galaxy.addGenerationLayer();
+		// });
+		// }
 	}
 
 	private static final class BasicSystemInfo {
@@ -140,9 +160,9 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 			final DebugStopwatch buildTableTimer = new DebugStopwatch();
 
-			final var massInputs = new double[512];
-			final var ageInputs = new double[512];
-			final var metallicityInputs = new double[8];
+			final var massInputs = new double[64];
+			final var ageInputs = new double[4096];
+			final var metallicityInputs = new double[4];
 
 			for (int i = 0; i < massInputs.length; ++i)
 				massInputs[i] = MASS_INTERVAL.unmap(i / (massInputs.length - 1d));
@@ -548,10 +568,10 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		rootNode.temperature = elem.temperatureK;
 		rootNode.massYg = elem.massYg;
 
-		final var node = rootNode.generateSystem(rng.uniformLong("seed"), this.parentGalaxy, sector, id, elem);
+		final var node = rootNode.generateSystem(rng.uniformLong("seed"), this.galaxy, sector, id, elem);
 		final var name = NameTemplate.SECTOR_NAME.generate(rng.rng("name"));
 
-		return new StarSystem(name, this.parentGalaxy, elem, node, elem.metallicity);
+		return new StarSystem(name, this.galaxy, elem, node, elem.metallicity);
 	}
 
 }

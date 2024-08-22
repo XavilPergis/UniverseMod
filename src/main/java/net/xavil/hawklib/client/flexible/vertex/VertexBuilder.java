@@ -1,17 +1,22 @@
 package net.xavil.hawklib.client.flexible.vertex;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.time.Duration;
 
 import org.lwjgl.opengl.GL45C;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.ErrorRatelimiter;
 import net.xavil.hawklib.client.flexible.BufferLayout;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.gl.GlBuffer;
 import net.xavil.hawklib.client.gl.GlFence;
 import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.ultraviolet.Mod;
 
 // growable vertex builder that emits directly into a staging buffer.
 public final class VertexBuilder implements Disposable {
@@ -19,12 +24,9 @@ public final class VertexBuilder implements Disposable {
 	public static final int FRAMES_IN_FLIGHT = 3;
 
 	// non-coherent, use explicit flushing!
-	private static final int STAGING_FLAGS = GL45C.GL_DYNAMIC_STORAGE_BIT
-			// we need the read bit because we need to copy the old staging buffer to the
-			// new one when we resize.
-			| GL45C.GL_MAP_READ_BIT
+	private static final int STAGING_FLAGS = GL45C.GL_MAP_PERSISTENT_BIT
 			| GL45C.GL_MAP_WRITE_BIT
-			| GL45C.GL_MAP_PERSISTENT_BIT
+			| GL45C.GL_DYNAMIC_STORAGE_BIT
 			| GL45C.GL_CLIENT_STORAGE_BIT;
 
 	private static final int MAP_FLAGS = GL45C.GL_MAP_PERSISTENT_BIT
@@ -32,10 +34,13 @@ public final class VertexBuilder implements Disposable {
 			| GL45C.GL_MAP_UNSYNCHRONIZED_BIT
 			| GL45C.GL_MAP_FLUSH_EXPLICIT_BIT;
 
+	// private boolean usePersistentMappedBuffer = false;
+	// private ByteBuffer cpuBuffer;
+
 	// the main GL buffer that holds all in flight data
 	private GlBuffer stagingBuffer;
 
-	private final ByteBuffer vertexScratchSpace = ByteBuffer.allocateDirect(1024);
+	private final ByteBuffer vertexScratchSpace = ByteBuffer.allocateDirect(1024).order(ByteOrder.nativeOrder());
 
 	private final PerFrameData[] perFrameData;
 	private int nextFrame = 0;
@@ -49,17 +54,14 @@ public final class VertexBuilder implements Disposable {
 	// indices relative to per-frame data pointers
 	private int startOffset;
 	private int currentOffset;
-	private int nextOffset; // cached
 	private int totalVertexSize; // cached
 	private int duplicationCount; // cached
 
-	private VertexDispatcher currentDispatcher = null;
+	private IndexPattern indexPattern = null;
 	private BufferLayout currentLayout = null;
-	private PrimitiveType primitiveType = null;
 	private int vertexCount = 0;
 
-	// we cannot start drawing while a FilledBuffer refers to us!
-	private FilledBuffer filledBuffer;
+	private final Vector<FilledBuffer> filledBuffers = new Vector<>();
 
 	private static final class PerFrameData {
 		public ByteBuffer stagingBufferPointer;
@@ -101,7 +103,7 @@ public final class VertexBuilder implements Disposable {
 	private void ensureCapacity() {
 		// this function is very hot, it's called each time a vertex attribute is
 		// specified...
-		if (this.nextOffset <= this.buffer.capacity())
+		if (this.currentOffset + this.totalVertexSize <= this.buffer.capacity())
 			return;
 
 		// reallocating the staging buffer is NOT cheap lol
@@ -111,11 +113,18 @@ public final class VertexBuilder implements Disposable {
 		} else {
 			newCapacity = Mth.floor(this.buffer.capacity() * 1.5);
 		}
+
+		Mod.LOGGER.warn("VertexBuilder: needed to grow buffer from {} bytes to {} bytes",
+				this.buffer.capacity(), newCapacity);
 		createStagingBuffer(newCapacity);
+		// if (this.usePersistentMappedBuffer) {
+		// }
+
 	}
 
 	private void createStagingBuffer(int capacity) {
 		final var stagingBuffer = new GlBuffer();
+		stagingBuffer.setDebugName("VertexBuilder Staging Buffer");
 		stagingBuffer.allocateImmutableStorage(this.perFrameData.length * capacity, STAGING_FLAGS);
 		stagingBuffer.map(MAP_FLAGS);
 
@@ -158,7 +167,6 @@ public final class VertexBuilder implements Disposable {
 			}
 
 			this.currentOffset += this.totalVertexSize;
-			this.nextOffset = this.currentOffset + this.totalVertexSize;
 			this.vertexCount += this.duplicationCount;
 
 			// ensure capacity *after* so that we have space to write the next vertex into.
@@ -169,24 +177,46 @@ public final class VertexBuilder implements Disposable {
 		}
 	}
 
-	public final <T extends VertexDispatcher> T begin(T dispatcher, PrimitiveType mode, BufferLayout layout) {
+	private static final ErrorRatelimiter UNUSED_BUFFER_RATELIMITER = new ErrorRatelimiter(Duration.ofSeconds(5), 1);
+
+	public final <T extends VertexDispatcher> T begin(T dispatcher, IndexPattern indexPattern, BufferLayout layout) {
 		if (this.currentLayout != null) {
 			throwBuilderError(String.format("VertexBuilder is already building!"), null);
 		}
+
+		int unusedCount = 0;
+		for (int i = 0; i < this.filledBuffers.size(); ++i) {
+			final var buf = this.filledBuffers.get(i);
+			if (buf.isValid()) {
+				unusedCount += 1;
+				buf.invalidate();
+			}
+		}
+		if (unusedCount > 0 && !UNUSED_BUFFER_RATELIMITER.throttle()) {
+			Mod.LOGGER.warn("VertexBuilder: {} buffers were built but unused.", unusedCount);
+		}
+		this.filledBuffers.clear();
+
 		dispatcher.setup(this, layout, this.vertexScratchSpace);
-		this.currentDispatcher = dispatcher;
 		this.currentLayout = layout;
-		this.primitiveType = mode;
-		this.duplicationCount = mode == null ? 1 : this.primitiveType.duplicationCount + 1;
+		// we have to specify the primitive type here in case its a "virtual" primitive
+		// type like lines we give to vanilla's line shader, where we might have to
+		// duplicate vertices.
+		this.indexPattern = indexPattern;
+		this.duplicationCount = indexPattern == null ? 1 : this.indexPattern.duplicationCount + 1;
 		this.startOffset = Mth.roundToward(this.currentOffset, 4);
-		this.nextOffset = this.currentOffset + this.totalVertexSize;
 		this.totalVertexSize = this.currentLayout.byteStride * (this.duplicationCount);
 		ensureCapacity();
+
 		return dispatcher;
 	}
 
-	public final VertexDispatcher.Generic beginGeneric(PrimitiveType mode, BufferLayout layout) {
-		return begin(this.genericDispatcher, mode, layout);
+	public final VertexDispatcher.Generic beginGeneric(PrimitiveType primitiveType, BufferLayout layout) {
+		return beginGeneric(IndexPattern.forPrimitiveType(primitiveType), layout);
+	}
+
+	public final VertexDispatcher.Generic beginGeneric(IndexPattern indexPattern, BufferLayout layout) {
+		return begin(this.genericDispatcher, indexPattern, layout);
 	}
 
 	protected final FilledBuffer end() {
@@ -199,21 +229,21 @@ public final class VertexBuilder implements Disposable {
 		final Runnable syncPointEmitter = () -> {
 			final var fence = this.fencePool.acquire();
 			this.currentPfd.fences.push(fence);
-			this.filledBuffer = null;
 			fence.signalFence();
 		};
 
-		this.filledBuffer = new FilledBuffer(this,
+		final var buf = new FilledBuffer(this,
 				bufferSlice, this.vertexCount,
-				this.currentLayout, this.primitiveType,
+				this.currentLayout, this.indexPattern,
 				syncPointEmitter);
 
-		this.vertexCount = 0;
-		this.currentDispatcher = null;
-		this.currentLayout = null;
-		this.primitiveType = null;
+		this.filledBuffers.push(buf);
 
-		return this.filledBuffer;
+		this.vertexCount = 0;
+		this.currentLayout = null;
+		this.indexPattern = null;
+
+		return buf;
 	}
 
 	public void advanceFrame() {
@@ -233,7 +263,7 @@ public final class VertexBuilder implements Disposable {
 		res += String.format("Offset: %d\n", this.currentOffset);
 		res += String.format("Capacity: %d\n", this.buffer.capacity());
 		res += String.format("Limit: %d\n", this.buffer.limit());
-		res += String.format("Primitive Type: %s\n", this.primitiveType);
+		res += String.format("Primitive Type: %s\n", this.indexPattern.primitiveType);
 		res += String.format("Buffer Layout: %s\n", this.currentLayout);
 
 		if (cause == null) {

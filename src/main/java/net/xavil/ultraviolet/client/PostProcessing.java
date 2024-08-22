@@ -6,10 +6,8 @@ import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.RenderTexture;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
-import net.xavil.hawklib.client.gl.texture.GlTexture2d;
-import net.xavil.ultraviolet.common.config.ClientConfig;
-import net.xavil.ultraviolet.common.config.ConfigKey;
 import net.xavil.hawklib.client.gl.GlObject;
+import net.xavil.hawklib.client.gl.texture.GlTexture2d;
 
 public final class PostProcessing {
 

@@ -6,22 +6,20 @@ public interface Hasher {
 
 	long currentHash();
 
-	default Hasher append(Hashable hashable) {
-		hashable.appendHash(this);
-		return this;
-	}
-
 	default int currentHashInt() {
-		long h = currentHash();
-		return ((int) (h >>> 32)) ^ ((int) h);
+		final long hash = currentHash();
+		final int hi = (int) (hash >>> 32);
+		final int lo = (int) hash;
+		return hi ^ lo;
 	}
 
-	default Hasher appendEnum(Enum<?> value) {
-		return appendString(value.name());
-	}
-
-	default Hasher appendString(String value) {
-		return appendInt(value.hashCode());
+	default Hasher append(Object value) {
+		if (value instanceof Hashable hashable) {
+			hashable.appendHash(this);
+		} else {
+			appendLong(value.hashCode());
+		}
+		return this;
 	}
 
 	default Hasher appendInt(int value) {

@@ -22,7 +22,7 @@ public abstract class VertexDispatcher implements VertexAttributeConsumer {
         registerAttributes(ctx);
 
         for (final var element : layout.elements.iterable()) {
-            switch (element.attribType) {
+            switch (element.type.interpretAs) {
                 case FLOAT ->
                     ctx.floatAttribs.getOrThrow(element.attribute).accept(new ElementInfo.Float(buf, element));
                 case INT -> ctx.intAttribs.getOrThrow(element.attribute).accept(new ElementInfo.Int(buf, element));

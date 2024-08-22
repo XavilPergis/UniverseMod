@@ -1,7 +1,10 @@
 package net.xavil.ultraviolet;
 
+import javax.annotation.Nullable;
+
 import net.fabricmc.api.ClientModInitializer;
 import net.minecraft.client.Minecraft;
+import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.HawkRendering;
 import net.xavil.hawklib.client.HawkTextureManager;
@@ -22,6 +25,7 @@ import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 import net.xavil.ultraviolet.networking.ModNetworking;
 import net.xavil.ultraviolet.networking.s2c.ClientboundChangeSystemPacket;
+import net.xavil.ultraviolet.networking.s2c.ClientboundDebugPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
@@ -33,14 +37,15 @@ public class ClientMod implements ClientModInitializer {
 
 	public static final Minecraft CLIENT = Minecraft.getInstance();
 
+	public static void handleDebugAction(String action, @Nullable Tag payload) {
+		Mod.LOGGER.info("Client executing debug action '{}'", action);
+
+		final var universe = MinecraftClientAccessor.getUniverse();
+		universe.handleDebugAction(action, payload);
+	}
+
 	@Override
 	public void onInitializeClient() {
-
-		// hey fucker
-		Mod.LOGGER.info("LD_PRELOAD = {}", System.getenv("LD_PRELOAD"));
-		Mod.LOGGER.info("LD_LIBRARY_PATH = {}", System.getenv("LD_LIBRARY_PATH"));
-		Mod.LOGGER.info("PATH = {}", System.getenv("PATH"));
-
 		ModNetworking.addClientboundHandler(ClientboundOpenStarmapPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundUniverseSyncPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundChangeSystemPacket.class, CLIENT, ClientMod::handlePacket);
@@ -48,6 +53,7 @@ public class ClientMod implements ClientModInitializer {
 		ModNetworking.addClientboundHandler(ClientboundSpaceStationInfoPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundStationJumpBeginPacket.class, CLIENT, ClientMod::handlePacket);
 		ModNetworking.addClientboundHandler(ClientboundDebugValueSetPacket.class, CLIENT, ClientConfig::applyPacket);
+		ModNetworking.addClientboundHandler(ClientboundDebugPacket.class, CLIENT, ClientMod::handlePacket);
 
 		ModEntities.registerClient();
 		ModParticles.registerClient();
@@ -144,6 +150,10 @@ public class ClientMod implements ClientModInitializer {
 
 	public static void handlePacket(ClientboundStationJumpBeginPacket packet) {
 		MinecraftClientAccessor.getUniverse().applyPacket(packet);
+	}
+
+	public static void handlePacket(ClientboundDebugPacket packet) {
+		handleDebugAction(packet.action, packet.payload);
 	}
 
 }

@@ -31,7 +31,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public StartingSystemGalaxyGenerationLayer(Galaxy parentGalaxy,
 			double systemAge, String systemName,
 			CelestialNode startingNode, int startingNodeId) {
-		super(parentGalaxy);
+		super(parentGalaxy, false);
 		this.startingNodeId = startingNodeId;
 		this.startingNode = startingNode;
 		this.systemAge = systemAge;
@@ -52,10 +52,10 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	}
 
 	private boolean pickLocation(Vec3.Mutable out) {
-		final var rng = new SplittableRng(this.parentGalaxy.parentUniverse.getUniqueUniverseSeed());
+		final var rng = new SplittableRng(this.galaxy.parentUniverse.getUniqueUniverseSeed());
 		rng.advanceWith("pick_starting_system_location");
 
-		final var galaxyParams = this.parentGalaxy.parameters;
+		final var galaxyParams = this.galaxy.parameters;
 
 		// TODO: fix this. currently, it always fails
 		for (int i = 0; i < STARTING_LOCATION_SAMPLE_ATTEMPTS; ++i) {
@@ -97,14 +97,14 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 		this.startingSystemInfo.systemSeed = 0xf100f;
 		this.startingSystemInfo.temperatureK = primaryStar.temperature;
 
-		this.startingSystem = new StarSystem(this.systemName, this.parentGalaxy, this.startingSystemInfo,
+		this.startingSystem = new StarSystem(this.systemName, this.galaxy, this.startingSystemInfo,
 				this.startingNode, 1.42857e-02);
 	}
 
 	private void findElementIndex() {
 		chooseStartingLocation();
 		if (this.elementIndex == -1)
-			this.parentGalaxy.generateSectorElements(this.startingSystemSectorPos);
+			this.galaxy.generateSectorElements(this.startingSystemSectorPos);
 	}
 
 	@Override
@@ -125,7 +125,7 @@ public class StartingSystemGalaxyGenerationLayer extends GalaxyGenerationLayer {
 	public SystemNodeId getStartingSystemId() {
 		findElementIndex();
 		final var systemSectorId = GalaxySectorId.from(this.startingSystemSectorPos, this.elementIndex);
-		final var system = new SystemId(this.parentGalaxy.galaxyId, systemSectorId);
+		final var system = new SystemId(this.galaxy.galaxyId, systemSectorId);
 		return new SystemNodeId(system, this.startingNodeId);
 	}
 

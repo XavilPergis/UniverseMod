@@ -44,15 +44,19 @@ public final class GeyserEntity extends Entity {
 	}
 
 	private static float getPushForce(float pressure) {
-		return (float) Mth.lerp(Math.pow(pressure, 2.0), 0.01, 0.2);
+		return (float) Mth.lerp(Math.pow(pressure, 2.0), 0.1, 0.5);
 	}
+
+	// FIXME: touching the ground after going high enough in a geyser will still
+	// apply fall damage even if the landing feels like it should be soft
 
 	@Override
 	public void tick() {
 		final var trackedLocation = this.getEntityData().get(DATA_TRACKED_POS);
 		final var state = this.level.getBlockState(trackedLocation);
-		if (!(state.getBlock() instanceof GeyserBlock) || !state.getValue(GeyserBlock.ERUPTING)) {
-			this.remove(RemovalReason.DISCARDED);
+		if (!(state.getBlock() instanceof GeyserBlock && state.getValue(GeyserBlock.ERUPTING))) {
+			if (!this.level.isClientSide)
+				this.remove(RemovalReason.DISCARDED);
 			return;
 		}
 
@@ -71,10 +75,31 @@ public final class GeyserEntity extends Entity {
 		final var affectedEntities = MutableList.proxy(this.level.getEntitiesOfClass(Entity.class, aabb));
 		for (final var entity : affectedEntities.iterable()) {
 			final var t = Mth.clamp(Mth.inverseLerp(entity.getY(), aabb.minY, aabb.maxY), 0, 1);
-			final var upwardsPush = pushForce * (1 - t);
+			// final var pushAmount = pushForce * (1 - t);
 			if (entity instanceof Player player && player.getAbilities().flying)
 				continue;
-			entity.push(0, upwardsPush, 0);
+
+			// final var geyserCenterXZ = new Vec2(aabb.getCenter().x, aabb.getCenter().z);
+			// final var entityXZ = new Vec2(entity.getX(), entity.getZ());
+			// final var toEntity = entityXZ.sub(geyserCenterXZ);
+			// final var distToCenter = toEntity.length();
+
+			// final var
+
+			final var toEntity = entity.position().subtract(this.position());
+			final var toEntityDir = toEntity.normalize();
+			final var alignmentStrength = Math.pow(toEntityDir.y, 2.0);
+			final var distanceStrength = 1 - toEntity.length() / (aabb.maxY - aabb.minY);
+
+			// final var pushVector = toEntityDir.scale(alignmentStrength *
+			// distanceStrength).add(0, distanceStrength, 0);
+
+			final var sidewaysPush = toEntityDir.scale(0.1 * pushForce * alignmentStrength);
+			final var upwardsPush = new Vec3(0, pushForce * distanceStrength, 0);
+			final var pushVector = sidewaysPush.add(upwardsPush);
+
+			// entityXZ.distanceTo(geyserCenterXZ);
+			entity.push(pushVector.x, pushVector.y, pushVector.z);
 		}
 
 		spawnParticles(pressureT, pushForce, affectedEntities);
@@ -94,12 +119,17 @@ public final class GeyserEntity extends Entity {
 		for (int i = 0; i < particleCount; ++i) {
 
 			// random dir, mostly facing upwards
-			final double dx = rng.uniformDouble(Interval.BIPOLAR),
-					dy = rng.uniformDouble(Interval.UNIPOLAR),
-					dz = rng.uniformDouble(Interval.BIPOLAR);
+			final double dx = rng.uniformDouble(Interval.BIPOLAR.mul(0.2)),
+					dy = 0,
+					dz = rng.uniformDouble(Interval.BIPOLAR.mul(0.2));
 
-			final double vx = rng.normalDouble(0, 0.1), vz = rng.normalDouble(0, 0.1);
-			final var velocity = new Vec3(vx, 1, vz).normalize().scale(rng.normalDouble(0.9, 1) * 4 * pushForce);
+			// final double vx = rng.normalDouble(0, 0.3), vz = rng.normalDouble(0, 0.3);
+			// final var velocity = new Vec3(vx, 1, vz).normalize().scale(5 * pushForce);
+			
+			final double norm = Math.sqrt(dx * dx + dz * dz);
+			// final double velMag = 0.2 * rng.uniformDouble() / norm;
+			final double velMag = 0.4 * rng.uniformDouble() / norm;
+			final var velocity = new Vec3(dx * velMag, 1, dz * velMag).normalize().scale(5 * pushForce);
 
 			this.level.addAlwaysVisibleParticle(ModParticles.GEYSER,
 					this.position().x + dx, this.position().y + dy, this.position().z + dz,

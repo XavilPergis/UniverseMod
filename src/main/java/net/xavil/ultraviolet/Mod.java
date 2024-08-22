@@ -3,6 +3,8 @@ package net.xavil.ultraviolet;
 import java.util.function.BiConsumer;
 import java.util.function.Supplier;
 
+import javax.annotation.Nullable;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -11,6 +13,7 @@ import net.fabricmc.fabric.api.command.v1.CommandRegistrationCallback;
 import net.fabricmc.fabric.api.item.v1.FabricItemSettings;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Registry;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
@@ -51,6 +54,7 @@ import net.xavil.ultraviolet.networking.c2s.ServerboundDebugValueSetPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundStationJumpPacket;
 import net.xavil.ultraviolet.networking.c2s.ServerboundTeleportToLocationPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundChangeSystemPacket;
+import net.xavil.ultraviolet.networking.s2c.ClientboundDebugPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundDebugValueSetPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundOpenStarmapPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
@@ -71,6 +75,23 @@ public class Mod implements ModInitializer {
 
 	public static final StarmapItem STARMAP_ITEM = new StarmapItem(
 			new FabricItemSettings().group(CreativeModeTab.TAB_MISC));
+
+	public static void handleDebugAction(ServerPlayer recipient, String action, @Nullable Tag payload) {
+		Mod.LOGGER.info("Server executing debug action '{}'", action);
+
+		final var universe = MinecraftServerAccessor.getUniverse(recipient.server);
+		universe.handleDebugAction(action, payload);
+	}
+
+	public static void dispatchDebugAction(ServerPlayer recipient, String action, @Nullable Tag payload, boolean broadcast) {
+		final var packet = new ClientboundDebugPacket(action, payload);
+		if (broadcast) {
+			recipient.server.getPlayerList().broadcastAll(packet);
+		} else {
+			recipient.connection.send(packet);
+		}
+		handleDebugAction(recipient, action, payload);
+	}
 
 	@Override
 	public void onInitialize() {
@@ -339,7 +360,7 @@ public class Mod implements ModInitializer {
 		Mod.LOGGER.error(
 				"Unable to recover level stem for level '{}'! Defaulting to overworld level stem...",
 				key.location());
-		final var stemRegistry =server.getWorldData().worldGenSettings().dimensions();
+		final var stemRegistry = server.getWorldData().worldGenSettings().dimensions();
 		perLevelData.levelStem = stemRegistry.get(LevelStem.OVERWORLD);
 		perLevelData.setDirty();
 	}

@@ -3,90 +3,88 @@
 	"root": {
 		"type": "star",
 		"id": "sol",
-		"mass": 1,
-		"luminosity": 1,
-		"obliquity": 7.25,
-		"rotation_period": 2114208,
-		"radius": 1.5,
-		"temperature": 5772,
+		"name": "Sol",
+		"mass": [1, "Msol"],
+		"luminosity": [1, "Lsol"],
+		"obliquity": [7.25, "deg"],
+		"rotation_period": [2114208, "s"],
+		"radius": [1, "Rsol"],
+		"temperature": [5772, "K"],
 		"star_type": "main_sequence",
 		"children": [
 			{
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.20563593,
-					"semi_major_axis": 0.38709927,
-					"inclination": 7.00497902,
-					"ascending_node": 48.33076593,
-					"arg_of_periapsis": 29.1270303
+					"semi_major_axis": [0.38709927, "au"],
+					"inclination": [7.00497902, "deg"],
+					"ascending_node": [48.33076593, "deg"],
+					"arg_of_periapsis": [29.1270303, "deg"]
 				},
 				"node": {
 					"type": "planet",
-					"planet_type": "rock",
+					"planet_type": "rocky",
 					"id": "mercury",
-					"mass": 0.055,
-					"radius": 0.3829,
-					"obliquity": 0.034,
-					"rotation_period": 7600530.24,
-					"children": []
+					"mass": [0.055, "Mearth"],
+					"radius": [0.3829, "Rearth"],
+					"obliquity": [0.034, "deg"],
+					"rotation_period": [7600530.24, "s"]
 				}
 			},
 			{
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.00677672,
-					"semi_major_axis": 0.72333566,
-					"inclination": 3.39467605,
-					"ascending_node": 76.67984255,
-					"arg_of_periapsis": 54.9226246
+					"semi_major_axis": [0.72333566, "au"],
+					"inclination": [3.39467605, "deg"],
+					"ascending_node": [76.67984255, "deg"],
+					"arg_of_periapsis": [54.9226246, "deg"]
 				},
 				"node": {
 					"type": "planet",
-					"planet_type": "rock",
+					"planet_type": "rocky",
 					"id": "venus",
-					"mass": 0.815,
-					"radius": 0.9499,
-					"obliquity": 0.034,
-					"rotation_period": -20997152.6,
-					"children": []
+					"mass": [0.815, "Mearth"],
+					"radius": [0.9499, "Rearth"],
+					"obliquity": [0.034, "deg"],
+					"rotation_period": [-20997152.6, "s"]
 				}
 			},
 			{
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.01671123,
-					"semi_major_axis": 1.00000261,
-					"inclination": -0.00001531,
-					"ascending_node": 0.0,
-					"arg_of_periapsis": 102.93768193
+					"semi_major_axis": [1.00000261, "au"],
+					"inclination": [-0.00001531, "deg"],
+					"ascending_node": [0.0, "deg"],
+					"arg_of_periapsis": [102.93768193, "deg"]
 				},
 				"node": {
 					"type": "planet",
 					"planet_type": "earth_like",
 					"id": "earth",
-					"mass": 1,
-					"radius": 1,
-					"obliquity": 23.4392811,
-					"rotation_period": 86164.1004,
+					"mass": [1, "Mearth"],
+					"radius": [1, "Rearth"],
+					"obliquity": [23.4392811, "deg"],
+					"rotation_period": [86164.1004, "s"],
 					"children": [
 						{
 							"orbit": {
 								"frame": "ecliptic",
 								"eccentricity": 0.0554,
-								"semi_major_axis": 0.00257,
-								"inclination": 5.145,
-								"ascending_node": 125.08,
-								"arg_of_periapsis": 318.15
+								"semi_major_axis": [0.00257, "au"],
+								"inclination": [5.145, "deg"],
+								"ascending_node": [125.08, "deg"],
+								"arg_of_periapsis": [318.15, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock",
+								"planet_type": "rocky",
 								"id": "moon",
-								"mass": 0.0123,
-								"radius": 0.2727,
-								"obliquity": 6.687,
-								"rotation_period": 2360591.51,
-								"children": []
+								"mass": [0.0123, "Mearth"],
+								"radius": [0.2727, "Rearth"],
+								"obliquity": [6.687, "deg"],
+								"rotation_period": [2360591.51, "s"]
 							}
 						}
 					]
@@ -96,56 +94,56 @@
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.09339410,
-					"semi_major_axis": 1.52371034,
-					"inclination": 1.84969142,
-					"ascending_node": 49.55953891,
-					"arg_of_periapsis": 286.496831
+					"semi_major_axis": [1.52371034, "au"],
+					"inclination": [1.84969142, "deg"],
+					"ascending_node": [49.55953891, "deg"],
+					"arg_of_periapsis": [286.496831, "deg"]
 				},
 				"node": {
 					"type": "planet",
-					"planet_type": "rock",
+					"planet_type": "rocky",
 					"id": "mars",
-					"mass": 0.107,
-					"radius": 0.5314,
-					"obliquity": 25.19,
-					"rotation_period": 88642.6848,
+					"mass": [0.107, "Mearth"],
+					"radius": [0.5314, "Rearth"],
+					"obliquity": [25.19, "deg"],
+					"rotation_period": [88642.6848, "s"],
 					"children": [
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.015,
-								"semi_major_axis": 6.28351189e-5,
-								"inclination": 1.1,
-								"ascending_node": 169.2,
-								"arg_of_periapsis": 216.3
+								"semi_major_axis": [6.28351189e-5, "au"],
+								"inclination": [1.1, "deg"],
+								"ascending_node": [169.2, "deg"],
+								"arg_of_periapsis": [216.3, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock",
+								"planet_type": "rocky",
 								"id": "phobos",
-								"mass": 1.78477e-9,
-								"radius": 0.00176941,
-								"obliquity": 25.19,
-								"rotation_period": 27553.8439
+								"mass": [1.78477e-9, "Mearth"],
+								"radius": [0.00176941, "Rearth"],
+								"obliquity": [25.19, "deg"],
+								"rotation_period": [27553.8439, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.000,
-								"semi_major_axis": 0.000157087797,
-								"inclination": 1.8,
-								"ascending_node": 54.4,
-								"arg_of_periapsis": 0.0
+								"semi_major_axis": [0.000157087797, "au"],
+								"inclination": [1.8, "deg"],
+								"ascending_node": [54.4, "deg"],
+								"arg_of_periapsis": [0.0, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock",
+								"planet_type": "rocky",
 								"id": "deimos",
-								"mass": 2.47179e-10,
-								"radius": 0.00097316,
-								"obliquity": 0,
-								"rotation_period": 109123.2
+								"mass": [2.47179e-10, "Mearth"],
+								"radius": [0.00097316, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [109123.2, "s"]
 							}
 						}
 					]
@@ -155,94 +153,94 @@
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.04838624,
-					"semi_major_axis": 5.20288700,
-					"inclination": 1.30439695,
-					"ascending_node": 100.47390909,
-					"arg_of_periapsis": 274.254571
+					"semi_major_axis": [5.20288700, "au"],
+					"inclination": [1.30439695, "deg"],
+					"ascending_node": [100.47390909, "deg"],
+					"arg_of_periapsis": [274.254571, "deg"]
 				},
 				"node": {
 					"type": "planet",
 					"planet_type": "gas_giant",
 					"id": "jupiter",
-					"mass": 317.8,
-					"radius": 10.973,
-					"obliquity": 0,
-					"rotation_period": 35730,
+					"mass": [317.8, "Mearth"],
+					"radius": [10.973, "Rearth"],
+					"obliquity": [0, "deg"],
+					"rotation_period": [35730, "s"],
 					"children": [
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.004,
-								"semi_major_axis": 0.00281955885,
-								"inclination": 0.0,
-								"ascending_node": 0.0,
-								"arg_of_periapsis": 49.1
+								"semi_major_axis": [0.00281955885, "au"],
+								"inclination": [0.0, "deg"],
+								"ascending_node": [0.0, "deg"],
+								"arg_of_periapsis": [49.1, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock",
+								"planet_type": "rocky",
 								"id": "io",
-								"mass": 0.015,
-								"radius": 0.286,
-								"obliquity": 0,
-								"rotation_period": 152853.5047
+								"mass": [0.015, "Mearth"],
+								"radius": [0.286, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [152853.5047, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.009,
-								"semi_major_axis": 0.00448602642,
-								"inclination": 0.5,
-								"ascending_node": 184.0,
-								"arg_of_periapsis": 45.0
+								"semi_major_axis": [0.00448602642, "au"],
+								"inclination": [0.5, "deg"],
+								"ascending_node": [184.0, "deg"],
+								"arg_of_periapsis": [45.0, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock_ice",
+								"planet_type": "rocky_icy",
 								"id": "europa",
-								"mass": 0.008,
-								"radius": 0.245,
-								"obliquity": 0,
-								"rotation_period": 306822.038
+								"mass": [0.008, "Mearth"],
+								"radius": [0.245, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [306822.038, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.001,
-								"semi_major_axis": 0.00715518206,
-								"inclination": 0.2,
-								"ascending_node": 58.5,
-								"arg_of_periapsis": 198.3
+								"semi_major_axis": [0.00715518206, "au"],
+								"inclination": [0.2, "deg"],
+								"ascending_node": [58.5, "deg"],
+								"arg_of_periapsis": [198.3, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock_ice",
+								"planet_type": "rocky_icy",
 								"id": "gyanmede",
-								"mass": 0.413,
-								"radius": 0.2727,
-								"obliquity": 0,
-								"rotation_period": 618153.37
+								"mass": [0.413, "Mearth"],
+								"radius": [0.2727, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [618153.37, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.007,
-								"semi_major_axis": 0.0125850722,
-								"inclination": 0.3,
-								"ascending_node": 309.1,
-								"arg_of_periapsis": 43.8
+								"semi_major_axis": [0.0125850722, "au"],
+								"inclination": [0.3, "deg"],
+								"ascending_node": [309.1, "deg"],
+								"arg_of_periapsis": [43.8, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock_ice",
+								"planet_type": "rocky_icy",
 								"id": "callisto",
-								"mass": 0.018,
-								"radius": 0.378,
-								"obliquity": 0,
-								"rotation_period": 1441931.19
+								"mass": [0.018, "Mearth"],
+								"radius": [0.378, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [1441931.19, "s"]
 							}
 						}
 					]
@@ -252,151 +250,151 @@
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.05386179,
-					"semi_major_axis": 9.53667594,
-					"inclination": 2.48599187,
-					"ascending_node": 113.66242448,
-					"arg_of_periapsis": 338.936454
+					"semi_major_axis": [9.53667594, "au"],
+					"inclination": [2.48599187, "deg"],
+					"ascending_node": [113.66242448, "deg"],
+					"arg_of_periapsis": [338.936454, "deg"]
 				},
 				"node": {
 					"type": "planet",
 					"planet_type": "gas_giant",
 					"id": "saturn",
-					"mass": 95.159,
-					"radius": 9.1402,
-					"obliquity": 26.73,
-					"rotation_period": 38018,
+					"mass": [95.159, "Mearth"],
+					"radius": [9.1402, "Rearth"],
+					"obliquity": [26.73, "deg"],
+					"rotation_period": [38018, "s"],
 					"children": [
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.020,
-								"semi_major_axis": 0.0012433332,
-								"inclination": 1.6,
-								"ascending_node": 66.2,
-								"arg_of_periapsis": 160.4
+								"semi_major_axis": [0.0012433332, "au"],
+								"inclination": [1.6, "deg"],
+								"ascending_node": [66.2, "deg"],
+								"arg_of_periapsis": [160.4, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock",
+								"planet_type": "rocky",
 								"id": "mimas",
-								"mass": 6.3e-6,
-								"radius": 0.0311,
-								"obliquity": 0,
-								"rotation_period": 81425.2573
+								"mass": [6.3e-6, "Mearth"],
+								"radius": [0.0311, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [81425.2573, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.005,
-								"semi_major_axis": 0.00159360557,
-								"inclination": 0.0,
-								"ascending_node": 0.0,
-								"arg_of_periapsis": 119.5
+								"semi_major_axis": [0.00159360557, "au"],
+								"inclination": [0.0, "deg"],
+								"ascending_node": [0.0, "deg"],
+								"arg_of_periapsis": [119.5, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock_ice",
+								"planet_type": "rocky_icy",
 								"id": "enceladus",
-								"mass": 1.8e-5,
-								"radius": 0.0395,
-								"obliquity": 0,
-								"rotation_period": 118386.835
+								"mass": [1.8e-5, "Mearth"],
+								"radius": [0.0395, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [118386.835, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.001,
-								"semi_major_axis": 0.0019719532,
-								"inclination": 1.1,
-								"ascending_node": 273.0,
-								"arg_of_periapsis": 335.3
+								"semi_major_axis": [0.0019719532, "au"],
+								"inclination": [1.1, "deg"],
+								"ascending_node": [273.0, "deg"],
+								"arg_of_periapsis": [335.3, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "ice",
+								"planet_type": "icy",
 								"id": "tethys",
-								"mass": 1.03e-4,
-								"radius": 0.0416,
-								"obliquity": 0,
-								"rotation_period": 163106.093
+								"mass": [1.03e-4, "Mearth"],
+								"radius": [0.0416, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [163106.093, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.002,
-								"semi_major_axis": 0.00252476856,
-								"inclination": 0.0,
-								"ascending_node": 0.0,
-								"arg_of_periapsis": 116.0
+								"semi_major_axis": [0.00252476856, "au"],
+								"inclination": [0.0, "deg"],
+								"ascending_node": [0.0, "deg"],
+								"arg_of_periapsis": [116.0, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock_ice",
+								"planet_type": "rocky_icy",
 								"id": "dione",
-								"mass": 1.834e-4,
-								"radius": 0.088,
-								"obliquity": 0,
-								"rotation_period": 236469.456
+								"mass": [1.834e-4, "Mearth"],
+								"radius": [0.088, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [236469.456, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.001,
-								"semi_major_axis": 0.00352411433,
-								"inclination": 0.3,
-								"ascending_node": 133.7,
-								"arg_of_periapsis": 44.3
+								"semi_major_axis": [0.00352411433, "au"],
+								"inclination": [0.3, "deg"],
+								"ascending_node": [133.7, "deg"],
+								"arg_of_periapsis": [44.3, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "ice",
+								"planet_type": "icy",
 								"id": "rhea",
-								"mass": 3.9e-4,
-								"radius": 0.1197,
-								"obliquity": 0,
-								"rotation_period": 390373.517
+								"mass": [3.9e-4, "Mearth"],
+								"radius": [0.1197, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [390373.517, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.029,
-								"semi_major_axis": 0.008167897,
-								"inclination": 0.3,
-								"ascending_node": 78.6,
-								"arg_of_periapsis": 78.3
+								"semi_major_axis": [0.008167897, "au"],
+								"inclination": [0.3, "deg"],
+								"ascending_node": [78.6, "deg"],
+								"arg_of_periapsis": [78.3, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "rock",
+								"planet_type": "rocky",
 								"id": "titan",
-								"mass": 0.0225,
-								"radius": 0.404,
-								"obliquity": 0,
-								"rotation_period": 1377648
+								"mass": [0.0225, "Mearth"],
+								"radius": [0.404, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [1377648, "s"]
 							}
 						},
 						{
 							"orbit": {
 								"frame": "laplace",
 								"eccentricity": 0.028,
-								"semi_major_axis": 0.02380849395,
-								"inclination": 7.6,
-								"ascending_node": 86.5,
-								"arg_of_periapsis": 254.5
+								"semi_major_axis": [0.02380849395, "au"],
+								"inclination": [7.6, "deg"],
+								"ascending_node": [86.5, "deg"],
+								"arg_of_periapsis": [254.5, "deg"]
 							},
 							"node": {
 								"type": "planet",
-								"planet_type": "ice",
+								"planet_type": "icy",
 								"id": "iapetus",
-								"mass": 0.0225,
-								"radius": 0.1151,
-								"obliquity": 0,
-								"rotation_period": 6853377.6
+								"mass": [0.0225, "Mearth"],
+								"radius": [0.1151, "Rearth"],
+								"obliquity": [0, "deg"],
+								"rotation_period": [6853377.6, "s"]
 							}
 						}
 					]
@@ -406,76 +404,76 @@
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.04725744,
-					"semi_major_axis": 19.18916464,
-					"inclination": 0.77263783,
-					"ascending_node": 74.01692503,
-					"arg_of_periapsis": 96.9373513
+					"semi_major_axis": [19.18916464, "au"],
+					"inclination": [0.77263783, "deg"],
+					"ascending_node": [74.01692503, "deg"],
+					"arg_of_periapsis": [96.9373513, "deg"]
 				},
 				"node": {
 					"type": "planet",
 					"planet_type": "ice_giant",
 					"id": "uranus",
-					"mass": 14.536,
-					"radius": 3.9763,
-					"obliquity": 97.77,
-					"rotation_period": -62063.712
+					"mass": [14.536, "Mearth"],
+					"radius": [3.9763, "Rearth"],
+					"obliquity": [97.77, "deg"],
+					"rotation_period": [-62063.712, "s"]
 				}
 			},
 			{
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.00859048,
-					"semi_major_axis": 30.06992276,
-					"inclination": 1.77004347,
-					"ascending_node": 131.78422574,
-					"arg_of_periapsis": 273.180537
+					"semi_major_axis": [30.06992276, "au"],
+					"inclination": [1.77004347, "deg"],
+					"ascending_node": [131.78422574, "deg"],
+					"arg_of_periapsis": [273.180537, "deg"]
 				},
 				"node": {
 					"type": "planet",
 					"planet_type": "ice_giant",
 					"id": "neptune",
-					"mass": 17.147,
-					"radius": 3.8603,
-					"obliquity": 28.32,
-					"rotation_period": 58000.32
+					"mass": [17.147, "Mearth"],
+					"radius": [3.8603, "Rearth"],
+					"obliquity": [28.32, "deg"],
+					"rotation_period": [58000.32, "s"]
 				}
 			},
 			{
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.2488,
-					"semi_major_axis": 29.658,
-					"inclination": 17.16,
-					"ascending_node": 110.299,
-					"arg_of_periapsis": 113.834
+					"semi_major_axis": [29.658, "au"],
+					"inclination": [17.16, "deg"],
+					"ascending_node": [110.299, "deg"],
+					"arg_of_periapsis": [113.834, "deg"]
 				},
 				"node": {
 					"type": "planet",
-					"planet_type": "ice",
+					"planet_type": "icy",
 					"id": "pluto",
-					"mass": 0.00218,
-					"radius": 0.1868,
-					"obliquity": 28.32,
-					"rotation_period": -551856.672
+					"mass": [0.00218, "Mearth"],
+					"radius": [0.1868, "Rearth"],
+					"obliquity": [28.32, "deg"],
+					"rotation_period": [-551856.672, "s"]
 				}
 			},
 			{
 				"orbit": {
 					"frame": "ecliptic",
 					"eccentricity": 0.43607,
-					"semi_major_axis": 67.864,
-					"inclination": 44.040,
-					"ascending_node": 35.951,
-					"arg_of_periapsis": 151.639
+					"semi_major_axis": [67.864, "au"],
+					"inclination": [44.040, "deg"],
+					"ascending_node": [35.951, "deg"],
+					"arg_of_periapsis": [151.639, "deg"]
 				},
 				"node": {
 					"type": "planet",
-					"planet_type": "ice",
+					"planet_type": "icy",
 					"id": "eris",
-					"mass": 0.0027,
-					"radius": 0.1823416,
-					"obliquity": 61.6,
-					"rotation_period": 1363910.4
+					"mass": [0.0027, "Mearth"],
+					"radius": [0.1823416, "Rearth"],
+					"obliquity": [61.6, "deg"],
+					"rotation_period": [1363910.4, "s"]
 				}
 			}
 		]

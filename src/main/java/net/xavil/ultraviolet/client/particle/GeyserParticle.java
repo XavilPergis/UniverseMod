@@ -21,10 +21,13 @@ public final class GeyserParticle extends TextureSheetParticle {
 		// this.y = y;
 		// this.z = z;
 		// this.
-		this.lifetime = 120;
+		this.lifetime = 80;
+		// this.lifetime = 30;
 		this.friction = 1.0f;
 		// this.friction = 1.1f;
-		this.alpha = 0.4f;
+		// this.alpha = 0.4f;
+		this.alpha = 1f;
+		// this.scale(1);
 		this.scale(4);
 		this.setSpriteFromAge(spriteSet);
 	}
@@ -33,8 +36,8 @@ public final class GeyserParticle extends TextureSheetParticle {
 	public void tick() {
 		super.tick();
 
-		this.scale(1.01f);
-		this.alpha = Mth.lerp(this.age / (float) this.lifetime, 0.3f, 0f);
+		this.scale(1.02f);
+		this.alpha = Mth.lerp(this.age / (float) this.lifetime, 1f, 0f);
 	}
 
 	@Override

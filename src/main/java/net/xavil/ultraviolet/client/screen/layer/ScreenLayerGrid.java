@@ -1,10 +1,5 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
-import net.xavil.hawklib.client.screen.HawkScreen3d;
-import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
-import net.xavil.hawklib.math.ColorRgba;
-import net.xavil.hawklib.math.matrices.Vec3;
-
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.util.Mth;
@@ -13,11 +8,15 @@ import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
 import net.xavil.hawklib.client.flexible.vertex.VertexBuilder;
-import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlState;
+import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.config.ClientConfig;
@@ -47,6 +46,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		var focusPos = camera.focus.div(tmPerUnit);
 		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
 		renderGrid(builder, camera, cullingCamera, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
+		renderGrid(builder, camera, cullingCamera, focusPos, 10 * gridScale * gridLineCount, scaleFactor, gridLineCount);
 	}
 
 	public static final DrawState GRID_STATE = new DrawState.Builder()
@@ -60,7 +60,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
 			Vec3 focusPos,
 			double gridDiameter, int subcellsPerCell, int gridLineCount) {
-		final var dispatch = builder.beginGeneric(PrimitiveType.LINE_DUPLICATED, BufferLayout.POSITION_COLOR_NORMAL);
+		final var dispatch = builder.beginGeneric(IndexPattern.VANILLA_LINES, BufferLayout.POSITION_COLOR_NORMAL);
 		addGrid(dispatch, camera, cullingCamera, focusPos, gridDiameter, subcellsPerCell, gridLineCount);
 		RenderSystem.lineWidth(2);
 		dispatch.end().draw(HawkShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(), GRID_STATE);
@@ -114,12 +114,36 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 
 		var gridMinX = gridCellResolution * Math.floor(focusPos.x / gridCellResolution);
 		var gridMinZ = gridCellResolution * Math.floor(focusPos.z / gridCellResolution);
+		var gridMinY = (gridCellResolution * subcellsPerCell)
+				* Math.floor(focusPos.y / (gridCellResolution * subcellsPerCell));
 
 		float r = 0.5f, g = 0.5f, b = 0.5f, a1 = 0.1f, a2 = 0.33f;
 		var color = new ColorRgba(r, g, b, 0.1f);
 		final double gridFadeFactor = 2.3;
 
 		var gridOffset = gridCellResolution * gridLineCount / 2;
+
+		for (var i = 1; i < gridLineCount; ++i) {
+			var x = gridMinX + i * gridCellResolution - gridOffset;
+			var xMark = (int) Math.floor(gridMinX / gridCellResolution + i - gridLineCount / 2);
+			if (xMark % subcellsPerCell != 0) continue;
+			for (var j = 1; j < gridLineCount; ++j) {
+				var z = gridMinZ + j * gridCellResolution - gridOffset;
+				var zMark = (int) Math.floor(gridMinZ / gridCellResolution + j - gridLineCount / 2);
+				if (zMark % subcellsPerCell != 0) continue;
+
+				var lp = new Vec3(x, gridMinY, z);
+				var start = camera.toCameraSpace(new Vec3(x, gridMinY, z));
+				var end = camera.toCameraSpace(new Vec3(x, gridMinY + gridCellResolution * subcellsPerCell, z));
+
+				var ld = lp.xz().distanceTo(focusPos.xz());
+				if (ld <= gridDiameter / gridFadeFactor) {
+					final var segmentAlpha = a2 * (float) (1 - gridFadeFactor * ld / gridDiameter);
+					addSubdividedLine(builder, camera, cullingCamera, color.withA(segmentAlpha), start, end);
+				}
+				
+			}
+		}
 
 		// NOTE: each line needs to be divided into sections, because the lines will
 		// become distorted if they are too long.
@@ -134,8 +158,8 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 			for (var j = 0; j < gridLineCount; ++j) {
 				var lt = j / (double) gridLineCount;
 				var ht = (j + 1) / (double) gridLineCount;
-				var lp = new Vec3(Mth.lerp(lt, lx, hx), focusPos.y, z);
-				// var hp = new Vec3(Mth.lerp(ht, lx, hx), focusPos.y, z);
+				var lp = new Vec3(Mth.lerp(lt, lx, hx), gridMinY, z);
+				// var hp = new Vec3(Mth.lerp(ht, lx, hx), gridMinY, z);
 
 				var ld = lp.distanceTo(focusPos);
 				// var hd = hp.distanceTo(focusPos);
@@ -144,12 +168,16 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 					// gridFadeFactor, 0), 0, 1);
 					// var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter /
 					// gridFadeFactor, 0), 0, 1);
-					var start = camera.toCameraSpace(new Vec3(Mth.lerp(lt, lx, hx), focusPos.y, z));
-					var end = camera.toCameraSpace(new Vec3(Mth.lerp(ht, lx, hx), focusPos.y, z));
+					var start = camera.toCameraSpace(new Vec3(Mth.lerp(lt, lx, hx), gridMinY, z));
+					var end = camera.toCameraSpace(new Vec3(Mth.lerp(ht, lx, hx), gridMinY, z));
 					// RenderHelper.addLine(builder, start, end, color.withA(rla),
 					// color.withA(rha));
 					// addSubdividedLine(builder, start, end, color.withA(rla), color.withA(rha));
-					addSubdividedLine(builder, camera, cullingCamera, color.withA(la), start, end);
+					final var segmentAlpha = la * (float) (1 - gridFadeFactor * ld / gridDiameter);
+					addSubdividedLine(builder, camera, cullingCamera, color.withA(segmentAlpha), start, end);
+					addSubdividedLine(builder, camera, cullingCamera, color.withA(segmentAlpha),
+							start.add(Vec3.YP.mul(gridCellResolution * subcellsPerCell)),
+							end.add(Vec3.YP.mul(gridCellResolution * subcellsPerCell)));
 				}
 			}
 		}
@@ -164,8 +192,8 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 			for (var j = 0; j < gridLineCount; ++j) {
 				var lt = j / (double) gridLineCount;
 				var ht = (j + 1) / (double) gridLineCount;
-				var lp = new Vec3(x, focusPos.y, Mth.lerp(lt, lz, hz));
-				// var hp = new Vec3(x, focusPos.y, Mth.lerp(ht, lz, hz));
+				var lp = new Vec3(x, gridMinY, Mth.lerp(lt, lz, hz));
+				// var hp = new Vec3(x, gridMinY, Mth.lerp(ht, lz, hz));
 
 				var ld = lp.distanceTo(focusPos);
 				// var hd = hp.distanceTo(focusPos);
@@ -174,11 +202,15 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 					// gridFadeFactor, 0), 0, 1);
 					// var rha = la * Mth.clamp(5 * Mth.inverseLerp(hd, gridDiameter /
 					// gridFadeFactor, 0), 0, 1);
-					var start = camera.toCameraSpace(new Vec3(x, focusPos.y, Mth.lerp(lt, lz, hz)));
-					var end = camera.toCameraSpace(new Vec3(x, focusPos.y, Mth.lerp(ht, lz, hz)));
+					var start = camera.toCameraSpace(new Vec3(x, gridMinY, Mth.lerp(lt, lz, hz)));
+					var end = camera.toCameraSpace(new Vec3(x, gridMinY, Mth.lerp(ht, lz, hz)));
 					// RenderHelper.addLine(builder, start, end, color.withA(rla),
 					// color.withA(rha));
-					addSubdividedLine(builder, camera, cullingCamera, color.withA(la), start, end);
+					final var segmentAlpha = la * (float) (1 - gridFadeFactor * ld / gridDiameter);
+					addSubdividedLine(builder, camera, cullingCamera, color.withA(segmentAlpha), start, end);
+					addSubdividedLine(builder, camera, cullingCamera, color.withA(segmentAlpha),
+							start.add(Vec3.YP.mul(gridCellResolution * subcellsPerCell)),
+							end.add(Vec3.YP.mul(gridCellResolution * subcellsPerCell)));
 				}
 			}
 		}

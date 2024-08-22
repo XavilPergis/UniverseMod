@@ -22,7 +22,7 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 	 * 
 	 * @param key   The key of the entry that will be inserted.
 	 * @param value The value of the entry that will be inserted.
-	 * @return {@code true} if the set of keys changed as a result of this operation.
+	 * @return {@code true} if the key did not already exist in the map.
 	 */
 	boolean insert(K key, V value);
 
@@ -36,7 +36,7 @@ public interface MutableMap<K, V> extends MutableCollection, ImmutableMap<K, V> 
 	 * Remove an entry from this map.
 	 * 
 	 * @param key The key of the entry that will be removed.
-	 * @return {@code true} if the set of keys changed as a result of this operation.
+	 * @return {@code true} if the key did not already exist in the map.
 	 */
 	boolean remove(K key);
 

@@ -10,7 +10,11 @@ public interface Hashable {
 	}
 
 	default long hash() {
-		return hash(new FastHasher());
+		return FastHasher.hash(this);
+	}
+
+	default int hashToInt() {
+		return FastHasher.hashToInt(this);
 	}
 
 }

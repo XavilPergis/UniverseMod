@@ -1,47 +1,58 @@
 package net.xavil.hawklib.client.flexible;
 
-import java.nio.ByteBuffer;
-
 import javax.annotation.Nullable;
 
 import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.vertex.VertexFormat;
+import com.mojang.blaze3d.vertex.VertexFormat.IndexType;
 
-import it.unimi.dsi.fastutil.ints.IntConsumer;
-import net.minecraft.util.Mth;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.HawkLib;
 import net.xavil.hawklib.client.flexible.vertex.FilledBuffer;
+import net.xavil.hawklib.client.gl.BufferSliceable;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlBuffer;
-import net.xavil.hawklib.client.gl.GlBuffer.Slice;
 import net.xavil.hawklib.client.gl.GlManager;
+import net.xavil.hawklib.client.gl.GlObject;
 import net.xavil.hawklib.client.gl.GlVertexArray;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
 import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
 import net.xavil.hawklib.collections.iterator.Iterator;
+import net.xavil.ultraviolet.Mod;
 
 public class Mesh implements Disposable {
 
-	private static final SequentialIndexBufferPool INDEX_BUFFER_POOL = new SequentialIndexBufferPool();
+	public static final Mesh IMMEDIATE_SCRATCH = new Mesh();
 
-	// if this field is null, then an auto instance buffer will be used instead.
-	private BufferInfo indexBuffer = null;
+	// if this field is null, then an auto index buffer will be used instead.
+	private GlBuffer.GrowableBuffer indexBuffer = null;
 	private VertexFormat.IndexType indexType = null;
 
-	// index count is used when a custom index buffer is bound, otherwise
-	// vertexCount is used.
-	private int indexCount = 0;
-	private int vertexCount = 0;
+	private int elementCount = 0;
 
 	// instancing is disabled by default
 	private int instanceCount = 1;
 
 	private BufferLayoutSet layouts;
-	private PrimitiveType primitiveType;
-	private final Vector<BufferInfo> vertexBuffers = new Vector<>();
-	private final Vector<BufferInfo> freeBuffers = new Vector<>();
+	private IndexPattern indexPattern;
+	private final Vector<GlBuffer.GrowableBuffer> vertexBuffers = new Vector<>();
+	private final MutableMap<String, GlBuffer.GrowableBuffer> ssboBuffers = MutableMap.hashMap();
+	private final Vector<GlBuffer.GrowableBuffer> freeBuffers = new Vector<>();
+
+	private String debugName;
+
+	static {
+		IMMEDIATE_SCRATCH.setDebugName("Immediate Scratch Mesh");
+	}
+
+	public static void draw(ShaderProgram shader, FilledBuffer buffer, DrawState drawState) {
+		IMMEDIATE_SCRATCH.setupAndUpload(buffer);
+		shader.setupDefaultShaderUniforms();
+		IMMEDIATE_SCRATCH.draw(shader, drawState);
+	}
 
 	public Mesh() {
 	}
@@ -51,10 +62,34 @@ public class Mesh implements Disposable {
 		if (this.indexBuffer != null)
 			this.indexBuffer.close();
 		this.indexBuffer = null;
+		this.vertexBuffers.iter().filterNull().forEach(GlBuffer.GrowableBuffer::close);
+		this.freeBuffers.forEach(GlBuffer.GrowableBuffer::close);
+		this.vertexBuffers.clear();
+		this.freeBuffers.clear();
 	}
 
-	public void setLayout(BufferLayoutSet layouts) {
+	public void setDebugName(String name) {
+		this.debugName = name;
+		this.vertexBuffers.forEach(buffer -> buffer.setDebugName(this.debugName));
+		this.freeBuffers.forEach(buffer -> buffer.setDebugName(this.debugName));
+	}
+
+	/**
+	 * Sets the layout of this mesh, i.e., which buffers must be bound for this mesh
+	 * to be drawn. This includes whether the mesh uses an index buffer or not.
+	 * 
+	 * @param layouts   The layout of each buffer of the mesh.
+	 * @param indexType The type of index data, or null if this mesh is not indexed.
+	 */
+	public void setLayout(BufferLayoutSet layouts, @Nullable VertexFormat.IndexType indexType) {
 		this.layouts = layouts;
+		this.indexType = indexType;
+
+		if (indexType == null && this.indexBuffer != null) {
+			final var oldBuffer = this.indexBuffer;
+			this.indexBuffer = null;
+			this.freeBuffers.push(oldBuffer);
+		}
 
 		// it'd be better to never have this mesh in a state where the free buffers and
 		// in-use buffers both have the same infos in them, but that would require
@@ -69,23 +104,23 @@ public class Mesh implements Disposable {
 		this.vertexBuffers.extend(Iterator.repeat(null, this.layouts.size()));
 	}
 
-	public void setPrimitiveType(PrimitiveType type) {
-		this.primitiveType = type;
+	public void setIndexPattern(IndexPattern indexPattern) {
+		this.indexPattern = indexPattern;
 	}
 
-	public void setVertexCount(int vertexCount) {
-		this.vertexCount = vertexCount;
+	public void setElementCount(int elementCount) {
+		this.elementCount = elementCount;
 	}
 
-	public void setIndexCount(int indexCount) {
-		this.indexCount = indexCount;
+	public void setInstanceCount(int instanceCount) {
+		this.instanceCount = instanceCount;
 	}
 
 	public void setupAndUpload(FilledBuffer buffer) {
 		Assert.isTrue(buffer.isValid());
-		setLayout(buffer.layout.asLayoutSet);
-		setPrimitiveType(buffer.primitiveType);
-		setVertexCount(buffer.vertexCount);
+		setLayout(buffer.layout.asLayoutSet, null);
+		setIndexPattern(buffer.indexPattern);
+		setElementCount(buffer.vertexCount);
 		uploadVertexBuffer(0, buffer);
 		buffer.finishUsing();
 	}
@@ -118,26 +153,40 @@ public class Mesh implements Disposable {
 
 		// this is the only thing we use `bufferLayout` for, but perhaps its good to
 		// force diligence for the caller :P
-		if (!this.layouts.get(bufferIndex).equals(bufferLayout))
+		if (!this.layouts.get(bufferIndex).equals(bufferLayout)) {
+			Mod.LOGGER.error("Buffer slot {} does not match provided layout");
+			Mod.LOGGER.error("Expected Layout:\n{}", this.layouts.get(bufferIndex));
+			Mod.LOGGER.error("Provided Layout:\n{}", bufferLayout);
 			throw new IllegalArgumentException(String.format(
 					"mesh upload error: buffer slot %d does not match provided layout",
 					bufferIndex));
+		}
 
 		final var prevBinding = this.vertexBuffers.get(bufferIndex);
-		final var info = pickBestBufferInfo(prevBinding, vertexData.size);
+		final var info = pickBestBuffer(prevBinding, vertexData.size);
+		info.setContents(vertexData);
+		this.vertexBuffers.set(bufferIndex, info);
 
 		// if already had something bound to this buffer slot, and we're changing the
 		// buffer, then put the old buffer back into the free buffer pool.
-		if (prevBinding != null && prevBinding != info) {
-			this.vertexBuffers.set(bufferIndex, info);
+		if (prevBinding != null && prevBinding != info)
 			this.freeBuffers.push(prevBinding);
-		}
-
-		info.setContents(vertexData);
-		this.vertexBuffers.set(bufferIndex, info);
 	}
 
-	private BufferInfo pickBestBufferInfo(@Nullable BufferInfo initialCandidate, long requiredSize) {
+	public void uploadSsbo(String ssboName, GlBuffer.Slice vertexData) {
+		final var prevBinding = this.ssboBuffers.getOrNull(ssboName);
+		final var info = pickBestBuffer(prevBinding, vertexData.size);
+		info.setContents(vertexData);
+		this.ssboBuffers.insert(ssboName, info);
+
+		if (prevBinding != null && prevBinding != info)
+			this.freeBuffers.push(prevBinding);
+	}
+
+	private GlBuffer.GrowableBuffer pickBestBuffer(@Nullable GlBuffer.GrowableBuffer initialCandidate,
+			long requiredSize) {
+		// TODO: we could even try to pack stuff into a single buffer,,,
+
 		// pick the buffer that has the closest capacity to the required size. There
 		// could be situations where this leads to undesirable results, but we would
 		// need a slightly more upfront API to deal with those.
@@ -147,12 +196,12 @@ public class Mesh implements Disposable {
 		// large amount of data, but could no longer put it in the high-capacity buffer.
 		// if we knew everything we wanted to bind upfront, we could allocate things
 		// slightly more efficiently...
-		BufferInfo bestCandidate = initialCandidate;
+		GlBuffer.GrowableBuffer bestCandidate = initialCandidate;
 		long bestSizeDiff = bestCandidate == null ? Long.MAX_VALUE
-				: Math.abs(requiredSize - initialCandidate.buffer.size());
+				: Math.abs(requiredSize - initialCandidate.capacity());
 		for (int i = 0; i < this.freeBuffers.size(); ++i) {
 			final var candidate = this.freeBuffers.get(i);
-			final var sizeDiff = Math.abs(requiredSize - candidate.buffer.size());
+			final var sizeDiff = Math.abs(requiredSize - candidate.capacity());
 			if (bestCandidate == null || sizeDiff < bestSizeDiff) {
 				bestCandidate = candidate;
 				bestSizeDiff = sizeDiff;
@@ -163,7 +212,7 @@ public class Mesh implements Disposable {
 			this.freeBuffers.remove(this.freeBuffers.indexOf(bestCandidate));
 			return bestCandidate;
 		} else {
-			return new BufferInfo();
+			return new GlBuffer.GrowableBuffer();
 		}
 
 	}
@@ -174,14 +223,16 @@ public class Mesh implements Disposable {
 	 * anything to it.
 	 */
 	public void shrinkToFit() {
-		this.vertexBuffers.forEach(BufferInfo::shrinkToFit);
-		this.freeBuffers.forEach(BufferInfo::close);
+		if (this.indexBuffer != null)
+			this.indexBuffer.shrinkToFit();
+		this.vertexBuffers.forEach(GlBuffer.GrowableBuffer::shrinkToFit);
+		this.freeBuffers.forEach(GlBuffer.GrowableBuffer::close);
 		this.freeBuffers.clear();
 	}
 
 	public void uploadIndexBuffer(GlBuffer.Slice indexData, VertexFormat.IndexType indexType) {
 		if (this.indexBuffer == null)
-			this.indexBuffer = pickBestBufferInfo(null, indexData.size);
+			this.indexBuffer = pickBestBuffer(null, indexData.size);
 		this.indexBuffer.setContents(indexData);
 		this.indexType = indexType;
 	}
@@ -189,8 +240,32 @@ public class Mesh implements Disposable {
 	public void clearIndexBuffer() {
 		if (this.indexBuffer == null)
 			return;
-		this.freeBuffers.push(this.indexBuffer);
+		final var oldBuffer = this.indexBuffer;
 		this.indexBuffer = null;
+		this.freeBuffers.push(oldBuffer);
+	}
+
+	public static final class IndexBuffer implements Disposable, BufferSliceable {
+		public final GlBuffer indices;
+		public final int indexCount;
+		public final VertexFormat.IndexType indexType;
+
+		public IndexBuffer(GlBuffer indices, int indexCount, IndexType indexType) {
+			this.indices = indices;
+			this.indexCount = indexCount;
+			this.indexType = indexType;
+		}
+
+		@Override
+		public GlBuffer.Slice slice() {
+			return this.indices.slice(0, this.indexCount * this.indexType.bytes);
+		}
+
+		@Override
+		public void close() {
+			if (this.indices != null)
+				this.indices.close();
+		}
 	}
 
 	public void draw(ShaderProgram shader, DrawState drawState) {
@@ -198,21 +273,20 @@ public class Mesh implements Disposable {
 		if (this.instanceCount < 1)
 			return;
 
-		GlBuffer indexBuffer = null;
-		VertexFormat.IndexType indexType = null;
-		int indexCount = 0;
-		if (this.indexBuffer != null) {
-			indexBuffer = this.indexBuffer.buffer;
-			indexType = this.indexType;
-			indexCount = this.indexCount;
-		} else if (this.primitiveType.indexPattern != null) {
-			indexBuffer = INDEX_BUFFER_POOL.getIndexBuffer(this.primitiveType, this.vertexCount);
-			indexType = INDEX_BUFFER_POOL.getIndexType(this.primitiveType);
-			indexCount = this.primitiveType.physicalIndexCount(this.vertexCount);
+		IndexBuffer indexBuffer = null;
+		if (this.indexType != null) {
+			indexBuffer = new IndexBuffer(this.indexBuffer.slice().buffer, this.elementCount, this.indexType);
+		} else if (this.indexPattern.indexPool != null) {
+			indexBuffer = this.indexPattern.getIndexBuffer(this.elementCount);
 		}
 
-		if (this.primitiveType.indexPattern != null && indexCount <= 0)
+		if (this.indexPattern.indexPool != null && (indexBuffer == null || indexBuffer.indexCount <= 0))
 			return;
+
+		if (this.indexType != null && this.indexBuffer == null) {
+			throw new IllegalStateException(String.format(
+					"mesh render error: index slot was not bound!"));
+		}
 
 		for (int i = 0; i < this.vertexBuffers.size(); ++i) {
 			if (this.vertexBuffers.get(i) == null)
@@ -222,161 +296,62 @@ public class Mesh implements Disposable {
 		}
 
 		final var vao = GlVertexArray.cachedVertexArray(shader.attributeSet(), this.layouts);
-		for (int i = 0; i < this.vertexBuffers.size(); ++i) {
-			final var buffer = this.vertexBuffers.get(i).slice();
-			final var layout = this.layouts.get(i);
-			vao.bindVertexBuffer(buffer, i, layout.byteStride);
-		}
+
+		GlObject.assertIsAlive(vao);
+		GlObject.assertIsAlive(shader);
 
 		GlManager.pushState();
 		drawState.apply();
 		shader.bind();
 		vao.bind();
 
-		if (this.primitiveType.indexPattern == null) {
+		// bind everything
+		for (int i = 0; i < this.vertexBuffers.size(); ++i) {
+			final var buffer = this.vertexBuffers.get(i).slice();
+			final var layout = this.layouts.get(i);
+			GlObject.assertIsAlive(buffer.buffer);
+			vao.bindVertexBuffer(buffer, i, layout.byteStride);
+		}
+
+		if (indexBuffer != null) {
+			GlObject.assertIsAlive(indexBuffer.indices);
+			vao.bindElementBuffer(indexBuffer.indices);
+		} else {
 			vao.bindElementBuffer(null);
+		}
+
+		for (final var name : this.ssboBuffers.keys().iterable()) {
+			shader.setStorageBuffer(name, this.ssboBuffers.getOrThrow(name).slice());
+		}
+
+		// draw~!
+		final var primitiveType = this.indexPattern.primitiveType;
+
+		if (indexBuffer == null) {
 			// FIXME: why is this here.
 			GlManager.enableProgramPointSize(true);
-			if (this.instanceCount > 1) {
-				GL45C.glDrawArraysInstanced(this.primitiveType.gl, 0, this.vertexCount, this.instanceCount);
-			} else {
-				GL45C.glDrawArrays(this.primitiveType.gl, 0, this.vertexCount);
+			// basic sanity check
+			vao.verifyForDrawArrays(this.elementCount, this.instanceCount);
+			if (this.instanceCount > 0) {
+				GL45C.glDrawArraysInstanced(primitiveType.gl, 0, this.elementCount, this.instanceCount);
 			}
 		} else {
-			vao.bindElementBuffer(indexBuffer);
-			if (this.instanceCount > 1) {
-				GL45C.glDrawElementsInstanced(this.primitiveType.gl, indexCount, indexType.asGLType, 0L,
-						this.instanceCount);
-			} else {
-				GL45C.glDrawElements(this.primitiveType.gl, indexCount, indexType.asGLType, 0L);
+			// basic sanity check
+			vao.verifyForDrawElements(indexBuffer.indexType, indexBuffer.indexCount, this.instanceCount);
+			// im probably doing something wrong, but setting the vao's index buffer with
+			// `glVertexArrayElementBuffer` segfaults but binding the index buffer here like
+			// this works just fine.
+			GlManager.bindBuffer(GlBuffer.Type.ELEMENT, indexBuffer.indices.id);
+			if (this.instanceCount == 1) {
+				GL45C.glDrawElements(primitiveType.gl, indexBuffer.indexCount,
+						indexBuffer.indexType.asGLType, 0L);
+			} else if (this.instanceCount > 1) {
+				GL45C.glDrawElementsInstanced(primitiveType.gl, indexBuffer.indexCount,
+						indexBuffer.indexType.asGLType, 0L, this.instanceCount);
 			}
 		}
 
 		GlManager.popState();
-	}
-
-	private static final class BufferInfo implements Disposable {
-		public GlBuffer buffer = new GlBuffer();
-		public long bufferSizeInUse = 0;
-
-		@Override
-		public void close() {
-			this.buffer.close();
-		}
-
-		public void setContents(Slice vertexData) {
-			if (vertexData.size > this.buffer.size()) {
-				if (this.buffer != null)
-					this.buffer.close();
-				this.buffer = new GlBuffer();
-				this.buffer.allocateImmutableStorage(vertexData.size, GL45C.GL_DYNAMIC_STORAGE_BIT);
-			}
-			vertexData.copyTo(this.buffer.slice());
-			this.bufferSizeInUse = vertexData.size;
-		}
-
-		public void shrinkToFit() {
-			if (this.bufferSizeInUse == this.buffer.size())
-				return;
-			final var oldBuffer = this.buffer;
-			this.buffer = new GlBuffer();
-			this.buffer.allocateImmutableStorage(this.bufferSizeInUse, GL45C.GL_DYNAMIC_STORAGE_BIT);
-			oldBuffer.slice(0, this.bufferSizeInUse).copyTo(this.buffer.slice());
-			if (oldBuffer != null)
-				oldBuffer.close();
-		}
-
-		public GlBuffer.Slice slice() {
-			return this.buffer.slice(0, this.bufferSizeInUse);
-		}
-	}
-
-	private static final class SequentialIndexBufferPool implements Disposable {
-		private static final class Info implements Disposable {
-			private final int[] indexPattern;
-
-			private int currentIndexCount;
-			private VertexFormat.IndexType currentIndexType;
-			private GlBuffer currentBuffer;
-
-			public Info(int[] indexPattern) {
-				this.indexPattern = indexPattern;
-			}
-
-			@Override
-			public void close() {
-				if (this.currentBuffer != null)
-					this.currentBuffer.close();
-			}
-
-			private static IntConsumer getIndexWriter(ByteBuffer buffer, VertexFormat.IndexType type) {
-				return switch (type) {
-					case BYTE -> index -> buffer.put((byte) index);
-					case SHORT -> index -> buffer.putShort((short) index);
-					case INT -> index -> buffer.putInt(index);
-				};
-			}
-
-			private void updateBufferIfNeeded(PrimitiveType primitiveType, int vertexCount) {
-				if (vertexCount <= this.currentIndexCount)
-					return;
-
-				final var indexCount = Mth.roundToward(2 * primitiveType.physicalIndexCount(vertexCount), 6);
-				final var primitiveCount = indexCount / 6;
-				final var indexType = VertexFormat.IndexType.least(indexCount);
-
-				final var sharedIndexBuffer = new GlBuffer();
-				sharedIndexBuffer.allocateImmutableStorage(indexCount * indexType.bytes, 0);
-
-				try (final var stagingBuffer = new GlBuffer()) {
-					stagingBuffer.allocateImmutableStorage(indexCount * indexType.bytes,
-							GL45C.GL_MAP_PERSISTENT_BIT | GL45C.GL_MAP_WRITE_BIT | GL45C.GL_CLIENT_STORAGE_BIT);
-					final var writer = getIndexWriter(
-							stagingBuffer.map(GL45C.GL_MAP_PERSISTENT_BIT | GL45C.GL_MAP_WRITE_BIT), indexType);
-					for (int i = 0; i < primitiveCount; ++i) {
-						final var baseIndex = 4 * i;
-						for (int j = 0; j < this.indexPattern.length; ++j)
-							writer.accept(baseIndex + this.indexPattern[j]);
-					}
-					stagingBuffer.slice().copyTo(sharedIndexBuffer.slice(), indexCount);
-				}
-
-				this.currentIndexType = indexType;
-				if (this.currentBuffer != null)
-					this.currentBuffer.close();
-				this.currentBuffer = sharedIndexBuffer;
-				this.currentIndexCount = vertexCount;
-			}
-
-		}
-
-		private final Info quadsInfo = new Info(new int[] { 0, 1, 2, 2, 3, 0 });
-		private final Info linesInfo = new Info(new int[] { 0, 1, 2, 3, 2, 1 });
-
-		@Override
-		public void close() {
-			this.quadsInfo.close();
-			this.linesInfo.close();
-		}
-
-		private Info getInfo(PrimitiveType primitiveType) {
-			return switch (primitiveType.indexPattern) {
-				case QUADS -> this.quadsInfo;
-				case LINES -> this.linesInfo;
-			};
-		}
-
-		@SuppressWarnings("resource")
-		public VertexFormat.IndexType getIndexType(PrimitiveType primitiveType) {
-			return getInfo(primitiveType).currentIndexType;
-		}
-
-		public GlBuffer getIndexBuffer(PrimitiveType primitiveType, int vertexCount) {
-			final var info = getInfo(primitiveType);
-			info.updateBufferIfNeeded(primitiveType, vertexCount);
-			return info.currentBuffer;
-		}
-
 	}
 
 }

@@ -73,7 +73,8 @@ public final class DrawState {
 
 		public boolean colorMaskR = true, colorMaskG = true, colorMaskB = true, colorMaskA = true;
 
-		public Builder() {}
+		public Builder() {
+		}
 
 		public Builder(DrawState state) {
 			this.polygonMode = state.polygonMode;
@@ -94,6 +95,27 @@ public final class DrawState {
 			this.colorMaskG = state.colorMaskG;
 			this.colorMaskB = state.colorMaskB;
 			this.colorMaskA = state.colorMaskA;
+		}
+
+		public Builder(GlState state) {
+			this.polygonMode = state.getPolygonMode();
+			this.enableCulling = state.isCullEnabled();
+			this.cullFace = state.getCullFace();
+			this.frontFace = state.getFrontFace();
+			this.depthWriteEnabled = state.isDepthMaskEnabled();
+			this.depthTestingEnabled = state.isDepthTestEnabled();
+			this.depthFunc = state.getDepthFunc();
+			this.blendingEnabled = state.isBlendEnabled();
+			this.blendEquationRgb = state.getBlendEquationRgb();
+			this.blendEquationAlpha = state.getBlendEquationAlpha();
+			this.blendFactorSrcRgb = state.getBlendFactorSrcRgb();
+			this.blendFactorDstRgb = state.getBlendFactorDstRgb();
+			this.blendFactorSrcAlpha = state.getBlendFactorSrcAlpha();
+			this.blendFactorDstAlpha = state.getBlendFactorDstAlpha();
+			this.colorMaskR = state.isColorMaskREnabled();
+			this.colorMaskG = state.isColorMaskGEnabled();
+			this.colorMaskB = state.isColorMaskBEnabled();
+			this.colorMaskA = state.isColorMaskAEnabled();
 		}
 
 		public Builder withPolygonMode(GlState.PolygonMode state) {
@@ -138,11 +160,11 @@ public final class DrawState {
 		public Builder enableDepthTest(GlState.DepthFunc depthFunc) {
 			return enableDepthTest(true).depthFunc(depthFunc);
 		}
-		
+
 		public Builder enableDepthTest() {
 			return enableDepthTest(GlState.DepthFunc.LESS);
 		}
-		
+
 		public Builder enableBlending(boolean enable) {
 			this.blendingEnabled = enable;
 			return this;
@@ -234,7 +256,6 @@ public final class DrawState {
 		GlManager.blendFunc(this.blendFactorSrcRgb, this.blendFactorDstRgb,
 				this.blendFactorSrcAlpha, this.blendFactorDstAlpha);
 		GlManager.colorMask(this.colorMaskR, this.colorMaskG, this.colorMaskB, this.colorMaskA);
-
 	}
 
 }

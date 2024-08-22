@@ -25,6 +25,7 @@ public class MotionSmoother<T> {
 	}
 
 	public void tick(double dt) {
+		// https://www.youtube.com/watch?v=LSNQuFEDOyQ
 		this.current = this.ops.lerp(1 - Math.pow(this.smoothingFactor, dt), this.current, this.target);
 	}
 

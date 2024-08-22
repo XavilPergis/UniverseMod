@@ -11,6 +11,7 @@ import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.FogRenderer;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.LightTexture;
@@ -37,6 +38,14 @@ public abstract class LevelRendererMixin {
 			boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture,
 			Matrix4f projectionMatrix, CallbackInfo info) {
 		PostProcessing.runWorldPostProcessing();
+	}
+
+	@Inject(method = "renderLevel", at = @At(value = "INVOKE", shift = At.Shift.AFTER, target = "Lnet/minecraft/client/renderer/FogRenderer;setupFog(Lnet/minecraft/client/Camera;Lnet/minecraft/client/renderer/FogRenderer$FogMode;FZ)V"))
+	private void disableTerrainFog(PoseStack poseStack, float partialTick, long finishNanoTime,
+			boolean renderBlockOutline, Camera camera, GameRenderer gameRenderer, LightTexture lightTexture,
+			Matrix4f projectionMatrix, CallbackInfo info) {
+		// TODO: dont disable lava fog or anything :P
+		FogRenderer.setupNoFog();
 	}
 
 }

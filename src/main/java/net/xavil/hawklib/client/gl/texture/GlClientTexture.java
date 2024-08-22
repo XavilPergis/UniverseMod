@@ -3,11 +3,9 @@ package net.xavil.hawklib.client.gl.texture;
 import java.nio.ByteBuffer;
 import java.util.function.Consumer;
 
-import org.lwjgl.opengl.GL45C;
 import org.lwjgl.system.MemoryUtil;
 
-import com.mojang.blaze3d.platform.GlStateManager;
-
+import net.minecraft.util.Mth;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.gl.ComponentType;
 
@@ -60,18 +58,23 @@ public final class GlClientTexture implements Disposable {
 		}
 
 		public void putPixel(ByteBuffer buf, int i, float r, float g, float b, float a) {
-			this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 0, r);
-			this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 1, r);
-			this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 2, r);
-			this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 3, r);
+			// @formatter:off
+			switch (this.glFormat.channelCount) {
+				case 4: this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 3, a);
+				case 3: this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 2, b);
+				case 2: this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 1, g);
+				case 1: this.type.writeFloatToBuffer(buf, i + this.subpixelStride * 0, r);
+				default: break;
+			}
+			// @formatter:on
 		}
 	}
 
 	@Override
 	public void close() {
-		// if (this.data != null)
-		// 	MemoryUtil.memFree(this.data);
-		// this.data = null;
+		if (this.data != null)
+			MemoryUtil.memFree(this.data);
+		this.data = null;
 	}
 
 	public ByteBuffer imageData() {
@@ -100,8 +103,7 @@ public final class GlClientTexture implements Disposable {
 
 		if (this.data != null)
 			this.close();
-		this.data = ByteBuffer.allocateDirect(bufferSize);
-		// this.data = MemoryUtil.memCalloc(bufferSize);
+		this.data = MemoryUtil.memCalloc(bufferSize);
 		this.format = format;
 		this.sizeX = sizeX;
 		this.sizeY = sizeY;
@@ -142,21 +144,23 @@ public final class GlClientTexture implements Disposable {
 
 	public void setPixel(int x, int y, int z, float r, float g, float b, float a) {
 		validateIndex(x, y, z);
-		this.format.putPixel(this.data, pixelIndex(x, y, z), r, g, b, a);
+		// normalized formats can only store data in the [0, 1] range, which our inputs
+		// may be outside of. Even for operations that logically stay withing [0, 1]
+		// floating point inaccuracy might make the number slightly more or less than 1.
+		if (this.format.type.isNormalized) {
+			r = Mth.clamp(r, 0, 1);
+			g = Mth.clamp(g, 0, 1);
+			b = Mth.clamp(b, 0, 1);
+			a = Mth.clamp(a, 0, 1);
+		}
+		final var pixIdx = pixelIndex(x, y, z);
+		this.format.putPixel(this.data, pixIdx, r, g, b, a);
 	}
 
 	public void uploadTo(GlTexture.Slice dst) {
 		// TODO: assert that the current buffer format is convertible to the gl texture
 		// format
-		// GlStateManager._pixelStore(3314, 0);
-        // GlStateManager._pixelStore(3316, 0);
-        // GlStateManager._pixelStore(3315, 0);
-
-		GL45C.glTextureSubImage1D(dst.texture.id, 0,
-				0, dst.texture.size().width,
-				this.format.glFormat.components.gl, this.format.type.gl, this.data);
-
-		// dst.uploadImage(this.format.glFormat.components, this.format.type, data);
+		dst.uploadImage(this.format.glFormat.components, this.format.type, data);
 	}
 
 	private <T extends GlTexture> T makeTexture(T value, Consumer<T> setup) {

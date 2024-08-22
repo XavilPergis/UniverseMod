@@ -3,8 +3,8 @@ package net.xavil.hawklib.client.flexible.vertex;
 import javax.annotation.Nullable;
 
 import net.xavil.hawklib.client.flexible.BufferLayout;
-import net.xavil.hawklib.client.flexible.BufferRenderer;
-import net.xavil.hawklib.client.flexible.PrimitiveType;
+import net.xavil.hawklib.client.flexible.IndexPattern;
+import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.gl.DrawState;
 import net.xavil.hawklib.client.gl.GlBuffer;
 import net.xavil.hawklib.client.gl.shader.ShaderProgram;
@@ -18,7 +18,7 @@ public final class FilledBuffer {
 	public final int vertexCount;
 
 	@Nullable
-	public final PrimitiveType primitiveType;
+	public final IndexPattern indexPattern;
 
 	private final Runnable syncPointEmitter;
 	private boolean invalid = false;
@@ -28,12 +28,12 @@ public final class FilledBuffer {
 			GlBuffer.Slice vertexData,
 			int vertexCount,
 			BufferLayout layout,
-			PrimitiveType primitiveType,
+			IndexPattern indexPattern,
 			Runnable syncPointEmitter) {
 		this.builder = builder;
 		this.layout = layout;
 		this.vertexCount = vertexCount;
-		this.primitiveType = primitiveType;
+		this.indexPattern = indexPattern;
 		this.vertexData = vertexData;
 		this.syncPointEmitter = syncPointEmitter;
 	}
@@ -57,7 +57,7 @@ public final class FilledBuffer {
 	}
 
 	public void draw(ShaderProgram shader, DrawState drawState) {
-		BufferRenderer.draw(shader, this, drawState);
+		Mesh.draw(shader, this, drawState);
 	}
 
 }

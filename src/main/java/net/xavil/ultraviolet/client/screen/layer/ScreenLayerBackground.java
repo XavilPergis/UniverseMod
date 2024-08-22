@@ -1,15 +1,15 @@
 package net.xavil.ultraviolet.client.screen.layer;
 
+import static net.xavil.hawklib.client.HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING;
+import static net.xavil.hawklib.client.HawkShaders.SHADER_VANILLA_POSITION_COLOR;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.math.Matrix4f;
 
-import static net.xavil.hawklib.client.HawkDrawStates.*;
-import static net.xavil.ultraviolet.client.UltravioletShaders.*;
-
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
-import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.screen.HawkScreen;
 import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.math.ColorRgba;
@@ -38,7 +38,7 @@ public class ScreenLayerBackground extends HawkScreen.Layer2d {
 		RenderSystem.setShaderColor(1f, 1f, 1f, 1f);
 
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER
-				.beginGeneric(PrimitiveType.QUAD_DUPLICATED, BufferLayout.POSITION_COLOR);
+				.beginGeneric(IndexPattern.QUADS, BufferLayout.POSITION_COLOR);
 		fillGradient(ctx.poseStack.last().pose(), builder,
 				0, 0, this.attachedScreen.width, this.attachedScreen.height,
 				0, this.bottomColor, this.topColor);

@@ -76,7 +76,7 @@ public abstract class GlObject implements Disposable {
 		private final Box<String> cachedDebugDescription = new Box<>();
 		private final Box<StackTraceElement[]> stackTrace = Assert.EXPENSIVE_DEBUG_MODE ? new Box<>() : null;
 
-		private static ErrorRatelimiter THROTTLER = new ErrorRatelimiter(Duration.ofMillis(2000L), 6);
+		private static final ErrorRatelimiter THROTTLER = new ErrorRatelimiter(Duration.ofMillis(2000L), 6);
 
 		public DebugInfo(Box<Boolean> releasedPointer) {
 			this.cleanable = CLEANER.register(this, handleCleanup(
@@ -119,6 +119,10 @@ public abstract class GlObject implements Disposable {
 
 	private String debugName;
 	private final DebugInfo debugInfo;
+
+	public static void assertIsAlive(GlObject obj) {
+		Assert.isFalse(obj.released.get());
+	}
 
 	public GlObject(ObjectType type, int id, boolean owned) {
 		this.id = id;
@@ -172,15 +176,23 @@ public abstract class GlObject implements Disposable {
 		if (Objects.equals(this.debugName, debugName))
 			return;
 		this.debugName = debugName;
-		GL45C.glObjectLabel(this.objectType.glId, this.id, debugName);
-		if (this.debugInfo.cachedDebugDescription != null)
+		if (debugName != null) {
+			GL45C.glObjectLabel(this.objectType.glId, this.id, debugName);
+		} else {
+			// glObjectLabel doesnt do any null checks on its CharSequence input, and tries
+			// to convert it to UTF8, but the GL docs specify that NULL may be passed to
+			// clear and object's label. We just bypass this with a direct native call to
+			// glObjectLabel.
+			GL45C.nglObjectLabel(this.objectType.glId, this.id, 0, 0);
+		}
+		if (this.debugInfo != null && this.debugInfo.cachedDebugDescription != null)
 			this.debugInfo.cachedDebugDescription.set(debugDescription());
 	}
 
 	public String debugDescription() {
 		var desc = this.objectType.description + " " + this.id;
 		if (this.debugName != null)
-			desc += " (\"" + this.debugName + "\")";
+			desc += " (" + this.debugName + ")";
 		return desc;
 	}
 

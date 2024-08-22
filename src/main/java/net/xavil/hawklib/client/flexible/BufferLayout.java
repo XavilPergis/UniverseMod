@@ -13,19 +13,16 @@ public final class BufferLayout implements Hashable {
 
 	public final ImmutableList<BuiltElement> elements;
 	public final int byteStride;
-	public final int totalAttribCount;
 
 	public final BufferLayoutSet asLayoutSet;
 	private final long computedHash;
 
-	private BufferLayout(ImmutableList<BuiltElement> elements, int byteStride, int totalAttribCount) {
+	private BufferLayout(ImmutableList<BuiltElement> elements, int byteStride) {
 		this.elements = elements;
 		this.byteStride = byteStride;
-		this.totalAttribCount = totalAttribCount;
 
 		final var hasher = new FastHasher();
 		hasher.appendInt(this.byteStride);
-		hasher.appendInt(this.totalAttribCount);
 		for (int i = 0; i < this.elements.size(); ++i)
 			hasher.append(this.elements.get(i));
 		this.computedHash = hasher.currentHash();
@@ -40,7 +37,7 @@ public final class BufferLayout implements Hashable {
 
 	@Override
 	public int hashCode() {
-		return FastHasher.hashToInt(this);
+		return hashToInt();
 	}
 
 	@Override
@@ -49,7 +46,6 @@ public final class BufferLayout implements Hashable {
 			return true;
 		if (obj instanceof BufferLayout other) {
 			return this.byteStride == other.byteStride
-					&& this.totalAttribCount == other.totalAttribCount
 					&& this.elements.equals(other.elements);
 		}
 		return false;
@@ -63,7 +59,6 @@ public final class BufferLayout implements Hashable {
 
 		private int alignment = 4;
 		private int currentOffset = 0;
-		private int currentAttribOffset = 0;
 		private final MutableList<BuiltElement> elements = new Vector<>();
 
 		private Builder() {
@@ -75,8 +70,7 @@ public final class BufferLayout implements Hashable {
 		}
 
 		public Builder element(Element element, Attribute usage) {
-			this.elements.push(new BuiltElement(usage, this.currentOffset, this.currentAttribOffset, element));
-			this.currentAttribOffset += element.attribSlotCount;
+			this.elements.push(new BuiltElement(usage, this.currentOffset, element));
 			this.currentOffset += element.byteSize;
 			if (this.alignment > 0)
 				this.currentOffset = Mth.roundToward(this.currentOffset, this.alignment);
@@ -85,7 +79,7 @@ public final class BufferLayout implements Hashable {
 
 		public BufferLayout build() {
 			this.elements.optimize();
-			return new BufferLayout(elements, this.currentOffset, this.currentAttribOffset);
+			return new BufferLayout(elements, this.currentOffset);
 		}
 
 	}
@@ -116,25 +110,6 @@ public final class BufferLayout implements Hashable {
 		}
 	}
 
-	public enum AttributeType {
-		/**
-		 * Used for any attribute that has floating-point components. This means things
-		 * such as "float", "vec4" and "mat4".
-		 */
-		FLOAT("Float"),
-		/**
-		 * Used for any attribute that has integer components. This means things such as
-		 * "int" or "ivec4".
-		 */
-		INT("Int");
-
-		public final String name;
-
-		private AttributeType(String name) {
-			this.name = name;
-		}
-	}
-
 	public static final class BuiltElement implements Hashable {
 		// what sort of data this element represents.
 		public final Attribute attribute;
@@ -144,39 +119,30 @@ public final class BufferLayout implements Hashable {
 		// more for matrices. for example, for a mat4, this would be 4, and for a mat3,
 		// this would be 3.
 		public final int attribSlotCount;
-		public final AttributeType attribType;
-		public final int attribSlotOffset;
-
+		
 		public final ComponentType type;
+		public final int elementCount;
 		public final int byteSize;
 		public final int byteOffset;
-
-		public final Element asElement;
 
 		private final long computedHash;
 
 		public BuiltElement(Attribute usage,
-				int byteOffset, int attribSlotOffset,
-				Element element) {
+				int byteOffset, Element element) {
 			this.attribute = usage;
 			this.byteOffset = byteOffset;
-			this.attribType = element.attribType;
 			this.componentCount = element.componentCount;
 			this.attribSlotCount = element.attribSlotCount;
-			this.attribSlotOffset = attribSlotOffset;
 			this.type = element.type;
 			this.byteSize = element.byteSize;
-
-			this.asElement = element;
+			this.elementCount = this.componentCount * this.attribSlotCount;
 
 			final var hasher = new FastHasher();
 			hasher.appendInt(this.attribute.hashCode());
 			hasher.appendInt(this.byteOffset);
-			hasher.appendEnum(this.attribType);
 			hasher.appendInt(this.componentCount);
 			hasher.appendInt(this.attribSlotCount);
-			hasher.appendInt(this.attribSlotOffset);
-			hasher.appendEnum(this.type);
+			hasher.append(this.type);
 			hasher.appendInt(this.byteSize);
 			this.computedHash = hasher.currentHash();
 		}
@@ -188,7 +154,7 @@ public final class BufferLayout implements Hashable {
 
 		@Override
 		public int hashCode() {
-			return FastHasher.hashToInt(this);
+			return hashToInt();
 		}
 
 		@Override
@@ -200,8 +166,6 @@ public final class BufferLayout implements Hashable {
 						&& this.attribute == other.attribute
 						&& this.componentCount == other.componentCount
 						&& this.attribSlotCount == other.attribSlotCount
-						&& this.attribType == other.attribType
-						&& this.attribSlotOffset == other.attribSlotOffset
 						&& this.type == other.type
 						&& this.byteSize == other.byteSize
 						&& this.byteOffset == other.byteOffset;
@@ -216,15 +180,13 @@ public final class BufferLayout implements Hashable {
 		public final ComponentType type;
 		public final int componentCount;
 		public final int attribSlotCount;
-		public final AttributeType attribType;
 
 		public final int byteSize;
 
-		public Element(ComponentType type, int componentCount, int attribSlotCount, AttributeType attribType) {
+		public Element(ComponentType type, int componentCount, int attribSlotCount) {
 			this.type = type;
 			this.componentCount = componentCount;
 			this.attribSlotCount = attribSlotCount;
-			this.attribType = attribType;
 
 			this.byteSize = type.byteSize * componentCount * attribSlotCount;
 		}
@@ -233,86 +195,86 @@ public final class BufferLayout implements Hashable {
 	// @formatter:off
 	// unnormalized integers (interpret directly as integers)
 	public static final Element
-			ELEMENT_BYTE1 = new Element(ComponentType.BYTE, 1, 1, AttributeType.INT),
-			ELEMENT_BYTE2 = new Element(ComponentType.BYTE, 2, 1, AttributeType.INT),
-			ELEMENT_BYTE3 = new Element(ComponentType.BYTE, 3, 1, AttributeType.INT),
-			ELEMENT_BYTE4 = new Element(ComponentType.BYTE, 4, 1, AttributeType.INT),
-			ELEMENT_UBYTE1 = new Element(ComponentType.UBYTE, 1, 1, AttributeType.INT),
-			ELEMENT_UBYTE2 = new Element(ComponentType.UBYTE, 2, 1, AttributeType.INT),
-			ELEMENT_UBYTE3 = new Element(ComponentType.UBYTE, 3, 1, AttributeType.INT),
-			ELEMENT_UBYTE4 = new Element(ComponentType.UBYTE, 4, 1, AttributeType.INT),
-			ELEMENT_SHORT1 = new Element(ComponentType.SHORT, 1, 1, AttributeType.INT),
-			ELEMENT_SHORT2 = new Element(ComponentType.SHORT, 2, 1, AttributeType.INT),
-			ELEMENT_SHORT3 = new Element(ComponentType.SHORT, 3, 1, AttributeType.INT),
-			ELEMENT_SHORT4 = new Element(ComponentType.SHORT, 4, 1, AttributeType.INT),
-			ELEMENT_USHORT1 = new Element(ComponentType.USHORT, 1, 1, AttributeType.INT),
-			ELEMENT_USHORT2 = new Element(ComponentType.USHORT, 2, 1, AttributeType.INT),
-			ELEMENT_USHORT3 = new Element(ComponentType.USHORT, 3, 1, AttributeType.INT),
-			ELEMENT_USHORT4 = new Element(ComponentType.USHORT, 4, 1, AttributeType.INT),
-			ELEMENT_INT1 = new Element(ComponentType.INT, 1, 1, AttributeType.INT),
-			ELEMENT_INT2 = new Element(ComponentType.INT, 2, 1, AttributeType.INT),
-			ELEMENT_INT3 = new Element(ComponentType.INT, 3, 1, AttributeType.INT),
-			ELEMENT_INT4 = new Element(ComponentType.INT, 4, 1, AttributeType.INT),
-			ELEMENT_UINT1 = new Element(ComponentType.UINT, 1, 1, AttributeType.INT),
-			ELEMENT_UINT2 = new Element(ComponentType.UINT, 2, 1, AttributeType.INT),
-			ELEMENT_UINT3 = new Element(ComponentType.UINT, 3, 1, AttributeType.INT),
-			ELEMENT_UINT4 = new Element(ComponentType.UINT, 4, 1, AttributeType.INT);
+			ELEMENT_BYTE1 = new Element(ComponentType.BYTE, 1, 1),
+			ELEMENT_BYTE2 = new Element(ComponentType.BYTE, 2, 1),
+			ELEMENT_BYTE3 = new Element(ComponentType.BYTE, 3, 1),
+			ELEMENT_BYTE4 = new Element(ComponentType.BYTE, 4, 1),
+			ELEMENT_UBYTE1 = new Element(ComponentType.UBYTE, 1, 1),
+			ELEMENT_UBYTE2 = new Element(ComponentType.UBYTE, 2, 1),
+			ELEMENT_UBYTE3 = new Element(ComponentType.UBYTE, 3, 1),
+			ELEMENT_UBYTE4 = new Element(ComponentType.UBYTE, 4, 1),
+			ELEMENT_SHORT1 = new Element(ComponentType.SHORT, 1, 1),
+			ELEMENT_SHORT2 = new Element(ComponentType.SHORT, 2, 1),
+			ELEMENT_SHORT3 = new Element(ComponentType.SHORT, 3, 1),
+			ELEMENT_SHORT4 = new Element(ComponentType.SHORT, 4, 1),
+			ELEMENT_USHORT1 = new Element(ComponentType.USHORT, 1, 1),
+			ELEMENT_USHORT2 = new Element(ComponentType.USHORT, 2, 1),
+			ELEMENT_USHORT3 = new Element(ComponentType.USHORT, 3, 1),
+			ELEMENT_USHORT4 = new Element(ComponentType.USHORT, 4, 1),
+			ELEMENT_INT1 = new Element(ComponentType.INT, 1, 1),
+			ELEMENT_INT2 = new Element(ComponentType.INT, 2, 1),
+			ELEMENT_INT3 = new Element(ComponentType.INT, 3, 1),
+			ELEMENT_INT4 = new Element(ComponentType.INT, 4, 1),
+			ELEMENT_UINT1 = new Element(ComponentType.UINT, 1, 1),
+			ELEMENT_UINT2 = new Element(ComponentType.UINT, 2, 1),
+			ELEMENT_UINT3 = new Element(ComponentType.UINT, 3, 1),
+			ELEMENT_UINT4 = new Element(ComponentType.UINT, 4, 1);
 
 	// normalized integers (convert to floats)
 	public static final Element
-			ELEMENT_FLOAT_BYTE_NORM1 = new Element(ComponentType.BYTE_NORM, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_BYTE_NORM2 = new Element(ComponentType.BYTE_NORM, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_BYTE_NORM3 = new Element(ComponentType.BYTE_NORM, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_BYTE_NORM4 = new Element(ComponentType.BYTE_NORM, 4, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UBYTE_NORM1 = new Element(ComponentType.UBYTE_NORM, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UBYTE_NORM2 = new Element(ComponentType.UBYTE_NORM, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UBYTE_NORM3 = new Element(ComponentType.UBYTE_NORM, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UBYTE_NORM4 = new Element(ComponentType.UBYTE_NORM, 4, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_SHORT_NORM1 = new Element(ComponentType.SHORT_NORM, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_SHORT_NORM2 = new Element(ComponentType.SHORT_NORM, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_SHORT_NORM3 = new Element(ComponentType.SHORT_NORM, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_SHORT_NORM4 = new Element(ComponentType.SHORT_NORM, 4, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_USHORT_NORM1 = new Element(ComponentType.USHORT_NORM, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_USHORT_NORM2 = new Element(ComponentType.USHORT_NORM, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_USHORT_NORM3 = new Element(ComponentType.USHORT_NORM, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_USHORT_NORM4 = new Element(ComponentType.USHORT_NORM, 4, 1, AttributeType.FLOAT);
+			ELEMENT_FLOAT_BYTE_NORM1 = new Element(ComponentType.BYTE_NORM, 1, 1),
+			ELEMENT_FLOAT_BYTE_NORM2 = new Element(ComponentType.BYTE_NORM, 2, 1),
+			ELEMENT_FLOAT_BYTE_NORM3 = new Element(ComponentType.BYTE_NORM, 3, 1),
+			ELEMENT_FLOAT_BYTE_NORM4 = new Element(ComponentType.BYTE_NORM, 4, 1),
+			ELEMENT_FLOAT_UBYTE_NORM1 = new Element(ComponentType.UBYTE_NORM, 1, 1),
+			ELEMENT_FLOAT_UBYTE_NORM2 = new Element(ComponentType.UBYTE_NORM, 2, 1),
+			ELEMENT_FLOAT_UBYTE_NORM3 = new Element(ComponentType.UBYTE_NORM, 3, 1),
+			ELEMENT_FLOAT_UBYTE_NORM4 = new Element(ComponentType.UBYTE_NORM, 4, 1),
+			ELEMENT_FLOAT_SHORT_NORM1 = new Element(ComponentType.SHORT_NORM, 1, 1),
+			ELEMENT_FLOAT_SHORT_NORM2 = new Element(ComponentType.SHORT_NORM, 2, 1),
+			ELEMENT_FLOAT_SHORT_NORM3 = new Element(ComponentType.SHORT_NORM, 3, 1),
+			ELEMENT_FLOAT_SHORT_NORM4 = new Element(ComponentType.SHORT_NORM, 4, 1),
+			ELEMENT_FLOAT_USHORT_NORM1 = new Element(ComponentType.USHORT_NORM, 1, 1),
+			ELEMENT_FLOAT_USHORT_NORM2 = new Element(ComponentType.USHORT_NORM, 2, 1),
+			ELEMENT_FLOAT_USHORT_NORM3 = new Element(ComponentType.USHORT_NORM, 3, 1),
+			ELEMENT_FLOAT_USHORT_NORM4 = new Element(ComponentType.USHORT_NORM, 4, 1);
 
 	// unnormalized integers (convert to floats)
 	public static final Element
-			ELEMENT_FLOAT_BYTE1 = new Element(ComponentType.BYTE, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_BYTE2 = new Element(ComponentType.BYTE, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_BYTE3 = new Element(ComponentType.BYTE, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_BYTE4 = new Element(ComponentType.BYTE, 4, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UBYTE1 = new Element(ComponentType.UBYTE, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UBYTE2 = new Element(ComponentType.UBYTE, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UBYTE3 = new Element(ComponentType.UBYTE, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UBYTE4 = new Element(ComponentType.UBYTE, 4, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_SHORT1 = new Element(ComponentType.SHORT, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_SHORT2 = new Element(ComponentType.SHORT, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_SHORT3 = new Element(ComponentType.SHORT, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_SHORT4 = new Element(ComponentType.SHORT, 4, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_USHORT1 = new Element(ComponentType.USHORT, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_USHORT2 = new Element(ComponentType.USHORT, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_USHORT3 = new Element(ComponentType.USHORT, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_USHORT4 = new Element(ComponentType.USHORT, 4, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_INT1 = new Element(ComponentType.INT, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_INT2 = new Element(ComponentType.INT, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_INT3 = new Element(ComponentType.INT, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_INT4 = new Element(ComponentType.INT, 4, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UINT1 = new Element(ComponentType.UINT, 1, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UINT2 = new Element(ComponentType.UINT, 2, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UINT3 = new Element(ComponentType.UINT, 3, 1, AttributeType.FLOAT),
-			ELEMENT_FLOAT_UINT4 = new Element(ComponentType.UINT, 4, 1, AttributeType.FLOAT);
+			ELEMENT_FLOAT_BYTE1 = new Element(ComponentType.BYTE, 1, 1),
+			ELEMENT_FLOAT_BYTE2 = new Element(ComponentType.BYTE, 2, 1),
+			ELEMENT_FLOAT_BYTE3 = new Element(ComponentType.BYTE, 3, 1),
+			ELEMENT_FLOAT_BYTE4 = new Element(ComponentType.BYTE, 4, 1),
+			ELEMENT_FLOAT_UBYTE1 = new Element(ComponentType.UBYTE, 1, 1),
+			ELEMENT_FLOAT_UBYTE2 = new Element(ComponentType.UBYTE, 2, 1),
+			ELEMENT_FLOAT_UBYTE3 = new Element(ComponentType.UBYTE, 3, 1),
+			ELEMENT_FLOAT_UBYTE4 = new Element(ComponentType.UBYTE, 4, 1),
+			ELEMENT_FLOAT_SHORT1 = new Element(ComponentType.SHORT, 1, 1),
+			ELEMENT_FLOAT_SHORT2 = new Element(ComponentType.SHORT, 2, 1),
+			ELEMENT_FLOAT_SHORT3 = new Element(ComponentType.SHORT, 3, 1),
+			ELEMENT_FLOAT_SHORT4 = new Element(ComponentType.SHORT, 4, 1),
+			ELEMENT_FLOAT_USHORT1 = new Element(ComponentType.USHORT, 1, 1),
+			ELEMENT_FLOAT_USHORT2 = new Element(ComponentType.USHORT, 2, 1),
+			ELEMENT_FLOAT_USHORT3 = new Element(ComponentType.USHORT, 3, 1),
+			ELEMENT_FLOAT_USHORT4 = new Element(ComponentType.USHORT, 4, 1),
+			ELEMENT_FLOAT_INT1 = new Element(ComponentType.INT, 1, 1),
+			ELEMENT_FLOAT_INT2 = new Element(ComponentType.INT, 2, 1),
+			ELEMENT_FLOAT_INT3 = new Element(ComponentType.INT, 3, 1),
+			ELEMENT_FLOAT_INT4 = new Element(ComponentType.INT, 4, 1),
+			ELEMENT_FLOAT_UINT1 = new Element(ComponentType.UINT, 1, 1),
+			ELEMENT_FLOAT_UINT2 = new Element(ComponentType.UINT, 2, 1),
+			ELEMENT_FLOAT_UINT3 = new Element(ComponentType.UINT, 3, 1),
+			ELEMENT_FLOAT_UINT4 = new Element(ComponentType.UINT, 4, 1);
 
 	// floats
-	public static final Element ELEMENT_FLOAT1 = new Element(ComponentType.FLOAT, 1, 1, AttributeType.FLOAT);
-	public static final Element ELEMENT_FLOAT2 = new Element(ComponentType.FLOAT, 2, 1, AttributeType.FLOAT);
-	public static final Element ELEMENT_FLOAT3 = new Element(ComponentType.FLOAT, 3, 1, AttributeType.FLOAT);
-	public static final Element ELEMENT_FLOAT4 = new Element(ComponentType.FLOAT, 4, 1, AttributeType.FLOAT);
+	public static final Element ELEMENT_FLOAT1 = new Element(ComponentType.FLOAT, 1, 1);
+	public static final Element ELEMENT_FLOAT2 = new Element(ComponentType.FLOAT, 2, 1);
+	public static final Element ELEMENT_FLOAT3 = new Element(ComponentType.FLOAT, 3, 1);
+	public static final Element ELEMENT_FLOAT4 = new Element(ComponentType.FLOAT, 4, 1);
 
-	public static final Element ELEMENT_MAT2 = new Element(ComponentType.FLOAT, 2, 2, AttributeType.FLOAT);
-	public static final Element ELEMENT_MAT3 = new Element(ComponentType.FLOAT, 3, 3, AttributeType.FLOAT);
-	public static final Element ELEMENT_MAT4 = new Element(ComponentType.FLOAT, 4, 4, AttributeType.FLOAT);
+	public static final Element ELEMENT_MAT2 = new Element(ComponentType.FLOAT, 2, 2);
+	public static final Element ELEMENT_MAT3 = new Element(ComponentType.FLOAT, 3, 3);
+	public static final Element ELEMENT_MAT4 = new Element(ComponentType.FLOAT, 4, 4);
 	// @formatter:on
 
 	public static final BufferLayout POSITION = builder()
@@ -329,23 +291,23 @@ public final class BufferLayout implements Hashable {
 			.build();
 	public static final BufferLayout POSITION_TEX_COLOR_NORMAL = builder()
 			.element(ELEMENT_FLOAT3, Attribute.POSITION)
-			.element(ELEMENT_FLOAT_SHORT_NORM2, Attribute.UV0)
+			.element(ELEMENT_FLOAT_USHORT_NORM2, Attribute.UV0)
 			.element(ELEMENT_FLOAT_UBYTE_NORM4, Attribute.COLOR)
 			.element(ELEMENT_FLOAT3, Attribute.NORMAL)
 			.build();
 	public static final BufferLayout POSITION_TEX = builder()
 			.element(ELEMENT_FLOAT3, Attribute.POSITION)
-			.element(ELEMENT_FLOAT_SHORT_NORM2, Attribute.UV0)
+			.element(ELEMENT_FLOAT_USHORT_NORM2, Attribute.UV0)
 			.build();
 	public static final BufferLayout POSITION_COLOR_TEX = builder()
 			.element(ELEMENT_FLOAT3, Attribute.POSITION)
 			.element(ELEMENT_FLOAT_UBYTE_NORM4, Attribute.COLOR)
-			.element(ELEMENT_FLOAT_SHORT_NORM2, Attribute.UV0)
+			.element(ELEMENT_FLOAT_USHORT_NORM2, Attribute.UV0)
 			.build();
 	public static final BufferLayout POSITION_COLOR_TEX_LIGHTMAP = builder()
 			.element(ELEMENT_FLOAT3, Attribute.POSITION)
 			.element(ELEMENT_FLOAT_UBYTE_NORM4, Attribute.COLOR)
-			.element(ELEMENT_FLOAT_SHORT_NORM2, Attribute.UV0)
+			.element(ELEMENT_FLOAT_USHORT_NORM2, Attribute.UV0)
 			.element(ELEMENT_SHORT2, Attribute.UV2)
 			.build();
 

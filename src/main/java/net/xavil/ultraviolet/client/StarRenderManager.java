@@ -116,7 +116,7 @@ public final class StarRenderManager implements Disposable {
 	}
 
 	public void draw(CachedCamera camera, Vec3 centerPos) {
-		this.sectorTicket.info.centerPos = centerPos;
+		this.sectorTicket.info.centerPos = centerPos.add(this.originOffset);
 		// this.sectorTicket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
 		// this.sectorTicket.info.scales = SectorTicketInfo.Multi.SCALES_EXP;
 
@@ -136,14 +136,14 @@ public final class StarRenderManager implements Disposable {
 		}
 
 		if (ClientConfig.get(ConfigKey.FORCE_STAR_RENDERER_IMMEDIATE_MODE)) {
-			// drawStarsImmediate(camera, centerPos);
+			drawStarsImmediate(camera, centerPos);
 			this.starSnapshotPosition = null;
 		} else {
-			// buildStarsIfNeeded(camera, centerPos);
+			buildStarsIfNeeded(camera, centerPos);
 			if (this.drawImmediate) {
-				// drawStarsImmediate(camera, centerPos);
+				drawStarsImmediate(camera, centerPos);
 			} else {
-				// drawStars(camera, this.starsMesh);
+				drawStars(camera, this.starsMesh);
 			}
 		}
 	}
@@ -192,8 +192,8 @@ public final class StarRenderManager implements Disposable {
 			drawSectorStars(ctx, sector);
 		});
 
-		BufferRenderer.IMMEDIATE_BUFFER.setupAndUpload(builder.end());
-		drawStars(camera, BufferRenderer.IMMEDIATE_BUFFER);
+		Mesh.IMMEDIATE_SCRATCH.setupAndUpload(builder.end());
+		drawStars(camera, Mesh.IMMEDIATE_SCRATCH);
 	}
 
 	// TODO: would it be better to split up rendering into "chunks", so that we
@@ -241,12 +241,13 @@ public final class StarRenderManager implements Disposable {
 		final var colorHolder = ctx.colorHolder;
 		final var toStar = ctx.toStar;
 
-		final var actualOrigin = this.originOffset.add(this.floatingOrigin);
-		// final var actualOrigin = this.floatingOrigin;
+		// final var actualOrigin = this.originOffset.add(this.floatingOrigin);
+		final var actualOrigin = this.floatingOrigin;
 
 		final var levelSize = this.sectorTicket.info.radiusForLevel(sector.level);
 		for (int i = 0; i < sector.elements.size(); ++i) {
 			sector.elements.load(elem, i);
+			Vec3.sub(elem.systemPosTm, elem.systemPosTm, this.originOffset);
 			if (elem.systemPosTm.distanceTo(ctx.centerPos) > levelSize)
 				continue;
 
@@ -256,15 +257,16 @@ public final class StarRenderManager implements Disposable {
 				continue;
 
 			// don't render the stars that are behind the camera in immediate mode
-			if (ctx.isImmediateMode) {
-				Vec3.set(toStar, elem.systemPosTm);
-				Vec3.sub(toStar, toStar, ctx.centerPos);
-				if (toStar.dot(ctx.camera.forward) == 0)
-					return;
-			}
+			// if (ctx.isImmediateMode) {
+			// Vec3.set(toStar, elem.systemPosTm);
+			// Vec3.sub(toStar, toStar, ctx.centerPos);
+			// if (toStar.dot(ctx.camera.forward) == 0)
+			// return;
+			// }
 
-			Vec3.sub(elem.systemPosTm, elem.systemPosTm, actualOrigin);
-			Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
+			// Vec3.sub(elem.systemPosTm, elem.systemPosTm, this.originOffset);
+			Vec3.sub(elem.systemPosTm, elem.systemPosTm, this.floatingOrigin);
+			// Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
 			Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 / ctx.camera.metersPerUnit);
 
 			StellarCelestialNode.BLACK_BODY_COLOR_TABLE.lookupColor(colorHolder, elem.temperatureK);
@@ -292,18 +294,8 @@ public final class StarRenderManager implements Disposable {
 		final var partialTick = Minecraft.getInstance().getFrameTime();
 
 		final var origin = this.floatingOrigin;
-		final var offset = camera.posTm.sub(origin).mul(1e12 / camera.metersPerUnit);
-
-		final var poseStack = RenderSystem.getModelViewStack();
-		poseStack.setIdentity();
-
-		poseStack.mulPose(camera.orientation.asMinecraft());
-		// poseStack.translate(-camera.pos.x, -camera.pos.y, -camera.pos.z);
-		poseStack.translate(-offset.x, -offset.y, -offset.z);
-		final var inverseViewRotationMatrix = poseStack.last().normal().copy();
-		if (inverseViewRotationMatrix.invert()) {
-			RenderSystem.setInverseViewRotationMatrix(inverseViewRotationMatrix);
-		}
+		final var offset = origin.mul(1e12 / camera.metersPerUnit).sub(camera.pos);
+		camera.applyView(offset);
 
 		RenderSystem.applyModelViewMatrix();
 
@@ -317,20 +309,17 @@ public final class StarRenderManager implements Disposable {
 			shader.setUniformf("uStarLuminosityMax", ClientConfig.get(ConfigKey.STAR_SHADER_LUMINOSITY_MAX));
 			shader.setUniformf("uStarBrightnessScale", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_SCALE));
 			shader.setUniformf("uStarBrightnessMax", ClientConfig.get(ConfigKey.STAR_SHADER_BRIGHTNESS_MAX));
-			shader.setUniformf("uReferenceMagnitude", ClientConfig.get(ConfigKey.STAR_SHADER_REFERENCE_MAGNITUDE));
-			shader.setUniformf("uMagnitudeBase", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_BASE));
-			shader.setUniformf("uMagnitudePower", ClientConfig.get(ConfigKey.STAR_SHADER_MAGNITUDE_POWER));
 			starsMesh.draw(shader, DRAW_STATE_ADDITIVE_BLENDING);
 		} else if (this.mode == Mode.MAP) {
 			final var shader = UltravioletShaders.SHADER_STAR_BILLBOARD_UI.get();
 			shader.setupDefaultShaderUniforms();
 			shader.setUniformf("uMetersPerUnit", camera.metersPerUnit);
 			shader.setUniformf("uTime", universe.getCelestialTime(partialTick));
-			shader.setUniformf("uMinDistance", 0.0);
-			shader.setUniformf("uMaxDistance", 100000.0);
-			shader.setUniformf("uFadeoutDistance", 5000000.0);
-			shader.setUniformf("uMinSize", 3.0);
-			shader.setUniformf("uMaxSize", 15.0);
+			shader.setUniformf("uMinDistance", ClientConfig.get(ConfigKey.STAR_SHADER_UI_MIN_DISTANCE));
+			shader.setUniformf("uMaxDistance", ClientConfig.get(ConfigKey.STAR_SHADER_UI_MAX_DISTANCE));
+			shader.setUniformf("uFadeoutDistance", ClientConfig.get(ConfigKey.STAR_SHADER_UI_FADEOUT_DISTANCE));
+			shader.setUniformf("uMinSize", ClientConfig.get(ConfigKey.STAR_SHADER_UI_MIN_SIZE));
+			shader.setUniformf("uMaxSize", ClientConfig.get(ConfigKey.STAR_SHADER_UI_MAX_SIZE));
 			starsMesh.draw(shader, DRAW_STATE_OPAQUE);
 		}
 

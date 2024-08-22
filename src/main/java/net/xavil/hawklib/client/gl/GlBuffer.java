@@ -1,16 +1,17 @@
 package net.xavil.hawklib.client.gl;
 
 import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+import java.util.function.Consumer;
 
 import javax.annotation.Nullable;
 
 import org.lwjgl.opengl.GL45C;
 
-import com.mojang.blaze3d.systems.RenderSystem;
-
 import net.xavil.hawklib.Assert;
+import net.xavil.hawklib.Disposable;
 
-public class GlBuffer extends GlObject {
+public class GlBuffer extends GlObject implements BufferSliceable {
 
 	public static enum Type {
 		// @formatter:off
@@ -112,6 +113,14 @@ public class GlBuffer extends GlObject {
 		super(ObjectType.BUFFER, GL45C.glCreateBuffers(), true);
 	}
 
+	public static GlBuffer createMappedStagingBuffer(long size) {
+		final var buffer = new GlBuffer();
+		buffer.allocateImmutableStorage(size,
+				GL45C.GL_MAP_PERSISTENT_BIT | GL45C.GL_MAP_WRITE_BIT | GL45C.GL_CLIENT_STORAGE_BIT);
+		buffer.map(GL45C.GL_MAP_PERSISTENT_BIT | GL45C.GL_MAP_WRITE_BIT);
+		return buffer;
+	}
+
 	public void allocateMutableStorage(ByteBuffer buffer, UsageHint usage) {
 		if (this.storageMutability == StorageMutability.IMMUTABLE)
 			throw new IllegalStateException(String.format(
@@ -125,12 +134,12 @@ public class GlBuffer extends GlObject {
 	public void bufferSubData(ByteBuffer buffer, long offset) {
 		if ((this.storageFlags & GL45C.GL_DYNAMIC_STORAGE_BIT) == 0)
 			throw new IllegalStateException(String.format(
-					"%s: tried to create immutable storage on a buffer whose storage is already immutable",
+					"%s: tried to update buffer data on buffer without dynamic storage",
 					debugDescription()));
 		GL45C.glNamedBufferSubData(this.id, offset, buffer);
 	}
 
-	public static final class Slice {
+	public static final class Slice implements BufferSliceable {
 		public final GlBuffer buffer;
 		public final long offset, size;
 
@@ -153,6 +162,12 @@ public class GlBuffer extends GlObject {
 			}
 		}
 
+		@Override
+		public Slice slice() {
+			return this;
+		}
+
+		@Override
 		public Slice slice(long offset, long size) {
 			if (offset + size > this.size)
 				throw new IllegalArgumentException(String.format(
@@ -193,7 +208,7 @@ public class GlBuffer extends GlObject {
 			if (this.buffer.mapping == null)
 				return null;
 			// FIXME: integer overflow
-			return this.buffer.mapping.slice((int) this.offset, (int) this.size);
+			return this.buffer.mapping.slice((int) this.offset, (int) this.size).order(ByteOrder.nativeOrder());
 		}
 	}
 
@@ -227,7 +242,7 @@ public class GlBuffer extends GlObject {
 					"%s: tried to create writable mapping on buffer with non-writable storage",
 					debugDescription()));
 
-		this.mapping = GL45C.glMapNamedBufferRange(this.id, 0, this.size, flags);
+		this.mapping = GL45C.glMapNamedBufferRange(this.id, 0, this.size, flags).order(ByteOrder.nativeOrder());
 		this.mappingFlags = flags;
 		return this.mapping;
 	}
@@ -279,13 +294,113 @@ public class GlBuffer extends GlObject {
 		return new GlBuffer(id, false);
 	}
 
-	public static GlBuffer importFromAutoStorage(RenderSystem.AutoStorageIndexBuffer buffer) {
-		final var res = new GlBuffer(buffer.name(), false);
-		res.storageMutability = StorageMutability.MUTABLE;
-		// FIXME: AutoStorageIndexBuffer stores all the info needed to reconstruct
-		// buffer size
-		// res.size = ???;
-		return res;
+	public static final class GrowableBuffer implements Disposable, BufferSliceable {
+		private GlBuffer buffer = new GlBuffer();
+		private long bufferSizeInUse = 0;
+		private String debugName;
+		private GrowthStrategy growthStrategy;
+
+		public interface GrowthStrategy {
+
+			long nextCapacity(long currentCapacity, long neededSize);
+
+			static GrowthStrategy MINIMAL = (currentCapacity, neededSize) -> neededSize;
+
+			static GrowthStrategy geometric(long initialCapacity, float growthFactor) {
+				return (currentCapacity, neededSize) -> {
+					long cap = currentCapacity > 0 ? currentCapacity : initialCapacity;
+					while (cap < neededSize)
+						cap *= growthFactor;
+					return cap;
+				};
+			}
+
+			static GrowthStrategy bucketed(long bucketSize) {
+				return (currentCapacity, neededSize) -> bucketSize * (Math.floorDiv(neededSize, bucketSize) + 1);
+			}
+
+		}
+
+		public GrowableBuffer() {
+			this(GrowthStrategy.MINIMAL);
+		}
+
+		public GrowableBuffer(GrowthStrategy growthStrategy) {
+			this.growthStrategy = growthStrategy;
+		}
+
+		public void setDebugName(String name) {
+			this.debugName = name;
+			this.buffer.setDebugName(this.debugName);
+		}
+
+		@Override
+		public void close() {
+			this.buffer.close();
+		}
+
+		private void growIfNeeded(long neededSize) {
+			if (neededSize <= this.buffer.size())
+				return;
+
+			final var newCapacity = this.growthStrategy.nextCapacity(this.buffer.size(), neededSize);
+			Assert.isGreaterOrEqual(newCapacity, neededSize);
+			if (this.buffer != null)
+				this.buffer.close();
+			this.buffer = new GlBuffer();
+			this.buffer.setDebugName(this.debugName);
+			this.buffer.allocateImmutableStorage(neededSize, GL45C.GL_DYNAMIC_STORAGE_BIT);
+		}
+
+		/**
+		 * Set the contents of this buffer, allocating a new larger buffer if needed.
+		 * 
+		 * @param data          The data to upload.
+		 * @param sizeAlignment A value which the length of the buffer must be aligned
+		 *                      to.
+		 */
+		public void setContents(Slice data) {
+			growIfNeeded(data.size);
+			data.copyTo(this.buffer.slice());
+			this.bufferSizeInUse = data.size;
+		}
+
+		public void setContents(long size, Consumer<ByteBuffer> writer) {
+			growIfNeeded(size);
+			try (final var stagingBuffer = createMappedStagingBuffer(size)) {
+				writer.accept(stagingBuffer.slice().mappedPointer());
+				stagingBuffer.slice().copyTo(this.buffer.slice(), size);
+			}
+			this.bufferSizeInUse = size;
+		}
+
+		public void shrinkToFit() {
+			if (this.bufferSizeInUse == this.buffer.size())
+				return;
+			final var oldBuffer = this.buffer;
+			this.buffer = new GlBuffer();
+			this.buffer.setDebugName(this.debugName);
+			this.buffer.allocateImmutableStorage(this.bufferSizeInUse, GL45C.GL_DYNAMIC_STORAGE_BIT);
+			oldBuffer.slice(0, this.bufferSizeInUse).copyTo(this.buffer.slice());
+			if (oldBuffer != null)
+				oldBuffer.close();
+		}
+
+		/**
+		 * @return A slice covering the portion of the buffer that's currently in use.
+		 */
+		@Override
+		public Slice slice() {
+			return this.buffer.slice(0, this.bufferSizeInUse);
+		}
+
+		public long size() {
+			return this.bufferSizeInUse;
+		}
+
+		public long capacity() {
+			return this.buffer.size;
+		}
 	}
 
 }

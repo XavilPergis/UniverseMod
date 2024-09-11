@@ -1,5 +1,7 @@
 package net.xavil.ultraviolet.client.screen;
 
+import java.util.function.Consumer;
+
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
@@ -19,16 +21,17 @@ import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.flexible.PrimitiveType;
 import net.xavil.hawklib.client.flexible.vertex.VertexDispatcher;
 import net.xavil.hawklib.client.screen.HawkScreen;
+import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.impl.VectorInt;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.Interval;
-import net.xavil.hawklib.math.NumericOps;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.Rect;
 import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.layer.AxisMapping;
 import net.xavil.ultraviolet.client.screen.layer.Histogram;
@@ -40,6 +43,7 @@ import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.system.StellarCelestialNode;
+import net.xavil.ultraviolet.common.universe.system.StellarProperties;
 
 public class StarStatisticsScreen extends HawkScreen {
 
@@ -48,10 +52,17 @@ public class StarStatisticsScreen extends HawkScreen {
 
 	private ScatterPlot xyPlot = null;
 	private Histogram xHistogram = null, yHistogram = null;
+	private Histogram[] levelHistogramsX = {}, levelHistogramsY = {};
 
-	// private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.ILLUMINANCE;
+	// private Variable xVariable = Variable.TEMPERATURE, yVariable =
+	// Variable.ILLUMINANCE;
 	private Variable xVariable = Variable.TEMPERATURE, yVariable = Variable.LUMINOUS_FLUX;
-	// private Variable xVariable = Variable.LUMINOUS_FLUX, yVariable = Variable.ILLUMINANCE;
+	// private Variable xVariable = Variable.AGE, yVariable =
+	// Variable.LUMINOUS_FLUX;
+	// private Variable xVariable = Variable.AGE, yVariable = Variable.TEMPERATURE;
+	// private Variable xVariable = Variable.AGE, yVariable = Variable.MASS;
+	// private Variable xVariable = Variable.LUMINOUS_FLUX, yVariable =
+	// Variable.ILLUMINANCE;
 	// private AxisMapping xMapping = new AxisMapping.Log(10, 1e3, 1e9);
 	// private AxisMapping yMapping = new AxisMapping.Log(10, 1e-10, 1e0);
 
@@ -60,16 +71,19 @@ public class StarStatisticsScreen extends HawkScreen {
 	// private Variable xVariable = Variable.DISTANCE, yVariable =
 	// Variable.TEMPERATURE;
 	// private Variable xVariable = Variable.AGE, yVariable = Variable.RADIANT_FLUX;
-	// private Variable xVariable = Variable.MASS, yVariable = Variable.RADIANT_FLUX;
+	// private Variable xVariable = Variable.MASS, yVariable =
+	// Variable.RADIANT_FLUX;
 	// private Variable xVariable = Variable.MASS, yVariable = Variable.TEMPERATURE;
 
 	// private AxisMapping xMapping = new AxisMapping.Log(10, 1, 1e5);
 	// private AxisMapping xMapping = new AxisMapping.Linear(0, 13000);
 	private AxisMapping xMapping = new AxisMapping.Log(10, this.xVariable.interval);
-	private AxisMapping yMapping = new AxisMapping.Log(10, this.yVariable.interval);
+	// private AxisMapping yMapping = new AxisMapping.Log(10,
+	// this.yVariable.interval);
+	private AxisMapping yMapping = new AxisMapping.Log(10, new Interval(1e1, 1e12));
 
-	public MotionSmoother<Double> scale = new MotionSmoother<>(0.6, NumericOps.DOUBLE, 1.0);
-	public MotionSmoother<Vec2> offset = new MotionSmoother<>(0.6, NumericOps.VEC2, Vec2.ZERO);
+	public MotionSmoother<Double> scale = new MotionSmoother<>(0.6, MotionSmoother.Interpolator.DOUBLE, 1.4);
+	public MotionSmoother<Vec2> offset = new MotionSmoother<>(0.6, MotionSmoother.Interpolator.VEC2, Vec2.ZERO);
 	public double scaleMin = 0.05, scaleMax = 5;
 	public double scrollMultiplier = 1.2;
 
@@ -97,7 +111,7 @@ public class StarStatisticsScreen extends HawkScreen {
 
 	private static enum Variable {
 		RADIANT_FLUX("Radiant Flux", "Lsol", 1e-4, 1e5),
-		LUMINOUS_FLUX("Luminous Flux", "Ylm", 1e-2, 1e7),
+		LUMINOUS_FLUX("Luminous Flux", "Ylm", 1e1, 1e12),
 		IRRADIANCE("Irradiance", "W/m^2", 1e-10, 1e0),
 		ILLUMINANCE("Illuminance", "lx", 1e-10, 1e0),
 		TEMPERATURE("Temperature", "K", 1000, 60000),
@@ -152,16 +166,38 @@ public class StarStatisticsScreen extends HawkScreen {
 		};
 	}
 
+	static abstract class Widget {
+		public Rect rect;
+
+		public void render() {
+		}
+	}
+
+	static final class ButtonWidget extends Widget {
+		private Consumer<MousePress> action;
+	}
+
+	private final Vector<Widget> widgets = new Vector<>();
+
 	// public interface
 
-	private void createScatterPlot() {
+	private void createPlotsFromSurvey() {
 		this.xyPlot = new ScatterPlot(
 				this.xVariable.label, this.xVariable.units,
 				this.yVariable.label, this.yVariable.units);
 		this.xHistogram = new Histogram(this.xVariable.label, 1024, this.xMapping);
 		this.yHistogram = new Histogram(this.yVariable.label, 1024, this.yMapping);
+		this.levelHistogramsX = new Histogram[GalaxySector.LEVEL_COUNT];
+		this.levelHistogramsY = new Histogram[GalaxySector.LEVEL_COUNT];
+		for (int i = 0; i < GalaxySector.LEVEL_COUNT; ++i) {
+			this.levelHistogramsX[i] = new Histogram(this.xVariable.label, 1024, this.xMapping);
+			this.levelHistogramsY[i] = new Histogram(this.yVariable.label, 1024, this.yMapping);
+		}
+
 		final var elem = new GalaxySector.ElementHolder();
 		ticket.attachedManager.enumerate(ticket, sector -> {
+			final var levelHistX = this.levelHistogramsX[sector.level];
+			final var levelHistY = this.levelHistogramsY[sector.level];
 			for (int i = 0; i < sector.elements.size(); ++i) {
 				sector.elements.load(elem, i);
 
@@ -175,8 +211,226 @@ public class StarStatisticsScreen extends HawkScreen {
 				this.xyPlot.insert(x, y);
 				this.xHistogram.insert(x);
 				this.yHistogram.insert(y);
+				levelHistX.insert(x);
+				levelHistY.insert(y);
 			}
 		});
+	}
+
+	private void createPlotsFromInterpolation() {
+		this.xyPlot = new ScatterPlot(
+				this.xVariable.label, this.xVariable.units,
+				this.yVariable.label, this.yVariable.units);
+		this.xHistogram = new Histogram(this.xVariable.label, 1024, this.xMapping);
+		this.yHistogram = new Histogram(this.yVariable.label, 1024, this.yMapping);
+		this.levelHistogramsX = this.levelHistogramsY = new Histogram[0];
+
+		final var elem = new GalaxySector.ElementHolder();
+
+		var massInputs = new double[1];
+		var ageInputs = new double[4096];
+		var metallicityInputs = new double[1];
+
+		final AxisMapping MASS_INTERVAL = new AxisMapping.Log(Math.E, Units.Yg_PER_Msol * 0.1, Units.Yg_PER_Msol * 100);
+		final AxisMapping AGE_INTERVAL = new AxisMapping.Linear(0, 13000);
+		final AxisMapping METALLICITY_INTERVAL = new AxisMapping.Linear(Galaxy.METALLICITY_RANGE);
+
+		// for (int i = 0; i < massInputs.length; ++i)
+		// massInputs[i] = MASS_INTERVAL.unmap(i / (massInputs.length - 1d));
+		massInputs = new double[] { 1 };
+		for (int i = 0; i < ageInputs.length; ++i)
+			ageInputs[i] = AGE_INTERVAL.unmap(i / (ageInputs.length - 1d));
+		// for (int i = 0; i < metallicityInputs.length; ++i)
+		// metallicityInputs[i] = METALLICITY_INTERVAL.unmap(i /
+		// (metallicityInputs.length - 1d));
+		metallicityInputs = new double[] { 1e-4 };
+
+		final var starProps = new StellarProperties();
+		Vec3.set(elem.systemPosTm, Vec3.ZERO);
+		for (int iMass = 0; iMass < massInputs.length; ++iMass) {
+			for (int iMetallicity = 0; iMetallicity < metallicityInputs.length; ++iMetallicity) {
+				for (int iAge = 0; iAge < ageInputs.length; ++iAge) {
+					// final var info = new BasicSystemInfo();
+					elem.systemAgeMyr = ageInputs[iAge];
+					elem.massYg = massInputs[iMass];
+					elem.metallicity = metallicityInputs[iMetallicity];
+
+					starProps.load(elem.massYg, elem.systemAgeMyr, elem.metallicity);
+					elem.luminosityLsol = starProps.luminosityLsol;
+					elem.temperatureK = starProps.temperatureK;
+
+					final var x = selectVariable(elem, this.xVariable);
+					final var y = selectVariable(elem, this.yVariable);
+					this.xyPlot.insert(x, y);
+					this.xHistogram.insert(x);
+					this.yHistogram.insert(y);
+				}
+			}
+		}
+
+	}
+
+	private void createPlotsFromStellarGrid() {
+		this.xyPlot = new ScatterPlot(
+				this.xVariable.label, this.xVariable.units,
+				this.yVariable.label, this.yVariable.units);
+		this.xHistogram = new Histogram(this.xVariable.label, 1024, this.xMapping);
+		this.yHistogram = new Histogram(this.yVariable.label, 1024, this.yMapping);
+		this.levelHistogramsX = this.levelHistogramsY = new Histogram[0];
+
+		final var elem = new GalaxySector.ElementHolder();
+		try {
+
+			var massInputs = new double[] { 1, 1.1, 1.2, 1.3, 1.4, 1.5 };
+			var metallicityInputs = new double[] { 1e-4 };
+
+			massInputs = new double[StellarProperties.GRID.initialMasses.length];
+			for (int i = 0; i < massInputs.length - 2; ++i) {
+				massInputs[i] = StellarProperties.GRID.initialMasses[i + 1];
+			}
+
+			// final AxisMapping MASS_INTERVAL = new AxisMapping.Log(Math.E, 0.11, 99.99);
+			// massInputs = new double[50];
+			// for (int i = 0; i < massInputs.length; ++i) {
+			// final var t = i / (massInputs.length - 1d);
+			// massInputs[i] = MASS_INTERVAL.unmap(t);
+			// // massInputs[i] = Mth.lerp(t, 0.11, 100.0);
+			// }
+
+			outer: for (int iMass = 0; iMass < massInputs.length; ++iMass) {
+				final double massInput = massInputs[iMass];
+				for (int iMetallicity = 0; iMetallicity < metallicityInputs.length; ++iMetallicity) {
+					final double metallicityInput = metallicityInputs[iMetallicity];
+
+					final var corners = StellarProperties.GRID.findSurroundingTracks(metallicityInput, massInput);
+					if (corners == null)
+						continue;
+					final var trackNN = StellarProperties.GRID.tracks[corners.metallicityIndex][corners.massIndex];
+					final var trackNP = StellarProperties.GRID.tracks[corners.metallicityIndex][corners.massIndex + 1];
+					final var trackPN = StellarProperties.GRID.tracks[corners.metallicityIndex + 1][corners.massIndex];
+					final var trackPP = StellarProperties.GRID.tracks[corners.metallicityIndex + 1][corners.massIndex
+							+ 1];
+					final StellarProperties.Track[] tracks = {
+							StellarProperties.GRID.tracks[corners.metallicityIndex][corners.massIndex],
+							StellarProperties.GRID.tracks[corners.metallicityIndex][corners.massIndex + 1],
+							StellarProperties.GRID.tracks[corners.metallicityIndex + 1][corners.massIndex],
+							StellarProperties.GRID.tracks[corners.metallicityIndex + 1][corners.massIndex + 1],
+					};
+
+					if (trackNN.length == trackNP.length &&
+							trackNN.length == trackPN.length &&
+							trackNN.length == trackPP.length)
+						continue;
+
+					Mod.LOGGER.info("mismatch {} {} {} {}",
+							trackNN.length,
+							trackNP.length,
+							trackPN.length,
+							trackPP.length);
+					Mod.LOGGER.info("ages {} {} {} {}",
+							trackNN.age[trackNN.length - 1],
+							trackNP.age[trackNP.length - 1],
+							trackPN.age[trackPN.length - 1],
+							trackPP.age[trackPP.length - 1]);
+
+					Vec3.set(elem.systemPosTm, Vec3.ZERO);
+					int minIndex = Integer.MAX_VALUE;
+					for (final var track : tracks) {
+						minIndex = Math.min(track.length, minIndex);
+					}
+
+					for (int i = 0; i < minIndex; ++i) {
+						final var ageMN = Mth.lerp(corners.metallicityDistance, trackNN.age[i], trackPN.age[i]);
+						final var ageMP = Mth.lerp(corners.metallicityDistance, trackNP.age[i], trackPP.age[i]);
+						elem.systemAgeMyr = Mth.lerp(corners.massDistance, ageMN, ageMP) / 1e6;
+						final var massMN = Mth.lerp(corners.metallicityDistance, trackNN.mass[i], trackPN.mass[i]);
+						final var massMP = Mth.lerp(corners.metallicityDistance, trackNP.mass[i], trackPP.mass[i]);
+						elem.massYg = Mth.lerp(corners.massDistance, massMN, massMP) * Units.Yg_PER_Msol;
+						final var luminosityMN = Mth.lerp(corners.metallicityDistance, trackNN.luminosity[i],
+								trackPN.luminosity[i]);
+						final var luminosityMP = Mth.lerp(corners.metallicityDistance, trackNP.luminosity[i],
+								trackPP.luminosity[i]);
+						elem.luminosityLsol = Mth.lerp(corners.massDistance, luminosityMN, luminosityMP);
+						final var temperatureMN = Mth.lerp(corners.metallicityDistance, trackNN.temperature[i],
+								trackPN.temperature[i]);
+						final var temperatureMP = Mth.lerp(corners.metallicityDistance, trackNP.temperature[i],
+								trackPP.temperature[i]);
+						elem.temperatureK = Mth.lerp(corners.massDistance, temperatureMN, temperatureMP);
+
+						elem.metallicity = metallicityInput;
+
+						// {
+						// final var x = selectVariable(elem, this.xVariable);
+						// final var y = selectVariable(elem, this.yVariable);
+						// this.xyPlot.insert(x, y);
+						// this.xHistogram.insert(x);
+						// this.yHistogram.insert(y);
+						// }
+
+						// for (final var track : tracks) {
+						// elem.systemAgeMyr = track.age[i] / 1e6;
+						// elem.massYg = Units.Yg_PER_Msol * track.mass[i];
+						// elem.metallicity = metallicityInput;
+						// elem.luminosityLsol = track.luminosity[i];
+						// elem.temperatureK = track.temperature[i];
+						// final var x = selectVariable(elem, this.xVariable);
+						// final var y = selectVariable(elem, this.yVariable);
+						// this.xyPlot.insert(x, y);
+						// this.xHistogram.insert(x);
+						// this.yHistogram.insert(y);
+						// }
+
+					}
+
+					// int maxIndexIndex = 0;
+					// for (int i = 0; i < tracks.length; ++i) {
+					// if (tracks[i].length > tracks[maxIndexIndex].length)
+					// maxIndexIndex = i;
+					// }
+
+					// for (int i = 0; i < tracks[maxIndexIndex].length; ++i) {
+					// final var track = tracks[maxIndexIndex];
+					// elem.systemAgeMyr = track.age[i] / 1e6;
+					// elem.massYg = Units.Yg_PER_Msol * track.mass[i];
+					// elem.metallicity = metallicityInput;
+					// elem.luminosityLsol = track.luminosity[i];
+					// elem.temperatureK = track.temperature[i];
+					// final var x = selectVariable(elem, this.xVariable);
+					// final var y = selectVariable(elem, this.yVariable);
+					// this.xyPlot.insert(x, y);
+					// this.xHistogram.insert(x);
+					// this.yHistogram.insert(y);
+					// }
+
+					for (final var track : tracks) {
+						for (int i = 0; i < track.length; ++i) {
+							elem.systemAgeMyr = track.age[i] / 1e6;
+							elem.massYg = Units.Yg_PER_Msol * track.mass[i];
+							elem.metallicity = metallicityInput;
+							elem.luminosityLsol = track.luminosity[i];
+							elem.temperatureK = track.temperature[i];
+							final var x = selectVariable(elem, this.xVariable);
+							final var y = selectVariable(elem, this.yVariable);
+							this.xyPlot.insert(x, y);
+							this.xHistogram.insert(x);
+							this.yHistogram.insert(y);
+						}
+					}
+
+					// break outer;
+				}
+			}
+
+		} catch (Throwable t) {
+			t.printStackTrace();
+		}
+
+	}
+
+	private void createScatterPlot() {
+		createPlotsFromSurvey();
+		// createPlotsFromInterpolation();
+		// createPlotsFromStellarGrid();
 	}
 
 	private void createMesh(Rect bounds) {
@@ -208,7 +462,7 @@ public class StarStatisticsScreen extends HawkScreen {
 
 	@FunctionalInterface
 	private interface GuideConsumer {
-		void accept(double pos, ColorRgba color);
+		void accept(double pos, double value, ColorRgba color, boolean isMajor);
 	}
 
 	private void renderGuides(AxisMapping mapping, GuideConsumer consumer) {
@@ -222,12 +476,12 @@ public class StarStatisticsScreen extends HawkScreen {
 				final var th = Math.pow(logMapping.base, i + 1);
 				for (int j = 1; j < 10; ++j) {
 					final var tMinor = Mth.lerp(j / 10.0, tl, th);
-					consumer.accept(logMapping.remap(tMinor), MINOR_MARKER_COLOR);
+					consumer.accept(logMapping.remap(tMinor), tMinor, MINOR_MARKER_COLOR, false);
 				}
 				final var color = Math.abs(tl - 1.0) < 1e-24
 						? AXIS_MARKER_COLOR
 						: MAJOR_MARKER_COLOR;
-				consumer.accept(logMapping.remap(tl), color);
+				consumer.accept(logMapping.remap(tl), tl, color, true);
 			}
 		} else if (mapping instanceof AxisMapping.Linear linearMapping) {
 			final var inc = Math.pow(10,
@@ -237,12 +491,12 @@ public class StarStatisticsScreen extends HawkScreen {
 			for (double t = lmin; t < lmax; t += inc) {
 				for (int j = 1; j < 8; ++j) {
 					final var tMinor = Mth.lerp(j / 8.0, t, t + inc);
-					consumer.accept(linearMapping.remap(tMinor), MINOR_MARKER_COLOR);
+					consumer.accept(linearMapping.remap(tMinor), tMinor, MINOR_MARKER_COLOR, false);
 				}
 				final var color = Math.abs(t) < 1e-24
 						? AXIS_MARKER_COLOR
 						: MAJOR_MARKER_COLOR;
-				consumer.accept(linearMapping.remap(t), color);
+				consumer.accept(linearMapping.remap(t), t, color, true);
 			}
 		}
 	}
@@ -271,37 +525,32 @@ public class StarStatisticsScreen extends HawkScreen {
 	}
 
 	private void renderHistogramMarker(VertexDispatcher.Generic builder,
-			double t, Rect bounds, boolean transpose, ColorRgba color) {
+			TransformStack tfm, double t, Rect bounds, ColorRgba color) {
 		final double x1, y1, x2, y2;
-		if (transpose) {
-			y1 = y2 = Mth.lerp(t, bounds.min().y, bounds.max().y);
-			x1 = bounds.min().x;
-			x2 = bounds.max().x;
-		} else {
-			x1 = x2 = Mth.lerp(t, bounds.min().x, bounds.max().x);
-			y1 = bounds.min().y;
-			y2 = bounds.max().y;
-		}
+		x1 = x2 = Mth.lerp(t, bounds.min().x, bounds.max().x);
+		y1 = bounds.min().y;
+		y2 = bounds.max().y;
 
-		RenderHelper.addLine(builder, new Vec3(x1, y1, 0), new Vec3(x2, y2, 0), color);
+		RenderHelper.addLine(builder, tfm, new Vec3(x1, y1, 0), new Vec3(x2, y2, 0), color);
 	}
 
-	private void renderHistogram(RenderContext ctx, AxisMapping mapping, Histogram plot, Rect bounds,
-			boolean transpose) {
+	private void renderHistogram(RenderContext ctx, TransformStack tfm, AxisMapping mapping, Histogram plot,
+			Rect bounds, boolean flip) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
 				IndexPattern.QUADS, BufferLayout.POSITION_COLOR_TEX);
 
 		int max = 0;
 		final var maxIndices = new VectorInt();
-		for (int i = 0; i < plot.size(); ++i) {
-			final var binCount = plot.get(i);
-			if (binCount > max)
-				maxIndices.clear();
-			if (binCount >= max) {
-				maxIndices.push(i);
-				max = binCount;
+		if (plot.total() > 0)
+			for (int i = 0; i < plot.size(); ++i) {
+				final var binCount = plot.get(i);
+				if (binCount > max)
+					maxIndices.clear();
+				if (binCount >= max) {
+					maxIndices.push(i);
+					max = binCount;
+				}
 			}
-		}
 
 		for (int i = 0; i < plot.size(); ++i) {
 			final var percent = plot.get(i) / (double) max;
@@ -313,97 +562,121 @@ public class StarStatisticsScreen extends HawkScreen {
 			h = mapping.remap(h);
 
 			final double lx, hx, ly, hy;
-			if (transpose) {
-				ly = Mth.lerp(l, bounds.min().y, bounds.max().y);
-				hy = Mth.lerp(h, bounds.min().y, bounds.max().y);
-				lx = bounds.max().x;
-				hx = Mth.lerp(percent, bounds.max().x, bounds.min().x);
+			lx = Mth.lerp(l, bounds.min().x, bounds.max().x);
+			hx = Mth.lerp(h, bounds.min().x, bounds.max().x);
+			if (!flip) {
+				ly = bounds.min().y;
+				hy = Mth.lerp(percent, bounds.min().y, bounds.max().y);
 			} else {
-				lx = Mth.lerp(l, bounds.min().x, bounds.max().x);
-				hx = Mth.lerp(h, bounds.min().x, bounds.max().x);
-				ly = bounds.max().y;
-				hy = Mth.lerp(percent, bounds.max().y, bounds.min().y);
+				ly = Mth.lerp(percent, bounds.max().y, bounds.min().y);
+				hy = bounds.max().y;
 			}
 
-			builder.vertex(hx, ly, 0).color(HISTOGRAM_BIN_COLOR).uv0(1, 0).endVertex();
-			builder.vertex(lx, ly, 0).color(HISTOGRAM_BIN_COLOR).uv0(0, 0).endVertex();
-			builder.vertex(lx, hy, 0).color(HISTOGRAM_BIN_COLOR).uv0(0, 1).endVertex();
-			builder.vertex(hx, hy, 0).color(HISTOGRAM_BIN_COLOR).uv0(1, 1).endVertex();
+			builder.vertex(tfm, hx, ly, 0).color(HISTOGRAM_BIN_COLOR).uv0(1, 0).endVertex();
+			builder.vertex(tfm, lx, ly, 0).color(HISTOGRAM_BIN_COLOR).uv0(0, 0).endVertex();
+			builder.vertex(tfm, lx, hy, 0).color(HISTOGRAM_BIN_COLOR).uv0(0, 1).endVertex();
+			builder.vertex(tfm, hx, hy, 0).color(HISTOGRAM_BIN_COLOR).uv0(1, 1).endVertex();
 		}
 
 		builder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(),
 				HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
 
-		if (plot.hasMean()) {
-			final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
-					IndexPattern.VANILLA_LINES,
-					BufferLayout.POSITION_COLOR_NORMAL);
-
-			for (int i = 0; i < maxIndices.size(); ++i) {
-				final var t = maxIndices.get(i) / (plot.size() - 1.0);
-				renderHistogramMarker(lineBuilder, t, bounds, transpose, HISTOGRAM_MAX_COLOR);
-			}
-			renderHistogramMarker(lineBuilder, mapping.remap(plot.getMean()), bounds, transpose, HISTOGRAM_MEAN_COLOR);
-
-			RenderSystem.lineWidth(1f);
-			lineBuilder.end().draw(
-					UltravioletShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(),
-					HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
-		}
-
-		if (plot.hasMean()) {
-			final double x, y;
-			y = bounds.min().x;
-			x = bounds.min().y;
-			// if (transpose) {
-			// } else {
-			// x = bounds.min().x;
-			// y = bounds.min().y;
-			// }
-
-			final var sink = new TextBuilder();
-			final var tfm = new TransformStack();
-			if (!transpose) {
-				tfm.appendRotation(Quat.axisAngle(Vec3.ZN, -Math.PI / 2));
-			}
-			tfm.appendScale(0.005f);
-			tfm.appendTranslation(new Vec3(x, y, 0));
-			sink.emit(tfm.current(), FormattedText.of(String.format("Mean: %f", plot.getMean())));
-			sink.draw(BufferRenderer.IMMEDIATE_BUILDER, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING, 1f);
-		}
-	}
-
-	private void renderScatterPlot(RenderContext ctx, ScatterPlot plot, Rect bounds) {
 		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
 				IndexPattern.VANILLA_LINES,
 				BufferLayout.POSITION_COLOR_NORMAL);
 
+		if (plot.hasMean()) {
+			for (int i = 0; i < maxIndices.size(); ++i) {
+				final var t = maxIndices.get(i) / (plot.size() - 1.0);
+				renderHistogramMarker(lineBuilder, tfm, t, bounds, HISTOGRAM_MAX_COLOR);
+			}
+			renderHistogramMarker(lineBuilder, tfm, mapping.remap(plot.getMean()), bounds, HISTOGRAM_MEAN_COLOR);
+		}
+
+		final double lx = bounds.min().x, ly = bounds.min().y;
+		final double hx = bounds.max().x, hy = bounds.max().y;
+		RenderHelper.addLine(builder, tfm, new Vec3(lx, ly, 0), new Vec3(hx, ly, 0), MINOR_MARKER_COLOR);
+		RenderHelper.addLine(builder, tfm, new Vec3(lx, hy, 0), new Vec3(hx, hy, 0), MINOR_MARKER_COLOR);
+		RenderHelper.addLine(builder, tfm, new Vec3(lx, ly, 0), new Vec3(lx, hy, 0), MINOR_MARKER_COLOR);
+		RenderHelper.addLine(builder, tfm, new Vec3(hx, ly, 0), new Vec3(hx, hy, 0), MINOR_MARKER_COLOR);
+
+		RenderSystem.lineWidth(1f);
+		lineBuilder.end().draw(
+				UltravioletShaders.SHADER_VANILLA_RENDERTYPE_LINES.get(),
+				HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
+
+		final var sink = new TextBuilder();
+		// final double x, y;
+		// y = bounds.min().x;
+		// x = bounds.min().y;
+
+		tfm.push();
+		tfm.prependTranslation(new Vec3(bounds.min().x, bounds.max().y, 0));
+		tfm.prependScale(0.2f);
+		sink.cursorY -= this.client.font.lineHeight * 0.005;
+
+		if (plot.hasMean()) {
+			sink.emit(tfm.current(), FormattedText.of(String.format("mean=%g", plot.getMean())));
+			sink.cursorAppendUnder();
+		}
+		sink.emit(tfm.current(), FormattedText.of(String.format("n=%d", plot.total())));
+		sink.draw(BufferRenderer.IMMEDIATE_BUILDER, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING, 1f);
+		tfm.pop();
+	}
+
+	private void renderScatterPlot(RenderContext ctx, TransformStack tfm, ScatterPlot plot, Rect bounds,
+			boolean flipX, boolean flipY) {
+		final var lineBuilder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
+				IndexPattern.VANILLA_LINES,
+				BufferLayout.POSITION_COLOR_NORMAL);
+		final var sink = new TextBuilder();
+
 		// guides
-		renderGuides(this.xMapping, (pos, color) -> {
+		renderGuides(this.xMapping, (pos, value, color, isMajor) -> {
 			if (pos <= 0 || pos >= 1)
 				return;
 			final var x = Mth.lerp(pos, bounds.min().x, bounds.max().x);
 			final var l = new Vec3(x, bounds.min().y, 0);
 			final var h = new Vec3(x, bounds.max().y, 0);
-			RenderHelper.addLine(lineBuilder, l, h, color);
+			RenderHelper.addLine(lineBuilder, tfm, l, h, color);
+			if (isMajor) {
+				tfm.push();
+				sink.reset();
+				sink.scale = 0.33;
+				sink.textOrigin = TextBuilder.TextOrigin.BOTTOM;
+				sink.cursorX = x;
+				sink.cursorY = bounds.min().y;
+				sink.emit(tfm.current(), String.format("%.3g %s", value, this.xVariable.units));
+				tfm.pop();
+			}
 		});
-		renderGuides(this.yMapping, (pos, color) -> {
+		renderGuides(this.yMapping, (pos, value, color, isMajor) -> {
 			if (pos <= 0 || pos >= 1)
 				return;
 			final var y = Mth.lerp(pos, bounds.min().y, bounds.max().y);
 			final var l = new Vec3(bounds.min().x, y, 0);
 			final var h = new Vec3(bounds.max().x, y, 0);
-			RenderHelper.addLine(lineBuilder, l, h, color);
+			RenderHelper.addLine(lineBuilder, tfm, l, h, color);
+			if (isMajor) {
+				tfm.push();
+				sink.reset();
+				sink.scale = 0.33;
+				sink.textOrigin = TextBuilder.TextOrigin.LEFT;
+				sink.cursorX = bounds.min().x;
+				sink.cursorY = y;
+				sink.emit(tfm.current(), String.format("%.3g %s", value, this.yVariable.units));
+				tfm.pop();
+			}
 		});
 
 		// bounds
-		RenderHelper.addLine(lineBuilder, new Vec3(bounds.min().x, bounds.min().y, 0),
+		RenderHelper.addLine(lineBuilder, tfm, new Vec3(bounds.min().x, bounds.min().y, 0),
 				new Vec3(bounds.min().x, bounds.max().y, 0), MAJOR_MARKER_COLOR);
-		RenderHelper.addLine(lineBuilder, new Vec3(bounds.max().x, bounds.min().y, 0),
+		RenderHelper.addLine(lineBuilder, tfm, new Vec3(bounds.max().x, bounds.min().y, 0),
 				new Vec3(bounds.max().x, bounds.max().y, 0), MAJOR_MARKER_COLOR);
-		RenderHelper.addLine(lineBuilder, new Vec3(bounds.min().x, bounds.min().y, 0),
+		RenderHelper.addLine(lineBuilder, tfm, new Vec3(bounds.min().x, bounds.min().y, 0),
 				new Vec3(bounds.max().x, bounds.min().y, 0), MAJOR_MARKER_COLOR);
-		RenderHelper.addLine(lineBuilder, new Vec3(bounds.min().x, bounds.max().y, 0),
+		RenderHelper.addLine(lineBuilder, tfm, new Vec3(bounds.min().x, bounds.max().y, 0),
 				new Vec3(bounds.max().x, bounds.max().y, 0), MAJOR_MARKER_COLOR);
 
 		RenderSystem.lineWidth(1f);
@@ -412,9 +685,29 @@ public class StarStatisticsScreen extends HawkScreen {
 				HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
 
 		// data
-		UltravioletShaders.SHADER_UI_POINTS.get().setupDefaultShaderUniforms();
-		this.pointsMesh.draw(UltravioletShaders.SHADER_UI_POINTS.get(),
-				HawkDrawStates.DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
+		tfm.push();
+		final var pointShader = UltravioletShaders.SHADER_UI_POINTS.get();
+		pointShader.setupDefaultShaderUniforms();
+		tfm.prependTranslation(bounds.min().xy0());
+		tfm.prependScale(bounds.size().xy1());
+		pointShader.setUniformf("uModelMatrix", tfm.current());
+		this.pointsMesh.draw(pointShader, HawkDrawStates.DRAW_STATE_DIRECT_ADDITIVE_BLENDING);
+		tfm.pop();
+
+		// labels
+		sink.reset();
+		sink.textOrigin = TextBuilder.TextOrigin.TOP;
+		sink.cursorX = bounds.min().x + bounds.size().x / 2;
+		sink.cursorY = bounds.min().y;
+		sink.emit(tfm.current(), this.xVariable.label);
+
+		// tfm.appendScale(0.005f);
+		// tfm.appendTranslation(new Vec3(x, y, 0));
+
+		// sink.emit(tfm.current(), FormattedText.of(String.format("n=%d",
+		// plot.total())));
+		sink.draw(BufferRenderer.IMMEDIATE_BUILDER, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING, 1f);
+
 	}
 
 	@Override
@@ -422,26 +715,61 @@ public class StarStatisticsScreen extends HawkScreen {
 		if (this.xyPlot == null)
 			createScatterPlot();
 		if (this.pointsMesh == null)
-			createMesh(Rect.BIPOLAR);
+			createMesh(Rect.UNIPOLAR);
 		setupCamera(ctx);
 
 		final var snapshot = RenderMatricesSnapshot.capture();
 		this.camera.applyProjection();
 		this.camera.applyView();
 
-		renderScatterPlot(ctx, this.xyPlot, Rect.BIPOLAR);
-		renderHistogram(ctx, this.xMapping, this.xHistogram, new Rect(-1, -1.3, 1, -1.05), false);
-		renderHistogram(ctx, this.yMapping, this.yHistogram, new Rect(-1.3, -1, -1.05, 1), true);
+		final var tfm = new TransformStack();
+
+		tfm.push();
+		final var animTime = (System.currentTimeMillis() % 1000) / 1000.0;
+		// tfm.appendRotation(Quat.axisAngle(Vec3.ZP, 0.05 * Math.sin(2 * Math.PI *
+		// animTime)));
+		renderScatterPlot(ctx, tfm, this.xyPlot, Rect.BIPOLAR, false, false);
+		tfm.push();
+		tfm.appendTranslation(new Vec3(0, -1.3, 0));
+		renderHistogram(ctx, tfm, this.xMapping, this.xHistogram, new Rect(-1, 0, 1, 0.25), true);
+		tfm.pop();
+		tfm.push();
+		tfm.appendTranslation(new Vec3(0, -1.3, 0));
+		tfm.appendRotation(Quat.axisAngle(Vec3.ZP, Math.PI / 2));
+		renderHistogram(ctx, tfm, this.yMapping, this.yHistogram, new Rect(-1, 0, 1, 0.25), true);
+		tfm.pop();
+		tfm.pop();
 
 		final var sink = new TextBuilder();
-		final var tfm = new TransformStack();
-		tfm.appendScale(0.005f);
-		tfm.appendTranslation(new Vec3(1.02, 0.98, 0));
-		sink.emitNewline(tfm.current(), FormattedText.of(String.format("n=%d", this.xyPlot.size())));
-		sink.emitNewline(tfm.current(),
-				FormattedText.of(String.format("avg(X)=%.2f %s", this.xHistogram.getMean(), this.xVariable.units)));
-		sink.emitNewline(tfm.current(),
-				FormattedText.of(String.format("avg(Y)=%.2f %s", this.yHistogram.getMean(), this.yVariable.units)));
+		final var textTfm = new TransformStack();
+		// textTfm.appendScale(0.005f);
+		// textTfm.appendTranslation(new Vec3(1.02, 0.98, 0));
+		for (int i = 0; i < this.levelHistogramsX.length; ++i) {
+			final var hist = this.levelHistogramsX[i];
+			tfm.push();
+			tfm.appendTranslation(new Vec3(2, -0.1 * i, 0));
+			sink.cursorX = 0;
+			sink.cursorY = 0;
+			sink.scale = 0.5;
+			sink.emit(tfm.current(),
+					FormattedText.of(String.format("X level(%d)", i)));
+			// tfm.appendRotation(Quat.axisAngle(Vec3.ZP, Math.PI / 2));
+			renderHistogram(ctx, tfm, this.xMapping, hist, new Rect(0, 0, 0.5, 0.1), true);
+			tfm.pop();
+		}
+		for (int i = 0; i < this.levelHistogramsY.length; ++i) {
+			final var hist = this.levelHistogramsY[i];
+			tfm.push();
+			tfm.appendTranslation(new Vec3(2.5, -0.1 * i, 0));
+			sink.cursorX = 0;
+			sink.cursorY = 0;
+			sink.scale = 0.5;
+			sink.emit(tfm.current(),
+					FormattedText.of(String.format("Y level(%d)", i)));
+			// tfm.appendRotation(Quat.axisAngle(Vec3.ZP, Math.PI / 2));
+			renderHistogram(ctx, tfm, this.yMapping, hist, new Rect(0, 0, 0.5, 0.1), true);
+			tfm.pop();
+		}
 		sink.draw(BufferRenderer.IMMEDIATE_BUILDER, HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING, 1f);
 
 		snapshot.restore();

@@ -7,6 +7,7 @@ import org.lwjgl.glfw.GLFW;
 import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.MouseHandler;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
 import net.minecraft.util.Mth;
@@ -64,8 +65,8 @@ public class SystemMapScreen extends HawkScreen {
 	public final Galaxy galaxy;
 	private final SystemTicket ticket;
 
-	public MotionSmoother<Double> scale = new MotionSmoother<>(0.6, NumericOps.DOUBLE, 3.0);
-	public MotionSmoother<Vec2> offset = new MotionSmoother<>(0.6, NumericOps.VEC2, Vec2.ZERO);
+	public MotionSmoother<Double> scale = new MotionSmoother<>(0.6, MotionSmoother.Interpolator.DOUBLE, 3.0);
+	public MotionSmoother<Vec2> offset = new MotionSmoother<>(0.4, MotionSmoother.Interpolator.VEC2, Vec2.ZERO);
 	// public double scaleTarget = 3, scale = scaleTarget;
 	public double scaleMin = 0.3, scaleMax = 30;
 	public double scrollMultiplier = 1.2;
@@ -389,21 +390,22 @@ public class SystemMapScreen extends HawkScreen {
 	private void renderBackground(StarSystem system, RenderContext ctx) {
 		final var up = new Vec3(1.0, 2.0, 0.0).normalize();
 
-		if (Vec3.ZERO.equals(system.pos)) {
+		if (Vec3.ZERO.equals(system.pos())) {
 			Mat4.setLookAt(this.backgroundCamera.inverseViewMatrix, Vec3.ZERO, Vec3.ZP, up);
 		} else {
-			Mat4.setLookAt(this.backgroundCamera.inverseViewMatrix, Vec3.ZERO, system.pos, up);
+			Mat4.setLookAt(this.backgroundCamera.inverseViewMatrix, Vec3.ZERO, system.pos(), up);
 		}
 
 		this.backgroundCamera.metersPerUnit = 1e12;
 
-		final var offset = new Vec3(100 * this.offset.current.x, -100 * this.offset.current.y, 0);
+		final var offset = new Vec3(-100 * this.offset.current.x, 100 * this.offset.current.y, 0);
 		Mat4.mulTranslation(this.backgroundCamera.inverseViewMatrix, this.backgroundCamera.inverseViewMatrix, offset);
 
 		final var window = Minecraft.getInstance().getWindow();
 		final var aspect = (float) window.getWidth() / (float) window.getHeight();
 
 		Mat4.setPerspectiveProjection(this.backgroundCamera.projectionMatrix, Math.toRadians(60), aspect, 1e4, 1e12);
+		// Mat4.setPerspectiveProjectionReverseZ(this.backgroundCamera.projectionMatrix, Math.toRadians(60), aspect, 1e4);
 		this.backgroundCamera.recalculateCached();
 
 		ctx.currentTexture.framebuffer.bind();

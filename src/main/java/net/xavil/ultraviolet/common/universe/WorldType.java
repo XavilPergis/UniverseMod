@@ -1,9 +1,13 @@
 package net.xavil.ultraviolet.common.universe;
 
+import javax.annotation.Nullable;
+
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.NbtOps;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
+import net.xavil.ultraviolet.common.universe.universe.Universe;
 
 public abstract sealed class WorldType {
 
@@ -30,16 +34,31 @@ public abstract sealed class WorldType {
 		}
 	}
 
+	@Nullable
+	public SystemId getSystemId(Universe universe) {
+		if (this instanceof WorldType.Station loc) {
+			final var station = universe.getStation(loc.id).unwrapOrNull();
+			if (station != null && station.getSystemIn() != null) {
+				return station.getSystemIn();
+			}
+		} else if (this instanceof WorldType.SystemNode loc) {
+			return loc.id.system();
+		}
+
+		return null;
+	}
+
 	public static WorldType fromNbt(CompoundTag nbt) {
 		final var type = nbt.getString("type");
 		if (type.equals("unknown")) {
 			return UNKNOWN;
 		} else if (type.equals("world")) {
 			final var id = SystemNodeId.CODEC.parse(NbtOps.INSTANCE, nbt.get("id"))
-				.getOrThrow(true, Mod.LOGGER::error);
+					.getOrThrow(true, Mod.LOGGER::error);
 			return new SystemNode(id);
 		} else if (type.equals("station")) {
-			if (nbt.contains("id")) return null;
+			if (!nbt.contains("id"))
+				return null;
 			return new Station(nbt.getInt("id"));
 		}
 		return null;

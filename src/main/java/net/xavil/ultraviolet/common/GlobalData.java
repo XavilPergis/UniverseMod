@@ -3,6 +3,7 @@ package net.xavil.ultraviolet.common;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.ListTag;
 import net.minecraft.nbt.StringTag;
+import net.minecraft.nbt.Tag;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.level.saveddata.SavedData;
@@ -12,8 +13,8 @@ import net.xavil.ultraviolet.common.universe.station.SpaceStation;
 
 public final class GlobalData extends SavedData {
 
-	private final MutableList<ResourceLocation> dynamicLevels = new Vector<>();
-	private final MutableList<SpaceStation> spaceStations = new Vector<>();
+	public final MutableList<ResourceLocation> dynamicLevels = new Vector<>();
+	public final MutableList<SpaceStation> spaceStations = new Vector<>();
 
 	private GlobalData() {
 	}
@@ -27,6 +28,11 @@ public final class GlobalData extends SavedData {
 
 	private static GlobalData load(CompoundTag nbt) {
 		final var data = new GlobalData();
+		final var dynamicLevels = nbt.getList("dynamic_levels", Tag.TAG_STRING);
+		for (final var stringTag : dynamicLevels) {
+			final var levelId = stringTag.getAsString();
+			data.dynamicLevels.push(new ResourceLocation(levelId));
+		}
 		return data;
 	}
 

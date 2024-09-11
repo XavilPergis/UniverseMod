@@ -19,6 +19,7 @@ import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.client.screen.layer.AxisMapping;
@@ -54,10 +55,11 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 
 		galaxy.parentUniverse.registerDebugActionListener(this, Universe.Side.CLIENT);
 
-		final var imf = ProbabilityDistribution.interpolate(mass -> {
-			if (mass < 1)
+		final var imf = ProbabilityDistribution.interpolate(massYg -> {
+			final var massMsol = massYg * Units.Msol_PER_Yg;
+			if (massMsol < 1)
 				return Math.pow(1, -2.35);
-			return Math.pow(mass, -2.35);
+			return Math.pow(massMsol, -2.35);
 		}, LuminosityFunctionTable.MASS_INTERVAL.domain, 4096);
 
 		this.luminosityTableCore = new LuminosityFunctionTable(imf, galaxy.parameters.coreSfh);
@@ -113,19 +115,6 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 				Math.pow(distance, 2) / Math.pow(10, magLimit / 2.5 + 2);
 	}
 
-	// private static final double[] LEVEL_LUMINOSITY_POINTS = { 0.75, 5, 40, 110,
-	// 400, 5000, 80000, 500000 };
-	private static final double[] LEVEL_LUMINOSITY_POINTS = {
-			maxLuminosityAtDistance(GalaxySector.sizeForLevel(0)),
-			maxLuminosityAtDistance(GalaxySector.sizeForLevel(1)),
-			maxLuminosityAtDistance(GalaxySector.sizeForLevel(2)),
-			maxLuminosityAtDistance(GalaxySector.sizeForLevel(3)),
-			maxLuminosityAtDistance(GalaxySector.sizeForLevel(4)),
-			maxLuminosityAtDistance(GalaxySector.sizeForLevel(5)),
-			maxLuminosityAtDistance(GalaxySector.sizeForLevel(6)),
-			maxLuminosityAtDistance(GalaxySector.sizeForLevel(7)),
-	};
-
 	public static final class DebugStopwatch {
 		private Instant timerStart, timerEnd;
 
@@ -160,16 +149,71 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 
 			final DebugStopwatch buildTableTimer = new DebugStopwatch();
 
-			final var massInputs = new double[64];
-			final var ageInputs = new double[4096];
-			final var metallicityInputs = new double[4];
+			// final var massInputs = new double[64];
+			// final var ageInputs = new double[4096];
+			// final var metallicityInputs = new double[4];
+
+			// for (int i = 0; i < massInputs.length; ++i)
+			// massInputs[i] = MASS_INTERVAL.unmap(i / (massInputs.length - 1d));
+			// for (int i = 0; i < ageInputs.length; ++i)
+			// ageInputs[i] = AGE_INTERVAL.unmap(i / (ageInputs.length - 1d));
+			// for (int i = 0; i < metallicityInputs.length; ++i)
+			// metallicityInputs[i] = METALLICITY_INTERVAL.unmap(i /
+			// (metallicityInputs.length - 1d));
+
+			// final var levelEntries = new Vector<>(
+			// Iterator.generate(i -> new WeightedList.Builder<BasicSystemInfo>(),
+			// GalaxySector.LEVEL_COUNT));
+
+			// double totalProb = 0;
+			// final var levelTotalProbs = new double[GalaxySector.LEVEL_COUNT];
+
+			// // StellarProperties.GRID.
+
+			// buildTableTimer.start();
+			// final var starProps = new StellarProperties();
+			// for (int iMass = 0; iMass < massInputs.length; ++iMass) {
+			// for (int iAge = 0; iAge < ageInputs.length; ++iAge) {
+			// for (int iMetallicity = 0; iMetallicity < metallicityInputs.length;
+			// ++iMetallicity) {
+			// final var info = new BasicSystemInfo();
+			// info.age = ageInputs[iAge];
+			// info.mass = massInputs[iMass];
+			// info.metallicity = metallicityInputs[iMetallicity];
+
+			// starProps.load(info.mass, info.age, info.metallicity);
+			// info.luminosity = starProps.luminosityLsol;
+
+			// // falling through the loop and finding nothing means that the luminosity was
+			// // higher than any level endpoint, so we just want to put it in the topmost
+			// // level.
+			// int level = levelEntries.size() - 1;
+			// for (int i = 0; i < GalaxySector.LEVEL_COUNT; ++i) {
+			// final var hi = LEVEL_LUMINOSITY_POINTS[i];
+			// if (starProps.luminosityLsol < hi) {
+			// level = i;
+			// break;
+			// }
+			// }
+
+			// final var probability = imf.evaluate(info.mass) * sfh.evaluate(info.age);
+			// levelEntries.get(level).push(probability, info);
+
+			// totalProb += probability;
+			// levelTotalProbs[level] += probability;
+			// }
+			// }
+			// }
+
+			final var massInputs = new double[StellarProperties.GRID.initialMasses.length];
+			final var metallicityInputs = new double[StellarProperties.GRID.metallicities.length];
 
 			for (int i = 0; i < massInputs.length; ++i)
-				massInputs[i] = MASS_INTERVAL.unmap(i / (massInputs.length - 1d));
-			for (int i = 0; i < ageInputs.length; ++i)
-				ageInputs[i] = AGE_INTERVAL.unmap(i / (ageInputs.length - 1d));
+				massInputs[i] = StellarProperties.GRID.initialMasses[i];
+			// for (int i = 0; i < ageInputs.length; ++i)
+			// ageInputs[i] = AGE_INTERVAL.unmap(i / (ageInputs.length - 1d));
 			for (int i = 0; i < metallicityInputs.length; ++i)
-				metallicityInputs[i] = METALLICITY_INTERVAL.unmap(i / (metallicityInputs.length - 1d));
+				metallicityInputs[i] = StellarProperties.GRID.metallicities[i];
 
 			final var levelEntries = new Vector<>(
 					Iterator.generate(i -> new WeightedList.Builder<BasicSystemInfo>(), GalaxySector.LEVEL_COUNT));
@@ -177,26 +221,36 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 			double totalProb = 0;
 			final var levelTotalProbs = new double[GalaxySector.LEVEL_COUNT];
 
-			buildTableTimer.start();
-			final var starProps = new StellarProperties();
-			for (int iMass = 0; iMass < massInputs.length; ++iMass) {
-				for (int iAge = 0; iAge < ageInputs.length; ++iAge) {
-					for (int iMetallicity = 0; iMetallicity < metallicityInputs.length; ++iMetallicity) {
-						final var info = new BasicSystemInfo();
-						info.age = ageInputs[iAge];
-						info.mass = massInputs[iMass];
-						info.metallicity = metallicityInputs[iMetallicity];
+			final var levelLumPoints = new double[] {
+					maxLuminosityAtDistance(4.0 * GalaxySector.sizeForLevel(0)),
+					maxLuminosityAtDistance(4.0 * GalaxySector.sizeForLevel(1)),
+					maxLuminosityAtDistance(4.0 * GalaxySector.sizeForLevel(2)),
+					maxLuminosityAtDistance(4.0 * GalaxySector.sizeForLevel(3)),
+					maxLuminosityAtDistance(4.0 * GalaxySector.sizeForLevel(4)),
+					maxLuminosityAtDistance(4.0 * GalaxySector.sizeForLevel(5)),
+					maxLuminosityAtDistance(4.0 * GalaxySector.sizeForLevel(6)),
+					maxLuminosityAtDistance(4.0 * GalaxySector.sizeForLevel(7)),
+			};
 
-						starProps.load(info.mass, info.age, info.metallicity);
-						info.luminosity = starProps.luminosityLsol;
+			buildTableTimer.start();
+			for (int iMass = 0; iMass < massInputs.length; ++iMass) {
+				for (int iMetallicity = 0; iMetallicity < metallicityInputs.length; ++iMetallicity) {
+					final var track = StellarProperties.GRID.tracks[iMetallicity][iMass];
+
+					for (int iEep = 0; iEep < track.length; ++iEep) {
+						final var info = new BasicSystemInfo();
+						info.age = track.age[iEep] / 1e6;
+						info.mass = track.mass[iEep] * Units.Yg_PER_Msol;
+						info.metallicity = metallicityInputs[iMetallicity];
+						info.luminosity = track.luminosity[iEep];
 
 						// falling through the loop and finding nothing means that the luminosity was
 						// higher than any level endpoint, so we just want to put it in the topmost
 						// level.
 						int level = levelEntries.size() - 1;
 						for (int i = 0; i < GalaxySector.LEVEL_COUNT; ++i) {
-							final var hi = LEVEL_LUMINOSITY_POINTS[i];
-							if (starProps.luminosityLsol < hi) {
+							final var hi = levelLumPoints[i];
+							if (info.luminosity < hi) {
 								level = i;
 								break;
 							}
@@ -211,10 +265,34 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 				}
 			}
 
+			// 50% level0, 50%level1
+			// level0->88.88%, level1->11.11%
+
+			// 0.8888*k=0.5 -> k = 0.5/0.8888
+			// 0.1111*k=0.5 -> k = 0.5/0.1111
+
 			this.levelWeights = new double[GalaxySector.LEVEL_COUNT];
 			for (int i = 0; i < GalaxySector.LEVEL_COUNT; ++i) {
-				// this.levelWeights[i] = levelTotalProbs[i] / totalProb;
-				this.levelWeights[i] = 1.0 / GalaxySector.LEVEL_COUNT;
+				final var entries = levelEntries.get(i);
+				double totalWeight = 0, totalArea = 0;
+				for (int j = 0; j < entries.size(); ++j) {
+					final var weight = entries.get(j).probability;
+					totalWeight += weight;
+					totalArea += Units.Msol_PER_Yg * entries.get(j).value.mass * weight;
+				}
+				// not sure why this works, but it does.
+				final var starsPerMsol = totalWeight / totalArea;
+				final var levelCoverage = GalaxySector.sectorsPerRootSector(i)
+						/ (double) GalaxySector.SUBSECTORS_PER_ROOT_SECTOR;
+
+				this.levelWeights[i] = 1.0;
+				// this.levelWeights[i] *= starsPerMsol;
+				// final var prob = totalProb / levelTotalProbs[i];
+				// this.levelWeights[i] *= levelCoverage / prob;
+				// this.levelWeights[i] *= levelCoverage;
+				final var prob = levelTotalProbs[i] / totalProb;
+				// this.levelWeights[i] *= levelCoverage / prob;
+				this.levelWeights[i] *= prob;
 			}
 
 			buildTableTimer.end();
@@ -347,15 +425,17 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 
 			final var galaxyParams = ctx.galaxy.parameters;
 
-			final var subdiv = subdivisionsPerLevel(ctx.level);
-			this.maskField = InterpolatedMaskField.create(galaxyParams.masks, ctx.volumeMin, ctx.volumeMax, subdiv);
+			// final var subdiv = subdivisionsPerLevel(ctx.level);
+			// this.maskField = InterpolatedMaskField.create(galaxyParams.stellarDensityField, ctx.volumeMin,
+			// 		ctx.volumeMax, subdiv);
+			this.maskField = galaxyParams.stellarDensityField;
 
 			final var tmpPos = new Vec3.Mutable();
 			final var tmpMasks = new GalaxyRegionWeights();
 			this.stellarDensity = (x, y, z) -> {
 				Vec3.set(tmpPos, x, y, z);
-				galaxyParams.masks.evaluate(tmpPos, tmpMasks);
-				return GalaxyRegionWeights.dot(tmpMasks, galaxyParams.stellarDensityWeights);
+				galaxyParams.stellarDensityField.evaluate(tmpPos, tmpMasks);
+				return tmpMasks.totalWeight();
 			};
 
 			// since we're using trilinear interpolation, there's likely an analytic
@@ -376,36 +456,19 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 			}
 
 			this.averageSectorDensity = Math.max(0, sectorDensitySum / DENSITY_SAMPLE_COUNT);
-			final var sectorSideLengths = ctx.volumeMax.sub(ctx.volumeMin);
+			final var sectorSideLengths = ctx.volumeMax.sub(ctx.volumeMin).mul(Units.pc_PER_Tm);
 			final var sectorVolume = sectorSideLengths.x * sectorSideLengths.y * sectorSideLengths.z;
 
 			// the amount of stars expected to be contained within the volume of this
 			// sector, including all its subsectors.
 			double starsPerSector = sectorVolume * this.averageSectorDensity;
-			// starsPerSector *= LEVEL_COVERAGE_INTERVALS[ctx.level].size();
+			// double starsPerSector = this.averageSectorDensity;
 			starsPerSector *= GalaxySector.sectorsPerRootSector(ctx.level)
 					/ (double) GalaxySector.SUBSECTORS_PER_ROOT_SECTOR;
-			starsPerSector /= 1e10;
+			// starsPerSector *= 100;
 			starsPerSector *= gen.levelWeights[ctx.level];
 
 			this.starAttemptCount = Mth.clamp(Mth.floor(starsPerSector), 0, 2048);
-
-			// this.averageSectorDensity = Math.max(0, sectorDensitySum /
-			// DENSITY_SAMPLE_COUNT);
-			// final var sectorSideLengths =
-			// ctx.volumeMax.sub(ctx.volumeMin).mul(Units.pc_PER_Tm);
-			// final var sectorVolume = sectorSideLengths.x * sectorSideLengths.y *
-			// sectorSideLengths.z;
-			// final var sectorMass = this.averageSectorDensity * sectorVolume;
-
-			// this.starAttemptCount = Math.min(2048, Mth.floor(10000 * sectorMass *
-			// Units.Msol_PER_Yg));
-			// this.starAttemptCount = 1000;
-
-			// final var starCount = this.imf.totalNumberOfStars(sectorMass,
-			// this.massRange.mul(Units.Msol_PER_Yg));
-			// this.starAttemptCount = Math.min(2048, Mth.floor(starCount));
-			// this.starAttemptCount = starAttemptCount;
 		}
 	}
 
@@ -471,7 +534,7 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 
 		final var masks = new GalaxyRegionWeights();
 		final var galaxyParams = ctx.galaxy.parameters;
-		final var densityWeights = galaxyParams.stellarDensityWeights;
+		// final var densityWeights = galaxyParams.stellarDensityWeights;
 
 		int offset = 0;
 		for (int i = 0; i < info.starAttemptCount && offset < 2048; ++i) {
@@ -499,14 +562,19 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 				elem.systemPosTm.z = rng.uniformDouble("z", ctx.volumeMin.z, ctx.volumeMax.z);
 
 				info.maskField.evaluate(elem.systemPosTm, masks);
-				masks.core *= densityWeights.core;
-				masks.arms *= densityWeights.arms;
-				masks.disc *= densityWeights.disc;
-				masks.halo *= densityWeights.halo;
+				// this.galaxy.parameters.stellarDensityField.evaluate(elem.systemPosTm, masks);
+				// masks.core *= densityWeights.core;
+				// masks.arms *= densityWeights.arms;
+				// masks.disc *= densityWeights.disc;
+				// masks.halo *= densityWeights.halo;
 
-				final var density = info.averageSectorDensity * rng.uniformDouble("density");
-				if (density < masks.totalWeight())
+				// final var densitySample = masks.totalWeight() / info.averageSectorDensity;
+				// if (rng.uniformDouble("density") < densitySample)
+				// 	break;
+				final var densitySample = masks.totalWeight() / info.averageSectorDensity;
+				if (rng.chance("aaa", densitySample))
 					break;
+				// break;
 			}
 
 			final var table = pickTable(masks, rng.uniformDouble("pick_table"));
@@ -522,10 +590,12 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 			// Interval.ONE.expand(0.02));
 			// sysInfo.luminosity *= rng.uniformDouble("luminosity_var",
 			// Interval.ONE.expand(0.05));
-			sysInfo.mass *= rng.uniformDouble("mass_var", Interval.ONE.expand(0.15));
-			sysInfo.age *= rng.uniformDouble("age_var", Interval.ONE.expand(0.18));
-			sysInfo.metallicity *= rng.uniformDouble("metallicity_var", Interval.ONE.expand(0.05));
-			sysInfo.luminosity *= rng.uniformDouble("luminosity_var", Interval.ONE.expand(0.1));
+			// sysInfo.mass *= rng.uniformDouble("mass_var", Interval.ONE.expand(0.15));
+			// sysInfo.age *= rng.uniformDouble("age_var", Interval.ONE.expand(0.18));
+			// sysInfo.metallicity *= rng.uniformDouble("metallicity_var",
+			// Interval.ONE.expand(0.05));
+			// sysInfo.luminosity *= rng.uniformDouble("luminosity_var",
+			// Interval.ONE.expand(0.1));
 
 			sysInfo.mass = Mth.clamp(sysInfo.mass, Units.Yg_PER_Msol * 0.1, Units.Yg_PER_Msol * 100);
 
@@ -538,13 +608,16 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 
 			starProps.load(elem.massYg, elem.systemAgeMyr, elem.metallicity);
 			elem.massYg = starProps.massYg;
-			elem.luminosityLsol = starProps.luminosityLsol;
+			// elem.luminosityLsol = starProps.luminosityLsol;
 			elem.temperatureK = starProps.temperatureK;
 
-			elem.massYg *= rng.uniformDouble("mass_var_2", Interval.ONE.expand(0.01));
-			elem.systemAgeMyr *= rng.uniformDouble("age_var_2", Interval.ONE.expand(0.01));
-			elem.metallicity *= rng.uniformDouble("metallicity_var_2", Interval.ONE.expand(0.01));
-			elem.luminosityLsol *= rng.uniformDouble("luminosity_var_2", Interval.ONE.expand(0.01));
+			// elem.massYg *= rng.uniformDouble("mass_var_2", Interval.ONE.expand(0.01));
+			// elem.systemAgeMyr *= rng.uniformDouble("age_var_2",
+			// Interval.ONE.expand(0.01));
+			// elem.metallicity *= rng.uniformDouble("metallicity_var_2",
+			// Interval.ONE.expand(0.01));
+			// elem.luminosityLsol *= rng.uniformDouble("luminosity_var_2",
+			// Interval.ONE.expand(0.01));
 
 			elements.store(elem, startIndex + offset);
 			offset += 1;
@@ -570,8 +643,9 @@ public class BaseGalaxyGenerationLayer extends GalaxyGenerationLayer implements 
 
 		final var node = rootNode.generateSystem(rng.uniformLong("seed"), this.galaxy, sector, id, elem);
 		final var name = NameTemplate.SECTOR_NAME.generate(rng.rng("name"));
+		final var orientation = Quat.randomUnit(rng.rng("orientation"));
 
-		return new StarSystem(name, this.galaxy, elem, node, elem.metallicity);
+		return new StarSystem(id, this.galaxy, elem, node, orientation, name);
 	}
 
 }

@@ -11,9 +11,10 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Units;
+import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
+import net.xavil.hawklib.client.camera.HawkCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera;
-import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.IndexPattern;
@@ -66,7 +67,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	private PlanetRenderingContext renderContext = this.disposer.attach(new PlanetRenderingContext());
 
 	public ScreenLayerSystem(HawkScreen3d attachedScreen, Galaxy galaxy, GalaxySectorId systemId) {
-		super(attachedScreen, new CameraConfig(1e-1, true, 1e7, true));
+		// super(attachedScreen, new CameraConfig(1e-1, true, 1e7, true));
+		super(attachedScreen, new CameraConfig(1e-5, false, 1e7, false));
 		// super(attachedScreen, new CameraConfig(1e-4, false, 1e5, false));
 		this.galaxy = galaxy;
 		this.ticket = galaxy.sectorManager.createSystemTicket(this.disposer, systemId);
@@ -161,11 +163,11 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		return false;
 	}
 
-	private int pickNode(OrbitCamera.Cached camera, Ray ray) {
+	private int pickNode(CachedCamera camera, Ray ray) {
 		return this.galaxy.getSystem(this.ticket.id).map(system -> pickNode(camera, ray, system.rootNode)).unwrapOr(-1);
 	}
 
-	private int pickNode(OrbitCamera.Cached camera, Ray ray, CelestialNode rootNode) {
+	private int pickNode(CachedCamera camera, Ray ray, CelestialNode rootNode) {
 		double closestDistance = Double.POSITIVE_INFINITY;
 		int closestId = -1;
 		for (final var node : rootNode.iterable()) {
@@ -188,20 +190,21 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public void setup3d(OrbitCamera camera, float partialTick) {
+	public void setup3d(HawkCamera camera, float partialTick) {
 		super.setup3d(camera, partialTick);
 		this.galaxy.getSystem(this.ticket.id).ifSome(system -> {
 			final var followingId = getBlackboard(BlackboardKeys.FOLLOWING_STAR_SYSTEM_NODE).unwrapOr(-1);
 			final var followingNode = system.rootNode.lookup(followingId);
 			if (followingNode != null) {
 				final var pos = followingNode.position.xyz().mul(1e12 / camera.metersPerUnit);
-				camera.focus.set(pos);
+				if (camera instanceof OrbitCamera orbitCam)
+					orbitCam.focus.set(pos);
 			}
 		});
 	}
 
 	@Override
-	public void render3d(Cached camera, RenderContext ctx) {
+	public void render3d(CachedCamera camera, RenderContext ctx) {
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 		final var cullingCamera = getCullingCamera();
 		final var system = this.galaxy.getSystem(this.ticket.id).unwrapOrNull();
@@ -362,8 +365,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		// }
 	}
 
-	private static void addEllipseArc(VertexAttributeConsumer.Generic builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, double endpointAngleL,
+	private static void addEllipseArc(VertexAttributeConsumer.Generic builder, CachedCamera camera,
+			CachedCamera cullingCamera, Ellipse ellipse, ColorRgba color, double endpointAngleL,
 			double endpointAngleH, int maxDepth, double phase, boolean fadeOut) {
 
 		final var camPos = cullingCamera.pos.mul(camera.metersPerUnit / 1e12);
@@ -375,7 +378,10 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 		var segmentLength = endpointL.distanceTo(endpointH);
 
-		var maxDistance = 10 * cullingCamera.scale;
+		double maxDistance = 10;
+		if (cullingCamera instanceof OrbitCamera.Cached orbitCam) {
+			maxDistance = 10 * orbitCam.scale;
+		}
 		var divisionFactor = 30;
 
 		if (ClientConfig.get(ConfigKey.SHOW_LINE_LODS)) {
@@ -424,8 +430,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 
 	}
 
-	private static void addEllipse(VertexAttributeConsumer.Generic builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, Ellipse ellipse, ColorRgba color, double phase, boolean fadeOut) {
+	private static void addEllipse(VertexAttributeConsumer.Generic builder, CachedCamera camera,
+			CachedCamera cullingCamera, Ellipse ellipse, ColorRgba color, double phase, boolean fadeOut) {
 		var basePathSegments = 32;
 		var maxDepth = 4;
 		for (var i = 0; i < basePathSegments; ++i) {
@@ -440,8 +446,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		return selected ? getBlackboardOrDefault(key) : getBlackboardOrDefault(BlackboardKeys.SELECTED_PATH_COLOR);
 	}
 
-	private void showOrbitGuides(VertexBuilder builder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, CelestialNode node, double celestialTime) {
+	private void showOrbitGuides(VertexBuilder builder, CachedCamera camera,
+			CachedCamera cullingCamera, CelestialNode node, double celestialTime) {
 		if (node instanceof BinaryCelestialNode binaryNode) {
 			showBinaryGuides(builder, camera, cullingCamera, binaryNode, celestialTime);
 		}
@@ -450,8 +456,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 			showUnaryGuides(builder, camera, cullingCamera, info, celestialTime);
 	}
 
-	private void showBinaryGuides(VertexBuilder vertexBuilder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, BinaryCelestialNode node, double celestialTime) {
+	private void showBinaryGuides(VertexBuilder vertexBuilder, CachedCamera camera,
+			CachedCamera cullingCamera, BinaryCelestialNode node, double celestialTime) {
 		final var builder = vertexBuilder.beginGeneric(IndexPattern.VANILLA_LINES,
 				BufferLayout.POSITION_COLOR_NORMAL);
 
@@ -484,8 +490,8 @@ public class ScreenLayerSystem extends HawkScreen3d.Layer3d {
 		builder.end().draw(SHADER_VANILLA_RENDERTYPE_LINES.get(), DRAW_STATE_LINES);
 	}
 
-	private void showUnaryGuides(VertexBuilder vertexBuilder, OrbitCamera.Cached camera,
-			OrbitCamera.Cached cullingCamera, CelestialNodeChild<?> orbiter, double celestialTime) {
+	private void showUnaryGuides(VertexBuilder vertexBuilder, CachedCamera camera,
+			CachedCamera cullingCamera, CelestialNodeChild<?> orbiter, double celestialTime) {
 		final var builder = vertexBuilder.beginGeneric(IndexPattern.VANILLA_LINES,
 				BufferLayout.POSITION_COLOR_NORMAL);
 

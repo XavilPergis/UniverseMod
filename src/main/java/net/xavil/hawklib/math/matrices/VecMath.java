@@ -13,12 +13,16 @@ public final class VecMath {
 		return a.dot(b);
 	}
 
-	public static Vec3 transformPerspective(Mat4Access mat, Vec3Access xyz, double w) {
-		final var xp = (mat.r0c0() * xyz.x()) + (mat.r0c1() * xyz.y()) + (mat.r0c2() * xyz.z()) + (mat.r0c3() * w);
-		final var yp = (mat.r1c0() * xyz.x()) + (mat.r1c1() * xyz.y()) + (mat.r1c2() * xyz.z()) + (mat.r1c3() * w);
-		final var zp = (mat.r2c0() * xyz.x()) + (mat.r2c1() * xyz.y()) + (mat.r2c2() * xyz.z()) + (mat.r2c3() * w);
-		final var wp = (mat.r3c0() * xyz.x()) + (mat.r3c1() * xyz.y()) + (mat.r3c2() * xyz.z()) + (mat.r3c3() * w);
+	public static Vec3 transformPerspective(Mat4Access mat, double x, double y, double z, double w) {
+		final var xp = (mat.r0c0() * x) + (mat.r0c1() * y) + (mat.r0c2() * z) + (mat.r0c3() * w);
+		final var yp = (mat.r1c0() * x) + (mat.r1c1() * y) + (mat.r1c2() * z) + (mat.r1c3() * w);
+		final var zp = (mat.r2c0() * x) + (mat.r2c1() * y) + (mat.r2c2() * z) + (mat.r2c3() * w);
+		final var wp = (mat.r3c0() * x) + (mat.r3c1() * y) + (mat.r3c2() * z) + (mat.r3c3() * w);
 		return new Vec3(xp / wp, yp / wp, zp / wp);
+	}
+
+	public static Vec3 transformPerspective(Mat4Access mat, Vec3Access xyz, double w) {
+		return transformPerspective(mat, xyz.x(), xyz.y(), xyz.z(), w);
 	}
 
 	public static Vec3.Mutable transformPerspective(Vec3.Mutable out, Mat4Access mat, Vec3Access xyz, double w) {

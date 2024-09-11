@@ -11,8 +11,10 @@ in vec3 aPos;
 in vec4 aColor;
 in vec2 aTexCoord0;
 
+//uniform mat4 uModelMatrix;
+
 void main() {
-	vec4 viewPos = uViewMatrix * vec4(aPos, 1.0);
+	vec4 viewPos = uViewMatrix * uModelMatrix * vec4(aPos, 1.0);
 	vertexColor = aColor;
 
 	gl_Position = uProjectionMatrix * viewPos;

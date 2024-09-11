@@ -14,7 +14,9 @@ import net.minecraft.nbt.NbtOps;
 import net.minecraft.nbt.Tag;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.Units;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
 import net.xavil.hawklib.collections.iterator.IntoIterator;
@@ -40,7 +42,16 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 	public String explicitName;
 	public String suffix = "";
 
+	// position relative to the system's reference frame, in Tm
 	public final Vec3.Mutable position = new Vec3.Mutable(Vec3.ZERO), lastPosition = new Vec3.Mutable(Vec3.ZERO);
+
+	// the star system this body belongs to. note that this may be null in certain
+	// circumstances, like the time between when a node is constructed and when it
+	// is assigned to a StarSystem.
+	public StarSystem parentSystem;
+	// the absolute position of the node in the universe's reference frame.
+	public UniversePosition absolutePosition;
+
 	public OrbitalPlane referencePlane = OrbitalPlane.ZERO;
 	// the rate of orbital precession
 	public double apsidalRate; // rad/s
@@ -52,6 +63,17 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 
 	public CelestialNode(double massYg) {
 		this.massYg = massYg;
+	}
+
+	public final void setParentSystem(StarSystem parent) {
+		this.parentSystem = parent;
+		if (this instanceof BinaryCelestialNode binaryNode) {
+			binaryNode.getInner().setParentSystem(parent);
+			binaryNode.getOuter().setParentSystem(parent);
+		}
+		for (var child : this.childNodes.iterable()) {
+			child.node.setParentSystem(parent);
+		}
 	}
 
 	/**
@@ -348,13 +370,16 @@ public abstract sealed class CelestialNode implements IntoIterator<CelestialNode
 
 		for (var childOrbit : this.childNodes.iterable()) {
 			final var newPlane = childOrbit.orbitalPlane.withReferencePlane(referencePlane);
-			getOrbitalPosition(childOrbit.node.position, newPlane, childOrbit.orbitalShape, false, time, childOrbit.phase);
+			getOrbitalPosition(childOrbit.node.position, newPlane, childOrbit.orbitalShape, false, time,
+					childOrbit.phase);
 			childOrbit.node.updatePositions(newPlane, time);
 		}
-	}
 
-	public Vec3 getPosition(float partialTick) {
-		return Vec3.lerp(partialTick, this.lastPosition, this.position);
+		if (this.parentSystem != null) {
+			this.absolutePosition = this.parentSystem.position.add(this.position, Units.u_PER_Tu);
+		} else {
+			this.absolutePosition = null;
+		}
 	}
 
 	public Vec3.Mutable getOrbitalPosition(Vec3.Mutable out, OrbitalPlane plane, OrbitalShape shape, boolean reverse,

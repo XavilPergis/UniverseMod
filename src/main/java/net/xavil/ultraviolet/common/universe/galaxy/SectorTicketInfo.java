@@ -11,7 +11,7 @@ import net.xavil.hawklib.math.matrices.Vec3i;
 public abstract sealed class SectorTicketInfo {
 
 	public static Multi visual(Vec3 centerPos) {
-		return new Multi(centerPos, GalaxySector.BASE_SIZE_Tm, Multi.SCALES_EXP);
+		return new Multi(centerPos, 4 * GalaxySector.BASE_SIZE_Tm, Multi.SCALES_EXP);
 	}
 
 	public static Single single(SectorPos pos) {
@@ -101,7 +101,7 @@ public abstract sealed class SectorTicketInfo {
 
 		public static final double[] SCALES_UNIFORM = { 1, 1, 1, 1, 1, 1, 1, 1 };
 		public static final double[] SCALES_EXP = { 1, 2, 4, 8, 16, 32, 64, 128 };
-		public static final double[] SCALES_EXP_ADJUSTED = { 1, 2, 4, 8, 16, 32, 64, 512 };
+		public static final double[] SCALES_EXP_ADJUSTED = { 4, 8, 16, 32, 64, 128, 256, 512 };
 
 		public Multi(Vec3 centerPos, double baseRadius, double[] scales) {
 			this.centerPos = centerPos;
@@ -134,7 +134,7 @@ public abstract sealed class SectorTicketInfo {
 				return false;
 
 			final int cx = 2 * pos.levelCoords().x, cy = 2 * pos.levelCoords().y, cz = 2 * pos.levelCoords().z;
-			
+
 			// @formatter:off
 			final var nnn = new SectorPos(pos.level() - 1, new Vec3i(cx + 0, cy + 0, cz + 0));
 			if (enumerateAffectedSectorsInner(nnn, consumer)) return true;
@@ -160,8 +160,10 @@ public abstract sealed class SectorTicketInfo {
 		@Override
 		public void enumerateAffectedSectors(EnumerationPredicate consumer) {
 			final var radiusCur = radiusForLevel(GalaxySector.ROOT_LEVEL);
-			final var curMin = GalaxySector.levelCoordsForPos(GalaxySector.ROOT_LEVEL, this.centerPos.sub(Vec3.broadcast(radiusCur)));
-			final var curMax = GalaxySector.levelCoordsForPos(GalaxySector.ROOT_LEVEL, this.centerPos.add(Vec3.broadcast(radiusCur)));
+			final var curMin = GalaxySector.levelCoordsForPos(GalaxySector.ROOT_LEVEL,
+					this.centerPos.sub(Vec3.broadcast(radiusCur)));
+			final var curMax = GalaxySector.levelCoordsForPos(GalaxySector.ROOT_LEVEL,
+					this.centerPos.add(Vec3.broadcast(radiusCur)));
 			for (int x = curMin.x; x <= curMax.x; ++x) {
 				for (int y = curMin.y; y <= curMax.y; ++y) {
 					for (int z = curMin.z; z <= curMax.z; ++z) {

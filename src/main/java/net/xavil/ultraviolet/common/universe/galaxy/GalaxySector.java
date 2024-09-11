@@ -74,10 +74,6 @@ public final class GalaxySector {
 		return pos.div(sizeForLevel(level)).floor();
 	}
 
-	public SectorPos sectorPos() {
-		return new SectorPos(this.level, new Vec3i(this.x, this.y, this.z));
-	}
-
 	public final int level;
 	// the sum of all the reference counts for all the descendant of this sector,
 	// including itself. Used for figuring out whether this sector can be unloaded

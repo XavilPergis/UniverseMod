@@ -70,9 +70,16 @@ public class UltravioletShaders extends HawkShaders {
 			.attrib("aBatchId", TextBuilder.USAGE_BATCH_ID, ShaderAttributeSet.INT1, InstanceRate.PER_VERTEX)
 			.build();
 
+	// for star billboard shader
+	public static final ShaderAttributeSet POSITION_COLOR_BILLBOARD = ShaderAttributeSet.builder()
+			.attrib("aPos", BufferLayout.Attribute.POSITION, ShaderAttributeSet.FLOAT4, InstanceRate.PER_VERTEX)
+			.attrib("aColor", BufferLayout.Attribute.COLOR, ShaderAttributeSet.FLOAT4, InstanceRate.PER_VERTEX)
+			.build();
+
 	public static void registerShaders(HawkRendering.ShaderSink acceptor) {
 		// @formatter:off
-		acceptor.accept(SHADER_STAR_BILLBOARD_REALISTIC_LOCATION, ShaderAttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+		// acceptor.accept(SHADER_STAR_BILLBOARD_REALISTIC_LOCATION, ShaderAttributeSet.POSITION_COLOR_TEX, GlFragmentWrites.COLOR_ONLY);
+		acceptor.accept(SHADER_STAR_BILLBOARD_REALISTIC_LOCATION, POSITION_COLOR_BILLBOARD, GlFragmentWrites.COLOR_ONLY);
 		acceptor.accept(SHADER_STAR_BILLBOARD_UI_LOCATION,        ShaderAttributeSet.POSITION_COLOR, GlFragmentWrites.COLOR_ONLY);
 		acceptor.accept(SHADER_CELESTIAL_NODE_LOCATION,           ShaderAttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);
 		acceptor.accept(SHADER_RING_LOCATION,                     ShaderAttributeSet.POSITION_TEX_COLOR_NORMAL, GlFragmentWrites.COLOR_ONLY);

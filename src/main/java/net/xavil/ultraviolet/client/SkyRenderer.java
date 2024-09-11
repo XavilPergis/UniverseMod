@@ -1,6 +1,7 @@
 package net.xavil.ultraviolet.client;
 
 import java.util.Objects;
+import java.util.Random;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Matrix4f;
@@ -9,10 +10,12 @@ import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.Mesh;
 import net.xavil.hawklib.client.gl.GlFragmentWrites;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
 import net.xavil.hawklib.client.gl.GlManager;
@@ -28,11 +31,13 @@ import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.config.ClientConfig;
 import net.xavil.ultraviolet.common.config.ConfigKey;
+import net.xavil.ultraviolet.common.universe.NearbyObjectTracker;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.PlanetaryCelestialNode;
@@ -42,6 +47,7 @@ import net.xavil.ultraviolet.common.universe.universe.GalaxyTicket;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.mixin.accessor.GameRendererAccessor;
+import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftClientAccessor;
 
 public class SkyRenderer implements Disposable {
@@ -51,19 +57,86 @@ public class SkyRenderer implements Disposable {
 
 	public GlFramebuffer mainSkyTarget = null;
 
-	private WorldType previousLocation = null;
+	private NearbyObjectTracker nearbyTracker;
 
-	private SystemTicket systemTicket = null;
-	private GalaxyTicket galaxyTicket = null;
-
+	private UniversePosition originPosition = null;
+	private UniversePosition cachedPosition;
+	private Galaxy lastGalaxy;
 	private StarRenderManager starRenderer = null;
-
 	private GalaxyRenderingContext galaxyRenderingContext = null;
+
+	private Mesh galaxiesDebugMesh = null;
 
 	private SkyRenderer() {
 	}
 
 	public void tick() {
+		if (this.client.level == null)
+			return;
+
+		this.cachedPosition = currentPosition();
+
+		if (this.originPosition == null)
+			this.originPosition = this.cachedPosition;
+
+		// if (this.cachedPosition.relativeTo(this.originPosition,
+		// Units.Tu_PER_u).length() > 5) {
+		// this.starRenderer.setOriginOffset(null);
+		// }
+
+		final var universe = MinecraftClientAccessor.getUniverse();
+		if (this.nearbyTracker == null)
+			this.nearbyTracker = new NearbyObjectTracker(universe);
+
+		this.nearbyTracker.update(this.cachedPosition);
+		if (this.lastGalaxy != this.nearbyTracker.getGalaxyIn()) {
+			if (this.starRenderer != null) {
+				this.starRenderer.close();
+				this.starRenderer = null;
+			}
+			if (this.galaxyRenderingContext != null) {
+				this.galaxyRenderingContext.close();
+				this.galaxyRenderingContext = null;
+			}
+
+			this.lastGalaxy = this.nearbyTracker.getGalaxyIn();
+
+			if (this.lastGalaxy != null) {
+				final var pos = this.cachedPosition.relativeTo(this.lastGalaxy.position, Units.Tu_PER_u);
+				this.starRenderer = new StarRenderManager(this.lastGalaxy, SectorTicketInfo.visual(pos));
+				this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
+				this.galaxyRenderingContext = new GalaxyRenderingContext(this.lastGalaxy.parameters);
+			} else {
+				if (this.starRenderer != null)
+					this.starRenderer.close();
+				this.starRenderer = null;
+				if (this.galaxyRenderingContext != null)
+					this.galaxyRenderingContext.close();
+				this.galaxyRenderingContext = null;
+			}
+		}
+	}
+
+	private UniversePosition currentPosition() {
+		// TODO
+		final var universe = MinecraftClientAccessor.getUniverse();
+		final var location = LevelAccessor.getWorldType(this.client.level);
+		if (location instanceof WorldType.SystemNode loc) {
+			final var sys = universe.getSystem(loc.id.system()).unwrapOrNull();
+			if (sys == null)
+				return UniversePosition.ZERO;
+			final var node = sys.rootNode.lookup(loc.id.nodeId());
+			if (node == null)
+				return UniversePosition.ZERO;
+			if (node instanceof PlanetaryCelestialNode planetNode) {
+				// TODO: dont just use the position of the node
+				return planetNode.absolutePosition;
+			}
+			return UniversePosition.ZERO;
+		} else if (location instanceof WorldType.Station loc) {
+			return universe.getStation(loc.id).map(s -> s.position).unwrapOr(UniversePosition.ZERO);
+		}
+		return UniversePosition.ZERO;
 	}
 
 	public void resize(int width, int height) {
@@ -80,286 +153,509 @@ public class SkyRenderer implements Disposable {
 		return Quat.fromOrthonormalBasis(px, py, pz);
 	}
 
-	private CachedCamera createCamera(Camera camera, TransformStack tfm,
-			double nearPlane, double farPlane,
-			float partialTick) {
-		tfm.push();
-		tfm.prependRotation(orientationFromMinecraftCamera(camera).inverse());
-		final var invView = tfm.copyCurrent();
-		tfm.pop();
+	// CONVENTIONS:
+	// the orientation of any frame is always the same as the orientation of the
+	// root frame (universe's)
+	// that is, even inside a star system, each axis points in the same direction
+	// (so directly "up" out of the system plane may not be the same as +Y)
 
-		final var proj = GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
-				nearPlane, farPlane, false, partialTick);
-		final var cam = new CachedCamera();
-		cam.load(invView, proj, 1e12);
-		return cam;
-	}
+	// // transforms universe-oriented stuff to local-oriented
+	// private Quat getOrientationAbsolute(Camera camera, StarSystem system,
+	// PlanetaryCelestialNode node, double time,
+	// Vec2 coords) {
+	// Quat q = Quat.IDENTITY;
+	// // universe -> galaxy
+	// q = system.parentGalaxy.info.orientation.hamiltonProduct(q);
+	// // galaxy -> system
+	// q = system.orientation.hamiltonProduct(q);
+	// // system -> node
+	// final var worldBorder = this.client.level.getWorldBorder();
+	// final var tx = Mth.inverseLerp(coords.x, worldBorder.getMinX(),
+	// worldBorder.getMaxX());
+	// final var tz = Mth.inverseLerp(coords.y, worldBorder.getMinZ(),
+	// worldBorder.getMaxZ());
 
-	private void applyPlanetTransform(TransformStack tfm, PlanetaryCelestialNode node, double time, Vec2 coords,
-			float partialTick) {
-		final var worldBorder = this.client.level.getWorldBorder();
-		final var tx = Mth.inverseLerp(coords.x, worldBorder.getMinX(), worldBorder.getMaxX());
-		final var tz = Mth.inverseLerp(coords.y, worldBorder.getMinZ(), worldBorder.getMaxZ());
+	// final var planetRadius = 1.0001 * Units.Tu_PER_ku * node.radius;
+	// tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
+	// tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
 
-		final var planetRadius = 1.0001 * Units.Tu_PER_ku * node.radius;
-		tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
-		tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
+	// final var halfPi = Math.PI / 2;
+	// final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
+	// final var longitudeOffset = Mth.clampedLerp(-halfPi, halfPi, tz);
 
-		final var halfPi = Math.PI / 2;
-		final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
-		final var longitudeOffset = Mth.clampedLerp(-halfPi, halfPi, tz);
+	// tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
+	// tfm.appendRotation(Quat.axisAngle(Vec3.YP, latitudeOffset));
+	// tfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * time));
+	// tfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
 
-		tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
-		tfm.appendRotation(Quat.axisAngle(Vec3.YP, latitudeOffset));
-		tfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * time));
-		tfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+	// // tfm.appendTranslation(node.getPosition(partialTick));
+	// tfm.appendTranslation(node.position);
+	// // camera turn
+	// q = orientationFromMinecraftCamera(camera).hamiltonProduct(q);
+	// return q;
+	// }
 
-		tfm.appendTranslation(node.getPosition(partialTick));
-	}
+	// private CachedCamera createCamera(Camera camera, TransformStack tfm,
+	// double nearPlane, double farPlane,
+	// float partialTick) {
+	// tfm.push();
+	// tfm.prependRotation(orientationFromMinecraftCamera(camera).inverse());
+	// final var invView = tfm.copyCurrent();
+	// tfm.pop();
 
-	public boolean applyCelestialTransform(TransformStack tfm, Vec2 worldPosXZ, WorldType location, float partialTick) {
-		final var universe = MinecraftClientAccessor.getUniverse();
-		final var time = universe.getCelestialTime(partialTick);
-		if (location instanceof WorldType.SystemNode loc) {
-			final var sys = universe.getSystem(loc.id.system()).unwrapOrNull();
-			if (sys == null)
-				return false;
-			final var node = sys.rootNode.lookup(loc.id.nodeId());
-			if (node == null)
-				return false;
-			if (node instanceof PlanetaryCelestialNode planetNode) {
-				applyPlanetTransform(tfm, planetNode, time, worldPosXZ, partialTick);
-				tfm.appendTranslation(sys.pos);
-				return true;
-			}
-			return false;
-		} else if (location instanceof WorldType.Station loc) {
-			final var station = universe.getStation(loc.id).unwrapOrNull();
-			if (station == null)
-				return false;
-			final var p = station.getPos(partialTick);
-			tfm.appendRotation(station.orientation.inverse());
-			tfm.appendTranslation(p);
-			return true;
-		}
-		return false;
-	}
+	// final var proj =
+	// GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer,
+	// nearPlane, farPlane, false, partialTick);
+	// final var cam = new CachedCamera();
+	// cam.load(invView, proj, 1e12);
+	// return cam;
+	// }
 
-	private void createTickets(Universe universe, UniverseSectorId galaxyId) {
-		if (this.galaxyTicket == null)
-			this.galaxyTicket = universe.sectorManager.createGalaxyTicketManual(galaxyId);
-		final var galaxy = this.galaxyTicket.forceLoad().unwrapOrNull();
-		if (galaxy == null)
-			return;
-		if (this.starRenderer == null)
-			this.starRenderer = new StarRenderManager(galaxy, new SectorTicketInfo.Multi(Vec3.ZERO,
-					GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED));
-		this.starRenderer.setBatchingHint(StarRenderManager.BatchingHint.STATIC);
-		this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
-		if (this.systemTicket == null)
-			this.systemTicket = galaxy.sectorManager.createSystemTicketManual(null);
+	// private void applyPlanetTransform(TransformStack tfm, PlanetaryCelestialNode
+	// node, double time, Vec2 coords,
+	// float partialTick) {
+	// final var worldBorder = this.client.level.getWorldBorder();
+	// final var tx = Mth.inverseLerp(coords.x, worldBorder.getMinX(),
+	// worldBorder.getMaxX());
+	// final var tz = Mth.inverseLerp(coords.y, worldBorder.getMinZ(),
+	// worldBorder.getMaxZ());
 
-		if (this.galaxyRenderingContext == null)
-			this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy.parameters);
-	}
+	// final var planetRadius = 1.0001 * Units.Tu_PER_ku * node.radius;
+	// tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
+	// tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
+
+	// final var halfPi = Math.PI / 2;
+	// final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
+	// final var longitudeOffset = Mth.clampedLerp(-halfPi, halfPi, tz);
+
+	// tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
+	// tfm.appendRotation(Quat.axisAngle(Vec3.YP, latitudeOffset));
+	// tfm.appendRotation(Quat.axisAngle(Vec3.YP, -node.rotationalRate * time));
+	// tfm.appendRotation(Quat.axisAngle(Vec3.XP, node.obliquityAngle));
+
+	// // tfm.appendTranslation(node.getPosition(partialTick));
+	// tfm.appendTranslation(node.position);
+	// }
+
+	// public boolean applyCelestialTransform(TransformStack tfm, Vec2 worldPosXZ,
+	// WorldType location, float partialTick) {
+	// final var universe = MinecraftClientAccessor.getUniverse();
+	// final var time = universe.getCelestialTime(partialTick);
+	// if (location instanceof WorldType.SystemNode loc) {
+	// final var sys = universe.getSystem(loc.id.system()).unwrapOrNull();
+	// if (sys == null)
+	// return false;
+	// final var node = sys.rootNode.lookup(loc.id.nodeId());
+	// if (node == null)
+	// return false;
+	// if (node instanceof PlanetaryCelestialNode planetNode) {
+	// applyPlanetTransform(tfm, planetNode, time, worldPosXZ, partialTick);
+	// tfm.appendTranslation(sys.pos());
+	// return true;
+	// }
+	// return false;
+	// } else if (location instanceof WorldType.Station loc) {
+	// final var station = universe.getStation(loc.id).unwrapOrNull();
+	// if (station == null)
+	// return false;
+	// // final var p = station.position.relativeTo();
+	// tfm.appendRotation(station.orientation.inverse());
+	// // tfm.appendTranslation(p);
+	// return true;
+	// }
+	// return false;
+	// }
+
+	// private void updateTickets(Universe universe, UniversePosition position) {
+
+	// }
+
+	// private void createTickets(Universe universe, UniverseSectorId galaxyId) {
+	// if (this.galaxyTicket == null)
+	// this.galaxyTicket =
+	// universe.sectorManager.createGalaxyTicketManual(galaxyId);
+	// final var galaxy = this.galaxyTicket.forceLoad().unwrapOrNull();
+	// if (galaxy == null)
+	// return;
+	// // if (this.starRenderer == null)
+	// // this.starRenderer = new StarRenderManager(galaxy, new
+	// // SectorTicketInfo.Multi(Vec3.ZERO,
+	// // GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED));
+	// if (this.starRenderer == null)
+	// this.starRenderer = new StarRenderManager(galaxy, new
+	// SectorTicketInfo.Multi(Vec3.ZERO,
+	// GalaxySector.BASE_SIZE_Tm, new double[] { 4, 8, 16, 32, 64, 128, 256, 512
+	// }));
+	// this.starRenderer.setBatchingHint(StarRenderManager.BatchingHint.STATIC);
+	// this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
+	// if (this.systemTicket == null)
+	// this.systemTicket = galaxy.sectorManager.createSystemTicketManual(null);
+
+	// if (this.galaxyRenderingContext == null)
+	// this.galaxyRenderingContext = new GalaxyRenderingContext(galaxy.parameters);
+	// }
 
 	public void disposeTickets() {
-		if (this.galaxyTicket != null) {
-			this.galaxyTicket.close();
-			this.galaxyTicket = null;
-		}
-		if (this.systemTicket != null) {
-			this.systemTicket.close();
-			this.systemTicket = null;
-		}
-		if (this.starRenderer != null) {
+		// if (this.galaxyTicket != null) {
+		// this.galaxyTicket.close();
+		// this.galaxyTicket = null;
+		// }
+		// if (this.systemTicket != null) {
+		// this.systemTicket.close();
+		// this.systemTicket = null;
+		// }
+		// if (this.starRenderer != null) {
+		// this.starRenderer.close();
+		// this.starRenderer = null;
+		// }
+		// if (this.galaxyRenderingContext != null) {
+		// this.galaxyRenderingContext.close();
+		// this.galaxyRenderingContext = null;
+		// }
+
+		// this.planetContext.close();
+		// if (this.mainSkyTarget != null)
+		// this.mainSkyTarget.close();
+		// this.mainSkyTarget = null;
+		if (this.starRenderer != null)
 			this.starRenderer.close();
-			this.starRenderer = null;
-		}
-		if (this.galaxyRenderingContext != null) {
+		this.starRenderer = null;
+		if (this.galaxyRenderingContext != null)
 			this.galaxyRenderingContext.close();
-			this.galaxyRenderingContext = null;
-		}
+		this.galaxyRenderingContext = null;
+		if (this.nearbyTracker != null)
+			this.nearbyTracker.close();
+		this.nearbyTracker = null;
 	}
 
-	private GlTextureCubemap captureSkybox(Vec3 captureLocation) {
-		final var cubemap = new GlTextureCubemap();
-		cubemap.createStorage(GlTexture.Format.RGBA16_FLOAT, 1024);
+	// private GlTextureCubemap captureSkybox(Vec3 captureLocation) {
+	// final var cubemap = new GlTextureCubemap();
+	// cubemap.createStorage(GlTexture.Format.RGBA16_FLOAT, 1024);
 
-		final var cam = new CachedCamera();
-		final var projMat = Mat4.perspectiveProjection(0.5 * Math.PI, 1, 1e2, 1e10);
+	// final var cam = new CachedCamera();
+	// final var projMat = Mat4.perspectiveProjection(0.5 * Math.PI, 1, 1e2, 1e10);
 
-		try (final var disposer = Disposable.scope()) {
-			final var framebuffer = disposer
-					.attach(new GlFramebuffer(GlFragmentWrites.COLOR_ONLY, cubemap.size().d2()));
-			framebuffer.enableAllColorAttachments();
-			framebuffer.createDepthTarget(false, GlTexture.Format.DEPTH_UNSPECIFIED);
-			for (final var face : GlTextureCubemap.Face.values()) {
-				framebuffer.setColorTarget(GlFragmentWrites.COLOR, cubemap.createFaceTarget(face));
-				framebuffer.checkStatus();
-				framebuffer.bind();
+	// try (final var disposer = Disposable.scope()) {
+	// final var framebuffer = disposer
+	// .attach(new GlFramebuffer(GlFragmentWrites.COLOR_ONLY, cubemap.size().d2()));
+	// framebuffer.enableAllColorAttachments();
+	// framebuffer.createDepthTarget(false, GlTexture.Format.DEPTH_UNSPECIFIED);
+	// for (final var face : GlTextureCubemap.Face.values()) {
+	// framebuffer.setColorTarget(GlFragmentWrites.COLOR,
+	// cubemap.createFaceTarget(face));
+	// framebuffer.checkStatus();
+	// framebuffer.bind();
 
-				final var inverseViewMat = new Mat4.Mutable();
-				switch (face) {
-					case XN -> Mat4.setLookAt(inverseViewMat, Vec3.XN, captureLocation, Vec3.YP);
-					case XP -> Mat4.setLookAt(inverseViewMat, Vec3.XP, captureLocation, Vec3.YP);
-					case YN -> Mat4.setLookAt(inverseViewMat, Vec3.YN, captureLocation, Vec3.ZN);
-					case YP -> Mat4.setLookAt(inverseViewMat, Vec3.YP, captureLocation, Vec3.ZP);
-					case ZN -> Mat4.setLookAt(inverseViewMat, Vec3.ZN, captureLocation, Vec3.YP);
-					case ZP -> Mat4.setLookAt(inverseViewMat, Vec3.ZP, captureLocation, Vec3.YP);
-				};
+	// final var inverseViewMat = new Mat4.Mutable();
+	// switch (face) {
+	// case XN -> Mat4.setLookAt(inverseViewMat, Vec3.XN, captureLocation, Vec3.YP);
+	// case XP -> Mat4.setLookAt(inverseViewMat, Vec3.XP, captureLocation, Vec3.YP);
+	// case YN -> Mat4.setLookAt(inverseViewMat, Vec3.YN, captureLocation, Vec3.ZN);
+	// case YP -> Mat4.setLookAt(inverseViewMat, Vec3.YP, captureLocation, Vec3.ZP);
+	// case ZN -> Mat4.setLookAt(inverseViewMat, Vec3.ZN, captureLocation, Vec3.YP);
+	// case ZP -> Mat4.setLookAt(inverseViewMat, Vec3.ZP, captureLocation, Vec3.YP);
+	// }
+	// ;
 
-				cam.load(inverseViewMat, projMat, 1e12);
+	// cam.load(inverseViewMat, projMat, 1e12);
 
-				cam.applyProjection();
-				CachedCamera.applyView(cam.orientation);
-				if (this.galaxyRenderingContext != null) {
-					this.galaxyRenderingContext.draw(cam, Vec3.ZERO);
-				}
+	// cam.applyProjection();
+	// CachedCamera.applyView(cam.orientation);
+	// if (this.galaxyRenderingContext != null) {
+	// this.galaxyRenderingContext.draw(cam, Vec3.ZERO);
+	// }
 
-				// this.starRenderer.draw(cam, captureLocation);
-			}
-		}
+	// // this.starRenderer.draw(cam, captureLocation);
+	// }
+	// }
 
-		return cubemap;
+	// return cubemap;
+	// }
+
+	private Mat4 makeProjMat(double zNear, double zFar, float partialTick) {
+		return GameRendererAccessor.makeProjectionMatrix(this.client.gameRenderer, zNear, zFar, false, partialTick);
 	}
 
 	private void drawCelestialObjects(Camera srcCamera, GlFramebuffer target, float partialTick) {
 		final var profiler = Minecraft.getInstance().getProfiler();
 		final var universe = MinecraftClientAccessor.getUniverse();
+		final var time = universe.getCelestialTime(partialTick);
 
 		target.bind();
 		target.clear();
-		// target.clearColorAttachment("fColor", new Color(0.1, 0.1, 0.12, 1));
-		// target.clearColorAttachment("fColor", Color.BLACK);
 
-		// ticket management
 		final var location = EntityAccessor.getWorldType(this.client.player);
-		if (!Objects.equals(previousLocation, location))
-			disposeTickets();
 
-		if (location instanceof WorldType.Station loc) {
-			final var station = universe.getStation(loc.id).unwrapOrNull();
-			if (station != null) {
-				if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
-					createTickets(universe, sloc.id.universeSector());
-					this.systemTicket.id = sloc.id.galaxySector();
-				} else if (station.getLocation() instanceof StationLocation.JumpingSystem sloc) {
-					createTickets(universe, sloc.targetNode.universeSector());
-					this.systemTicket.id = sloc.targetNode.galaxySector();
+		if (this.galaxyRenderingContext != null) {
+			// final var modelStack = new TransformStack();
+			final var tfm = new TransformStack();
+			tfm.appendRotation(orientationFromMinecraftCamera(srcCamera).inverse());
+
+			// applyCelestialTransform(tfm, xz, location, partialTick);
+			if (location instanceof WorldType.SystemNode loc) {
+				final var sys = universe.getSystem(loc.id.system()).unwrapOrNull();
+				if (sys != null) {
+					final var node = sys.rootNode.lookup(loc.id.nodeId());
+					if (node != null && node instanceof PlanetaryCelestialNode planetNode) {
+						// applyPlanetTransform(tfm, planetNode, time, xz, partialTick);
+						final var xz = new Vec2(srcCamera.getPosition().x, srcCamera.getPosition().z);
+						final var worldBorder = this.client.level.getWorldBorder();
+						final var tx = Mth.inverseLerp(xz.x, worldBorder.getMinX(), worldBorder.getMaxX());
+						final var tz = Mth.inverseLerp(xz.y, worldBorder.getMinZ(), worldBorder.getMaxZ());
+
+						final var planetRadius = 1.0001 * Units.Tu_PER_ku * planetNode.radius;
+						// tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
+						tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
+
+						final var halfPi = Math.PI / 2;
+						final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
+						final var longitudeOffset = Mth.clampedLerp(-halfPi, halfPi, tz);
+
+						tfm.appendRotation(Quat.axisAngle(Vec3.ZP, latitudeOffset));
+						tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
+						tfm.appendRotation(Quat.axisAngle(Vec3.YP, -planetNode.rotationalRate * time));
+						tfm.appendRotation(Quat.axisAngle(Vec3.XP, planetNode.obliquityAngle));
+
+						tfm.appendRotation(this.lastGalaxy.info.orientation.inverse());
+						tfm.appendRotation(sys.orientation.inverse());
+
+						tfm.appendTranslation(planetNode.position);
+						tfm.appendTranslation(sys.pos());
+					}
+				}
+			} else if (location instanceof WorldType.Station loc) {
+				final var station = universe.getStation(loc.id).unwrapOrNull();
+				if (station != null) {
+					final var pos = station.position.relativeTo(this.lastGalaxy.position, Units.Tu_PER_u);
+					tfm.appendRotation(this.lastGalaxy.info.orientation.inverse());
+					tfm.appendRotation(station.orientation.inverse());
+					tfm.appendTranslation(pos);
 				}
 			}
-		} else if (location instanceof WorldType.SystemNode loc) {
-			createTickets(universe, loc.id.universeSector());
-			this.systemTicket.id = loc.id.galaxySector();
-		}
 
-		if (this.galaxyTicket == null)
-			return;
+			final var rng = Rng.wrap(new Random());
+			final var a = Vec3.random(rng, Vec3.NNN, Vec3.PPP).mul(1e7);
+			final var b = Vec3.random(rng, Vec3.NNN, Vec3.PPP).mul(1e7);
+			final var aP = UniversePosition.from(a, 1);
+			final var bP = UniversePosition.from(b, 1);
 
-		final var cameraTransform = new TransformStack();
-		final var xz = new Vec2(srcCamera.getPosition().x, srcCamera.getPosition().z);
-		applyCelestialTransform(cameraTransform, xz, location, partialTick);
+			final var p1 = aP.add(bP).relativeTo(UniversePosition.ZERO);
+			final var p2 = a.add(b);
+			final var dist = p1.distanceTo(p2) > 1000;
 
-		// render
-		final var galaxy = this.galaxyTicket.forceLoad().unwrapOrNull();
-		if (galaxy != null) {
+			// final var galaxyCamera = createCamera(srcCamera, tfm, 1e2, 1e10,
+			// partialTick);
 			final var snapshot = RenderMatricesSnapshot.capture();
-
-			// galaxy
-			profiler.push("galaxy");
-			final var galaxyCamera = createCamera(srcCamera, cameraTransform, 1e2, 1e10, partialTick);
+			final var invView = tfm.copyCurrent();
+			final var proj = makeProjMat(1e2, 1e10, partialTick);
+			final var galaxyCamera = new CachedCamera();
+			galaxyCamera.load(invView, proj, 1e12);
 			galaxyCamera.applyProjection();
 			CachedCamera.applyView(galaxyCamera.orientation);
-			if (this.galaxyRenderingContext != null) {
-				this.galaxyRenderingContext.draw(galaxyCamera, Vec3.ZERO);
-			}
-			if (this.starRenderer != null) {
-				profiler.popPush("stars");
-				this.starRenderer.draw(galaxyCamera, galaxyCamera.posTm.xyz());
-			}
 
-			// system
-			profiler.popPush("system");
-			final var systemCamera = createCamera(srcCamera, cameraTransform, 1e-7, 1e3, partialTick);
-			drawSystem(systemCamera, galaxy, partialTick);
-
-			profiler.pop();
+			this.galaxyRenderingContext.draw(galaxyCamera, Vec3.ZERO);
 			snapshot.restore();
 		}
-		this.previousLocation = location;
-	}
 
-	private void drawSystem(CachedCamera camera, Galaxy galaxy, float partialTick) {
-		final var system = this.systemTicket.forceLoad();
-		if (system.isSome())
-			drawSystem(camera, galaxy, system.unwrap(), partialTick);
-	}
+		if (this.starRenderer != null) {
+			final var tfm = new TransformStack();
+			tfm.appendRotation(orientationFromMinecraftCamera(srcCamera).inverse());
 
-	private final PlanetRenderingContext planetContext = new PlanetRenderingContext();
+			// applyCelestialTransform(tfm, xz, location, partialTick);
+			if (location instanceof WorldType.SystemNode loc) {
+				final var sys = universe.getSystem(loc.id.system()).unwrapOrNull();
+				if (sys != null) {
+					final var node = sys.rootNode.lookup(loc.id.nodeId());
+					if (node != null && node instanceof PlanetaryCelestialNode planetNode) {
+						// applyPlanetTransform(tfm, planetNode, time, xz, partialTick);
+						final var xz = new Vec2(srcCamera.getPosition().x, srcCamera.getPosition().z);
+						final var worldBorder = this.client.level.getWorldBorder();
+						final var tx = Mth.inverseLerp(xz.x, worldBorder.getMinX(), worldBorder.getMaxX());
+						final var tz = Mth.inverseLerp(xz.y, worldBorder.getMinZ(), worldBorder.getMaxZ());
 
-	private void drawSystem(CachedCamera camera, Galaxy galaxy, StarSystem system,
-			float partialTick) {
-		final var profiler = Minecraft.getInstance().getProfiler();
-		final var universe = MinecraftClientAccessor.getUniverse();
-		final var time = universe.getCelestialTime(partialTick);
+						final var planetRadius = 1.0001 * Units.Tu_PER_ku * planetNode.radius;
+						// tfm.appendRotation(Quat.axisAngle(Vec3.XP, Math.PI / 2).inverse());
+						tfm.appendTranslation(Vec3.ZN.mul(planetRadius));
 
-		profiler.push("camera");
-		camera.applyProjection();
-		CachedCamera.applyView(camera.orientation);
+						final var halfPi = Math.PI / 2;
+						final var latitudeOffset = -Mth.clampedLerp(-halfPi, halfPi, tx);
+						final var longitudeOffset = Mth.clampedLerp(-halfPi, halfPi, tz);
 
-		// system.rootNode.updatePositions(time);
+						tfm.appendRotation(Quat.axisAngle(Vec3.ZP, latitudeOffset));
+						tfm.appendRotation(Quat.axisAngle(Vec3.XP, longitudeOffset));
+						tfm.appendRotation(Quat.axisAngle(Vec3.YP, -planetNode.rotationalRate * time));
+						tfm.appendRotation(Quat.axisAngle(Vec3.XP, planetNode.obliquityAngle));
 
-		profiler.popPush("planet_context_setup");
-		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
-
-		final var modelTfm = new TransformStack();
-
-		profiler.popPush("visit");
-		this.planetContext.setSystemOrigin(system.pos);
-		this.planetContext.begin(time);
-		this.planetContext.setupLights(system, camera);
-		system.rootNode.visit(node -> {
-			modelTfm.push();
-
-			if (node instanceof UnaryCelestialNode unaryNode) {
-				final var radiusTm = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) * Units.Tu_PER_ku
-						* unaryNode.radius;
-				final var radiusUnits = radiusTm * (1e12 / camera.metersPerUnit);
-				final var nodePosUnits = node.position.mul(1e12 / camera.metersPerUnit);
-
-				// final var distanceRatio = radiusTm / camera.posTm.distanceTo(pos);
-				// if (distanceRatio < 0.0001)
-				// return;
-				// final var offset = camera.posTm.mul(1e12 / camera.metersPerUnit);
-
-				modelTfm.push();
-				// modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -unaryNode.rotationalRate *
-				// time));
-				modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, unaryNode.obliquityAngle));
-				modelTfm.appendRotation(node.referencePlane.rotationFromReference());
-				// modelTfm.appendScale(radiusUnits);
-				modelTfm.appendTransform(Mat4.scale(radiusUnits));
-				// modelTfm.appendTranslation(nodePosUnits.mul(camera.metersPerUnit / 1e12));
-				// modelTfm.appendRotation(camera.orientation.inverse());
-				modelTfm.appendTranslation(camera.toCameraSpace(nodePosUnits));
-
-				final var profiler2 = Minecraft.getInstance().getProfiler();
-				profiler2.push("id:" + node.getId());
-				if (EntityAccessor.getWorldType(this.client.player) instanceof WorldType.SystemNode loc) {
-					final var skip = loc.id.nodeId() == node.getId();
-					this.planetContext.render(builder, camera, unaryNode, modelTfm, skip);
-				} else {
-					this.planetContext.render(builder, camera, unaryNode, modelTfm, false);
+						tfm.appendTranslation(planetNode.position);
+						tfm.appendTranslation(sys.pos());
+					}
 				}
-				profiler2.pop();
+			} else if (location instanceof WorldType.Station loc) {
+				final var station = universe.getStation(loc.id).unwrapOrNull();
+				if (station != null) {
+					final var pos = station.position.relativeTo(this.lastGalaxy.position, Units.Tu_PER_u);
+					tfm.appendRotation(station.orientation.inverse());
+					tfm.appendTranslation(pos);
+				}
 			}
-			modelTfm.pop();
-		});
 
-		this.planetContext.end();
-		profiler.pop();
+			// final var galaxyCamera = createCamera(srcCamera, tfm, 1e2, 1e10,
+			// partialTick);
+			final var snapshot = RenderMatricesSnapshot.capture();
+			final var invView = tfm.copyCurrent();
+			final var proj = makeProjMat(1e2, 1e10, partialTick);
+			final var galaxyCamera = new CachedCamera();
+			galaxyCamera.load(invView, proj, 1e12);
+			galaxyCamera.applyProjection();
+			CachedCamera.applyView(galaxyCamera.orientation);
+
+			final var pos = this.cachedPosition.relativeTo(this.lastGalaxy.position, Units.Tu_PER_u);
+			this.starRenderer.draw(galaxyCamera, pos);
+			snapshot.restore();
+		}
+
+		// // target.clearColorAttachment("fColor", new Color(0.1, 0.1, 0.12, 1));
+		// // target.clearColorAttachment("fColor", Color.BLACK);
+
+		// // ticket management
+		// final var location = EntityAccessor.getWorldType(this.client.player);
+		// // if (!Objects.equals(previousLocation, location))
+		// // disposeTickets();
+
+		// if (location instanceof WorldType.Station loc) {
+		// final var station = universe.getStation(loc.id).unwrapOrNull();
+		// // if (station != null && station.trackedSystem != null) {
+		// // this.systemTicket.id = station.trackedSystem.id.galaxySector();
+		// // if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody
+		// // sloc) {
+		// // createTickets(universe, sloc.id.universeSector());
+		// // this.systemTicket.id = sloc.id.galaxySector();
+		// // } else if (station.getLocation() instanceof StationLocation.JumpingSystem
+		// // sloc) {
+		// // createTickets(universe, sloc.targetNode.universeSector());
+		// // this.systemTicket.id = sloc.targetNode.galaxySector();
+		// // }
+		// // }
+		// } else if (location instanceof WorldType.SystemNode loc) {
+		// createTickets(universe, loc.id.universeSector());
+		// this.systemTicket.id = loc.id.galaxySector();
+		// }
+
+		// if (this.galaxyTicket == null)
+		// return;
+
+		// final var cameraTransform = new TransformStack();
+		// final var xz = new Vec2(srcCamera.getPosition().x,
+		// srcCamera.getPosition().z);
+		// applyCelestialTransform(cameraTransform, xz, location, partialTick);
+
+		// // render
+		// final var galaxy = this.galaxyTicket.forceLoad().unwrapOrNull();
+		// if (galaxy != null) {
+		// final var snapshot = RenderMatricesSnapshot.capture();
+
+		// // galaxy
+		// profiler.push("galaxy");
+		// final var galaxyCamera = createCamera(srcCamera, cameraTransform, 1e2, 1e10,
+		// partialTick);
+		// galaxyCamera.applyProjection();
+		// CachedCamera.applyView(galaxyCamera.orientation);
+		// if (this.galaxyRenderingContext != null) {
+		// this.galaxyRenderingContext.draw(galaxyCamera, Vec3.ZERO);
+		// }
+		// if (this.starRenderer != null) {
+		// profiler.popPush("stars");
+		// this.starRenderer.draw(galaxyCamera, galaxyCamera.posTm.xyz());
+		// }
+
+		// // system
+		// profiler.popPush("system");
+		// final var systemCamera = createCamera(srcCamera, cameraTransform, 1e-7, 1e3,
+		// partialTick);
+		// drawSystem(systemCamera, galaxy, partialTick);
+
+		// profiler.pop();
+		// snapshot.restore();
+		// }
+		// // this.previousLocation = location;
 	}
+
+	// private void drawSystem(CachedCamera camera, Galaxy galaxy, float
+	// partialTick) {
+	// final var system = this.systemTicket.forceLoad();
+	// if (system.isSome())
+	// drawSystem(camera, galaxy, system.unwrap(), partialTick);
+	// }
+
+	// private final PlanetRenderingContext planetContext = new
+	// PlanetRenderingContext();
+
+	// private void drawSystem(CachedCamera camera, Galaxy galaxy, StarSystem
+	// system,
+	// float partialTick) {
+	// final var profiler = Minecraft.getInstance().getProfiler();
+	// final var universe = MinecraftClientAccessor.getUniverse();
+	// final var time = universe.getCelestialTime(partialTick);
+
+	// profiler.push("camera");
+	// camera.applyProjection();
+	// CachedCamera.applyView(camera.orientation);
+
+	// // system.rootNode.updatePositions(time);
+
+	// profiler.popPush("planet_context_setup");
+	// final var builder = BufferRenderer.IMMEDIATE_BUILDER;
+
+	// final var modelTfm = new TransformStack();
+
+	// profiler.popPush("visit");
+	// this.planetContext.setSystemOrigin(system.pos());
+	// this.planetContext.begin(time);
+	// this.planetContext.setupLights(system, camera);
+	// system.rootNode.visit(node -> {
+	// modelTfm.push();
+
+	// if (node instanceof UnaryCelestialNode unaryNode) {
+	// final var radiusTm = ClientConfig.get(ConfigKey.PLANET_EXAGGERATION_FACTOR) *
+	// Units.Tu_PER_ku
+	// * unaryNode.radius;
+	// final var radiusUnits = radiusTm * (1e12 / camera.metersPerUnit);
+	// final var nodePosUnits = node.position.mul(1e12 / camera.metersPerUnit);
+
+	// // final var distanceRatio = radiusTm / camera.posTm.distanceTo(pos);
+	// // if (distanceRatio < 0.0001)
+	// // return;
+	// // final var offset = camera.posTm.mul(1e12 / camera.metersPerUnit);
+
+	// modelTfm.push();
+	// // modelTfm.appendRotation(Quat.axisAngle(Vec3.YP, -unaryNode.rotationalRate
+	// *
+	// // time));
+	// modelTfm.appendRotation(Quat.axisAngle(Vec3.XP, unaryNode.obliquityAngle));
+	// modelTfm.appendRotation(node.referencePlane.rotationFromReference());
+	// // modelTfm.appendScale(radiusUnits);
+	// modelTfm.appendTransform(Mat4.scale(radiusUnits));
+	// // modelTfm.appendTranslation(nodePosUnits.mul(camera.metersPerUnit / 1e12));
+	// // modelTfm.appendRotation(camera.orientation.inverse());
+	// modelTfm.appendTranslation(camera.toCameraSpace(nodePosUnits));
+
+	// final var profiler2 = Minecraft.getInstance().getProfiler();
+	// profiler2.push("id:" + node.getId());
+	// if (EntityAccessor.getWorldType(this.client.player) instanceof
+	// WorldType.SystemNode loc) {
+	// final var skip = loc.id.nodeId() == node.getId();
+	// this.planetContext.render(builder, camera, unaryNode, modelTfm, skip);
+	// } else {
+	// this.planetContext.render(builder, camera, unaryNode, modelTfm, false);
+	// }
+	// profiler2.pop();
+	// }
+	// modelTfm.pop();
+	// });
+
+	// this.planetContext.end();
+	// profiler.pop();
+	// }
 
 	private final GlState.Cached cachedState = new GlState.Cached();
 
@@ -394,8 +690,10 @@ public class SkyRenderer implements Disposable {
 
 		profiler.push("draw");
 		final var partialTick = this.client.isPaused() ? 0 : this.client.getFrameTime();
-		drawCelestialObjects(camera, this.mainSkyTarget, partialTick);
-		// drawCelestialObjects(camera, mainTarget, partialTick);
+		if (this.cachedPosition != null) {
+			drawCelestialObjects(camera, this.mainSkyTarget, partialTick);
+			// drawCelestialObjects(camera, mainTarget, partialTick);
+		}
 		profiler.pop();
 
 		// profiler.push("postprocess");
@@ -441,13 +739,22 @@ public class SkyRenderer implements Disposable {
 
 	@Override
 	public void close() {
-		this.planetContext.close();
+		// this.planetContext.close();
 		if (this.mainSkyTarget != null)
 			this.mainSkyTarget.close();
+		this.mainSkyTarget = null;
 		if (this.starRenderer != null)
 			this.starRenderer.close();
+		this.starRenderer = null;
 		if (this.galaxyRenderingContext != null)
 			this.galaxyRenderingContext.close();
+		this.galaxyRenderingContext = null;
+		if (this.nearbyTracker != null)
+			this.nearbyTracker.close();
+		this.nearbyTracker = null;
+		if (this.galaxiesDebugMesh != null)
+			this.galaxiesDebugMesh.close();
+		this.galaxiesDebugMesh = null;
 	}
 
 }

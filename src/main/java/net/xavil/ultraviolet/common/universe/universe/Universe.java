@@ -13,6 +13,7 @@ import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.ImmutableList;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
 import net.xavil.ultraviolet.common.universe.galaxy.BaseGalaxyGenerationLayer;
@@ -22,6 +23,7 @@ import net.xavil.ultraviolet.common.universe.galaxy.StarCatalogGalaxyGenerationL
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
@@ -34,7 +36,6 @@ public abstract class Universe implements Disposable {
 		CLIENT, SERVER;
 	}
 
-	// ~388 galaxies per 100 Zm^3
 	public static final double VOLUME_LENGTH_ZM = 10;
 	public static final int ATTEMPT_COUNT = 10000;
 
@@ -44,9 +45,10 @@ public abstract class Universe implements Disposable {
 	public double celestialTime = 0, lastCelestialTime = 0;
 	public final UniverseSectorManager sectorManager = new UniverseSectorManager(this);
 	public final Disposable.Multi disposer = new Disposable.Multi();
+	public final Side side;
+
 	protected final MutableMap<Integer, SpaceStation> spaceStations = MutableMap.hashMap();
 	private int nextStationId = 0;
-	public final Side side;
 
 	protected Universe(Side side) {
 		this.side = side;
@@ -89,7 +91,7 @@ public abstract class Universe implements Disposable {
 		return this.spaceStations.get(id);
 	}
 
-	public Maybe<Integer> createStation(String name, StationLocation location) {
+	public Maybe<Integer> createStation(String name, UniversePosition location) {
 		if (this.spaceStations.values().any(station -> station.name == name))
 			return Maybe.none();
 
@@ -154,7 +156,8 @@ public abstract class Universe implements Disposable {
 	public void addStartingGenerationLayers(Galaxy galaxy) {
 		final var startingGenerator = getStartingSystemGenerator();
 		galaxy.addGenerationLayer(startingGenerator);
-		// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy, startingGenerator));
+		// galaxy.addGenerationLayer(new StarCatalogGalaxyGenerationLayer(galaxy,
+		// startingGenerator));
 	}
 
 	public void addBaseGenerationLayers(Galaxy galaxy) {
@@ -165,6 +168,9 @@ public abstract class Universe implements Disposable {
 	private static double sampleDensity(Vec3 volumeOffsetZm) {
 		// TODO: use a noise field or something
 		// ridged noise would probably work well, to sorta emulate galactic filaments
+
+		// ~388 galaxies per 100 Zm^3
+		// return 0.1;
 		return 3.88;
 	}
 
@@ -181,10 +187,15 @@ public abstract class Universe implements Disposable {
 		for (var i = 0; i < ATTEMPT_COUNT; ++i) {
 			rng.advance();
 			final var galaxyPos = Vec3.random(rng, volumeMin, volumeMax);
-			final var density = sampleDensity(galaxyPos);
-			if (density >= rng.uniformDouble("density", 0, maxDensity)) {
+			final var density = sampleDensity(galaxyPos) / maxDensity;
+			if (density >= rng.uniformDouble("density")) {
 				final var info = generateGalaxyInfo(rng);
-				elements.push(new UniverseSector.InitialElement(galaxyPos, info));
+				final var pos = UniversePosition.from(galaxyPos, Units.u_PER_Zu);
+				elements.push(new UniverseSector.InitialElement(pos, info));
+			}
+
+			if (elements.size() >= 10) {
+				break;
 			}
 		}
 
@@ -196,20 +207,15 @@ public abstract class Universe implements Disposable {
 		// final var galaxyType = GalaxyType.ELLIPTICAL;
 		final var galaxyType = GalaxyType.SPIRAL;
 		final var seed = rng.uniformLong("seed");
-		// final var age = rng.uniformDouble("age", 100, 10000);
-		final var age = 13000;
+		final var age = rng.uniformDouble("age", 100, 13700);
 		final var irregularity = 0.0;
-		final var radius = 52850 * Units.Tm_PER_ly;
-		return new Galaxy.Info(galaxyType, seed, age, radius, irregularity);
+		final var radius = rng.uniformDouble("radius", 30000.0, 100000.0) * Units.Tm_PER_ly;
+		final var orientation = Quat.randomUnit(rng.rng("orientation"));
+		return new Galaxy.Info(galaxyType, seed, orientation, age, radius, irregularity);
 	}
 
-	public final Galaxy generateGalaxy(UniverseSectorId galaxyId, Galaxy.Info info) {
-		final var rng = getSaltedRngCommon("galaxy_full");
-		rng.advanceWith(galaxyId.sectorPos().x);
-		rng.advanceWith(galaxyId.sectorPos().y);
-		rng.advanceWith(galaxyId.sectorPos().z);
-		rng.advanceWith(galaxyId.id());
-		return new Galaxy(this, galaxyId, info, info.createGalaxyParameters(rng));
+	public final Galaxy generateGalaxy(UniverseSectorId galaxyId, UniversePosition position, Galaxy.Info info) {
+		return new Galaxy(this, galaxyId, position, info, info.createGalaxyParameters());
 	}
 
 	private final Vector<WeakReference<DebugActionListener>> debugActionListeners = new Vector<>();

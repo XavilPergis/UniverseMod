@@ -31,4 +31,25 @@ public final class GalaxyRegionWeights {
 		res += a.halo * b.halo;
 		return res;
 	}
+
+	public <T> T pick(double t, T core, T arms, T disc, T halo) {
+		double momentum = t * this.totalWeight();
+
+		if (this.core > momentum)
+			return core;
+		momentum -= this.core;
+		if (this.arms > momentum)
+			return arms;
+		momentum -= this.arms;
+		if (this.disc > momentum)
+			return disc;
+		momentum -= this.disc;
+		if (this.halo > momentum)
+			return halo;
+		momentum -= this.halo;
+
+		// shouldnt get here, but im not sure what happens when t is exactly 1, so i
+		// return something just in case~
+		return disc;
+	}
 }

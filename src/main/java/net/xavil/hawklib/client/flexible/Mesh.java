@@ -122,7 +122,6 @@ public class Mesh implements Disposable {
 		setIndexPattern(buffer.indexPattern);
 		setElementCount(buffer.vertexCount);
 		uploadVertexBuffer(0, buffer);
-		buffer.finishUsing();
 	}
 
 	/**
@@ -134,6 +133,7 @@ public class Mesh implements Disposable {
 	public void uploadVertexBuffer(int bufferIndex, FilledBuffer buffer) {
 		Assert.isTrue(buffer.isValid());
 		uploadVertexBuffer(bufferIndex, buffer.vertexData, buffer.layout);
+		buffer.finishUsing();
 	}
 
 	/**
@@ -173,10 +173,16 @@ public class Mesh implements Disposable {
 			this.freeBuffers.push(prevBinding);
 	}
 
-	public void uploadSsbo(String ssboName, GlBuffer.Slice vertexData) {
+	public void uploadSsbo(String ssboName, FilledBuffer buffer) {
+		Assert.isTrue(buffer.isValid());
+		uploadSsbo(ssboName, buffer.vertexData);
+		buffer.finishUsing();
+	}
+
+	public void uploadSsbo(String ssboName, GlBuffer.Slice bufferData) {
 		final var prevBinding = this.ssboBuffers.getOrNull(ssboName);
-		final var info = pickBestBuffer(prevBinding, vertexData.size);
-		info.setContents(vertexData);
+		final var info = pickBestBuffer(prevBinding, bufferData.size);
+		info.setContents(bufferData);
 		this.ssboBuffers.insert(ssboName, info);
 
 		if (prevBinding != null && prevBinding != info)
@@ -198,7 +204,7 @@ public class Mesh implements Disposable {
 		// slightly more efficiently...
 		GlBuffer.GrowableBuffer bestCandidate = initialCandidate;
 		long bestSizeDiff = bestCandidate == null ? Long.MAX_VALUE
-				: Math.abs(requiredSize - initialCandidate.capacity());
+				: Math.abs(requiredSize - bestCandidate.capacity());
 		for (int i = 0; i < this.freeBuffers.size(); ++i) {
 			final var candidate = this.freeBuffers.get(i);
 			final var sizeDiff = Math.abs(requiredSize - candidate.capacity());
@@ -209,7 +215,9 @@ public class Mesh implements Disposable {
 		}
 
 		if (bestCandidate != null) {
-			this.freeBuffers.remove(this.freeBuffers.indexOf(bestCandidate));
+			final var candidateIndex = this.freeBuffers.indexOf(bestCandidate);
+			if (candidateIndex >= 0)
+				this.freeBuffers.remove(candidateIndex);
 			return bestCandidate;
 		} else {
 			return new GlBuffer.GrowableBuffer();
@@ -302,10 +310,14 @@ public class Mesh implements Disposable {
 
 		GlManager.pushState();
 		drawState.apply();
+
+		for (final var name : this.ssboBuffers.keys().iterable()) {
+			shader.setStorageBuffer(name, this.ssboBuffers.getOrThrow(name).slice());
+		}
+
 		shader.bind();
 		vao.bind();
 
-		// bind everything
 		for (int i = 0; i < this.vertexBuffers.size(); ++i) {
 			final var buffer = this.vertexBuffers.get(i).slice();
 			final var layout = this.layouts.get(i);
@@ -320,20 +332,17 @@ public class Mesh implements Disposable {
 			vao.bindElementBuffer(null);
 		}
 
-		for (final var name : this.ssboBuffers.keys().iterable()) {
-			shader.setStorageBuffer(name, this.ssboBuffers.getOrThrow(name).slice());
-		}
-
-		// draw~!
-		final var primitiveType = this.indexPattern.primitiveType;
-
 		if (indexBuffer == null) {
 			// FIXME: why is this here.
 			GlManager.enableProgramPointSize(true);
 			// basic sanity check
 			vao.verifyForDrawArrays(this.elementCount, this.instanceCount);
-			if (this.instanceCount > 0) {
-				GL45C.glDrawArraysInstanced(primitiveType.gl, 0, this.elementCount, this.instanceCount);
+			if (this.instanceCount == 1) {
+				GL45C.glDrawArrays(this.indexPattern.primitiveType.gl,
+						0, this.elementCount);
+			} else if (this.instanceCount > 1) {
+				GL45C.glDrawArraysInstanced(this.indexPattern.primitiveType.gl,
+						0, this.elementCount, this.instanceCount);
 			}
 		} else {
 			// basic sanity check
@@ -343,10 +352,10 @@ public class Mesh implements Disposable {
 			// this works just fine.
 			GlManager.bindBuffer(GlBuffer.Type.ELEMENT, indexBuffer.indices.id);
 			if (this.instanceCount == 1) {
-				GL45C.glDrawElements(primitiveType.gl, indexBuffer.indexCount,
+				GL45C.glDrawElements(this.indexPattern.primitiveType.gl, indexBuffer.indexCount,
 						indexBuffer.indexType.asGLType, 0L);
 			} else if (this.instanceCount > 1) {
-				GL45C.glDrawElementsInstanced(primitiveType.gl, indexBuffer.indexCount,
+				GL45C.glDrawElementsInstanced(this.indexPattern.primitiveType.gl, indexBuffer.indexCount,
 						indexBuffer.indexType.asGLType, 0L, this.instanceCount);
 			}
 		}

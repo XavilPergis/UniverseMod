@@ -111,7 +111,9 @@ public interface ProbabilityDistribution {
 			this.inverseCdf = new double[binCount];
 			this.pdf = new double[binCount + 1];
 
-			final var iStep = (domain.max - domain.min) / binCount;
+			// subtract 1 from binCount here because we want the last loop iteration to
+			// sample exactly on the end of the domain instead of a step before it.
+			final var iStep = (domain.max - domain.min) / (binCount - 1);
 			double currentI = domain.min, currentO = 0;
 			double currentPf = probabilityFunction.applyAsDouble(currentI), cumPf = 0;
 			this.pdf[0] = currentPf;
@@ -126,12 +128,11 @@ public interface ProbabilityDistribution {
 				// constant for this entire loop, it factors out and cancels with itself when
 				// dividing.
 				final var pfAverage = 0.5 * (currentPf + nextPf);
-				currentPf = nextPf;
 
 				// squirrel away the probability function directly, for our evaluate(...)
 				// implementation.
-				this.pdf[i + 1] = currentPf;
-				cumPf += pfAverage * iStep;
+				cumPf += this.pdf[i + 1] = nextPf;
+				currentPf = nextPf;
 
 				final var oMin = currentO;
 				final var oMax = oMin + pfAverage;
@@ -210,7 +211,7 @@ public interface ProbabilityDistribution {
 			final var t = this.domain.inverseLerp(v);
 			if (t == 1)
 				return this.pdf[this.pdf.length - 1];
-			final var fractionalIndex = t * this.pdf.length;
+			final var fractionalIndex = t * (this.pdf.length - 1);
 			final var index = Mth.floor(fractionalIndex);
 			final var fract = fractionalIndex - index;
 			return Mth.lerp(fract, this.pdf[index], this.pdf[index + 1]);

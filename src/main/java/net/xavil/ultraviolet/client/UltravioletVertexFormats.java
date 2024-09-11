@@ -16,6 +16,11 @@ public class UltravioletVertexFormats {
 			.element(BufferLayout.ELEMENT_FLOAT2, BufferLayout.Attribute.UV0)
 			.build();
 	public static final BufferLayout VERTEX_FORMAT_BILLBOARD_REALISTIC = BufferLayout.builder()
+			.element(BufferLayout.ELEMENT_FLOAT4, BufferLayout.Attribute.POSITION)
+			.element(BufferLayout.ELEMENT_FLOAT_UBYTE_NORM4, BufferLayout.Attribute.COLOR)
+			// .element(BufferLayout.ELEMENT_FLOAT2, BufferLayout.Attribute.UV0)
+			.build();
+	public static final BufferLayout VERTEX_FORMAT_BILLBOARD = BufferLayout.builder()
 			.element(BufferLayout.ELEMENT_FLOAT3, BufferLayout.Attribute.POSITION)
 			.element(BufferLayout.ELEMENT_FLOAT_UBYTE_NORM4, BufferLayout.Attribute.COLOR)
 			.element(BufferLayout.ELEMENT_FLOAT2, BufferLayout.Attribute.UV0)

@@ -9,14 +9,14 @@ import com.mojang.blaze3d.platform.GlStateManager.DestFactor;
 import com.mojang.blaze3d.platform.GlStateManager.SourceFactor;
 import com.mojang.blaze3d.systems.RenderSystem;
 
-import net.xavil.hawklib.client.flexible.BufferRenderer;
+import net.xavil.hawklib.client.flexible.vertex.VertexBuilder;
 
 @Mixin(RenderSystem.class)
 public abstract class RenderSystemMixin {
 
 	@Inject(method = "flipFrame(J)V", at = @At(value = "INVOKE", target = "Lorg/lwjgl/glfw/GLFW;glfwSwapBuffers(J)V"), remap = false)
 	private static void resetFlexibleBuilder(long i, CallbackInfo info) {
-		BufferRenderer.IMMEDIATE_BUILDER.advanceFrame();
+		VertexBuilder.advanceFrame();
 	}
 
 	@Inject(method = "defaultBlendFunc()V", at = @At("HEAD"), cancellable = true, remap = false)

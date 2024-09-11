@@ -6,7 +6,9 @@ import net.xavil.ultraviolet.Mod;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.flexible.VertexAttributeConsumer;
 import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.math.TransformStack;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.VecMath;
 
 public final class RenderHelper {
 
@@ -25,6 +27,11 @@ public final class RenderHelper {
 		addLine(builder, start, end, color, color);
 	}
 
+	public static void addLine(VertexAttributeConsumer.Generic builder, TransformStack tfm, Vec3 start, Vec3 end,
+			ColorRgba color) {
+		addLine(builder, tfm, start, end, color, color);
+	}
+
 	public static void addLine(VertexAttributeConsumer.Generic builder, CachedCamera camera, Vec3 start, Vec3 end,
 			ColorRgba startColor, ColorRgba endColor) {
 		addLine(builder, camera.toCameraSpace(start), camera.toCameraSpace(end), startColor, endColor);
@@ -32,6 +39,22 @@ public final class RenderHelper {
 
 	public static void addLine(VertexAttributeConsumer.Generic builder, Vec3 start, Vec3 end, ColorRgba startColor,
 			ColorRgba endColor) {
+		var normal = end.sub(start).normalize();
+		builder.vertex(start.x, start.y, start.z)
+				.color(startColor.r(), startColor.g(), startColor.b(), startColor.a())
+				.normal((float) normal.x, (float) normal.y, (float) normal.z)
+				.endVertex();
+		builder.vertex(end.x, end.y, end.z)
+				.color(endColor.r(), endColor.g(), endColor.b(), endColor.a())
+				.normal((float) normal.x, (float) normal.y, (float) normal.z)
+				.endVertex();
+	}
+
+	public static void addLine(VertexAttributeConsumer.Generic builder, TransformStack tfm,
+			Vec3 start, Vec3 end,
+			ColorRgba startColor, ColorRgba endColor) {
+		start = VecMath.transformPerspective(tfm.current(), start, 1);
+		end = VecMath.transformPerspective(tfm.current(), end, 1);
 		var normal = end.sub(start).normalize();
 		builder.vertex(start.x, start.y, start.z)
 				.color(startColor.r(), startColor.g(), startColor.b(), startColor.a())

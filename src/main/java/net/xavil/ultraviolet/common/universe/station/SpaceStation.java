@@ -1,101 +1,100 @@
 package net.xavil.ultraviolet.common.universe.station;
 
+import javax.annotation.Nullable;
+
+import net.minecraft.nbt.CompoundTag;
 import net.minecraft.world.level.Level;
-import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
-import net.xavil.ultraviolet.common.universe.universe.Universe;
-import net.xavil.hawklib.Constants;
-import net.xavil.hawklib.Units;
+import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
+import net.xavil.hawklib.math.OrbitalPlane;
+import net.xavil.hawklib.math.OrbitalShape;
 import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
+import net.xavil.ultraviolet.common.universe.NearbyObjectTracker;
+import net.xavil.ultraviolet.common.universe.id.SystemId;
+import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
+import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
+import net.xavil.ultraviolet.common.universe.universe.Universe;
 
-public final class SpaceStation {
+public final class SpaceStation implements Disposable {
 
 	public final Universe universe;
 	public final Level level;
 
 	// universe-relative
+	public UniversePosition position = UniversePosition.ZERO, prevPosition = UniversePosition.ZERO;
 	public Quat orientation = Quat.IDENTITY;
 
+	private final NearbyObjectTracker nearbyTracker;
+	private StationOrbit stationOrbit = null;
+
 	public String name;
-	private StationLocation location;
-
-	private Vec3 pos = Vec3.ZERO;
-	private Vec3 prevPos = Vec3.ZERO;
-
 	public MutableList<StationComponent> stationComponents = new Vector<>();
 
-	public SpaceStation(Universe universe, Level level, String name, StationLocation location) {
+	public static final class StationOrbit {
+		public final SystemNodeId id;
+		private OrbitalPlane plane;
+		private OrbitalShape shape;
+
+		private StationOrbit(SystemNodeId id, OrbitalPlane plane, OrbitalShape shape) {
+			this.id = id;
+			this.plane = plane;
+			this.shape = shape;
+		}
+	}
+
+	public SpaceStation(Universe universe, Level level, String name, UniversePosition position) {
 		this.universe = universe;
 		this.level = level;
 		this.name = name;
-		this.location = location;
+		this.prevPosition = this.position = position;
+		this.nearbyTracker = new NearbyObjectTracker(universe);
 	}
 
-	public StationLocation getLocation() {
-		return this.location;
-	}
-
-	public void setLocation(StationLocation location) {
-		if (this.location != null)
-			this.location.close();
-		this.location = location;
+	@Override
+	public void close() {
+		this.nearbyTracker.close();
 	}
 
 	public Vec3 getGavityAt(Vec3Access pos) {
 		return Vec3.YN.mul(0.05);
 	}
 
+	// delta is in meters
 	public void applyMovement(Vec3Access delta) {
 		// -delta.z is forward, relative to the orientation of the station
 		// delta.y is up, delta.x is right
-		if (this.location instanceof StationLocation.SystemRelative loc) {
-			final var transformed = this.orientation.transform(delta);
-			loc.pos = loc.pos.add(transformed);
-		}
+		final var transformed = this.orientation.transform(delta);
+		this.position = this.position.add(transformed, 1);
 	}
 
 	public void tick() {
-		this.location = this.location.update(this.universe);
-		this.prevPos = pos;
-		this.pos = this.location.getPos();
-
-		if (this.location instanceof StationLocation.JumpingSystem jump) {
-			final double speed_c = 1000000000;
-			final double speed_Tm_PER_s = speed_c * (Constants.SPEED_OF_LIGHT_m_PER_s * Units.Tu_PER_u);
-			jump.travel(speed_Tm_PER_s);
-		}
+		// this.universe.get
+		this.nearbyTracker.update(this.position);
+		// this.universeTicket.attachedManager.getSector(this.universeTicket.info.affectedSectors());
+		this.prevPosition = this.position;
 	}
 
-	public Vec3 getPos(float partialTick) {
-		return Vec3.lerp(partialTick, this.prevPos, this.pos);
+	@Nullable
+	public SystemId getSystemIn() {
+		return null;
 	}
 
-	// TODO: make this dynamic! this should require player-built infrastructure to
-	// control
-	public long getFsdAccumulatorChargeRate() {
-		return 100;
+	@Nullable
+	public UniverseSectorId getGalaxyIn() {
+		return null;
 	}
 
-	// prepare to jump to system; do countdown n stuff
-	// TODO: instant jump
-	public void prepareForJump(SystemNodeId id, boolean isJumpInstant) {
-		if (this.location.isJump())
-			return;
-		final var jump = StationLocation.JumpingSystem.create(this.universe, this.location, id).unwrapOrNull();
-		if (jump != null)
-			setLocation(jump);
+	public static CompoundTag toNbt(SpaceStation station) {
+		final var nbt = new CompoundTag();
+		return nbt;
 	}
 
-	// public static CompoundTag toNbt(SpaceStation station) {
-	// 	final var nbt = new CompoundTag();
-	// 	return nbt;
-	// }
-
-	// public static SpaceStation fromNbt(Universe universe, CompoundTag nbt) {
-	// 	return null;
-	// }
+	public static SpaceStation fromNbt(Universe universe, CompoundTag nbt) {
+		return null;
+	}
 
 }

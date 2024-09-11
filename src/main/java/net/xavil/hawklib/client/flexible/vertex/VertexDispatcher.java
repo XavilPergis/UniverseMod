@@ -82,9 +82,23 @@ public abstract class VertexDispatcher implements VertexAttributeConsumer {
         }
 
         @Override
+        public VertexDispatcher.Generic vertex(double x, double y, double z, double w) {
+            if (this.position != null)
+                this.position.setFloats(0, (float) x, (float) y, (float) z, (float) w);
+            return this;
+        }
+
+        @Override
         public VertexDispatcher.Generic vertex(float x, float y, float z) {
             if (this.position != null)
                 this.position.setFloats(0, x, y, z);
+            return this;
+        }
+
+        @Override
+        public VertexDispatcher.Generic vertex(float x, float y, float z, float w) {
+            if (this.position != null)
+                this.position.setFloats(0, x, y, z, w);
             return this;
         }
 

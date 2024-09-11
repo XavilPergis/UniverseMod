@@ -55,31 +55,94 @@ public final class BufferLayout implements Hashable {
 		return new Builder();
 	}
 
+	public interface LayoutFinalizer {
+		BufferLayout finalizeElements(MutableList<ElementWithUsage> builder);
+	}
+
+	public static LayoutFinalizer alignedFinalizer(int alignment) {
+		return elements -> {
+			int currentOffset = 0;
+			final var dst = new Vector<BuiltElement>();
+			for (int i = 0; i < elements.size(); ++i) {
+				final var elem = elements.get(i);
+				dst.push(new BuiltElement(elem.attrib, currentOffset, elem.element));
+				currentOffset += elem.element.byteSize;
+				currentOffset = Mth.roundToward(currentOffset, alignment);
+			}
+			dst.optimize();
+			return new BufferLayout(dst, currentOffset);
+		};
+	}
+
+	private static final int[] VECTOR_ALIGNMENT_TABLE = { 1, 2, 4, 4 };
+
+	// this finalizer is written with the assumption that each element describes a
+	// member of a structure
+	public static final LayoutFinalizer FINALIZER_STD430 = elements -> {
+		final var dst = new Vector<BuiltElement>();
+		// OpenGL spec section 7.6.2.2 describes std140 and std 430
+
+		int currentBaseOffset = 0, structureAlignment = 0;
+		for (int i = 0; i < elements.size(); ++i) {
+			final var elem = elements.get(i);
+			final int fieldSize, fieldAlign;
+
+			// i think the spec says that the field size for Nvec3 is 3*sizeof(N), but has
+			// an alignment of 4*N. but since an array's layout sets the stride to be the
+			// alignment if its element type, each vec3 in an array (and therefor a matrix),
+			// each Nvec3 takes up 4*N bytes. This also seems to mean that packing a byte
+			// after a vec3 is theoretically possible.
+			if (elem.element.attribSlotCount == 1) {
+				// scalar
+				fieldAlign = elem.element.type.byteSize * VECTOR_ALIGNMENT_TABLE[elem.element.componentCount - 1];
+				fieldSize = elem.element.type.byteSize * elem.element.componentCount;
+			} else {
+				// matrix (treated as an array of vectors, and as such needs special handling)
+				//
+				// std140 would require that we round up the align of each array element to the
+				// alignment of a vec4, but we dont have to do it here.
+				fieldAlign = elem.element.type.byteSize * VECTOR_ALIGNMENT_TABLE[elem.element.componentCount - 1];
+				fieldSize = fieldAlign * elem.element.attribSlotCount;
+			}
+
+			structureAlignment = Math.max(structureAlignment, fieldAlign);
+			final var alignedOffset = Mth.roundToward(currentBaseOffset, fieldAlign);
+			currentBaseOffset = alignedOffset + fieldSize;
+			dst.push(new BuiltElement(elem.attrib, alignedOffset, elem.element));
+		}
+		final var stride = Mth.roundToward(currentBaseOffset, structureAlignment);
+		dst.optimize();
+		return new BufferLayout(dst, stride);
+	};
+
+	public static final class ElementWithUsage {
+		public final Element element;
+		public final Attribute attrib;
+
+		public ElementWithUsage(Element element, Attribute attrib) {
+			this.element = element;
+			this.attrib = attrib;
+		}
+	}
+
 	public static final class Builder {
 
-		private int alignment = 4;
-		private int currentOffset = 0;
-		private final MutableList<BuiltElement> elements = new Vector<>();
+		public final MutableList<ElementWithUsage> elements = new Vector<>();
 
 		private Builder() {
 		}
 
-		public Builder alignedTo(int alignment) {
-			this.alignment = alignment;
-			return this;
-		}
-
 		public Builder element(Element element, Attribute usage) {
-			this.elements.push(new BuiltElement(usage, this.currentOffset, element));
-			this.currentOffset += element.byteSize;
-			if (this.alignment > 0)
-				this.currentOffset = Mth.roundToward(this.currentOffset, this.alignment);
+			this.elements.push(new ElementWithUsage(element, usage));
 			return this;
 		}
 
 		public BufferLayout build() {
-			this.elements.optimize();
-			return new BufferLayout(elements, this.currentOffset);
+			return build(alignedFinalizer(4));
+		}
+
+		public BufferLayout build(LayoutFinalizer finalizer) {
+			return finalizer.finalizeElements(this.elements);
 		}
 
 	}
@@ -119,7 +182,7 @@ public final class BufferLayout implements Hashable {
 		// more for matrices. for example, for a mat4, this would be 4, and for a mat3,
 		// this would be 3.
 		public final int attribSlotCount;
-		
+
 		public final ComponentType type;
 		public final int elementCount;
 		public final int byteSize;
@@ -145,6 +208,13 @@ public final class BufferLayout implements Hashable {
 			hasher.append(this.type);
 			hasher.appendInt(this.byteSize);
 			this.computedHash = hasher.currentHash();
+		}
+
+		@Override
+		public String toString() {
+			return String.format(
+					"\"%s\" [components=%d, type=%s, size=%d, offset=%d]",
+					this.attribute, this.componentCount, this.type, this.byteSize, this.byteOffset);
 		}
 
 		@Override
@@ -272,9 +342,16 @@ public final class BufferLayout implements Hashable {
 	public static final Element ELEMENT_FLOAT3 = new Element(ComponentType.FLOAT, 3, 1);
 	public static final Element ELEMENT_FLOAT4 = new Element(ComponentType.FLOAT, 4, 1);
 
-	public static final Element ELEMENT_MAT2 = new Element(ComponentType.FLOAT, 2, 2);
-	public static final Element ELEMENT_MAT3 = new Element(ComponentType.FLOAT, 3, 3);
-	public static final Element ELEMENT_MAT4 = new Element(ComponentType.FLOAT, 4, 4);
+	// columnx x rows, mirroring GLSL
+	public static final Element ELEMENT_MAT2X2 = new Element(ComponentType.FLOAT, 2, 2);
+	public static final Element ELEMENT_MAT2X3 = new Element(ComponentType.FLOAT, 2, 3);
+	public static final Element ELEMENT_MAT2X4 = new Element(ComponentType.FLOAT, 2, 4);
+	public static final Element ELEMENT_MAT3X2 = new Element(ComponentType.FLOAT, 3, 2);
+	public static final Element ELEMENT_MAT3X3 = new Element(ComponentType.FLOAT, 3, 3);
+	public static final Element ELEMENT_MAT3X4 = new Element(ComponentType.FLOAT, 3, 4);
+	public static final Element ELEMENT_MAT4X2 = new Element(ComponentType.FLOAT, 4, 2);
+	public static final Element ELEMENT_MAT4X3 = new Element(ComponentType.FLOAT, 4, 3);
+	public static final Element ELEMENT_MAT4X4 = new Element(ComponentType.FLOAT, 4, 4);
 	// @formatter:on
 
 	public static final BufferLayout POSITION = builder()

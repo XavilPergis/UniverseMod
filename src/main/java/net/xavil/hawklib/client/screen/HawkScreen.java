@@ -14,8 +14,11 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.client.gl.ClearState;
 import net.xavil.hawklib.client.gl.GlFramebuffer;
+import net.xavil.hawklib.client.gl.GlFramebufferAttachment;
 import net.xavil.hawklib.client.gl.GlManager;
+import net.xavil.hawklib.client.gl.GlState;
 import net.xavil.hawklib.client.flexible.RenderTexture;
 import net.xavil.hawklib.collections.Blackboard;
 import net.xavil.hawklib.collections.impl.Vector;
@@ -36,6 +39,8 @@ public abstract class HawkScreen extends Screen {
 
 	protected final MutableList<Layer2d> layers = new Vector<>();
 	protected final MutableList<Layer2d> overlays = new Vector<>();
+
+	private final GlState.Cached cachedState = new GlState.Cached();
 
 	public static abstract class Layer2d implements Disposable {
 		protected final Minecraft client = Minecraft.getInstance();
@@ -175,7 +180,7 @@ public abstract class HawkScreen extends Screen {
 	public final boolean keyPressed(int keyCode, int scanCode, int modifiers) {
 		if (super.keyPressed(keyCode, scanCode, modifiers))
 			return true;
-		final var keypress = new Keypress(keyCode, scanCode, modifiers);
+		final var keypress = new Keypress(Keypress.Action.PRESS, keyCode, scanCode, modifiers);
 
 		if (keypress.hasModifiers(GLFW.GLFW_MOD_SHIFT | GLFW.GLFW_MOD_ALT)) {
 			if (keypress.keyCode == GLFW.GLFW_KEY_R) {
@@ -201,12 +206,42 @@ public abstract class HawkScreen extends Screen {
 		return dispatchEvent(layer -> layer.handleKeypress(keypress));
 	}
 
+	@Override
+	public boolean keyReleased(int keyCode, int scanCode, int modifiers) {
+		if (super.keyReleased(keyCode, scanCode, modifiers))
+			return true;
+		final var keypress = new Keypress(Keypress.Action.RELEASE, keyCode, scanCode, modifiers);
+		if (keyReleased(keypress))
+			return true;
+		return false;
+	}
+
+	public static final class MousePress {
+		public final Vec2 position;
+		public final int button;
+
+		public MousePress(Vec2 position, int button) {
+			this.position = position;
+			this.button = button;
+		}
+	}
+
 	public static final class Keypress {
+		public enum Action {
+			PRESS, REPEAT, RELEASE;
+
+			public boolean isPress() {
+				return this == PRESS || this == REPEAT;
+			}
+		}
+
+		public final Action action;
 		public final int keyCode;
 		public final int scanCode;
 		public final int modifiers;
 
-		public Keypress(int keyCode, int scanCode, int modifiers) {
+		public Keypress(Action action, int keyCode, int scanCode, int modifiers) {
+			this.action = action;
 			this.keyCode = keyCode;
 			this.scanCode = scanCode;
 			this.modifiers = modifiers;
@@ -221,6 +256,10 @@ public abstract class HawkScreen extends Screen {
 		return false;
 	}
 
+	public boolean keyReleased(Keypress keypress) {
+		return false;
+	}
+
 	@Override
 	public void tick() {
 		super.tick();
@@ -229,7 +268,10 @@ public abstract class HawkScreen extends Screen {
 
 	@Override
 	public void render(PoseStack poseStack, int mouseX, int mouseY, float tickDelta) {
-		GlManager.pushState();
+		this.cachedState.capture();
+		GlManager.pushState(this.cachedState.get());
+		// GlManager.clipControl(GlState.ClipControlOrigin.LOWER_LEFT,
+		// GlState.ClipControlDepth.ZERO_TO_ONE);
 
 		final var window = this.client.getWindow();
 		final var windowSize = new Vec2i(window.getWidth(), window.getHeight());
@@ -243,6 +285,7 @@ public abstract class HawkScreen extends Screen {
 		final var disposer = Disposable.scope();
 		try {
 			ctx.currentTexture = RenderTexture.HDR_COLOR_DEPTH.acquireTemporary();
+			ctx.currentTexture.framebuffer.getDepthAttachment().depthClearState = ClearState.setFloat(1f);
 			ctx.currentTexture.framebuffer.clear();
 			renderScreenPreLayers(ctx);
 			for (final var layer : this.layers.iterable()) {

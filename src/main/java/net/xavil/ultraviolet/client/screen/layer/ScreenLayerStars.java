@@ -4,12 +4,13 @@ import org.lwjgl.glfw.GLFW;
 
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.Units;
 import net.xavil.hawklib.client.HawkDrawStates;
 import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
-import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
+import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.IndexPattern;
@@ -25,6 +26,7 @@ import net.xavil.hawklib.math.matrices.VecMath;
 import net.xavil.ultraviolet.client.StarRenderManager;
 import net.xavil.ultraviolet.client.UltravioletShaders;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
+import net.xavil.ultraviolet.client.screen.CombinedGalaxyScreen;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.client.screen.StarStatisticsScreen;
 import net.xavil.ultraviolet.client.screen.SystemExplorerScreen;
@@ -37,33 +39,41 @@ import net.xavil.ultraviolet.common.universe.galaxy.SectorPos;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicketInfo;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
+import net.xavil.ultraviolet.common.universe.universe.Universe;
+import net.xavil.ultraviolet.common.universe.universe.UniverseSectorTicket;
+import net.xavil.ultraviolet.common.universe.universe.UniverseSectorTicketInfo;
 
 public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	private final HawkScreen3d screen;
 	public final Galaxy galaxy;
 	private final StarRenderManager starRenderer;
-	private final Vec3 originOffset;
+	private final UniverseSectorTicket<UniverseSectorTicketInfo.Multi> universeTicket;
+	private final UniversePosition origin;
 	private boolean mapMode = true;
 
-	public ScreenLayerStars(HawkScreen3d attachedScreen, Galaxy galaxy, Vec3 originOffset) {
+	public ScreenLayerStars(HawkScreen3d attachedScreen, Galaxy galaxy, UniversePosition origin) {
 		super(attachedScreen, new CameraConfig(1e2, false, 1e9, false));
 		this.screen = attachedScreen;
 		this.galaxy = galaxy;
-		this.originOffset = originOffset;
+		this.origin = origin;
 		double[] scales = SectorTicketInfo.Multi.SCALES_EXP;
 		// scales = SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED;
-		// scales = SectorTicketInfo.Multi.SCALES_UNIFORM;
+		scales = new double[] { 4, 8, 16, 32, 64, 128, 256, 512 };
 		// scales = new double[] { 1, 2, 5, 12, 20, 40, 80, 512 };
+		final var galaxyRelative = origin.relativeTo(this.galaxy.position, Units.Tu_PER_u);
 		this.starRenderer = this.disposer.attach(new StarRenderManager(galaxy,
-				new SectorTicketInfo.Multi(originOffset, GalaxySector.BASE_SIZE_Tm, scales)));
-		this.starRenderer.setOriginOffset(this.originOffset);
+				new SectorTicketInfo.Multi(galaxyRelative, GalaxySector.BASE_SIZE_Tm, scales)));
+		this.starRenderer.setOriginOffset(galaxyRelative);
+		final var universeRelative = origin.relativeTo(UniversePosition.ZERO, Units.Zu_PER_u);
+		this.universeTicket = galaxy.parentUniverse.sectorManager.createSectorTicket(this.disposer,
+				UniverseSectorTicketInfo.visual(universeRelative));
 	}
 
-	private Vec3 getStarViewCenterPos(OrbitCamera.Cached camera) {
-		// return camera.focus;
-		if (this.mapMode)
-			// return camera.focus.sub(this.originOffset);
-			return camera.focus;
+	private Vec3 getStarViewCenterPos(CachedCamera camera) {
+		if (this.mapMode && camera instanceof OrbitCamera.Cached orbitCam) {
+			return orbitCam.focus;
+		}
 		return camera.posTm.xyz();
 	}
 
@@ -84,12 +94,12 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 
 	@Override
 	public boolean handleKeypress(Keypress keypress) {
-		if (keypress.keyCode == GLFW.GLFW_KEY_TAB) {
-			this.mapMode = !this.mapMode;
-		} else if (keypress.keyCode == GLFW.GLFW_KEY_K) {
-			this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
-		} else if (keypress.keyCode == GLFW.GLFW_KEY_L) {
-			this.starRenderer.setMode(StarRenderManager.Mode.MAP);
+		if (keypress.keyCode == GLFW.GLFW_KEY_1) {
+			this.mapMode = false;
+			return true;
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_2) {
+			this.mapMode = true;
+			return true;
 		} else if (keypress.keyCode == GLFW.GLFW_KEY_R) {
 			final var selected = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
 			if (selected != null) {
@@ -103,8 +113,8 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 						this.client.setScreen(screen);
 					} else {
 						final var screen = new SystemExplorerScreen(this.screen, this.galaxy, id, system);
-						screen.camera.pitch.set(this.screen.camera.pitch.target);
-						screen.camera.yaw.set(this.screen.camera.yaw.target);
+						// screen.camera.pitch.set(this.screen.camera.pitch.target);
+						// screen.camera.yaw.set(this.screen.camera.yaw.target);
 						this.client.setScreen(screen);
 					}
 				});
@@ -113,13 +123,19 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			}
 		} else if (keypress.keyCode == GLFW.GLFW_KEY_H) {
 			final var ticket = this.starRenderer.getSectorTicket();
-			// final var ticket = this.galaxy.sectorManager.createSectorTicketManual(new SectorTicketInfo.Multi(
-			// 		this.camera.posTm.xyz(), GalaxySector.BASE_SIZE_Tm, SectorTicketInfo.Multi.SCALES_EXP));
+			// final var ticket = this.galaxy.sectorManager.createSectorTicketManual(new
+			// SectorTicketInfo.Multi(
+			// this.camera.posTm.xyz(), GalaxySector.BASE_SIZE_Tm,
+			// SectorTicketInfo.Multi.SCALES_EXP));
 			// this.galaxy.sectorManager.forceLoad(ticket);
 			final var screen = new StarStatisticsScreen(this.screen, ticket, this.camera.posTm.xyz());
 			// screen.disposer.attach(ticket);
 			this.client.setScreen(screen);
 
+			return true;
+		} else if (keypress.keyCode == GLFW.GLFW_KEY_SEMICOLON) {
+			final var screen = new CombinedGalaxyScreen(this.screen, UniversePosition.ZERO);
+			this.client.setScreen(screen);
 			return true;
 		}
 
@@ -196,7 +212,7 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public void render3d(Cached camera, RenderContext ctx) {
+	public void render3d(CachedCamera camera, RenderContext ctx) {
 		GlPerf.push("ScreenLayerStars");
 
 		final var cullingCamera = getCullingCamera();
@@ -204,18 +220,75 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 		final var ticket = this.starRenderer.getSectorTicket();
 
 		if (this.mapMode) {
-			ticket.info.baseRadius = 3 * GalaxySector.BASE_SIZE_Tm;
-			ticket.info.scales = SectorTicketInfo.Multi.SCALES_UNIFORM;
+			// ticket.info.baseRadius = 3 * GalaxySector.BASE_SIZE_Tm;
+			// ticket.info.scales = SectorTicketInfo.Multi.SCALES_UNIFORM;
+			ticket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
+			ticket.info.scales = SectorTicketInfo.Multi.SCALES_EXP_ADJUSTED;
 			this.starRenderer.setMode(StarRenderManager.Mode.MAP);
 		} else {
 			ticket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
-			ticket.info.scales = SectorTicketInfo.Multi.SCALES_EXP;
+			// ticket.info.scales = SectorTicketInfo.Multi.SCALES_EXP;
+			ticket.info.scales = new double[] { 4, 8, 16, 32, 64, 128, 256, 512 };
+
 			// this.starRenderer.setMode(StarRenderManager.Mode.MAP);
 			this.starRenderer.setMode(StarRenderManager.Mode.REALISTIC);
 		}
 
 		GlPerf.push("stars");
 		this.starRenderer.draw(camera, viewCenter);
+
+		this.universeTicket.info.radius = 4 * Universe.VOLUME_LENGTH_ZM;
+
+		GlPerf.swap("galaxy_debug");
+		{
+			final var cam = this.screen.camera.cached(new CameraConfig(1, false, 1e10, false));
+			final var snapshot = RenderMatricesSnapshot.capture();
+			cam.applyProjection();
+			CachedCamera.applyView(cam.orientation);
+
+			final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
+					IndexPattern.QUADS, BufferLayout.POSITION_COLOR_TEX);
+
+			this.universeTicket.attachedManager.enumerate(this.universeTicket, sector -> {
+				if (sector.initialElements == null)
+					return;
+				for (int i = 0; i < sector.initialElements.size(); ++i) {
+					final var elem = sector.initialElements.get(i);
+					// final var pos = elem.pos().relativeTo(this.galaxy.position,
+					// Units.Zu_PER_u).mul(8e6);
+					final var pos = elem.pos().relativeTo(this.galaxy.position, Units.Zu_PER_u).mul(Units.Tu_PER_Zu);
+
+					final var distance = camera.pos.distanceTo(pos);
+					float s = 0.005f, c = 0.05f;
+					if (distance < 1e10) {
+						s = 0.02f;
+						c = 0.2f;
+					}
+					s = (float) elem.info().radius;
+					// final Vec3 xo = camera.right.mul(s * distance), yo = camera.up.mul(s *
+					// distance);
+					final Vec3 xo = elem.info().orientation.transform(Vec3.XP).mul(s),
+							yo = elem.info().orientation.transform(Vec3.YP).mul(s);
+					final var nn = pos.sub(xo).sub(yo).sub(camera.pos);
+					final var np = pos.sub(xo).add(yo).sub(camera.pos);
+					final var pn = pos.add(xo).sub(yo).sub(camera.pos);
+					final var pp = pos.add(xo).add(yo).sub(camera.pos);
+
+					final var color = ColorRgba.RED.withA(c);
+					builder.vertex(pn).color(color).uv0(1, 0).endVertex();
+					builder.vertex(nn).color(color).uv0(0, 0).endVertex();
+					builder.vertex(np).color(color).uv0(0, 1).endVertex();
+					builder.vertex(pp).color(color).uv0(1, 1).endVertex();
+				}
+			});
+
+			final var shader = UltravioletShaders.SHADER_UI_QUADS.get();
+			shader.setupDefaultShaderUniforms();
+			builder.end().draw(UltravioletShaders.SHADER_UI_QUADS.get(),
+					HawkDrawStates.DRAW_STATE_DIRECT_ALPHA_BLENDING);
+
+			snapshot.restore();
+		}
 
 		GlPerf.swap("selected");
 		final var selectedId = getBlackboard(BlackboardKeys.SELECTED_STAR_SYSTEM).unwrapOrNull();
@@ -227,12 +300,14 @@ public class ScreenLayerStars extends HawkScreen3d.Layer3d {
 			final var builder = BufferRenderer.IMMEDIATE_BUILDER.beginGeneric(
 					IndexPattern.QUADS, BufferLayout.POSITION_COLOR_TEX);
 
-			final var distance = camera.pos.distanceTo(selectedSystem.pos);
+			final var systemPos = selectedSystem.pos();
+
+			final var distance = camera.pos.distanceTo(systemPos);
 			final Vec3 xo = camera.right.mul(0.05 * distance), yo = camera.up.mul(0.05 * distance);
-			final var nn = selectedSystem.pos.sub(xo).sub(yo).sub(camera.pos);
-			final var np = selectedSystem.pos.sub(xo).add(yo).sub(camera.pos);
-			final var pn = selectedSystem.pos.add(xo).sub(yo).sub(camera.pos);
-			final var pp = selectedSystem.pos.add(xo).add(yo).sub(camera.pos);
+			final var nn = systemPos.sub(xo).sub(yo).sub(camera.pos);
+			final var np = systemPos.sub(xo).add(yo).sub(camera.pos);
+			final var pn = systemPos.add(xo).sub(yo).sub(camera.pos);
+			final var pp = systemPos.add(xo).add(yo).sub(camera.pos);
 
 			final var color = ColorRgba.GREEN.withA(0.333f);
 			builder.vertex(pn).color(color).uv0(1, 0).endVertex();

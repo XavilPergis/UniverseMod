@@ -14,6 +14,8 @@ import com.mojang.blaze3d.vertex.BufferUploader;
 
 import net.minecraft.client.renderer.ShaderInstance;
 import net.xavil.hawklib.ErrorRatelimiter;
+import net.xavil.hawklib.client.gl.GlState.ClipControlDepth;
+import net.xavil.hawklib.client.gl.GlState.ClipControlOrigin;
 import net.xavil.hawklib.client.gl.texture.GlTexture;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -477,5 +479,9 @@ public final class GlManager {
 
 	public static void enableProgramPointSize(boolean enable) {
 		INSTANCE.currentSink.enableProgramPointSize(enable);
+	}
+
+	public static void clipControl(ClipControlOrigin origin, ClipControlDepth depth) {
+		INSTANCE.currentSink.clipControl(origin, depth);
 	}
 }

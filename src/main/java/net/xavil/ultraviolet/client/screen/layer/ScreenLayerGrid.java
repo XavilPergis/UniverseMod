@@ -4,6 +4,7 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.client.HawkShaders;
+import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.flexible.BufferLayout;
@@ -17,6 +18,7 @@ import net.xavil.hawklib.client.screen.HawkScreen.RenderContext;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 import net.xavil.ultraviolet.client.screen.BlackboardKeys;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
 import net.xavil.ultraviolet.common.config.ClientConfig;
@@ -28,25 +30,27 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		super(attachedScreen, new CameraConfig(0.01, true, 1e6, true));
 	}
 
-	public static double getGridScale(OrbitCamera.Cached camera, double tmPerUnit, double scaleFactor,
+	public static double getGridScale(double cameraScale, double tmPerUnit, double scaleFactor,
 			float partialTick) {
 		var currentThreshold = tmPerUnit / Math.pow(scaleFactor, 3);
 		var scale = currentThreshold;
 		for (var i = 0; i < 100; ++i) {
 			currentThreshold *= scaleFactor;
-			if (camera.scale > currentThreshold)
+			if (cameraScale > currentThreshold)
 				scale = currentThreshold;
 		}
 		return scale;
 	}
 
 	public static void renderGrid(VertexBuilder builder,
-			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
+			double cameraScale, Vec3Access cameraFocus,
+			CachedCamera camera, CachedCamera cullingCamera,
 			double tmPerUnit, double gridUnits, int scaleFactor, int gridLineCount, float partialTick) {
-		var focusPos = camera.focus.div(tmPerUnit);
-		var gridScale = getGridScale(camera, gridUnits, scaleFactor, partialTick);
+		var focusPos = cameraFocus.div(tmPerUnit);
+		var gridScale = getGridScale(cameraScale, gridUnits, scaleFactor, partialTick);
 		renderGrid(builder, camera, cullingCamera, focusPos, gridScale * gridLineCount, scaleFactor, gridLineCount);
-		renderGrid(builder, camera, cullingCamera, focusPos, 10 * gridScale * gridLineCount, scaleFactor, gridLineCount);
+		renderGrid(builder, camera, cullingCamera, focusPos, 10 * gridScale * gridLineCount, scaleFactor,
+				gridLineCount);
 	}
 
 	public static final DrawState GRID_STATE = new DrawState.Builder()
@@ -57,7 +61,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 			.build();
 
 	public static void renderGrid(VertexBuilder builder,
-			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
+			CachedCamera camera, CachedCamera cullingCamera,
 			Vec3 focusPos,
 			double gridDiameter, int subcellsPerCell, int gridLineCount) {
 		final var dispatch = builder.beginGeneric(IndexPattern.VANILLA_LINES, BufferLayout.POSITION_COLOR_NORMAL);
@@ -67,7 +71,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 	}
 
 	private static void addGridSegment(VertexAttributeConsumer.Generic builder,
-			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
+			CachedCamera camera, CachedCamera cullingCamera,
 			int maxDepth, ColorRgba color,
 			Vec3 startPos, Vec3 endPos) {
 
@@ -100,13 +104,13 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 	}
 
 	private static void addSubdividedLine(VertexAttributeConsumer.Generic builder,
-			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
+			CachedCamera camera, CachedCamera cullingCamera,
 			ColorRgba color, Vec3 startPos, Vec3 endPos) {
 		addGridSegment(builder, camera, cullingCamera, 20, color, startPos, endPos);
 	}
 
 	public static void addGrid(VertexAttributeConsumer.Generic builder,
-			OrbitCamera.Cached camera, OrbitCamera.Cached cullingCamera,
+			CachedCamera camera, CachedCamera cullingCamera,
 			Vec3 focusPos,
 			double gridDiameter, int subcellsPerCell, int gridLineCount) {
 
@@ -126,11 +130,13 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 		for (var i = 1; i < gridLineCount; ++i) {
 			var x = gridMinX + i * gridCellResolution - gridOffset;
 			var xMark = (int) Math.floor(gridMinX / gridCellResolution + i - gridLineCount / 2);
-			if (xMark % subcellsPerCell != 0) continue;
+			if (xMark % subcellsPerCell != 0)
+				continue;
 			for (var j = 1; j < gridLineCount; ++j) {
 				var z = gridMinZ + j * gridCellResolution - gridOffset;
 				var zMark = (int) Math.floor(gridMinZ / gridCellResolution + j - gridLineCount / 2);
-				if (zMark % subcellsPerCell != 0) continue;
+				if (zMark % subcellsPerCell != 0)
+					continue;
 
 				var lp = new Vec3(x, gridMinY, z);
 				var start = camera.toCameraSpace(new Vec3(x, gridMinY, z));
@@ -141,7 +147,7 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 					final var segmentAlpha = a2 * (float) (1 - gridFadeFactor * ld / gridDiameter);
 					addSubdividedLine(builder, camera, cullingCamera, color.withA(segmentAlpha), start, end);
 				}
-				
+
 			}
 		}
 
@@ -218,14 +224,17 @@ public class ScreenLayerGrid extends HawkScreen3d.Layer3d {
 	}
 
 	@Override
-	public void render3d(OrbitCamera.Cached camera, RenderContext ctx) {
+	public void render3d(CachedCamera camera, RenderContext ctx) {
 		if (!getBlackboard(BlackboardKeys.SHOW_GUIDES).unwrapOr(true))
 			return;
 		final var cullingCamera = getCullingCamera();
 		final var builder = BufferRenderer.IMMEDIATE_BUILDER;
 
 		// TODO: configurable grid
-		renderGrid(builder, camera, cullingCamera, camera.metersPerUnit / 1e12, 1, 10, 40, ctx.partialTick);
+		if (camera instanceof OrbitCamera.Cached orbitCam) {
+			renderGrid(builder, orbitCam.scale, orbitCam.focus, camera, cullingCamera, camera.metersPerUnit / 1e12, 1,
+					10, 40, ctx.partialTick);
+		}
 	}
 
 }

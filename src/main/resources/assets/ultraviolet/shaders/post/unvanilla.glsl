@@ -14,8 +14,9 @@ out vec4 fColor;
 void main() {
     vec4 colorSrgb = texture(uSampler, texCoord0);
 	//if (colorSrgb.a >= 0.01) colorSrgb.a = 1.0;
-    fColor = vec4(pow(colorSrgb.rgb, vec3(2.0)), colorSrgb.a);
+    //fColor = vec4(pow(colorSrgb.rgb, vec3(2.0)), colorSrgb.a);
     //fColor = vec4(colorSrgb.a);
+    fColor = vec4(colorSrgb);
 }
 
 #endif

@@ -636,8 +636,8 @@ public final class PlanetRenderingContext implements Disposable {
 		if (!skip && !(node instanceof StellarCelestialNode starNode
 				&& starNode.type == StellarCelestialNode.Type.BLACK_HOLE)) {
 
-			final var builder2 = builder.beginGeneric(PrimitiveType.POINT,
-					UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD_REALISTIC);
+			// final var builder2 = builder.beginGeneric(PrimitiveType.POINT,
+			// 		UltravioletVertexFormats.VERTEX_FORMAT_BILLBOARD);
 
 			// final var actualOrigin = this.floatingOrigin;
 
@@ -683,21 +683,21 @@ public final class PlanetRenderingContext implements Disposable {
 
 			// final var nodePos = node.position.div(1e12 / camera.metersPerUnit);
 
-			if (node instanceof StellarCelestialNode starNode) {
-				builder2.vertex(nodePos)
-						.color(starNode.getColor())
-						.uv0((float) starNode.luminosityLsol, 0)
-						.endVertex();
-			} else {
-				// builder2.vertex(nodePos)
-				builder2.vertex(this.origin)
-						// TODO: determine color and luminosity from reflected light
-						.color(ColorRgba.WHITE)
-						// .uv0(0.0000000018554f, 0)
-						.uv0(100000f, 0)
-						.endVertex();
-			}
-			builder2.end().draw(pointShader, DRAW_STATE_ADDITIVE_BLENDING);
+			// if (node instanceof StellarCelestialNode starNode) {
+			// 	builder2.vertex(nodePos)
+			// 			.color(starNode.getColor())
+			// 			.uv0((float) starNode.luminosityLsol, 0)
+			// 			.endVertex();
+			// } else {
+			// 	// builder2.vertex(nodePos)
+			// 	builder2.vertex(this.origin)
+			// 			// TODO: determine color and luminosity from reflected light
+			// 			.color(ColorRgba.WHITE)
+			// 			// .uv0(0.0000000018554f, 0)
+			// 			.uv0(100000f, 0)
+			// 			.endVertex();
+			// }
+			// builder2.end().draw(pointShader, DRAW_STATE_ADDITIVE_BLENDING);
 			this.sphereMesh.draw(nodeShader, DRAW_STATE_OPAQUE);
 		}
 	}

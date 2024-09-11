@@ -106,7 +106,7 @@ public final class ScreenLayerGpuTimers extends HawkScreen.Layer2d {
         info.textSink.emit(info.tfm.current(), String.format("%.1f/%.1f", 100 * rootPercentCpu, 100 * rootPercentGpu));
 
         info.textSink.cursorX = baseX;
-        info.textSink.cursorNewline();
+        info.textSink.cursorAppendUnder();
 
         final var directChildrenHeights = new VectorFloat();
         double minHeight = info.textSink.cursorY, maxHeight = info.textSink.cursorY;

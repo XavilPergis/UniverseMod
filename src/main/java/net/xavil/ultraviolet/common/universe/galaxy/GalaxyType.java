@@ -25,8 +25,9 @@ public enum GalaxyType {
 			public final double discHeightFactor;
 			public final Vec3 galaxySquish;
 
-			public Params(SplittableRng rng) {
-				this.radius = Units.Tm_PER_ly * rng.uniformDouble("radius", 40000, 80000);
+			public Params(Galaxy.Info info, SplittableRng rng) {
+				// this.radius = Units.Tm_PER_ly * rng.uniformDouble("radius", 40000, 80000);
+				this.radius = info.radius;
 				this.eccentricity = rng.uniformDouble("eccentricity", 0.0, 0.1);
 
 				this.galacticCoreSizeFactor = rng.uniformDouble("core_size", 0.3, 0.4);
@@ -56,11 +57,11 @@ public enum GalaxyType {
 				final var p = Vec3.ZP.mul(params.radius).rotateY(angleY);
 
 				var spoke = Sdf.capsule(pos, p.neg(), p, 0);
-				spoke = Math.pow(spoke / size, 2);
-				spoke = density * Math.pow(0.01 / density, spoke);
+				spoke = Math.pow(spoke / size, 4);
+				spoke = density * Math.pow(0.01, spoke);
 
 				if (!this.isMajor)
-					spoke *= 0.1;
+					spoke *= 0.05;
 
 				return spoke;
 			}
@@ -97,42 +98,53 @@ public enum GalaxyType {
 				rng.pop();
 			}
 
-			public void evaluate(Params params, Vec3Access pos, GalaxyRegionWeights masks) {
+			public void evaluate(Params params, Vec3Access pos, GalaxyRegionWeights weights) {
+				weights.arms = weights.core = weights.disc = weights.halo = 0;
+
 				final var centerDist = Sdf.sphere(pos, Vec3.ZERO, 0) / params.radius;
-				final var galaxyMask = Math.max(0, 1 - pos.length() / params.radius);
+				final var galaxyMask = Math.pow(Math.max(0, 1 - pos.length() / params.radius), 0.33);
 
 				// core
-				final var corePos = pos.mul(params.galaxySquish.mul(1, 0.9, 1));
+				final var corePos = pos.mul(params.galaxySquish.mul(1, 0.7, 1));
 				final var coreDist = Sdf.sphere(corePos, 0) / params.radius;
-				masks.core = Math.pow(10, -22.0 * coreDist);
+				weights.core = 0;
+				weights.core += 20000 * Math.pow(10, -20.0 * coreDist);
+				weights.core += 0.5 * Math.pow(10, -5.0 * coreDist);
 
 				// halo
-				masks.halo = Math.max(0, 1 - centerDist / 2.5);
+				weights.halo = Math.max(0, 1 - centerDist / 2.5);
 
 				// disc
 				final var discPos = pos.mul(params.galaxySquish);
-				final var discDist = Math.abs(Sdf.plane(discPos, Vec3.YP) / params.radius);
-				masks.disc = Math.pow(10, -30.0 * discDist);
-				masks.disc *= galaxyMask;
+				final var discDist = Math.abs(Sdf.plane(discPos, Vec3.YP) / (params.radius));
+				weights.disc = 0;
+				weights.disc += 2 * Math.pow(10, -5.0 * discDist);
+				weights.disc += 10 * Math.pow(10, -30.0 * discDist);
+				weights.disc *= galaxyMask;
 
 				// spiral arms
 				Vec3 spokePos = pos.mul(params.galaxySquish);
 				spokePos = ScalarField.spiralAboutY(spokePos, this.spiralFactor, 1.2 * params.radius);
 				for (final var spoke : this.spokes.iterable()) {
-					masks.arms += spoke.evaluate(params, spokePos);
+					weights.arms += spoke.evaluate(params, spokePos);
 				}
 
 				// final var exclusionRadius = params.galacticCoreSizeFactor * params.radius;
 				// masks.arms *= Math.pow(Math.min(1, pos.length() / exclusionRadius), 4.0);
-				masks.arms *= Math.pow(10, -10.0 * discDist);
+				weights.arms *= Math.pow(10, -15.0 * discDist);
 				// spoke contribution -> 0 at galaxy limit
-				masks.arms *= galaxyMask;
+				weights.arms *= galaxyMask;
+				weights.arms *= 20;
+
+				// weights.core *= 10;
+				// weights.disc *= 0.005;
+				weights.halo *= 0.00001;
 			}
 		}
 
 		@Override
 		public GalaxyParameters createGalaxyParameters(Galaxy.Info info, SplittableRng rng) {
-			final var params = new Params(rng);
+			final var params = new Params(info, rng);
 			final var df = new DensityField(rng, params);
 
 			final GalaxyRegionWeights.Field maskField = (pos, masks) -> df.evaluate(params, pos, masks);
@@ -161,13 +173,7 @@ public enum GalaxyType {
 
 			final var haloSfh = ProbabilityDistribution.interpolate(age -> 1, ageDomain, 4096);
 
-			final var densityWeights = new GalaxyRegionWeights();
-			densityWeights.core = 200;
-			densityWeights.arms = 0.5;
-			densityWeights.disc = 0.005;
-			densityWeights.halo = 0.000001;
-
-			return new GalaxyParameters(params.radius, info.ageMyr, maskField, densityWeights,
+			return new GalaxyParameters(params.radius, info.ageMyr, maskField,
 					coreSfh, armsSfh, discSfh, haloSfh);
 		}
 	},

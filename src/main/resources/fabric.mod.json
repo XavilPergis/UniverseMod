@@ -12,7 +12,7 @@
 		"sources": "https://github.com/XavilPergis/UniverseMod"
 	},
 	"license": "CC0-1.0",
-	"icon": "assets/modid/icon.png",
+	"icon": "assets/ultraviolet/icon.png",
 	"environment": "*",
 	"entrypoints": {
 		"main": ["net.xavil.ultraviolet.Mod"],
@@ -22,6 +22,7 @@
 	"mixins": [
 		"ultraviolet.mixins.json"
 	],
+	"accessWidener": "ultraviolet.accesswidener",
 	"depends": {
 		"fabricloader": ">=0.14.6",
 		"fabric": "*",

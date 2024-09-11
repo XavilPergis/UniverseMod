@@ -19,11 +19,13 @@ import net.minecraft.commands.arguments.NbtTagArgument;
 import net.minecraft.network.chat.TextComponent;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.entity.Entity;
+import net.xavil.hawklib.Units;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation.OrbitingCelestialBody;
+import net.xavil.ultraviolet.common.universe.system.UnaryCelestialNode;
 import net.xavil.ultraviolet.common.universe.universe.ServerUniverse;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.mixin.accessor.MinecraftServerAccessor;
@@ -165,23 +167,21 @@ public final class ModDebugCommand {
 		}
 
 		if (location instanceof WorldType.SystemNode loc) {
-			final var sloc = OrbitingCelestialBody.createDefault(universe, loc.id);
-			if (sloc.isSome()) {
-				universe.createStation(name, sloc.unwrap());
-				ctx.getSource().sendSuccess(new TextComponent("created station around node " + loc.id), true);
+			final var node = universe.getSystemNode(loc.id).unwrapOrNull();
+			if (node != null && node instanceof UnaryCelestialNode unode) {
+				final var initPos = node.absolutePosition.add(Vec3.YP.mul(1.5 * unode.radius), Units.u_PER_ku);
+				universe.createStation(name, initPos);
+			} else {
+				ctx.getSource().sendFailure(new TextComponent("cannot create station: invalid node id?"));
 			}
+			ctx.getSource().sendSuccess(new TextComponent("created station around node " + loc.id), true);
 		} else if (location instanceof WorldType.Station loc) {
 			universe.getStation(loc.id).ifSome(station -> {
-				if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
-					final var newSloc = OrbitingCelestialBody.createDefault(universe, sloc.id);
-					if (newSloc.isSome()) {
-						universe.createStation(name, newSloc.unwrap());
-						ctx.getSource().sendSuccess(new TextComponent("created station around node " + sloc.id), true);
-					}
-				}
+				universe.createStation(name, station.position.add(Vec3.YP.mul(1e8), 1));
+				ctx.getSource().sendSuccess(new TextComponent("created new station around other station"), true);
 			});
 		} else {
-			ctx.getSource().sendFailure(new TextComponent("connot create station: location invalid"));
+			ctx.getSource().sendFailure(new TextComponent("cannot create station: location invalid"));
 		}
 		return 1;
 	}

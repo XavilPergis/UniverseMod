@@ -254,7 +254,7 @@ public class Mod implements ModInitializer {
 
 		// FIXME: verify that the system we want to jump to actually exists
 
-		station.prepareForJump(packet.target, packet.isJumpInstant);
+		// station.prepareForJump(packet.target, packet.isJumpInstant);
 
 		final var beginPacket = new ClientboundStationJumpBeginPacket(packet.stationId, packet.target,
 				packet.isJumpInstant);
@@ -347,78 +347,6 @@ public class Mod implements ModInitializer {
 		player.connection.send(syncPacket);
 
 		universe.syncTime(player, true);
-	}
-
-	private static void stemRecoveryFailed(MinecraftServer server, PerLevelData perLevelData, ResourceKey<Level> key) {
-		if (perLevelData.levelStem != null) {
-			throw new IllegalStateException();
-		}
-
-		// FIXME: this is a destructive operation, it should not be automatically
-		// applied! But it seems like a lot of work to give an option to exit out and
-		// fix the world file...
-		Mod.LOGGER.error(
-				"Unable to recover level stem for level '{}'! Defaulting to overworld level stem...",
-				key.location());
-		final var stemRegistry = server.getWorldData().worldGenSettings().dimensions();
-		perLevelData.levelStem = stemRegistry.get(LevelStem.OVERWORLD);
-		perLevelData.setDirty();
-	}
-
-	private static void recoverStem(MinecraftServer server, PerLevelData perLevelData, ResourceKey<Level> key) {
-		if (perLevelData.levelStem != null) {
-			throw new IllegalStateException();
-		}
-
-		Mod.LOGGER.error("Level '{}' has no saved level stem!", key.location());
-
-		// FIXME: recover stations with no level stems. This needs station data to be
-		// persisted first, though.
-		if (perLevelData.worldType instanceof WorldType.SystemNode type) {
-			final var universe = MinecraftServerAccessor.getUniverse(server);
-			try (final var disposer = Disposable.scope()) {
-				final var node = universe.loadSystem(disposer, type.id.system())
-						.flatMap(system -> Maybe.fromNullable(system.rootNode.lookup(type.id.nodeId())))
-						.unwrapOrNull();
-
-				if (node == null) {
-					Mod.LOGGER.error("Node ID '{}' did not correspond to any system node!");
-					return;
-				}
-				if (node instanceof PlanetaryCelestialNode planetNode) {
-					final var props = planetNode.dimensionProperties(server);
-					if (props == null) {
-						Mod.LOGGER.error("Node ID '{}' was not a landable planet node!");
-						return;
-					}
-					perLevelData.levelStem = props.get();
-					perLevelData.setDirty();
-					Mod.LOGGER.info("Successfully recovered level stem for level '{}'!", key.location());
-				} else {
-					Mod.LOGGER.error("Node ID '{}' was not a planet node!");
-					return;
-				}
-			}
-		}
-	}
-
-	public static ServerLevel loadDynamicLevel(MinecraftServer server, ResourceKey<Level> key) {
-		final var storageSource = MinecraftServerAccessor.getStorageSource(server);
-		final var dataFolder = storageSource.getDimensionPath(key).resolve("data").toFile();
-		final var dataStorage = new DimensionDataStorage(dataFolder, server.getFixerUpper());
-
-		final var perLevelData = dataStorage.get(PerLevelData::load, PerLevelData.ID);
-		if (perLevelData == null) {
-			return null;
-		}
-
-		if (perLevelData.levelStem == null)
-			recoverStem(server, perLevelData, key);
-		if (perLevelData.levelStem == null)
-			stemRecoveryFailed(server, perLevelData, key);
-
-		final var dimManager = MinecraftServerAccessor.getDimensionManager(server);
-		return dimManager.getOrCreateLevel(key, () -> perLevelData.levelStem);
 	}
 
 }

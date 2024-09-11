@@ -6,9 +6,10 @@ import net.xavil.hawklib.collections.interfaces.ImmutableSet;
 import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.Vec3i;
+import net.xavil.ultraviolet.common.universe.galaxy.GalaxySector;
 
 public abstract sealed class UniverseSectorTicketInfo {
-	
+
 	public record Diff(ImmutableSet<Vec3i> added, ImmutableSet<Vec3i> removed) {
 		public static final Diff EMPTY = new Diff(ImmutableSet.of(), ImmutableSet.of());
 	}
@@ -21,6 +22,7 @@ public abstract sealed class UniverseSectorTicketInfo {
 		return new Single(pos);
 	}
 
+	// must return the same type
 	public abstract UniverseSectorTicketInfo copy();
 
 	public ImmutableSet<Vec3i> affectedSectors() {
@@ -85,8 +87,10 @@ public abstract sealed class UniverseSectorTicketInfo {
 
 		@Override
 		public void enumerateAffectedSectors(Consumer<Vec3i> consumer) {
-			final var curMin = this.centerPos.sub(Vec3.broadcast(this.radius)).floor();
-			final var curMax = this.centerPos.add(Vec3.broadcast(this.radius)).ceil();
+			final var curMin = this.centerPos.sub(Vec3.broadcast(this.radius))
+					.div(Universe.VOLUME_LENGTH_ZM).floor();
+			final var curMax = this.centerPos.add(Vec3.broadcast(this.radius))
+					.div(Universe.VOLUME_LENGTH_ZM).ceil();
 			Vec3i.iterateInclusive(curMin, curMax, consumer);
 		}
 
@@ -96,10 +100,14 @@ public abstract sealed class UniverseSectorTicketInfo {
 				final var added = MutableSet.<Vec3i>hashSet();
 				final var removed = MutableSet.<Vec3i>hashSet();
 
-				final var curMin = this.centerPos.sub(Vec3.broadcast(this.radius)).floor();
-				final var curMax = this.centerPos.add(Vec3.broadcast(this.radius)).ceil();
-				final var prevMin = multi.centerPos.sub(Vec3.broadcast(multi.radius)).floor();
-				final var prevMax = multi.centerPos.add(Vec3.broadcast(multi.radius)).ceil();
+				final var curMin = this.centerPos.sub(Vec3.broadcast(this.radius))
+						.div(Universe.VOLUME_LENGTH_ZM).floor();
+				final var curMax = this.centerPos.add(Vec3.broadcast(this.radius))
+						.div(Universe.VOLUME_LENGTH_ZM).ceil();
+				final var prevMin = multi.centerPos.sub(Vec3.broadcast(multi.radius))
+						.div(Universe.VOLUME_LENGTH_ZM).floor();
+				final var prevMax = multi.centerPos.add(Vec3.broadcast(multi.radius))
+						.div(Universe.VOLUME_LENGTH_ZM).ceil();
 
 				if (!curMin.equals(prevMin) || !curMax.equals(prevMax)) {
 					final var levelCur = MutableSet.<Vec3i>hashSet();
@@ -119,6 +127,61 @@ public abstract sealed class UniverseSectorTicketInfo {
 		public boolean equals(Object obj) {
 			if (obj instanceof Multi other) {
 				return this.centerPos.equals(other.centerPos) && this.radius == other.radius;
+			}
+			return false;
+		}
+	}
+
+	public static final class Cube extends UniverseSectorTicketInfo {
+		public Vec3i centerSector;
+		public int radius; // radius of 0 means just the center.
+
+		public Cube(Vec3i centerSector, int radius) {
+			this.centerSector = centerSector;
+			this.radius = radius;
+		}
+
+		@Override
+		public Cube copy() {
+			return new Cube(this.centerSector, this.radius);
+		}
+
+		@Override
+		public void enumerateAffectedSectors(Consumer<Vec3i> consumer) {
+			final var curMin = this.centerSector.sub(Vec3i.broadcast(this.radius));
+			final var curMax = this.centerSector.add(Vec3i.broadcast(this.radius));
+			Vec3i.iterateInclusive(curMin, curMax, consumer);
+		}
+
+		@Override
+		public Diff diff(UniverseSectorTicketInfo prev) {
+			if (prev instanceof Cube other) {
+				final var added = MutableSet.<Vec3i>hashSet();
+				final var removed = MutableSet.<Vec3i>hashSet();
+
+				final var curMin = this.centerSector.sub(Vec3i.broadcast(this.radius));
+				final var curMax = this.centerSector.add(Vec3i.broadcast(this.radius));
+				final var prevMin = other.centerSector.sub(Vec3i.broadcast(other.radius));
+				final var prevMax = other.centerSector.add(Vec3i.broadcast(other.radius));
+
+				if (!curMin.equals(prevMin) || !curMax.equals(prevMax)) {
+					final var levelCur = MutableSet.<Vec3i>hashSet();
+					final var levelPrev = MutableSet.<Vec3i>hashSet();
+					Vec3i.iterateInclusive(curMin, curMax, levelCur::insert);
+					Vec3i.iterateInclusive(prevMin, prevMax, levelPrev::insert);
+					added.extend(levelCur.difference(levelPrev));
+					removed.extend(levelPrev.difference(levelCur));
+				}
+
+				return new Diff(added, removed);
+			}
+			return Diff.EMPTY;
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (obj instanceof Cube other) {
+				return this.centerSector.equals(other.centerSector) && this.radius == other.radius;
 			}
 			return false;
 		}

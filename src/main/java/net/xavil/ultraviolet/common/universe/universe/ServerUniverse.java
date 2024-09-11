@@ -4,6 +4,7 @@ import java.util.OptionalLong;
 
 import net.minecraft.core.Holder;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.util.Mth;
@@ -14,16 +15,21 @@ import net.minecraft.world.level.dimension.LevelStem;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
 import net.xavil.hawklib.Rng;
+import net.xavil.hawklib.collections.impl.Vector;
+import net.xavil.hawklib.collections.interfaces.MutableMap;
 
 import static net.xavil.hawklib.Units.*;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.ultraviolet.common.GlobalData;
 import net.xavil.ultraviolet.common.dimension.DynamicDimensionManager;
 import net.xavil.ultraviolet.common.level.EmptyChunkGenerator;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
+import net.xavil.ultraviolet.common.universe.station.SpaceStation;
 import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.BinaryCelestialNode;
 import net.xavil.ultraviolet.common.universe.system.CelestialNode;
@@ -48,6 +54,11 @@ public final class ServerUniverse extends Universe {
 	private int timeSyncIntervalTicks = 200;
 	private int ticksUntilTimeSync = timeSyncIntervalTicks;
 
+	static final class EntityManager {
+		public final Vector<UniverseEntity> entities = new Vector<>();
+	}
+
+	public final EntityManager entityManager = new EntityManager();
 	protected SystemTicket startingSystemTicket = null;
 
 	public ServerUniverse(MinecraftServer server) {
@@ -79,18 +90,23 @@ public final class ServerUniverse extends Universe {
 
 	// ew
 	@Override
-	public Maybe<Integer> createStation(String name, StationLocation location) {
-		final var res = super.createStation(name, location);
+	public Maybe<Integer> createStation(String name, UniversePosition position) {
+		final var res = super.createStation(name, position);
 		res.ifSome(id -> {
 			final var station = this.spaceStations.get(id).unwrap();
 			final var packet = new ClientboundSpaceStationInfoPacket();
 			packet.id = id;
 			packet.name = station.name;
 			packet.orientation = station.orientation;
-			packet.locationNbt = StationLocation.toNbt(station.getLocation());
+			packet.position = station.position;
 			this.server.getPlayerList().broadcastAll(packet);
 		});
+		final var globalData = GlobalData.get(this.server);
+		// if (globalData.spaceStations.indexOf(null))
 		return res;
+	}
+
+	public void loadSavedStations() {
 	}
 
 	public static final DimensionType STATION_DIM_TYPE = DimensionType.create(OptionalLong.of(1000), true, false, false,
@@ -377,6 +393,7 @@ public final class ServerUniverse extends Universe {
 		final var startingNodeId = startingSystem.rootNode.find(startingSystem.startingNode);
 
 		try (final var disposer = Disposable.scope()) {
+			// FIXME: sector 0 could have no galaxies in it.
 			final var sectorPos = Vec3i.ZERO;
 			final var tempTicket = this.sectorManager.createSectorTicket(disposer,
 					UniverseSectorTicketInfo.single(sectorPos));

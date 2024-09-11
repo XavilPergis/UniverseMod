@@ -6,7 +6,6 @@ import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.platform.GlStateManager;
 import com.mojang.blaze3d.systems.RenderSystem;
-import com.mojang.math.Matrix4f;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.ShaderInstance;
@@ -19,6 +18,7 @@ import net.xavil.hawklib.client.gl.GlManager;
 import net.xavil.hawklib.client.gl.GlObject;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.collections.interfaces.MutableSet;
 import net.xavil.hawklib.collections.iterator.Iterator;
 import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 import net.xavil.ultraviolet.Mod;
@@ -32,6 +32,8 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 	private final MutableMap<String, StorageBufferSlot> storageBuffers = MutableMap.hashMap();
 	private ShaderAttributeSet attributeSet;
 	private GlFragmentWrites fragmentWrites;
+	// for debugging purposes
+	private final MutableSet<String> seenUnboundSsboBuffers = MutableSet.hashSet();
 
 	private ShaderInstance wrappedVanillaShader;
 
@@ -169,13 +171,19 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 	}
 
 	public void setStorageBuffer(String blockName, GlBuffer.Slice bufferSlice) {
+		Assert.isNotNull(bufferSlice);
 		final var slot = this.storageBuffers.get(blockName).unwrapOrNull();
-		if (slot == null)
-			return;
-		slot.bufferSlice = bufferSlice;
+		if (slot != null) {
+			slot.bufferSlice = bufferSlice;
+		} else if (this.seenUnboundSsboBuffers.insert(blockName)) {
+			Mod.LOGGER.warn("{} has no buffer block named '{}'", debugDescription(), blockName);
+		}
 	}
 
 	public void bind() {
+		// TODO: tbh i should require the user to respecify shader uniforms and ssbo
+		// bindings each time a shader is bound/drawn with or something
+
 		GlManager.useProgram(this.id);
 		// normal uniforms
 		if (this.hasTextureUniforms || this.areUniformsDirty) {
@@ -200,12 +208,14 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 	}
 
 	public void setupDefaultShaderUniforms() {
-		setupDefaultShaderUniforms(RenderSystem.getModelViewMatrix(), RenderSystem.getProjectionMatrix());
+		setupDefaultShaderUniforms(
+				Mat4Access.from(RenderSystem.getModelViewMatrix()),
+				Mat4Access.from(RenderSystem.getProjectionMatrix()));
 	}
 
-	private void setupDefaultShaderUniforms(Matrix4f modelViewMatrix, Matrix4f projectionMatrix) {
-		setUniformf("uViewMatrix", Mat4Access.from(modelViewMatrix));
-		setUniformf("uProjectionMatrix", Mat4Access.from(projectionMatrix));
+	private void setupDefaultShaderUniforms(Mat4Access modelViewMatrix, Mat4Access projectionMatrix) {
+		setUniformf("uViewMatrix", modelViewMatrix);
+		setUniformf("uProjectionMatrix", projectionMatrix);
 
 		final var window = Minecraft.getInstance().getWindow();
 		setUniformf("uScreenSize", (float) window.getWidth(), (float) window.getHeight());
@@ -256,9 +266,12 @@ public final class ShaderProgram extends GlObject implements UniformHolder {
 		}
 
 		public void bind() {
+			if (this.bufferSlice == null)
+				throw new IllegalStateException(String.format(
+						"ssbo block %s was not bound",
+						this.blockName));
 			Assert.isNotNull(this.bufferSlice);
 			this.bufferSlice.bindRange(GlBuffer.Type.SHADER_STORAGE, this.bindingIndex);
-			this.bufferSlice = null;
 		}
 	}
 

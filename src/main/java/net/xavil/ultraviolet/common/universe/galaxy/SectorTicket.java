@@ -23,4 +23,9 @@ public final class SectorTicket<T extends SectorTicketInfo> implements Disposabl
 	public void close() {
 		this.remove();
 	}
+
+	public boolean isLoaded() {
+		return this.attachedManager.percentComplete(this) >= 1.0;
+	}
+
 }

@@ -293,6 +293,58 @@ public final class GlState implements GlStateSink {
 		}
 	}
 
+	public static enum ClipControlOrigin {
+		LOWER_LEFT(GL45C.GL_LOWER_LEFT, "Lower Left"),
+		UPPER_LEFT(GL45C.GL_UPPER_LEFT, "Upper Left");
+
+		public final int id;
+		public final String description;
+
+		private ClipControlOrigin(int id, String description) {
+			this.id = id;
+			this.description = description;
+		}
+
+		@Override
+		public String toString() {
+			return this.description;
+		}
+
+		public static ClipControlOrigin from(int id) {
+			return switch (id) {
+				case GL45C.GL_LOWER_LEFT -> LOWER_LEFT;
+				case GL45C.GL_UPPER_LEFT -> UPPER_LEFT;
+				default -> null;
+			};
+		}
+	}
+
+	public static enum ClipControlDepth {
+		NEGATIVE_ONE_TO_ONE(GL45C.GL_NEGATIVE_ONE_TO_ONE, "[-1, 1]"),
+		ZERO_TO_ONE(GL45C.GL_ZERO_TO_ONE, "[0, 1]");
+
+		public final int id;
+		public final String description;
+
+		private ClipControlDepth(int id, String description) {
+			this.id = id;
+			this.description = description;
+		}
+
+		@Override
+		public String toString() {
+			return this.description;
+		}
+
+		public static ClipControlDepth from(int id) {
+			return switch (id) {
+				case GL45C.GL_NEGATIVE_ONE_TO_ONE -> NEGATIVE_ONE_TO_ONE;
+				case GL45C.GL_ZERO_TO_ONE -> ZERO_TO_ONE;
+				default -> null;
+			};
+		}
+	}
+
 	public static final class ColorMask {
 		public final boolean r, g, b, a;
 
@@ -370,6 +422,8 @@ public final class GlState implements GlStateSink {
 	// other
 	private PolygonMode polygonMode = PolygonMode.FILL;
 	private EnableFlag programPointSizeEnabled = EnableFlag.DISABLED;
+	private ClipControlOrigin clipControlOrigin = ClipControlOrigin.LOWER_LEFT;
+	private ClipControlDepth clipControlDepth = ClipControlDepth.NEGATIVE_ONE_TO_ONE;
 
 	// Integer.MIN_VALUE is a "vacant" sentinil value.
 	private int viewportX = Integer.MIN_VALUE;
@@ -460,6 +514,8 @@ public final class GlState implements GlStateSink {
 		this.blendFactorDstAlpha = BlendFactor.from(GL45C.glGetInteger(GL45C.GL_BLEND_DST_ALPHA));
 		this.logicOpEnabled = EnableFlag.from(GL45C.glGetBoolean(GL45C.GL_COLOR_LOGIC_OP));
 		this.programPointSizeEnabled = EnableFlag.from(GL45C.glIsEnabled(GL45C.GL_PROGRAM_POINT_SIZE));
+		this.clipControlOrigin = ClipControlOrigin.from(GL45C.glGetInteger(GL45C.GL_CLIP_ORIGIN));
+		this.clipControlDepth = ClipControlDepth.from(GL45C.glGetInteger(GL45C.GL_CLIP_DEPTH_MODE));
 
 		try (final var stack = MemoryStack.stackPush()) {
 			// we don't actually know what size GLboolean is... I can't find any way to
@@ -882,6 +938,15 @@ public final class GlState implements GlStateSink {
 			this.viewportY = y;
 			this.viewportWidth = w;
 			this.viewportHeight = h;
+		}
+	}
+
+	@Override
+	public void clipControl(ClipControlOrigin origin, ClipControlDepth depth) {
+		if (this.clipControlOrigin != origin || this.clipControlDepth != depth) {
+			UNMANAGED.clipControl(origin, depth);
+			this.clipControlOrigin = origin;
+			this.clipControlDepth = depth;
 		}
 	}
 

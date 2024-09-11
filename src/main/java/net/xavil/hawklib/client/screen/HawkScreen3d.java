@@ -15,13 +15,17 @@ import static net.xavil.hawklib.client.HawkDrawStates.*;
 import net.xavil.hawklib.client.HawkShaders;
 import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
+import net.xavil.hawklib.client.camera.FpCamera;
+import net.xavil.hawklib.client.camera.HawkCamera;
 import net.xavil.hawklib.client.camera.OrbitCamera;
 import net.xavil.hawklib.client.camera.RenderMatricesSnapshot;
 import net.xavil.hawklib.client.flexible.BufferLayout;
 import net.xavil.hawklib.client.flexible.BufferRenderer;
 import net.xavil.hawklib.client.flexible.IndexPattern;
 import net.xavil.ultraviolet.client.screen.RenderHelper;
+import net.xavil.ultraviolet.mixin.accessor.MouseHandlerAccessor;
 import net.xavil.hawklib.math.ColorRgba;
+import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.matrices.Vec2;
 import net.xavil.hawklib.math.matrices.Vec3;
 
@@ -34,16 +38,16 @@ public abstract class HawkScreen3d extends HawkScreen {
 	public double scrollMultiplier = 1.2;
 	public double scrollMin, scrollMax;
 
-	public final OrbitCamera camera;
+	public HawkCamera camera;
 
 	public static abstract class Layer3d extends Layer2d {
 		protected CameraConfig cameraConfig;
-		protected OrbitCamera.Cached lastCamera;
-		protected OrbitCamera.Cached camera;
+		protected CachedCamera lastCamera;
+		protected CachedCamera camera;
 
 		private CachedCamera.FrustumCorners frustumPoints = null;
 		private CachedCamera.FrustumCorners cullingFrustumPoints = null;
-		private OrbitCamera.Cached cullingCamera = null;
+		private CachedCamera cullingCamera = null;
 
 		public Layer3d(HawkScreen3d attachedScreen, CameraConfig cameraConfig) {
 			super(attachedScreen);
@@ -60,30 +64,56 @@ public abstract class HawkScreen3d extends HawkScreen {
 			snapshot.restore();
 		}
 
-		public void setup3d(OrbitCamera camera, float partialTick) {
+		public void setup3d(HawkCamera camera, float partialTick) {
 		}
 
-		public abstract void render3d(OrbitCamera.Cached camera, RenderContext ctx);
+		public abstract void render3d(CachedCamera camera, RenderContext ctx);
 
 		public void onMoved(Vec3 displacement) {
 		}
 
-		public OrbitCamera.Cached getCullingCamera() {
+		public CachedCamera getCullingCamera() {
 			return this.cullingCamera != null ? this.cullingCamera : this.camera;
 		}
 	}
 
-	protected HawkScreen3d(Component component, Screen previousScreen, OrbitCamera camera,
+	protected HawkScreen3d(Component component, Screen previousScreen, HawkCamera camera,
 			double scrollMin, double scrollMax) {
 		super(component, previousScreen);
 		this.camera = camera;
 		this.scrollMin = scrollMin;
 		this.scrollMax = scrollMax;
 
-		this.camera.pitch.set(Math.PI / 8);
-		this.camera.yaw.set(Math.PI / 8);
-		this.camera.scale.set((scrollMin + scrollMax) / 2.0);
-		this.camera.scale.target = (scrollMin + scrollMax) / 2.0;
+		// this.camera.pitch.set(Math.PI / 8);
+		// this.camera.yaw.set(Math.PI / 8);
+		// this.camera.scale.set((scrollMin + scrollMax) / 2.0);
+		// this.camera.scale.target = (scrollMin + scrollMax) / 2.0;
+	}
+
+	private double prevMouseX, prevMouseY;
+	private boolean hasPrevMousePos = false;
+
+	@Override
+	public void mouseMoved(double mouseX, double mouseY) {
+		if (!hasPrevMousePos) {
+			this.prevMouseX = mouseX;
+			this.prevMouseY = mouseY;
+			hasPrevMousePos = true;
+			return;
+		}
+		
+		final var deltaX = mouseX - this.prevMouseX;
+		final var deltaY = mouseY - this.prevMouseY;
+		this.prevMouseX = mouseX;
+		this.prevMouseY = mouseY;
+		
+		if (this.camera instanceof FpCamera fpCamera) {
+			MouseHandlerAccessor.grabMouse(false);
+			fpCamera.orientation = Quat.axisAngle(Vec3.XP, 0.005 * deltaY).mul(fpCamera.orientation);
+			fpCamera.orientation = Quat.axisAngle(Vec3.YP, 0.005 * deltaX).mul(fpCamera.orientation);
+		} else {
+			this.client.mouseHandler.releaseMouse();
+		}
 	}
 
 	@Override
@@ -102,37 +132,72 @@ public abstract class HawkScreen3d extends HawkScreen {
 	}
 
 	public void rotateCamera(Vec2 horiz) {
-		this.camera.yaw.target = this.camera.yaw.target + horiz.x * 0.005;
-		var desiredPitch = this.camera.pitch.target + horiz.y * 0.005;
-		var actualPitch = Mth.clamp(desiredPitch, -Math.PI / 2, Math.PI / 2);
-		this.camera.pitch.target = actualPitch;
+		if (this.camera instanceof OrbitCamera orbitCam) {
+			orbitCam.yaw.target = orbitCam.yaw.target + horiz.x * 0.005;
+			var desiredPitch = orbitCam.pitch.target + horiz.y * 0.005;
+			var actualPitch = Mth.clamp(desiredPitch, -Math.PI / 2, Math.PI / 2);
+			orbitCam.pitch.target = actualPitch;
+		} else if (this.camera instanceof FpCamera fpCamera) {
+			fpCamera.orientation = Quat.axisAngle(Vec3.ZN, 0.01 * horiz.x).mul(fpCamera.orientation);
+		}
 	}
 
 	public void moveCamera(Vec2 horiz, double vert, boolean invert) {
-		final var dragScale = this.camera.scale.current * (this.camera.metersPerUnit / 1e12) * 0.0035;
+		if (this.camera instanceof OrbitCamera orbitCam) {
+			final var dragScale = orbitCam.scale.current * (orbitCam.metersPerUnit / 1e12) * 0.0035;
 
-		horiz = invert && this.camera.pitch.current < 0 ? horiz.withY(-horiz.y) : horiz;
-		final var offset = new Vec3(horiz.x, 0, horiz.y)
-				.rotateY(-this.camera.yaw.current)
-				.add(0, vert, 0).mul(dragScale);
-		if (offset.length() > 0) {
-			this.camera.focus.target = this.camera.focus.target.add(offset);
-			onMoved(offset);
+			horiz = invert && orbitCam.pitch.current < 0 ? horiz.withY(-horiz.y) : horiz;
+			final var offset = new Vec3(horiz.x, 0, horiz.y)
+					.rotateY(-orbitCam.yaw.current)
+					.add(0, vert, 0).mul(dragScale);
+			if (offset.length() > 0) {
+				orbitCam.focus.target = orbitCam.focus.target.add(offset);
+				onMoved(offset);
+			}
+		} else if (this.camera instanceof FpCamera fpCamera) {
+			Vec3 offset = new Vec3(-horiz.x, -vert, -horiz.y);
+			offset = fpCamera.orientation.inverse().transform(offset);
+			offset = offset.mul(fpCamera.speed.current);
+			// final var rightDir = fpCamera.orientation.transform(Vec3.XP);
+			// final var upDir = fpCamera.orientation.transform(Vec3.YP);
+			// final var forwardDir = fpCamera.orientation.transform(Vec3.ZN);
+			// final var offset =
+			// rightDir.mul(horiz.x).add(upDir.mul(vert)).add(forwardDir.mul(horiz.y)).mul(100);
+			if (offset.length() > 0) {
+				fpCamera.pos.target = fpCamera.pos.target.add(offset);
+				// fpCamera.pos.set(fpCamera.pos.current.add(offset));
+				onMoved(offset);
+			}
 		}
 	}
 
 	@Override
 	public boolean mouseScrolled(Vec2 mousePos, double scrollDelta) {
-		final var prevTarget = this.camera.scale.target;
-		final var currentZoomPercentage = Mth.inverseLerp(prevTarget, this.scrollMin, this.scrollMax);
-		final var scrollSpeed = Mth.lerp(currentZoomPercentage, 1.05, 1.2);
-		if (scrollDelta > 0) {
-			// zoom out
-			this.camera.scale.target = Math.max(prevTarget / scrollSpeed, this.scrollMin);
-			return true;
-		} else if (scrollDelta < 0) {
-			// zoom in
-			this.camera.scale.target = Math.min(prevTarget * scrollSpeed, this.scrollMax);
+		if (this.camera instanceof OrbitCamera orbitCam) {
+			final var prevTarget = orbitCam.scale.target;
+			final var currentZoomPercentage = Mth.inverseLerp(prevTarget, this.scrollMin, this.scrollMax);
+			final var scrollSpeed = Mth.lerp(currentZoomPercentage, 1.05, 1.2);
+			if (scrollDelta > 0) {
+				// zoom out
+				orbitCam.scale.target = Math.max(prevTarget / scrollSpeed, this.scrollMin);
+				return true;
+			} else if (scrollDelta < 0) {
+				// zoom in
+				orbitCam.scale.target = Math.min(prevTarget * scrollSpeed, this.scrollMax);
+				return true;
+			}
+		} else if (this.camera instanceof FpCamera fpCamera) {
+			// final var prevTarget = fpCamera.speed.target;
+			// final var currentZoomPercentage = Mth.inverseLerp(prevTarget, this.scrollMin,
+			// this.scrollMax);
+			// final var scrollSpeed = Mth.lerp(currentZoomPercentage, 1.05, 1.2);
+			final var scrollSpeed = 1.06;
+			if (scrollDelta > 0) {
+				fpCamera.speed.target *= scrollSpeed;
+			} else if (scrollDelta < 0) {
+				fpCamera.speed.target /= scrollSpeed;
+			}
+			fpCamera.speed.target = Mth.clamp(fpCamera.speed.target, 1e-8, 1e6);
 			return true;
 		}
 		return false;
@@ -185,6 +250,26 @@ public abstract class HawkScreen3d extends HawkScreen {
 			}
 		}
 
+		if (keypress.keyCode == GLFW.GLFW_KEY_TAB) {
+			final var oldCamera = this.camera;
+			if (this.camera instanceof OrbitCamera) {
+				final var newCamera = new FpCamera(this.camera.metersPerUnit);
+				newCamera.pos.set(oldCamera.cached(new CameraConfig(1, true, 1, true)).pos.xyz());
+				newCamera.nearPlane = oldCamera.nearPlane;
+				newCamera.farPlane = oldCamera.farPlane;
+				newCamera.fovDeg = oldCamera.fovDeg;
+				this.camera = newCamera;
+			} else {
+				final var newCamera = new OrbitCamera(this.camera.metersPerUnit);
+				newCamera.focus.set(oldCamera.cached(new CameraConfig(1, true, 1, true)).pos.xyz());
+				newCamera.nearPlane = oldCamera.nearPlane;
+				newCamera.farPlane = oldCamera.farPlane;
+				newCamera.fovDeg = oldCamera.fovDeg;
+				this.camera = newCamera;
+			}
+			return true;
+		}
+
 		// TODO: key mappings
 		if (keypress.keyCode == GLFW.GLFW_KEY_W) {
 			this.isForwardPressed = true;
@@ -215,7 +300,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 		return false;
 	}
 
-	private void renderCameraFrustum(OrbitCamera.Cached camera, CachedCamera.FrustumCorners frustum, ColorRgba color) {
+	private void renderCameraFrustum(CachedCamera camera, CachedCamera.FrustumCorners frustum, ColorRgba color) {
 		if (frustum == null)
 			return;
 
@@ -287,8 +372,8 @@ public abstract class HawkScreen3d extends HawkScreen {
 		forward += this.isBackwardPressed ? -speed : 0;
 		right += this.isLeftPressed ? speed : 0;
 		right += this.isRightPressed ? -speed : 0;
-		up += this.isUpPressed ? speed : 0;
-		up += this.isDownPressed ? -speed : 0;
+		up += this.isUpPressed ? -speed : 0;
+		up += this.isDownPressed ? speed : 0;
 		moveCamera(Vec2.from(right, forward), up, false);
 
 		double rotate = 0;
@@ -297,7 +382,7 @@ public abstract class HawkScreen3d extends HawkScreen {
 		rotateCamera(Vec2.from(rotate, 0));
 	}
 
-	public abstract OrbitCamera.Cached setupCamera(CameraConfig config, float partialTick);
+	public abstract CachedCamera setupCamera(CameraConfig config, float partialTick);
 
 	public void onMoved(Vec3 displacement) {
 		forEach3dLayer(layer -> layer.onMoved(displacement));
@@ -331,6 +416,14 @@ public abstract class HawkScreen3d extends HawkScreen {
 			renderCameraFrustum(debugCamera, layer.cullingFrustumPoints, ColorRgba.CYAN);
 		});
 		snapshot.restore();
+	}
+
+	@Override
+	public void onClose() {
+		super.onClose();
+		if (this.client.mouseHandler.isMouseGrabbed() && this.client.screen != null) {
+			this.client.mouseHandler.releaseMouse();
+		}
 	}
 
 }

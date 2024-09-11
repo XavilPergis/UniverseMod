@@ -11,7 +11,8 @@ public class GalaxyParameters {
 	public final double galaxyRadius;
 	public final double galaxyAge;
 
-	public final GalaxyRegionWeights.Field masks;
+	// M_sol pc^-3
+	public final GalaxyRegionWeights.Field stellarDensityField;
 
 	// star formation histories
 	public final ProbabilityDistribution coreSfh;
@@ -19,20 +20,15 @@ public class GalaxyParameters {
 	public final ProbabilityDistribution discSfh;
 	public final ProbabilityDistribution haloSfh;
 
-	// M_sol pc^-3
-	public final GalaxyRegionWeights stellarDensityWeights;
-
 	public GalaxyParameters(double galaxyRadius, double galaxyAge,
-			GalaxyRegionWeights.Field masks,
-			GalaxyRegionWeights stellarDensityWeights,
+			GalaxyRegionWeights.Field stellarDensityField,
 			ProbabilityDistribution coreSfh,
 			ProbabilityDistribution armsSfh,
 			ProbabilityDistribution discSfh,
 			ProbabilityDistribution haloSfh) {
 		this.galaxyRadius = galaxyRadius;
 		this.galaxyAge = galaxyAge;
-		this.masks = masks;
-		this.stellarDensityWeights = stellarDensityWeights;
+		this.stellarDensityField = stellarDensityField;
 		this.coreSfh = coreSfh;
 		this.armsSfh = armsSfh;
 		this.discSfh = discSfh;
@@ -73,8 +69,8 @@ public class GalaxyParameters {
 
 	public double sampleDensity(Vec3Access pos) {
 		final var tmp = new GalaxyRegionWeights();
-		this.masks.evaluate(pos, tmp);
-		return GalaxyRegionWeights.dot(this.stellarDensityWeights, tmp);
+		this.stellarDensityField.evaluate(pos, tmp);
+		return tmp.totalWeight();
 	}
 
 }

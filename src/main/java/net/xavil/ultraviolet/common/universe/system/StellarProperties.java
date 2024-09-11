@@ -9,6 +9,7 @@ import javax.annotation.Nullable;
 import net.minecraft.util.Mth;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.matrices.Vec2i;
 import net.xavil.ultraviolet.Mod;
 
 public final class StellarProperties {
@@ -20,9 +21,9 @@ public final class StellarProperties {
 	public double temperatureK;
 	public double phase;
 
-	private static final Grid GRID;
+	public static final Grid GRID;
 
-	static final class Track {
+	public static final class Track {
 		public final int length;
 		public final float[] age;
 		public final float[] mass;
@@ -50,7 +51,7 @@ public final class StellarProperties {
 		}
 	}
 
-	static final class Grid {
+	public static final class Grid {
 		// the metallicity value each top-level array index is associated with
 		public final float[] metallicities;
 		// the mass value each middle-level array index is associated with
@@ -72,6 +73,56 @@ public final class StellarProperties {
 			this.minInitialMass = initialMasses[0];
 			this.maxInitialMass = initialMasses[initialMasses.length - 1];
 		}
+
+		public static final class Corners {
+			public final int metallicityIndex, massIndex;
+			public final double metallicityDistance, massDistance;
+
+			public Corners(int metallicityIndex, int massIndex, double metallicityDistance, double massDistance) {
+				this.metallicityIndex = metallicityIndex;
+				this.massIndex = massIndex;
+				this.metallicityDistance = metallicityDistance;
+				this.massDistance = massDistance;
+			}
+		}
+
+		@Nullable
+		public Corners findSurroundingTracks(double metallicity, double initialMass) {
+			boolean inBounds = true;
+			inBounds &= metallicity >= this.minMetallicity && metallicity <= this.maxMetallicity;
+			inBounds &= initialMass >= this.minInitialMass && initialMass <= this.maxInitialMass;
+			if (!inBounds)
+				return null;
+
+			final var searchRes = new BinarySearchResultDouble();
+			final int metallicityIndex, massIndex;
+			final double metallicityDistance, massDistance;
+
+			binarySearch(searchRes, this.metallicities, metallicity);
+			if (searchRes.found) {
+				metallicityIndex = searchRes.index;
+				metallicityDistance = 0;
+			} else {
+				metallicityIndex = searchRes.index - 1;
+				final var hi = this.metallicities[searchRes.index];
+				final var lo = this.metallicities[searchRes.index - 1];
+				metallicityDistance = Mth.inverseLerp(metallicity, lo, hi);
+			}
+
+			binarySearch(searchRes, this.initialMasses, initialMass);
+			if (searchRes.found) {
+				massIndex = searchRes.index;
+				massDistance = 0;
+			} else {
+				massIndex = searchRes.index - 1;
+				final var hi = this.initialMasses[searchRes.index];
+				final var lo = this.initialMasses[searchRes.index - 1];
+				massDistance = Mth.inverseLerp(initialMass, lo, hi);
+			}
+
+			return new Corners(metallicityIndex, massIndex, metallicityDistance, massDistance);
+		}
+
 	}
 
 	@Nullable

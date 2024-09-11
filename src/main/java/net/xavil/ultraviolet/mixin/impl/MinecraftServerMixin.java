@@ -75,6 +75,11 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 		this.universe.prepare();
 	}
 
+	@Inject(method = "createLevels", at = @At("TAIL"))
+	private void loadSavedDynamicLevels(ChunkProgressListener listener, CallbackInfo info) {
+		this.dynamicDimensionManager.loadSavedDynamicLevels();
+	}
+
 	@Override
 	public DynamicDimensionManager ultraviolet_getDimensionManager() {
 		return this.dynamicDimensionManager;
@@ -98,14 +103,13 @@ public abstract class MinecraftServerMixin implements MinecraftServerAccessor {
 		LevelAccessor.setWorldType(overworld, new WorldType.SystemNode(startingId));
 	}
 
-	@Inject(method = "getLevel", at = @At("HEAD"), cancellable = true)
+	@Inject(method = "getLevel", at = @At("HEAD"))
 	private void loadDynamicLevelIfNeeded(ResourceKey<Level> dimension, CallbackInfoReturnable<ServerLevel> info) {
 		if (!ultraviolet_getLevels().containsKey(dimension)) {
-			// NOTE: this calls into DynamicDimensionManager, which will insder the new
-			// level into the server's level list, but to be ase, we will also do it here.
-			final var level = Mod.loadDynamicLevel((MinecraftServer) (Object) this, dimension);
+			final var level = this.dynamicDimensionManager.loadDynamicLevel(dimension);
+			// no need to return here, since we put the new level into the server's level
+			// list, which is queried after this inject handler is finished.
 			ultraviolet_getLevels().put(dimension, level);
-			info.setReturnValue(level);
 		}
 	}
 }

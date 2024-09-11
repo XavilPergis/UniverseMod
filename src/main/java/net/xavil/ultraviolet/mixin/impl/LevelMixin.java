@@ -43,10 +43,17 @@ public abstract class LevelMixin implements LevelAccessor {
 			// NOTE: all worlds posses a ticket that keeps themselves loaded.
 			try (final var disposer = Disposable.scope()) {
 				final var sysId = world.id.system();
-				final var galaxy = universe.loadGalaxy(disposer, sysId.universeSector()).unwrap();
-				this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, sysId.galaxySector());
-				galaxy.sectorManager.forceLoad(this.systemTicket);
-				Mod.LOGGER.info("loaded system ticket for Level with id of {}", world.id);
+				// we can't unwrap here, in the case that saved level location no longer refers
+				// to a galaxy that exists.
+				final var galaxy = universe.loadGalaxy(disposer, sysId.universeSector()).unwrapOrNull();
+				if (galaxy != null) {
+					this.systemTicket = galaxy.sectorManager.createSystemTicket(this.disposer, sysId.galaxySector());
+					galaxy.sectorManager.forceLoad(this.systemTicket);
+					Mod.LOGGER.info("loaded system ticket for Level with id of {}", world.id);
+				} else {
+					Mod.LOGGER.error("Level {} has system ID of {}, but that system's galaxy does not exist.",
+							world.id, sysId);
+				}
 			}
 		}
 		if (self instanceof ServerLevel serverLevel) {

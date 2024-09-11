@@ -32,6 +32,12 @@ public final class TransformStack {
 		this.current = mat;
 	}
 
+	public TransformStack(Mat4Access matrix) {
+		final var mat = new Mat4.Mutable().loadFrom(matrix);
+		this.stack.push(mat);
+		this.current = mat;
+	}
+
 	// NOTE: "prepend" and "append" refer to the order that transformations happen
 	// in, rather than the order the matricies are multiplied in. `append(A);
 	// append(B);` applies A first, then B second, as if `append(B*A)` were used
@@ -83,6 +89,26 @@ public final class TransformStack {
 		this.current.appendScale(scale);
 		this.cached = null;
 		return this;
+	}
+
+	public TransformStack prependScale(Vec3Access scale) {
+		this.current.prependScale(scale);
+		this.cached = null;
+		return this;
+	}
+
+	public TransformStack appendScale(Vec3Access scale) {
+		this.current.appendScale(scale);
+		this.cached = null;
+		return this;
+	}
+
+	public Vec3 applyTransform(double x, double y, double z) {
+		return VecMath.transformPerspective(this.current, x, y, z, 1);
+	}
+
+	public Vec3 applyTransform(double x, double y, double z, double w) {
+		return VecMath.transformPerspective(this.current, x, y, z, w);
 	}
 
 	public Vec3 applyTransform(Vec3Access vec, double w) {

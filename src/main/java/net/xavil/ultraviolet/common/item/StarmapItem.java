@@ -10,8 +10,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Maybe;
 import net.xavil.ultraviolet.common.universe.WorldType;
-import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
-import net.xavil.ultraviolet.common.universe.station.StationLocation;
+import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.mixin.accessor.LevelAccessor;
 import net.xavil.ultraviolet.networking.s2c.ClientboundOpenStarmapPacket;
 
@@ -26,17 +25,15 @@ public class StarmapItem extends Item {
 		return true;
 	}
 
-	private Maybe<SystemNodeId> getSystemToOpen(ServerLevel level) {
+	private Maybe<SystemId> getSystemToOpen(ServerLevel level) {
 		final var location = LevelAccessor.getWorldType(level);
 		final var universe = LevelAccessor.getUniverse(level);
 		if (location instanceof WorldType.SystemNode world) {
-			return Maybe.some(world.id);
+			return Maybe.some(world.id.system());
 		} else if (location instanceof WorldType.Station station) {
 			return universe.getStation(station.id).flatMap(s -> {
-				if (s.getLocation() instanceof StationLocation.OrbitingCelestialBody orbiting) {
-					return Maybe.some(orbiting.id);
-				}
-				return Maybe.none();
+				// TODO: find closest node and focus that one.
+				return Maybe.some(s.getSystemIn());
 			});
 		}
 		return Maybe.none();
@@ -46,7 +43,8 @@ public class StarmapItem extends Item {
 	public InteractionResultHolder<ItemStack> use(Level level, Player player, InteractionHand interactionHand) {
 		if (player instanceof ServerPlayer serverPlayer && level instanceof ServerLevel serverLevel) {
 			final var universe = LevelAccessor.getUniverse(level);
-			final var toOpen = getSystemToOpen(serverLevel).unwrapOr(universe.getStartingSystemGenerator().getStartingSystemId());
+			final var startingId = universe.getStartingSystemGenerator().getStartingSystemId().system();
+			final var toOpen = getSystemToOpen(serverLevel).unwrapOr(startingId);
 			serverPlayer.connection.send(new ClientboundOpenStarmapPacket(toOpen));
 		}
 		return InteractionResultHolder.success(player.getItemInHand(interactionHand));

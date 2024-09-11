@@ -8,9 +8,12 @@ import net.minecraft.util.profiling.ProfilerFiller;
 import net.xavil.hawklib.Assert;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.Maybe;
+import net.xavil.hawklib.Units;
 import net.xavil.hawklib.Util;
+import net.xavil.ultraviolet.Mod;
 import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.galaxy.SectorTicket;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.hawklib.collections.interfaces.MutableList;
@@ -22,10 +25,10 @@ import net.xavil.hawklib.math.matrices.Vec3i;
 public final class UniverseSectorManager {
 
 	public final class SectorTicketTracker {
-		public final UniverseSectorTicket loanedTicket;
+		public final UniverseSectorTicket<?> loanedTicket;
 		private Maybe<UniverseSectorTicketInfo> prevInfo = Maybe.none();
 
-		public SectorTicketTracker(UniverseSectorTicket loanedTicket) {
+		public SectorTicketTracker(UniverseSectorTicket<?> loanedTicket) {
 			this.loanedTicket = loanedTicket;
 		}
 
@@ -149,11 +152,11 @@ public final class UniverseSectorManager {
 		this.universe = universe;
 	}
 
-	public void forceLoad(UniverseSectorTicket sectorTicket) {
+	public void forceLoad(UniverseSectorTicket<?> sectorTicket) {
 		forceLoad(InactiveProfiler.INSTANCE, sectorTicket);
 	}
 
-	public void forceLoad(ProfilerFiller profiler, UniverseSectorTicket sectorTicket) {
+	public void forceLoad(ProfilerFiller profiler, UniverseSectorTicket<?> sectorTicket) {
 		sectorTicket.info.affectedSectors().forEach(pos -> this.sectorMap.get(pos).ifSome(slot -> {
 			if (slot.waitingFuture != null)
 				slot.waitingFuture.join();
@@ -166,8 +169,10 @@ public final class UniverseSectorManager {
 	}
 
 	public Maybe<Galaxy> forceLoad(ProfilerFiller profiler, GalaxyTicket galaxyTicket) {
-		if (galaxyTicket.id == null)
+		if (galaxyTicket.id == null) {
+			Mod.LOGGER.warn("cannot force-load null ticket");
 			return Maybe.none();
+		}
 		final var galaxySlot = this.galaxyMap.get(galaxyTicket.id).unwrap();
 		if (galaxySlot.galaxy != null)
 			return Maybe.some(galaxySlot.galaxy);
@@ -179,6 +184,8 @@ public final class UniverseSectorManager {
 			Assert.isTrue(sector.isComplete());
 		}
 		if (sector.initialElements.size() <= galaxyTicket.id.id()) {
+			Mod.LOGGER.warn("ticket wants to load galaxy {}, but there were only {} elements in the sector.",
+					galaxyTicket.id, sector.initialElements.size());
 			return Maybe.none();
 		}
 		final var galaxy = galaxySlot.waitingFuture.join();
@@ -268,7 +275,8 @@ public final class UniverseSectorManager {
 
 	private Galaxy generateGalaxy(UniverseSectorId id) {
 		final var slot = this.sectorMap.get(id.sectorPos()).unwrap();
-		return this.universe.generateGalaxy(id, slot.sector.lookupInitial(id.id()).info());
+		final var init = slot.sector.lookupInitial(id.id());
+		return this.universe.generateGalaxy(id, init.pos(), init.info());
 	}
 
 	public boolean isLoaded(Vec3i pos) {
@@ -280,18 +288,20 @@ public final class UniverseSectorManager {
 		return slot.isNone() ? false : slot.unwrap().sector.isComplete();
 	}
 
-	public UniverseSectorTicket createSectorTicket(Disposable.Multi disposer, UniverseSectorTicketInfo info) {
+	public <T extends UniverseSectorTicketInfo> UniverseSectorTicket<T> createSectorTicket(Disposable.Multi disposer,
+			T info) {
 		return disposer.attach(createSectorTicketManual(info));
 	}
 
-	public UniverseSectorTicket createSectorTicketManual(UniverseSectorTicketInfo info) {
-		final var ticket = new UniverseSectorTicket(this, info.copy());
+	@SuppressWarnings("unchecked")
+	public <T extends UniverseSectorTicketInfo> UniverseSectorTicket<T> createSectorTicketManual(T info) {
+		final var ticket = new UniverseSectorTicket<>(this, info.copy());
 		this.trackedTickets.push(new SectorTicketTracker(ticket));
 		applyTickets(InactiveProfiler.INSTANCE);
-		return ticket;
+		return (UniverseSectorTicket<T>) ticket;
 	}
 
-	public void removeSectorTicket(UniverseSectorTicket ticket) {
+	public void removeSectorTicket(UniverseSectorTicket<?> ticket) {
 		this.trackedTickets.retain(tracked -> tracked.loanedTicket != ticket);
 		this.removedTickets.push(ticket.info);
 		applyTickets(InactiveProfiler.INSTANCE);
@@ -331,9 +341,15 @@ public final class UniverseSectorManager {
 		return this.galaxyMap.values().map(slot -> slot.galaxy).filterNull();
 	}
 
-	public void enumerate(SectorTicket<?> ticket, Consumer<UniverseSector> sectorConsumer) {
-		ticket.info.enumerateAllAffectedSectors(pos -> this.sectorMap.get(pos.rootCoords())
+	public void enumerate(UniverseSectorTicket<?> ticket, Consumer<UniverseSector> sectorConsumer) {
+		ticket.info.enumerateAffectedSectors(pos -> this.sectorMap.get(pos)
 				.ifSome(slot -> sectorConsumer.accept(slot.sector)));
+	}
+
+	public static Vec3i getSectorForPos(UniversePosition position) {
+		return position
+				.relativeTo(UniversePosition.ZERO, Units.Zu_PER_u / Universe.VOLUME_LENGTH_ZM)
+				.floor();
 	}
 
 }

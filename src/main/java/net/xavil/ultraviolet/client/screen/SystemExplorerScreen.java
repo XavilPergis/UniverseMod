@@ -4,10 +4,11 @@ import javax.annotation.Nullable;
 
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.TranslatableComponent;
-import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
-import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
+import net.xavil.hawklib.client.screen.HawkScreen3d;
+import net.xavil.hawklib.math.ColorRgba;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGalaxy;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGrid;
@@ -17,7 +18,6 @@ import net.xavil.ultraviolet.common.universe.galaxy.Galaxy;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
-import net.xavil.hawklib.math.ColorRgba;
 
 public class SystemExplorerScreen extends HawkScreen3d {
 
@@ -27,8 +27,8 @@ public class SystemExplorerScreen extends HawkScreen3d {
 
 		this.layers.push(new ScreenLayerBackground(this, ColorRgba.BLACK));
 		this.layers.push(new ScreenLayerGrid(this));
-		this.layers.push(new ScreenLayerGalaxy(this, galaxy, system.pos));
-		this.layers.push(new ScreenLayerStars(this, galaxy, system.pos));
+		this.layers.push(new ScreenLayerGalaxy(this, galaxy, system.pos()));
+		this.layers.push(new ScreenLayerStars(this, galaxy, system.position));
 		this.layers.push(new ScreenLayerSystem(this, galaxy, systemId.galaxySector()));
 	}
 
@@ -37,7 +37,7 @@ public class SystemExplorerScreen extends HawkScreen3d {
 	}
 
 	@Override
-	public Cached setupCamera(CameraConfig config, float partialTick) {
+	public CachedCamera setupCamera(CameraConfig config, float partialTick) {
 		return this.camera.cached(config);
 	}
 

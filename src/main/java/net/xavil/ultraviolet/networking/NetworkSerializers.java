@@ -15,11 +15,13 @@ import net.minecraft.nbt.Tag;
 import net.minecraft.nbt.TagTypes;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
+import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.matrices.Vec3i;
 import net.xavil.ultraviolet.common.universe.WorldType;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
 import net.xavil.ultraviolet.common.universe.id.SystemId;
 import net.xavil.ultraviolet.common.universe.id.SystemNodeId;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 
 public class NetworkSerializers {
@@ -82,6 +84,25 @@ public class NetworkSerializers {
 			buf.writeInt(value.x);
 			buf.writeInt(value.y);
 			buf.writeInt(value.z);
+		}
+	};
+
+	public static final NetworkSerializer<Quat> QUAT = new NetworkSerializer<Quat>() {
+		@Override
+		@Nullable
+		public Quat read(FriendlyByteBuf buf) {
+			final var w = buf.readDouble();
+			final var i = buf.readDouble();
+			final var j = buf.readDouble();
+			final var k = buf.readDouble();
+			return new Quat(w, i, j, k);
+		}
+
+		public void write(FriendlyByteBuf buf, Quat value) {
+			buf.writeDouble(value.w);
+			buf.writeDouble(value.i);
+			buf.writeDouble(value.j);
+			buf.writeDouble(value.k);
 		}
 	};
 
@@ -219,6 +240,30 @@ public class NetworkSerializers {
 			final var system = SYSTEM_ID.read(buf);
 			final var nodeId = buf.readInt();
 			return new SystemNodeId(system, nodeId);
+		}
+	};
+
+	public static final NetworkSerializer<UniversePosition> UNIVERSE_POSITION = new NetworkSerializer<UniversePosition>() {
+		@Override
+		public void write(FriendlyByteBuf buf, UniversePosition value) {
+			buf.writeLong(value.xh);
+			buf.writeLong(value.xl);
+			buf.writeLong(value.yh);
+			buf.writeLong(value.yl);
+			buf.writeLong(value.zh);
+			buf.writeLong(value.zl);
+		}
+
+		@Override
+		@Nullable
+		public UniversePosition read(FriendlyByteBuf buf) {
+			final long xh = buf.readLong();
+			final long xl = buf.readLong();
+			final long yh = buf.readLong();
+			final long yl = buf.readLong();
+			final long zh = buf.readLong();
+			final long zl = buf.readLong();
+			return new UniversePosition(xh, xl, yh, yl, zh, zl);
 		}
 	};
 

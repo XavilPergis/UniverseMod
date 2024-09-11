@@ -95,6 +95,19 @@ public final class Mat4 implements Hashable, Mat4Access {
 				0.0, 0.0, m32, 0.0);
 	}
 
+	public static Mat4 perspectiveProjectionReverseZ(double fovRad, double aspectRatio, double zNear) {
+		final var f = 1.0 / Math.tan(fovRad / 2.0);
+		final var m00 = f / aspectRatio;
+		final var m11 = f;
+		final var m32 = -1;
+		final var m23 = zNear;
+		return new Mat4(
+				m00, 0.0, 0.0, 0.0,
+				0.0, m11, 0.0, 0.0,
+				0.0, 0.0, 0.0, m23,
+				0.0, 0.0, m32, 0.0);
+	}
+
 	public static Mat4 orthographicProjection(double minX, double maxX,
 			double minY, double maxY,
 			double minZ, double maxZ) {
@@ -257,6 +270,28 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r1c0 = s * a.r1c0(); r.r1c1 = s * a.r1c1(); r.r1c2 = s * a.r1c2(); r.r1c3 = a.r1c3();
 		r.r2c0 = s * a.r2c0(); r.r2c1 = s * a.r2c1(); r.r2c2 = s * a.r2c2(); r.r2c3 = a.r2c3();
 		r.r3c0 = s * a.r3c0(); r.r3c1 = s * a.r3c1(); r.r3c2 = s * a.r3c2(); r.r3c3 = a.r3c3();
+		return r;
+		// @formatter:on
+	}
+
+	// {@code mul(r, a, diagonal(b))}
+	public static Mat4.Mutable mulScale(Mat4.Mutable r, Mat4Access a, Vec3Access b) {
+		// @formatter:off
+		r.r0c0 = a.r0c0() * b.x(); r.r0c1 = a.r0c1() * b.y(); r.r0c2 = a.r0c2() * b.z(); r.r0c3 = a.r0c3();
+		r.r1c0 = a.r1c0() * b.x(); r.r1c1 = a.r1c1() * b.y(); r.r1c2 = a.r1c2() * b.z(); r.r1c3 = a.r1c3();
+		r.r2c0 = a.r2c0() * b.x(); r.r2c1 = a.r2c1() * b.y(); r.r2c2 = a.r2c2() * b.z(); r.r2c3 = a.r2c3();
+		r.r3c0 = a.r3c0() * b.x(); r.r3c1 = a.r3c1() * b.y(); r.r3c2 = a.r3c2() * b.z(); r.r3c3 = a.r3c3();
+		return r;
+		// @formatter:on
+	}
+
+	// {@code mul(r, diagonal(a), b)}
+	public static Mat4.Mutable mulScale(Mat4.Mutable r, Vec3Access a, Mat4Access b) {
+		// @formatter:off
+		r.r0c0 = a.x() * b.r0c0(); r.r0c1 = a.x() * b.r0c1(); r.r0c2 = a.x() * b.r0c2(); r.r0c3 = a.x() * b.r0c3();
+		r.r1c0 = a.y() * b.r1c0(); r.r1c1 = a.y() * b.r1c1(); r.r1c2 = a.y() * b.r1c2(); r.r1c3 = a.y() * b.r1c3();
+		r.r2c0 = a.z() * b.r2c0(); r.r2c1 = a.z() * b.r2c1(); r.r2c2 = a.z() * b.r2c2(); r.r2c3 = a.z() * b.r2c3();
+		r.r3c0 = b.r3c0();         r.r3c1 = b.r3c1();         r.r3c2 = b.r3c2();         r.r3c3 = b.r3c3();
 		return r;
 		// @formatter:on
 	}
@@ -502,6 +537,17 @@ public final class Mat4 implements Hashable, Mat4Access {
 		r.r2c2 = (far + near) / (near - far);
 		r.r3c2 = -1.0;
 		r.r2c3 = 2.0 * far * near / (near - far);
+		return r;
+	}
+
+	public static Mat4.Mutable setPerspectiveProjectionReverseZ(Mat4.Mutable r, double fovRad, double aspectRatio,
+			double zNear) {
+		setScale(r, Vec4.ZERO);
+		final var f = 1.0 / Math.tan(fovRad / 2.0);
+		r.r0c0 = f / aspectRatio;
+		r.r1c1 = f;
+		r.r3c2 = -1;
+		r.r2c3 = zNear;
 		return r;
 	}
 
@@ -781,6 +827,14 @@ public final class Mat4 implements Hashable, Mat4Access {
 			return Mat4.mulScale(this, scale, this);
 		}
 
+		public Mutable prependScale(Vec3Access scale) {
+			return Mat4.mulScale(this, this, scale);
+		}
+
+		public Mutable appendScale(Vec3Access scale) {
+			return Mat4.mulScale(this, scale, this);
+		}
+
 		public boolean invert() {
 			return Mat4.invert(this, this);
 		}
@@ -838,6 +892,10 @@ public final class Mat4 implements Hashable, Mat4Access {
 
 		public Mutable loadPerspectiveProjection(double fovRad, double aspectRatio, double near, double far) {
 			return setPerspectiveProjection(this, fovRad, aspectRatio, near, far);
+		}
+
+		public Mutable loadPerspectiveProjectionReverseZ(double fovRad, double aspectRatio, double near) {
+			return setPerspectiveProjectionReverseZ(this, fovRad, aspectRatio, near);
 		}
 
 		@Override

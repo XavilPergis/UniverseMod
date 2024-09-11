@@ -1,5 +1,6 @@
 package net.xavil.hawklib.client.flexible.vertex;
 
+import java.lang.ref.WeakReference;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.time.Duration;
@@ -20,6 +21,8 @@ import net.xavil.ultraviolet.Mod;
 
 // growable vertex builder that emits directly into a staging buffer.
 public final class VertexBuilder implements Disposable {
+
+	private static final Vector<WeakReference<VertexBuilder>> ALL_VERTEX_BUILDERS = new Vector<>();
 
 	public static final int FRAMES_IN_FLIGHT = 3;
 
@@ -83,7 +86,8 @@ public final class VertexBuilder implements Disposable {
 			this.perFrameData[i] = new PerFrameData();
 		}
 		createStagingBuffer(initialCapacityBytes);
-		advanceFrame();
+		swapBuffers();
+		ALL_VERTEX_BUILDERS.push(new WeakReference<>(this));
 	}
 
 	@Override
@@ -246,7 +250,15 @@ public final class VertexBuilder implements Disposable {
 		return buf;
 	}
 
-	public void advanceFrame() {
+	public static void advanceFrame() {
+		for (final var ref : ALL_VERTEX_BUILDERS.iterable()) {
+			final var builder = ref.get();
+			builder.swapBuffers();
+		}
+		ALL_VERTEX_BUILDERS.retain(ref -> !ref.refersTo(null));
+	}
+
+	public void swapBuffers() {
 		this.currentOffset = this.startOffset = 0;
 		this.currentPfd = this.perFrameData[this.nextFrame];
 		this.buffer = this.currentPfd.stagingBufferPointer;

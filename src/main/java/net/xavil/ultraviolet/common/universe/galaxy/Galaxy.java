@@ -7,11 +7,13 @@ import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.collections.impl.Vector;
 import net.xavil.ultraviolet.common.universe.GalaxyParameters;
 import net.xavil.ultraviolet.common.universe.id.GalaxySectorId;
+import net.xavil.ultraviolet.common.universe.id.UniversePosition;
 import net.xavil.ultraviolet.common.universe.id.UniverseSectorId;
 import net.xavil.ultraviolet.common.universe.system.CelestialNode;
 import net.xavil.ultraviolet.common.universe.system.StarSystem;
 import net.xavil.ultraviolet.common.universe.universe.Universe;
 import net.xavil.hawklib.math.Interval;
+import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.matrices.Vec3;
 
 public class Galaxy {
@@ -21,13 +23,15 @@ public class Galaxy {
 	public static class Info {
 		public final GalaxyType type;
 		public final long seed;
+		public final Quat orientation;
 		public final double ageMyr;
-		public final double radius;
+		public final double radius; // Tm
 		public final double irregularity;
 
-		public Info(GalaxyType type, long seed, double ageMyr, double radius, double irregularity) {
+		public Info(GalaxyType type, long seed, Quat orientation, double ageMyr, double radius, double irregularity) {
 			this.type = type;
 			this.seed = seed;
+			this.orientation = orientation;
 			this.ageMyr = ageMyr;
 			this.radius = radius;
 			this.irregularity = irregularity;
@@ -37,7 +41,8 @@ public class Galaxy {
 			return 0.05;
 		}
 
-		public GalaxyParameters createGalaxyParameters(SplittableRng rng) {
+		public GalaxyParameters createGalaxyParameters() {
+			final var rng = new SplittableRng(this.seed);
 			return this.type.createGalaxyParameters(this, rng);
 		}
 	}
@@ -46,32 +51,38 @@ public class Galaxy {
 	public final GalaxyParameters parameters;
 	public final Info info;
 	public final UniverseSectorId galaxyId;
+	public final UniversePosition position;
 
 	private final Vector<GalaxyGenerationLayer> generationLayers = new Vector<>();
 
 	public final SectorManager sectorManager = new SectorManager(this);
 
-	public Galaxy(Universe parentUniverse, UniverseSectorId galaxyId, Info info, GalaxyParameters parameters) {
+	public Galaxy(Universe parentUniverse, UniverseSectorId galaxyId, UniversePosition position, Info info,
+			GalaxyParameters parameters) {
 		this.parentUniverse = parentUniverse;
 		this.galaxyId = galaxyId;
+		this.position = position;
 		this.info = info;
 		this.parameters = parameters;
 
 		this.parentUniverse.addBaseGenerationLayers(this);
 	}
 
+	// don't add generation layers after the generation layers have been used to
+	// generate stars.
 	public void addGenerationLayer(GalaxyGenerationLayer layer) {
-		// for (final var other : this.generationLayers.iterable()) {
-		// if (other.layerId == layer.layerId) {
-		// Mod.LOGGER.warn("tried to insert a galaxy generation layer with id {}, but it
-		// was already inserted!",
-		// layer.layerId);
-		// return;
-		// }
-		// }
-		layer.layerId = this.generationLayers.size();
 		this.generationLayers.reserveExact(1);
-		this.generationLayers.push(layer);
+		if (layer instanceof StartingSystemGalaxyGenerationLayer) {
+			this.generationLayers.insert(0, layer);
+			layer.layerId = 0;
+			for (int i = 1; i < this.generationLayers.size(); ++i) {
+				final var otherLayer = this.generationLayers.get(i);
+				otherLayer.layerId = i;
+			}
+		} else {
+			layer.layerId = this.generationLayers.size();
+			this.generationLayers.push(layer);
+		}
 	}
 
 	public void tick(ProfilerFiller profiler) {

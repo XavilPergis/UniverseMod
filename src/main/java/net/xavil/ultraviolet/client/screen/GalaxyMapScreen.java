@@ -5,9 +5,9 @@ import net.minecraft.network.chat.TranslatableComponent;
 import net.xavil.hawklib.Disposable;
 import net.xavil.hawklib.client.screen.HawkScreen3d;
 import net.xavil.ultraviolet.Mod;
+import net.xavil.hawklib.client.camera.CachedCamera;
 import net.xavil.hawklib.client.camera.CameraConfig;
 import net.xavil.hawklib.client.camera.OrbitCamera;
-import net.xavil.hawklib.client.camera.OrbitCamera.Cached;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerBackground;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGalaxy;
 import net.xavil.ultraviolet.client.screen.layer.ScreenLayerGrid;
@@ -45,15 +45,17 @@ public class GalaxyMapScreen extends HawkScreen3d {
 				Mod.LOGGER.error("Tried to open starmap to nonexistent id {}", systemToFocus);
 			}
 
-			this.camera.focus.set(pos);
-			this.layers.push(new ScreenLayerStars(this, galaxy, Vec3.ZERO));
+			if (this.camera instanceof OrbitCamera orbitCam) {
+				orbitCam.focus.set(pos);
+			}
+			this.layers.push(new ScreenLayerStars(this, galaxy, galaxy.position));
 		}
 
 		this.layers.push(new ScreenLayerSystemInfo(this, galaxy));
 	}
 
 	@Override
-	public Cached setupCamera(CameraConfig config, float partialTick) {
+	public CachedCamera setupCamera(CameraConfig config, float partialTick) {
 		return this.camera.cached(config);
 	}
 

@@ -12,6 +12,7 @@ import net.xavil.hawklib.Constants;
 import net.xavil.hawklib.SplittableRng;
 import net.xavil.hawklib.Units;
 import net.xavil.hawklib.collections.interfaces.MutableMap;
+import net.xavil.hawklib.math.Quat;
 import net.xavil.hawklib.math.matrices.Mat4;
 import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.hawklib.math.matrices.VecMath;
@@ -107,6 +108,7 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 			temp.systemAgeMyr = 1;
 
 			temp.name = readString(buf);
+			temp.metallicity = 1.42857e-02;
 			// spectral classification - unused for now
 			readString(buf);
 
@@ -153,9 +155,10 @@ public class StarCatalogGalaxyGenerationLayer extends GalaxyGenerationLayer {
 
 		final var rng = new SplittableRng(elem.systemSeed);
 		final var rootNode = node.generateSystem(rng.uniformLong("seed"), this.galaxy, sector, id, elem);
+		final var orientation = Quat.randomUnit(rng.rng("orientation"));
 
 		// TODO: assign system name
-		return new StarSystem("idk", this.galaxy, elem, rootNode, 1.42857e-02);
+		return new StarSystem(id, this.galaxy, elem, rootNode, orientation, "idk");
 	}
 
 }

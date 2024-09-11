@@ -42,7 +42,7 @@ public final class StarRenderManager implements Disposable {
 	 * of floating origin, so as to minimize floating point wobble.
 	 */
 	private Vec3 starSnapshotPosition = null;
-	public double floatingOriginThreshold = 50000000;
+	public double floatingOriginThreshold = 500000;
 	private Vec3 floatingOrigin = null;
 
 	private boolean drawImmediate = true;
@@ -120,14 +120,16 @@ public final class StarRenderManager implements Disposable {
 		// this.sectorTicket.info.baseRadius = GalaxySector.BASE_SIZE_Tm;
 		// this.sectorTicket.info.scales = SectorTicketInfo.Multi.SCALES_EXP;
 
-		if (this.floatingOrigin == null
-				|| camera.posTm.distanceTo(this.floatingOrigin) > this.floatingOriginThreshold) {
-			// TODO: we don't have to rebuild if there arent actually any stars nearby the
-			// camera, since you wouldn't be able to tell there's precision issues past a
-			// certain threshold.
-			this.floatingOrigin = camera.posTm.xyz();
-			this.isDirty = true;
-		}
+		// if (this.floatingOrigin == null
+		// || camera.posTm.distanceTo(this.floatingOrigin) >
+		// this.floatingOriginThreshold) {
+		// // TODO: we don't have to rebuild if there arent actually any stars nearby
+		// the
+		// // camera, since you wouldn't be able to tell there's precision issues past a
+		// // certain threshold.
+		// this.floatingOrigin = camera.posTm.xyz();
+		// this.isDirty = true;
+		// }
 
 		if (this.starSnapshotPosition == null
 				|| centerPos.distanceTo(this.starSnapshotPosition) > this.starSnapshotThreshold) {
@@ -265,18 +267,23 @@ public final class StarRenderManager implements Disposable {
 			// }
 
 			// Vec3.sub(elem.systemPosTm, elem.systemPosTm, this.originOffset);
-			Vec3.sub(elem.systemPosTm, elem.systemPosTm, this.floatingOrigin);
+			Vec3.sub(elem.systemPosTm, elem.systemPosTm, this.starSnapshotPosition);
 			// Vec3.add(elem.systemPosTm, elem.systemPosTm, this.originOffset);
 			Vec3.mul(elem.systemPosTm, elem.systemPosTm, 1e12 / ctx.camera.metersPerUnit);
 
 			StellarCelestialNode.BLACK_BODY_COLOR_TABLE.lookupColor(colorHolder, elem.temperatureK);
-			final var brightnessMultiplier = StellarCelestialNode.BLACK_BODY_COLOR_TABLE
-					.lookupBrightnessMultiplier(elem.temperatureK);
 
 			if (this.mode == Mode.REALISTIC) {
-				ctx.builder.vertex(elem.systemPosTm)
-						.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z, 1)
-						.uv0((float) elem.luminosityLsol, brightnessMultiplier)
+				double brightnessMultiplier = StellarCelestialNode.BLACK_BODY_COLOR_TABLE
+						.lookupBrightnessMultiplier(elem.temperatureK);
+				brightnessMultiplier = Math.pow(brightnessMultiplier, 1.0 / 4.0);
+				if (brightnessMultiplier > 0 && brightnessMultiplier < 1.0 / 256.0) {
+					brightnessMultiplier = Math.nextUp(1.0 / 256.0);
+				}
+
+				ctx.builder.vertex(elem.systemPosTm.x, elem.systemPosTm.y, elem.systemPosTm.z, elem.luminosityLsol)
+						.color((float) colorHolder.x, (float) colorHolder.y, (float) colorHolder.z,
+								(float) brightnessMultiplier)
 						.endVertex();
 			} else if (this.mode == Mode.MAP) {
 				ctx.builder.vertex(elem.systemPosTm)
@@ -293,7 +300,7 @@ public final class StarRenderManager implements Disposable {
 		final var universe = MinecraftClientAccessor.getUniverse();
 		final var partialTick = Minecraft.getInstance().getFrameTime();
 
-		final var origin = this.floatingOrigin;
+		final var origin = this.starSnapshotPosition;
 		final var offset = origin.mul(1e12 / camera.metersPerUnit).sub(camera.pos);
 		camera.applyView(offset);
 

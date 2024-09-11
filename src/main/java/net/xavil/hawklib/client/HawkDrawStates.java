@@ -1,6 +1,7 @@
 package net.xavil.hawklib.client;
 
 import net.xavil.hawklib.client.gl.DrawState;
+import net.xavil.hawklib.client.gl.GlState;
 
 public class HawkDrawStates {
 
@@ -24,23 +25,30 @@ public class HawkDrawStates {
 			.enableAdditiveBlending()
 			.build();
 
+	// NOTE: the draw states with depth testing enabled are for reverse Z buffers.
 	public static final DrawState DRAW_STATE_ADDITIVE_BLENDING = new DrawState.Builder()
 			.enableDepthTest()
+			// .depthFunc(GlState.DepthFunc.GREATER)
+			.depthFunc(GlState.DepthFunc.LEQUAL)
 			.enableDepthWrite(false)
 			.enableAdditiveBlending()
 			.build();
 
 	public static final DrawState DRAW_STATE_OPAQUE = new DrawState.Builder()
 			.enableDepthTest()
+			// .depthFunc(GlState.DepthFunc.GREATER)
+			.depthFunc(GlState.DepthFunc.LEQUAL)
 			.enableDepthWrite(true)
 			.enableBlending(false)
 			.enableCulling(true)
 			.build();
 
 	public static final DrawState DRAW_STATE_LINES = new DrawState.Builder()
+			.enableDepthTest()
+			// .depthFunc(GlState.DepthFunc.GREATER)
+			.depthFunc(GlState.DepthFunc.LEQUAL)
 			.enableDepthWrite(true)
 			.enableAdditiveBlending()
-			.enableDepthTest()
 			.build();
 
 }

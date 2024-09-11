@@ -3,11 +3,12 @@ package net.xavil.ultraviolet.common.universe.universe;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.level.Level;
 import net.xavil.hawklib.Disposable;
+import net.xavil.hawklib.math.matrices.Vec3;
 import net.xavil.ultraviolet.common.universe.galaxy.StartingSystemGalaxyGenerationLayer;
 import net.xavil.ultraviolet.common.universe.galaxy.SystemTicket;
 import net.xavil.ultraviolet.common.universe.station.SpaceStation;
-import net.xavil.ultraviolet.common.universe.station.StationLocation;
 import net.xavil.ultraviolet.common.universe.system.CelestialNode;
+import net.xavil.ultraviolet.mixin.accessor.EntityAccessor;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSpaceStationInfoPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundStationJumpBeginPacket;
 import net.xavil.ultraviolet.networking.s2c.ClientboundSyncCelestialTimePacket;
@@ -74,16 +75,24 @@ public final class ClientUniverse extends Universe {
 
 	public void applyPacket(ClientboundSyncCelestialTimePacket packet) {
 		this.celestialTime = packet.celestialTime;
-		if (packet.isDiscontinuous)
+		if (packet.isDiscontinuous) {
 			this.lastCelestialTime = this.celestialTime;
+			final var worldType = EntityAccessor.getWorldType(this.client.player);
+			final var system = getSystem(worldType.getSystemId(this)).unwrapOrNull();
+			if (system != null) {
+				system.rootNode.updatePositions(this.celestialTime);
+				system.rootNode.visit(node -> Vec3.set(node.lastPosition, node.position));
+			}
+		}
 		this.celestialTimeRate = packet.celestialTimeRate;
 	}
 
 	public void applyPacket(ClientboundStationJumpBeginPacket packet) {
+		// TODO: idk should figure this out at some point prolly
 		final var entry = this.spaceStations.entry(packet.stationId);
 		if (entry.exists()) {
-			final var station = entry.get().unwrap();
-			station.prepareForJump(packet.target, packet.isJumpInstant);
+			// final var station = entry.get().unwrap();
+			// station.prepareForJump(packet.target, packet.isJumpInstant);
 		}
 	}
 
@@ -93,11 +102,10 @@ public final class ClientUniverse extends Universe {
 			final var station = entry.get().unwrap();
 			station.name = packet.name;
 			station.orientation = packet.orientation;
-			station.setLocation(StationLocation.fromNbt(this, packet.locationNbt));
+			station.position = packet.position;
 		} else {
 			final var name = packet.name;
-			final var location = StationLocation.fromNbt(this, packet.locationNbt);
-			final var station = new SpaceStation(this, null, name, location);
+			final var station = new SpaceStation(this, null, name, packet.position);
 			station.orientation = packet.orientation;
 			entry.insert(station);
 		}

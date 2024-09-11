@@ -32,7 +32,7 @@ public record OrbitalPlane(Quat rotationFromReference) {
 		var y = Quat.axisAngle(Vec3.XP, inclinationRad);
 		var z = Quat.axisAngle(Vec3.YP, argumentOfPeriapsisRad);
 
-		var q = x.hamiltonProduct(y).hamiltonProduct(z);
+		var q = x.mul(y).mul(z);
 		return new OrbitalPlane(q);
 	}
 
@@ -41,7 +41,7 @@ public record OrbitalPlane(Quat rotationFromReference) {
 	}
 
 	public OrbitalPlane withReferencePlane(OrbitalPlane reference) {
-		return new OrbitalPlane(reference.rotationFromReference.hamiltonProduct(this.rotationFromReference));
+		return new OrbitalPlane(reference.rotationFromReference.mul(this.rotationFromReference));
 	}
 
 	public static final Codec<OrbitalPlane> CODEC = RecordCodecBuilder.create(inst -> inst.group(

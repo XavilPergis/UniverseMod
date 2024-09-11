@@ -154,7 +154,7 @@ public final class AverageLuminanceComputer implements Disposable {
 			// histogram.size());
 			// final var binLuminance = histogram.mapping.unmap((i + 0.2) /
 			// histogram.size());
-			final var binLuminance = histogram.mapping.unmap(i / histogram.size());
+			final var binLuminance = histogram.mapping.unmap(i / (double) histogram.size());
 			totalLuminance += histogram.get(i) * binLuminance;
 		}
 
@@ -167,6 +167,34 @@ public final class AverageLuminanceComputer implements Disposable {
 				Mth.lerp(weightedLogAverage / 254.0, minLogLuminance, maxLogLuminance));
 
 		return weightedAvgLum;
+
+
+		// // final var thresholdRatio = Math.pow(pixelsAboveThreshold / (double) histogram.total(), 0.5);
+		// final var thresholdRatio = Math.pow(pixelsAboveThreshold / (double) histogram.total(), 1.0);
+		// // return Mth.lerp(thresholdRatio, 1.0, total / Math.max(1, pixelsAboveThreshold));
+		// // return Mth.lerp(thresholdRatio, 0.0001, total / Math.max(1, pixelsAboveThreshold));
+		// // return total / Math.max(1, pixelsAboveThreshold);
+		// return maxValue;
+
+		// // what percentage of pixels are above the threshold?
+		// // final var thresholdRatio = pixelsAboveThreshold / histogram.total();
+		// // final var maxLuminance = histogram.mapping.domain.max;
+		// // return Mth.lerp(thresholdRatio, 1.0, );
+
+		// // final var blackPixelCount = histogram.get(0);
+
+		// // // TODO: is this right? what if the window changed sizes between when the
+		// // // histogram was taken and now?
+		// // final var windowSize = getWindowSize();
+		// // final var totalPixelCount = windowSize.x * windowSize.y;
+		// // final var weightedLogAverage = weightedCount / Math.max(totalPixelCount -
+		// // blackPixelCount, 1.0) - 1.0;
+		// // // final var weightedLogAverage = weightedCount / totalPixelCount;
+		// // final var weightedAvgLum = Math.pow(2.0, Mth.lerp(weightedLogAverage / 254.0,
+		// // Math.log(this.minLuminance) / Math.log(2.0),
+		// // Math.log(this.maxLuminance) / Math.log(2.0)));
+
+		// // return weightedAvgLum;
 	}
 
 	public void compute(GlTexture2d sceneTexture) {
@@ -177,12 +205,12 @@ public final class AverageLuminanceComputer implements Disposable {
 		if (this.fences[this.currentFence].clientWaitSync().isSignaled) {
 			// read data from histogram buffer
 			final var averageBrightness = computeAverageLuminance();
-			final double blendT;
-			if (averageBrightness > this.currentAverageLuminance) {
-				blendT = 1 - Math.exp(-dt * 0.005);
-			} else {
-				blendT = 1 - Math.exp(-dt * 0.1);
-			}
+			final double blendT = 1.0;
+			// if (averageBrightness > this.currentAverageLuminance) {
+			// 	blendT = 1 - Math.exp(-dt * 0.005);
+			// } else {
+			// 	blendT = 1 - Math.exp(-dt * 0.1);
+			// }
 			// final var blendT = 1 - Math.exp(-dt);
 			this.currentAverageLuminance = Mth.lerp(blendT, this.currentAverageLuminance, averageBrightness);
 			// this.currentAverageBrightness = averageBrightness;

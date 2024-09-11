@@ -27,7 +27,7 @@ public final class RenderTexture implements Disposable {
 
 	public static final StaticDescriptor HDR_COLOR_DEPTH = StaticDescriptor.builder()
 			.withColorFormat(GlTexture.Format.RGBA16_FLOAT)
-			.withDepthFormat(GlTexture.Format.DEPTH24_UINT_NORM, true)
+			.withDepthFormat(GlTexture.Format.DEPTH32_FLOAT, true)
 			.build();
 	public static final StaticDescriptor HDR_COLOR = StaticDescriptor.builder()
 			.withColorFormat(GlTexture.Format.RGBA16_FLOAT)

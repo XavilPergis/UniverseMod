@@ -290,11 +290,12 @@ float noiseFbm(in FbmInfo info, in float pos) {
 
 // murmur2 finalizer
 int hash(in int value) {
-    value = value ^ (value >> 16);
-    value = value * 0x85ebca6b;
-    value = value ^ (value >> 13);
-    value = value * 0xc2b2ae35;
-    value = value ^ (value >> 16);
+  value = value + 1;
+  value = value ^ (value >> 16);
+  value = value * 0x85ebca6b;
+  value = value ^ (value >> 13);
+  value = value * 0xc2b2ae35;
+  value = value ^ (value >> 16);
 	return value;
 }
 
@@ -307,6 +308,15 @@ float nextFloat(inout int rngValue) {
 }
 float nextFloat(inout int rngValue, in float lo, in float hi) {
 	return mix(lo, hi, nextFloat(rngValue));
+}
+vec2 nextFloat2(inout int rngValue) {
+	return vec2(nextFloat(rngValue), nextFloat(rngValue));
+}
+vec3 nextFloat3(inout int rngValue) {
+	return vec3(nextFloat(rngValue), nextFloat(rngValue), nextFloat(rngValue));
+}
+vec4 nextFloat4(inout int rngValue) {
+	return vec4(nextFloat(rngValue), nextFloat(rngValue), nextFloat(rngValue), nextFloat(rngValue));
 }
 
 float rand(in vec4 pos) {

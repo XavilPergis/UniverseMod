@@ -54,9 +54,9 @@ vec3 shadeCelestialObject(inout FragmentInfo frag, in Star node) {
 	n = lerp(n, 0.3, 1.0);
 
 	// sunspots
-	float sunspotMask = noiseFbm(FbmInfo(3, 1.0, 4.0, 0.5, 2.0), noisePos + vec4(0.0, 0.0, 0.0, 1.5));
-	float sunspotField = noiseFbm(FbmInfo(2, 1.0, 8.0, 0.5, 2.0), noisePos + vec4(0.0, 0.0, 0.0, 2.5));
-	sunspotMask = smoothstep(0.75, 0.77, sunspotMask);
+	float sunspotMask = noiseFbm(FbmInfo(3, 1.0, 8.0, 0.5, 2.0), noisePos + vec4(0.0, 0.0, 0.0, 1.5));
+	float sunspotField = noiseFbm(FbmInfo(2, 1.0, 16.0, 0.5, 2.0), noisePos + vec4(0.0, 0.0, 0.0, 2.5));
+	sunspotMask = smoothstep(0.7, 0.8, sunspotMask);
 	sunspotField = smoothstep(0.4, 0.42, sunspotField);
 	n *= lerp(sunspotMask, 1.0, sunspotField);
 	// n *= sunspotMask;
@@ -74,6 +74,7 @@ vec3 shadeCelestialObject(inout FragmentInfo frag, in Star node) {
 	res += curveStarBrightness(node.brightness) * node.color * lerp(t, 2.0, 0.0);
 	// res += node.color * lerp(t, 20.0, 0.0);
 	res *= n;
+	res *= 100.0;
 
 	// make the outer rim of the star look all shiny
 	// res += 50.0 * node.color * fresnelFactor(normalize(frag.posV), frag.normalV);

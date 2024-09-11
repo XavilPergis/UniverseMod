@@ -49,4 +49,6 @@ public interface GlStateSink {
 
 	void setViewport(int x, int y, int w, int h);
 
+	void clipControl(GlState.ClipControlOrigin origin, GlState.ClipControlDepth depth);
+
 }

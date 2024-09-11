@@ -1,5 +1,6 @@
 package net.xavil.hawklib.client.gl;
 
+import org.lwjgl.opengl.EXTDirectStateAccess;
 import org.lwjgl.opengl.GL45C;
 
 import com.mojang.blaze3d.platform.GlStateManager;
@@ -7,6 +8,8 @@ import com.mojang.blaze3d.systems.RenderSystem;
 
 import net.xavil.hawklib.client.gl.GlState.BlendEquation;
 import net.xavil.hawklib.client.gl.GlState.BlendFactor;
+import net.xavil.hawklib.client.gl.GlState.ClipControlDepth;
+import net.xavil.hawklib.client.gl.GlState.ClipControlOrigin;
 import net.xavil.hawklib.client.gl.GlState.CullFace;
 import net.xavil.hawklib.client.gl.GlState.DepthFunc;
 import net.xavil.hawklib.client.gl.GlState.FrontFace;
@@ -150,5 +153,10 @@ public final class UnmanagedStateSink implements GlStateSink {
 		} else {
 			GL45C.glDisable(GL45C.GL_PROGRAM_POINT_SIZE);
 		}
+	}
+
+	@Override
+	public void clipControl(ClipControlOrigin origin, ClipControlDepth depth) {
+		GL45C.glClipControl(origin.id, depth.id);
 	}
 }

@@ -5,9 +5,11 @@ import com.mojang.serialization.Codec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 
 import net.minecraft.util.Mth;
+import net.xavil.hawklib.Rng;
 import net.xavil.hawklib.hash.Hashable;
 import net.xavil.hawklib.hash.Hasher;
 import net.xavil.hawklib.math.matrices.Vec3;
+import net.xavil.hawklib.math.matrices.Vec4;
 import net.xavil.hawklib.math.matrices.interfaces.Mat4Access;
 import net.xavil.hawklib.math.matrices.interfaces.Vec3Access;
 
@@ -39,6 +41,25 @@ public final class Quat implements Hashable {
 
 	public Quaternion asMinecraft() {
 		return new Quaternion((float) i, (float) j, (float) k, (float) w);
+	}
+
+	public static Quat randomUnit(Rng rng) {
+		double x, y, z;
+		do {
+			x = rng.uniformDouble();
+			y = rng.uniformDouble();
+			z = rng.uniformDouble();
+		} while (x * x + y * y + z * z > 1 || Math.abs(x) < 1e-6 || Math.abs(y) < 1e-6 || Math.abs(z) < 1e-6);
+		final var len = Math.sqrt(x * x + y * y + z * z);
+		x /= len;
+		y /= len;
+		z /= len;
+		final var angle = 2.0 * Math.PI * rng.uniformDouble();
+		final var qx = x * Math.sin(angle / 2);
+		final var qy = y * Math.sin(angle / 2);
+		final var qz = z * Math.sin(angle / 2);
+		final var qw = Math.cos(angle / 2);
+		return new Quat(qw, qx, qy, qz);
 	}
 
 	public static Quat fromIjk(Vec3Access ijk) {
@@ -99,7 +120,7 @@ public final class Quat implements Hashable {
 	}
 
 	// returns a quaternion that applies `rhs` first, then `this`
-	public Quat hamiltonProduct(Quat rhs) {
+	public Quat mul(Quat rhs) {
 		final double l0 = this.w, l1 = this.i, l2 = this.j, l3 = this.k;
 		final double r0 = rhs.w, r1 = rhs.i, r2 = rhs.j, r3 = rhs.k;
 		final double w = l0 * r0 - l1 * r1 - l2 * r2 - l3 * r3;
@@ -107,6 +128,33 @@ public final class Quat implements Hashable {
 		final double j = l0 * r2 - l1 * r3 + l2 * r0 + l3 * r1;
 		final double k = l0 * r3 + l1 * r2 - l2 * r1 + l3 * r0;
 		return new Quat(w, i, j, k);
+	}
+
+	public Quat mul(double n) {
+		return new Quat(n * w, n * i, n * j, n * k);
+	}
+
+	public Quat add(Quat rhs) {
+		return new Quat(this.w + rhs.w, this.i + rhs.i, this.j + rhs.j, this.k + rhs.k);
+	}
+
+	public static Quat slerp(double t, Quat a, Quat b) {
+		final var dot = a.w * b.w + a.i * b.i + a.j * b.j + a.k * b.k;
+		final double ta, tb;
+		if (1.0 - dot > 1e-6) {
+			final var theta = Math.acos(dot);
+			final var sinTheta = Math.sin(theta);
+			ta = Math.sin((1 - t) * theta) / sinTheta;
+			tb = Math.sin(t * theta) / sinTheta;
+		} else {
+			ta = 1.0 - t;
+			tb = t;
+		}
+		return new Quat(
+				ta * a.w + tb * b.w,
+				ta * a.i + tb * b.i,
+				ta * a.j + tb * b.j,
+				ta * a.k + tb * b.k);
 	}
 
 	public Quat conjugate() {
@@ -119,29 +167,32 @@ public final class Quat implements Hashable {
 	}
 
 	public Quat normalize() {
-		final var f = Mth.fastInvSqrt(w * w + i * i + j * j + k * k);
-		return new Quat(f * w, f * i, f * j, f * k);
+		return this.mul(Mth.fastInvSqrt(w * w + i * i + j * j + k * k));
 	}
 
 	public Vec3 ijk() {
 		return new Vec3(i, j, k);
 	}
 
+	public Vec4 wijk() {
+		return new Vec4(w, i, j, k);
+	}
+
 	public Vec3 transform(Vec3Access vec) {
 		final var f = Mth.fastInvSqrt(w * w + i * i + j * j + k * k);
 		final double normw = f * w, normi = f * i, normj = f * j, normk = f * k;
 
-		final double l00 = normw, l01 =   normi, l02 =   normj, l03 =   normk;
-		final double r00 =     0, r01 = vec.x(), r02 = vec.y(), r03 = vec.z();
-		final double r10 = normw, r11 =  -normi, r12 =  -normj, r13 =  -normk;
+		final double l00 = normw, l01 = normi, l02 = normj, l03 = normk;
+		final double r00 = 0, r01 = vec.x(), r02 = vec.y(), r03 = vec.z();
+		final double r10 = normw, r11 = -normi, r12 = -normj, r13 = -normk;
 
 		final double w0 = l00 * r00 - l01 * r01 - l02 * r02 - l03 * r03;
 		final double i0 = l00 * r01 + l01 * r00 + l02 * r03 - l03 * r02;
 		final double j0 = l00 * r02 - l01 * r03 + l02 * r00 + l03 * r01;
 		final double k0 = l00 * r03 + l01 * r02 - l02 * r01 + l03 * r00;
-		final double i1 =  w0 * r11 +  i0 * r10 +  j0 * r13 -  k0 * r12;
-		final double j1 =  w0 * r12 -  i0 * r13 +  j0 * r10 +  k0 * r11;
-		final double k1 =  w0 * r13 +  i0 * r12 -  j0 * r11 +  k0 * r10;
+		final double i1 = w0 * r11 + i0 * r10 + j0 * r13 - k0 * r12;
+		final double j1 = w0 * r12 - i0 * r13 + j0 * r10 + k0 * r11;
+		final double k1 = w0 * r13 + i0 * r12 - j0 * r11 + k0 * r10;
 
 		return new Vec3(i1, j1, k1);
 	}
@@ -150,17 +201,17 @@ public final class Quat implements Hashable {
 		final var f = Mth.fastInvSqrt(q.w * q.w + q.i * q.i + q.j * q.j + q.k * q.k);
 		final double normw = f * q.w, normi = f * q.i, normj = f * q.j, normk = f * q.k;
 
-		final double l00 = normw, l01 =  normi, l02 =  normj, l03 =  normk;
-		final double r00 =     0, r01 =  in.x,  r02 =  in.y,  r03 =  in.z;
+		final double l00 = normw, l01 = normi, l02 = normj, l03 = normk;
+		final double r00 = 0, r01 = in.x, r02 = in.y, r03 = in.z;
 		final double r10 = normw, r11 = -normi, r12 = -normj, r13 = -normk;
 
 		final double w0 = l00 * r00 - l01 * r01 - l02 * r02 - l03 * r03;
 		final double i0 = l00 * r01 + l01 * r00 + l02 * r03 - l03 * r02;
 		final double j0 = l00 * r02 - l01 * r03 + l02 * r00 + l03 * r01;
 		final double k0 = l00 * r03 + l01 * r02 - l02 * r01 + l03 * r00;
-		final double i1 =  w0 * r11 +  i0 * r10 +  j0 * r13 -  k0 * r12;
-		final double j1 =  w0 * r12 -  i0 * r13 +  j0 * r10 +  k0 * r11;
-		final double k1 =  w0 * r13 +  i0 * r12 -  j0 * r11 +  k0 * r10;
+		final double i1 = w0 * r11 + i0 * r10 + j0 * r13 - k0 * r12;
+		final double j1 = w0 * r12 - i0 * r13 + j0 * r10 + k0 * r11;
+		final double k1 = w0 * r13 + i0 * r12 - j0 * r11 + k0 * r10;
 
 		return Vec3.set(out, i1, j1, k1);
 	}

@@ -73,28 +73,28 @@ public class ClientMod implements ClientModInitializer {
 		});
 	}
 
-	public static void modifySkyColor(Vec3.Mutable skyColor, float partialTick) {
-		if (CLIENT.level == null)
-			return;
-		final var universe = MinecraftClientAccessor.getUniverse();
-		final var loc = LevelAccessor.getWorldType(CLIENT.level);
-		if (loc instanceof WorldType.SystemNode world) {
-			final var system = universe.getSystem(world.id.system()).unwrapOrNull();
-			if (system != null)
-				modifySkyColorInSystem(skyColor, system, partialTick);
-		} else if (loc instanceof WorldType.Station stationLoc) {
-			final var station = universe.getStation(stationLoc.id).unwrapOrNull();
-			if (station == null)
-				return;
-			if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
-				final var system = universe.getSystem(sloc.id.system()).unwrapOrNull();
-				if (system != null)
-					modifySkyColorInSystem(skyColor, system, partialTick);
-			} else if (station.getLocation() instanceof StationLocation.JumpingSystem sloc) {
-				modifySkyColorJumpingSystem(skyColor);
-			}
-		}
-	}
+	// public static void modifySkyColor(Vec3.Mutable skyColor, float partialTick) {
+	// 	if (CLIENT.level == null)
+	// 		return;
+	// 	final var universe = MinecraftClientAccessor.getUniverse();
+	// 	final var loc = LevelAccessor.getWorldType(CLIENT.level);
+	// 	if (loc instanceof WorldType.SystemNode world) {
+	// 		final var system = universe.getSystem(world.id.system()).unwrapOrNull();
+	// 		if (system != null)
+	// 			modifySkyColorInSystem(skyColor, system, partialTick);
+	// 	} else if (loc instanceof WorldType.Station stationLoc) {
+	// 		final var station = universe.getStation(stationLoc.id).unwrapOrNull();
+	// 		if (station == null)
+	// 			return;
+	// 		if (station.getLocation() instanceof StationLocation.OrbitingCelestialBody sloc) {
+	// 			final var system = universe.getSystem(sloc.id.system()).unwrapOrNull();
+	// 			if (system != null)
+	// 				modifySkyColorInSystem(skyColor, system, partialTick);
+	// 		} else if (station.getLocation() instanceof StationLocation.JumpingSystem sloc) {
+	// 			modifySkyColorJumpingSystem(skyColor);
+	// 		}
+	// 	}
+	// }
 
 	private static void modifySkyColorInSystem(Vec3.Mutable skyColor, StarSystem system, float partialTick) {
 		skyColor.x = 0;
@@ -114,7 +114,7 @@ public class ClientMod implements ClientModInitializer {
 		final var universe = MinecraftClientAccessor.getUniverse();
 
 		try (final var disposer = Disposable.scope()) {
-			final var systemId = packet.toOpen.system();
+			final var systemId = packet.toOpen;
 			final var galaxyTicket = universe.sectorManager.createGalaxyTicket(disposer, systemId.universeSector());
 			final var galaxy = universe.sectorManager.forceLoad(galaxyTicket).unwrap();
 			final var systemTicket = galaxy.sectorManager.createSystemTicket(disposer, systemId.galaxySector());
